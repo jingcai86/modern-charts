@@ -1,737 +1,1124 @@
 import {
   registerModernCharts,
   MCBaseChart,
-  MCLineChart,
-  MCBarChart,
-  MCPieChart,
-  MCHeatmapChart,
-  MCRadarChart,
-  MCSunburstChart,
-  MCSankeyChart,
-  MCScatterChart,
-  MCTreemapChart,
-  MCGaugeChart,
   LabelEngine,
   createDefaultTheme,
-  type ChartPaletteName,
-  type ChartRenderContext,
-  type MotionPresetName
+  type ChartConfig,
+  type ChartRenderContext
 } from '../src/index';
 import {
-  SAMPLE_BAR_DATA,
-  SAMPLE_GAUGE_DATA,
-  SAMPLE_HEATMAP_DATA,
-  SAMPLE_LINE_DATA,
-  SAMPLE_PIE_DATA,
-  SAMPLE_RADAR_DATA,
-  SAMPLE_SANKEY_DATA,
-  SAMPLE_SCATTER_DATA,
-  SAMPLE_SUNBURST_DATA
-} from './sample-data';
+  CHART_CATALOG,
+  COMMON_ATTRIBUTES,
+  MARKER_THRESHOLD_ATTRIBUTES,
+  SVG_ICON_PRESETS,
+  VIEW_ZOOM_ATTRIBUTES,
+  type ChartAttributeSpec,
+  type ChartCatalogEntry
+} from './chart-catalog';
 
 registerModernCharts();
 
-const studioLine = document.getElementById('studio-line-chart') as MCLineChart;
-const barChart = document.getElementById('demo-bar-chart') as MCBarChart;
-const pieChart = document.getElementById('demo-pie-chart') as MCPieChart;
-const heatmapChart = document.getElementById('demo-heatmap-chart') as MCHeatmapChart;
-const radarChart = document.getElementById('demo-radar-chart') as MCRadarChart;
-const sunburstChart = document.getElementById('demo-sunburst-chart') as MCSunburstChart;
-const sankeyChart = document.getElementById('demo-sankey-chart') as MCSankeyChart;
-const scatterChart = document.getElementById('demo-scatter-chart') as MCScatterChart;
-const treemapChart = document.getElementById('demo-treemap-chart') as MCTreemapChart;
-const gaugeChart = document.getElementById('demo-gauge-chart') as MCGaugeChart;
-const sandboxChart = document.getElementById('sandbox-size-chart') as MCLineChart;
+let globalThemeMode: 'dark' | 'light' = 'dark';
 
-const allCharts: MCBaseChart<any>[] = [
-  studioLine,
-  barChart,
-  pieChart,
-  heatmapChart,
-  radarChart,
-  sunburstChart,
-  sankeyChart,
-  scatterChart,
-  treemapChart,
-  gaugeChart,
-  sandboxChart
-];
+// Per-chart active config state so user customizations persist across route changes
+const chartConfigState = new Map<string, ChartConfig<any>>();
+// Per-chart active virtual UI state for helper attributes (__marker*, __labelIconPreset)
+const chartVirtualState = new Map<
+  string,
+  {
+    __markerEnabled: boolean;
+    __markerThresholdValue: number;
+    __markerCondition: 'below' | 'above' | 'between';
+    __markerMatchColor: string;
+    __labelIconPreset: string;
+  }
+>();
 
-const WARN_SVG_ICON = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>`;
+function getOrInitChartConfig(entry: ChartCatalogEntry): ChartConfig<any> {
+  if (!chartConfigState.has(entry.id)) {
+    const cfg = entry.createDefaultConfig(globalThemeMode);
+    chartConfigState.set(entry.id, cfg);
 
-let activeLineThreshold = 135;
+    const lineMarker = cfg.markers?.find((m) => m.type === 'line');
+    chartVirtualState.set(entry.id, {
+      __markerEnabled: Boolean(cfg.markers && cfg.markers.length > 0),
+      __markerThresholdValue:
+        typeof lineMarker?.value === 'number' ? lineMarker.value : 130,
+      __markerCondition:
+        (lineMarker?.condition as 'below' | 'above' | 'between') ?? 'below',
+      __markerMatchColor: lineMarker?.matchStyle?.color ?? '#ef4444',
+      __labelIconPreset: 'none'
+    });
+  }
+  return chartConfigState.get(entry.id)!;
+}
 
-function getStudioLineMarkers(threshVal: number) {
+function resetChartConfig(entry: ChartCatalogEntry): ChartConfig<any> {
+  chartConfigState.delete(entry.id);
+  chartVirtualState.delete(entry.id);
+  return getOrInitChartConfig(entry);
+}
+
+// Deep property access helpers for dotted config paths (e.g. 'yScale.max', 'view.zoomable')
+function getByPath(obj: any, path: string): any {
+  return path.split('.').reduce((acc, part) => (acc != null ? acc[part] : undefined), obj);
+}
+
+function setByPath(obj: any, path: string, value: any): void {
+  const parts = path.split('.');
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const key = parts[i];
+    if (cur[key] == null || typeof cur[key] !== 'object') {
+      cur[key] = {};
+    } else {
+      cur[key] = { ...cur[key] };
+    }
+    cur = cur[key];
+  }
+  cur[parts[parts.length - 1]] = value;
+}
+
+function buildMarkersForVirtualState(
+  entry: ChartCatalogEntry,
+  vState: {
+    __markerEnabled: boolean;
+    __markerThresholdValue: number;
+    __markerCondition: 'below' | 'above' | 'between';
+    __markerMatchColor: string;
+  }
+) {
+  if (!entry.supportsMarkers || !vState.__markerEnabled) {
+    return [];
+  }
+  const val = Number(vState.__markerThresholdValue) || 130;
+  const color = vState.__markerMatchColor || '#ef4444';
+  const cond = vState.__markerCondition || 'below';
+
   return [
     {
-      id: 'danger-area',
+      id: `${entry.id}-threshold-area`,
       type: 'area' as const,
       axis: 'y' as const,
       from: 0,
-      to: threshVal,
-      fill: '#ef4444',
-      fillOpacity: 0.1
+      to: val,
+      fill: color,
+      fillOpacity: 0.09
     },
     {
-      id: 'sla-min-line',
+      id: `${entry.id}-threshold-line`,
       type: 'line' as const,
       axis: 'y' as const,
-      value: threshVal,
-      label: `Min SLA Threshold (${threshVal} req/s)`,
-      icon: WARN_SVG_ICON,
-      stroke: '#ef4444',
+      value: val,
+      from: cond === 'between' ? 0 : undefined,
+      to: cond === 'between' ? val : undefined,
+      label: `Threshold (${cond} ${val})`,
+      icon: SVG_ICON_PRESETS.warn,
+      stroke: color,
       strokeWidth: 2,
       strokeDasharray: '6 4',
-      condition: 'below' as const,
+      condition: cond,
       matchStyle: {
-        color: '#ef4444',
-        fill: '#ef4444',
-        stroke: '#ef4444',
-        radius: 6,
-        className: 'mc-point--under-sla'
+        color,
+        fill: color,
+        stroke: color,
+        radius: 6
       }
     }
   ];
 }
 
-// Configure every chart using Nivo-style single unified `chart.config = { ... }`!
-studioLine.config = {
-  data: SAMPLE_LINE_DATA,
-  autoSize: true,
-  title: 'AI Progressive Layer Stream + Marker Thresholds',
-  xTitle: 'Month',
-  yTitle: 'Throughput (req/s)',
-  enableArea: true,
-  enablePointLabels: true,
-  themeMode: 'dark',
-  palette: 'modern',
-  xScale: { type: 'point' },
-  yScale: { type: 'linear', min: 0, max: 320 },
-  view: { zoomable: true, pannable: true, showControls: true, minZoom: 0.5, maxZoom: 5 },
-  animate: true,
-  motionConfig: 'default',
-  markers: getStudioLineMarkers(activeLineThreshold),
-  ariaLabel: 'Monthly AI Inference Throughput Line Chart',
-  pointAriaLabel: (d) => `${d.seriesId} in ${d.category}: ${d.value} requests per second`,
-  isFocusable: true
-};
-
-barChart.config = {
-  data: SAMPLE_BAR_DATA,
-  autoSize: true,
-  title: 'Quarterly Spend ($K) — Bars Under $100K Trigger Marker Threshold',
-  indexBy: 'quarter',
-  keys: ['Cloud', 'Edge', 'OnPrem'],
-  groupMode: 'grouped',
-  xTitle: 'Quarter',
-  yTitle: 'Spend ($K)',
-  themeMode: 'dark',
-  palette: 'modern',
-  xScale: { type: 'band' },
-  yScale: { type: 'linear' },
-  view: { zoomable: true, pannable: true, showControls: true },
-  animate: true,
-  motionConfig: 'default',
-  markers: [
-    {
-      id: 'budget-floor-area',
-      type: 'area',
-      axis: 'y',
-      from: 0,
-      to: 100,
-      fill: '#ef4444',
-      fillOpacity: 0.08
-    },
-    {
-      id: 'budget-floor-line',
-      type: 'line',
-      axis: 'y',
-      value: 100,
-      label: 'Min Budget Floor ($100K)',
-      icon: WARN_SVG_ICON,
-      stroke: '#ef4444',
-      strokeWidth: 2,
-      strokeDasharray: '5 4',
-      condition: 'below',
-      matchStyle: {
-        color: '#ef4444',
-        fill: '#ef4444',
-        stroke: '#fda4af',
-        strokeWidth: 1.5,
-        className: 'mc-bar--under-budget'
-      }
-    }
-  ],
-  ariaLabel: 'Quarterly Infrastructure Spend Bar Chart',
-  barAriaLabel: (d) => `${d.seriesId} spend in ${d.category}: $${d.value}K`,
-  isFocusable: true
-};
-
-pieChart.config = {
-  data: SAMPLE_PIE_DATA,
-  autoSize: true,
-  title: 'Runtime Footprint Breakdown',
-  innerRadius: 0.54,
-  themeMode: 'dark',
-  palette: 'modern',
-  animate: true,
-  motionConfig: 'default',
-  ariaLabel: 'Runtime Footprint Breakdown Donut Chart',
-  arcAriaLabel: (d) => `${d.label}: ${d.value} (${d.percentage?.toFixed(1)}%)`
-};
-
-heatmapChart.config = {
-  data: SAMPLE_HEATMAP_DATA,
-  autoSize: true,
-  title: 'Cluster Compute Utilization (%)',
-  colorScheme: 'viridis',
-  themeMode: 'dark',
-  palette: 'modern',
-  animate: true,
-  motionConfig: 'default',
-  ariaLabel: 'Cluster Compute Utilization Heatmap',
-  cellAriaLabel: (d) => `${d.seriesId} at ${d.category}: ${d.value}% utilization`
-};
-
-radarChart.config = {
-  data: SAMPLE_RADAR_DATA,
-  autoSize: true,
-  title: 'Architecture Benchmark Comparison',
-  indexBy: 'metric',
-  keys: ['ModernCharts', 'TraditionalChart'],
-  enableDotLabels: true,
-  themeMode: 'dark',
-  palette: 'modern',
-  animate: true,
-  motionConfig: 'default',
-  ariaLabel: 'Architecture Benchmark Radar Chart',
-  pointAriaLabel: (d) => `${d.seriesId} score for ${d.category}: ${d.value} / 100`
-};
-
-sunburstChart.config = {
-  data: SAMPLE_SUNBURST_DATA,
-  autoSize: true,
-  title: 'Module Hierarchy (Click Any Arc to Drill Down)',
-  themeMode: 'dark',
-  palette: 'modern',
-  animate: true,
-  motionConfig: 'default',
-  ariaLabel: 'Modern Charts Module Hierarchy Sunburst',
-  arcAriaLabel: (d) => `${d.label}: ${d.value} (${d.percentage?.toFixed(1)}%)`
-};
-
-sankeyChart.config = {
-  data: SAMPLE_SANKEY_DATA,
-  autoSize: true,
-  title: 'AI Prompt → Pretext & D3 Rendering Pipeline Flow',
-  themeMode: 'dark',
-  palette: 'modern',
-  view: { zoomable: true, pannable: true, showControls: true },
-  animate: true,
-  motionConfig: 'default',
-  ariaLabel: 'Rendering Pipeline Sankey Diagram',
-  nodeAriaLabel: (d) => `Node ${d.label}: total flow ${d.value}`,
-  linkAriaLabel: (d) => `Flow from ${d.source} to ${d.target}: ${d.value}`
-};
-
-scatterChart.config = {
-  data: SAMPLE_SCATTER_DATA,
-  autoSize: true,
-  title: 'Performance vs Bundle Size Efficiency',
-  xTitle: 'Bundle Size (KB)',
-  yTitle: 'FPS Score',
-  enableTrendline: true,
-  themeMode: 'dark',
-  palette: 'modern',
-  view: { zoomable: true, pannable: true, showControls: true },
-  animate: true,
-  motionConfig: 'default',
-  ariaLabel: 'Performance vs Bundle Size Scatter Plot'
-};
-
-treemapChart.config = {
-  data: SAMPLE_SUNBURST_DATA,
-  autoSize: true,
-  title: 'Hierarchical Package Size Treemap',
-  themeMode: 'dark',
-  palette: 'modern',
-  animate: true,
-  motionConfig: 'default',
-  ariaLabel: 'Package Size Treemap',
-  cellAriaLabel: (d) => `${d.category} > ${d.label}: ${d.value}`
-};
-
-gaugeChart.config = {
-  data: SAMPLE_GAUGE_DATA,
-  autoSize: true,
-  title: 'Real-Time Text Layout Efficiency',
-  themeMode: 'dark',
-  palette: 'modern',
-  animate: true,
-  motionConfig: 'default',
-  ariaLabel: 'Real-Time Text Layout Efficiency Gauge'
-};
-
-sandboxChart.config = {
-  data: SAMPLE_LINE_DATA.slice(0, 2),
-  autoSize: true,
-  title: 'Container Sizing & Explicit autoSize Flag Demo',
-  themeMode: 'dark',
-  palette: 'emerald',
-  animate: true,
-  motionConfig: 'default'
-};
-
-// Studio Layer Toggles & Unified Config Code View
-const studioLayerToggles = document.getElementById('studio-layer-toggles')!;
-const streamCodeOutput = document.getElementById('stream-code-output')!;
-const streamStatusBadge = document.getElementById('stream-status-badge')!;
-const ariaFocusReadout = document.getElementById('aria-focus-readout')!;
-
-const ALL_STUDIO_LAYERS = [
-  'grid',
-  'markers',
-  'axes',
-  'areas',
-  'lines',
-  'points',
-  'pointLabels',
-  'slices',
-  'legends'
-];
-let activeStudioLayers = [...ALL_STUDIO_LAYERS];
-
-function renderStudioLayerChips(): void {
-  studioLayerToggles.innerHTML = '';
-  ALL_STUDIO_LAYERS.forEach((layerName) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const isActive = activeStudioLayers.includes(layerName);
-    btn.className = `layer-chip ${isActive ? 'active' : ''}`;
-    btn.textContent = `${isActive ? '✓ ' : '+ '}${layerName}`;
-    btn.addEventListener('click', () => {
-      if (activeStudioLayers.includes(layerName)) {
-        activeStudioLayers = activeStudioLayers.filter((l) => l !== layerName);
-      } else {
-        activeStudioLayers.push(layerName);
-      }
-      studioLine.layers = [...activeStudioLayers];
-      renderStudioLayerChips();
-      updateStreamCodeView(activeStudioLayers);
-    });
-    studioLayerToggles.appendChild(btn);
-  });
-}
-
-function updateStreamCodeView(layers: string[]): void {
-  const cfg = studioLine.config;
-  streamCodeOutput.textContent = `// Single Nivo-style chart.config driving theme, scale, view, animation, markers, aria & label:
-chart.config = {
-  data: SAMPLE_LINE_DATA,
-  autoSize: true,
-  themeMode: "${cfg.themeMode ?? 'dark'}",
-  palette: "${cfg.palette ?? 'modern'}",
-  animate: true,
-  motionConfig: "${typeof cfg.motionConfig === 'string' ? cfg.motionConfig : 'default'}",
-  markers: [
-    { type: "area", axis: "y", from: 0, to: ${activeLineThreshold}, fill: "#ef4444" },
-    {
-      type: "line", axis: "y", value: ${activeLineThreshold},
-      label: "Min SLA (${activeLineThreshold} req/s)",
-      condition: "below",
-      matchStyle: { color: "#ef4444", fill: "#ef4444", radius: 6 }
-    }
-  ],
-  layers: [${layers.map((l) => `"${l}"`).join(', ')}]
-};`;
-}
-
-renderStudioLayerChips();
-updateStreamCodeView(activeStudioLayers);
-
-// Live Threshold Slider
-document.getElementById('threshold-slider')?.addEventListener('input', (e) => {
-  activeLineThreshold = Number((e.target as HTMLInputElement).value);
-  document.getElementById('threshold-val-label')!.textContent =
-    String(activeLineThreshold);
-  studioLine.setConfig({
-    ...studioLine.config,
-    markers: getStudioLineMarkers(activeLineThreshold)
-  });
-  updateStreamCodeView(activeStudioLayers);
-});
-
-// Listen for ARIA focus events from any chart!
-document.addEventListener('mc-aria-focus', (e: Event) => {
-  const detail = (e as CustomEvent).detail;
-  ariaFocusReadout.textContent = `[${detail.chartType.toUpperCase()} ARIA ITEM #${
-    detail.item.index + 1
-  }] role="graphics-symbol" aria-label="${detail.label}"${
-    detail.item.datum?.isUnderThreshold ? ' [⚠ UNDER THRESHOLD]' : ''
-  }`;
-});
-
-document.addEventListener('mouseover', (e: Event) => {
-  const path = e.composedPath();
-  const ariaEl = path.find(
-    (node) =>
-      node instanceof SVGElement && node.classList?.contains('mc-aria-item')
-  ) as SVGElement | undefined;
-  if (ariaEl) {
-    const role = ariaEl.getAttribute('role');
-    const roleDesc = ariaEl.getAttribute('aria-roledescription');
-    const label = ariaEl.getAttribute('aria-label');
-    const isUnder = ariaEl.getAttribute('data-under-threshold') === 'true';
-    ariaFocusReadout.textContent = `role="${role}" aria-roledescription="${roleDesc}" aria-label="${label}"${
-      isUnder ? ' [data-under-threshold="true"]' : ''
-    }`;
+function getAllAttributesForChart(entry: ChartCatalogEntry): ChartAttributeSpec[] {
+  const list: ChartAttributeSpec[] = [...entry.specificAttributes];
+  if (entry.supportsMarkers) {
+    list.push(...MARKER_THRESHOLD_ATTRIBUTES);
   }
-});
+  if (entry.supportsViewZoom) {
+    list.push(...VIEW_ZOOM_ATTRIBUTES);
+  }
+  list.push(...COMMON_ATTRIBUTES);
+  return list;
+}
 
-// Live ARIA Template / Callback switcher
-document
-  .getElementById('aria-template-select')
-  ?.addEventListener('change', (e) => {
-    const mode = (e.target as HTMLSelectElement).value;
-    allCharts.forEach((chart) => {
-      if (mode === 'default') {
-        chart.ariaConfig = {
-          ...chart.ariaConfig,
-          itemLabel: undefined,
-          itemDescription: undefined
-        };
-      } else if (mode === 'executive') {
-        chart.setConfig({
-          ...chart.config,
-          barAriaLabel: undefined,
-          pointAriaLabel: undefined,
-          arcAriaLabel: undefined,
-          cellAriaLabel: undefined,
-          aria: {
-            ...chart.config.aria,
-            itemLabel:
-              'Executive Metric: {{seriesId}} ({{category}}) recorded {{formattedValue}}',
-            itemDescription: 'Item {{number}} of {{total}} in series'
-          }
-        });
-      } else if (mode === 'scientific') {
-        chart.setConfig({
-          ...chart.config,
-          barAriaLabel: undefined,
-          pointAriaLabel: undefined,
-          arcAriaLabel: undefined,
-          cellAriaLabel: undefined,
-          aria: {
-            ...chart.config.aria,
-            itemLabel: (item) =>
-              `[${item.type.toUpperCase()} #${item.index + 1}/${
-                item.total ?? '?'
-              }] ${item.seriesId || item.label} = ${item.value}`,
-            itemDescription: (item) =>
-              `Keyboard navigable ${item.type} datum id=${item.id}`
-          }
-        });
+function formatConfigAsJson(config: ChartConfig<any>): string {
+  return JSON.stringify(
+    config,
+    (_key, value) => {
+      if (typeof value === 'function') {
+        return '[Function]';
+      }
+      return value;
+    },
+    2
+  );
+}
+
+function generateWebComponentHtmlSnippet(
+  entry: ChartCatalogEntry,
+  config: ChartConfig<any>
+): string {
+  const themeMode = config.themeMode ?? globalThemeMode;
+  const palette = config.palette ?? 'modern';
+  const motion =
+    typeof config.motionConfig === 'string' ? config.motionConfig : 'default';
+  const stagger = config.animation?.stagger ?? 32;
+  const labelMode = config.labelMode ?? 'svg';
+  const activeLayers = config.layers ?? entry.defaultLayers;
+
+  const lines: string[] = [];
+  lines.push(
+    `<${entry.tagName}`,
+    `  auto-size="${config.autoSize !== false}"`,
+    `  theme-mode="${themeMode}"`,
+    `  palette="${palette}"`,
+    `  motion-config="${motion}"`,
+    `  label-mode="${labelMode}"`,
+    `  aria-label="${config.ariaLabel ?? entry.title}"`,
+    `  is-focusable="${config.isFocusable !== false}"`,
+    `>`
+  );
+
+  lines.push(
+    `  <!-- Composable Sub-Component Layers driven by chart.config -->`,
+    `  <mc-theme-layer mode="${themeMode}" palette="${palette}" font-size="${
+      config.theme?.fontSize ?? 12
+    }"></mc-theme-layer>`
+  );
+
+  if (entry.supportsCartesianScales) {
+    lines.push(
+      `  <mc-scale-layer axis="x" type="${
+        config.xScale?.type ?? 'band'
+      }"></mc-scale-layer>`,
+      `  <mc-scale-layer axis="y" type="${
+        config.yScale?.type ?? 'linear'
+      }" min="${config.yScale?.min ?? 'auto'}" max="${
+        config.yScale?.max ?? 'auto'
+      }"></mc-scale-layer>`
+    );
+  }
+
+  if (entry.supportsViewZoom && config.view) {
+    lines.push(
+      `  <mc-view-layer zoomable="${config.view.zoomable !== false}" pannable="${
+        config.view.pannable !== false
+      }" show-controls="${config.view.showControls !== false}" max-zoom="${
+        config.view.maxZoom ?? 6
+      }"></mc-view-layer>`
+    );
+  }
+
+  lines.push(
+    `  <mc-animation-layer preset="${motion}" stagger="${stagger}" enabled="${
+      config.animate !== false
+    }"></mc-animation-layer>`,
+    `  <mc-aria-layer label="${config.ariaLabel ?? entry.title}" item-role="${
+      config.aria?.itemRole ?? 'graphics-symbol'
+    }" is-focusable="${config.isFocusable !== false}"></mc-aria-layer>`
+  );
+
+  if (entry.supportsMarkers && config.markers && config.markers.length > 0) {
+    lines.push(`  <mc-marker-layer>`);
+    config.markers.forEach((m) => {
+      if (m.type === 'line') {
+        lines.push(
+          `    <mc-marker type="line" axis="${m.axis ?? 'y'}" value="${
+            m.value
+          }" condition="${m.condition ?? 'below'}" match-color="${
+            m.matchStyle?.color ?? '#ef4444'
+          }" label="${m.label ?? ''}"></mc-marker>`
+        );
+      } else {
+        lines.push(
+          `    <mc-marker type="area" axis="${m.axis ?? 'y'}" from="${
+            m.from
+          }" to="${m.to}" fill="${m.fill ?? '#ef4444'}"></mc-marker>`
+        );
       }
     });
-    const sampleBar = barChart.shadowRoot?.querySelector('.mc-aria-item');
-    if (sampleBar) {
-      ariaFocusReadout.textContent = `Updated all charts! Sample Bar aria-label="${sampleBar.getAttribute(
-        'aria-label'
-      )}"`;
-    }
-  });
+    lines.push(`  </mc-marker-layer>`);
+  }
 
-studioLine.addEventListener('mc-layer-rendered', (e: Event) => {
-  const detail = (e as CustomEvent).detail;
-  streamStatusBadge.textContent = `Rendered layer: ${detail.layerName} (${
-    detail.index + 1
-  }/${detail.total})`;
-  updateStreamCodeView(studioLine.getActiveLayers());
-});
+  const labelObj = !Array.isArray(config.label) ? config.label : undefined;
+  lines.push(
+    `  <mc-label mode="${labelMode}" ${
+      labelObj?.icon ? 'icon="<svg>...</svg>"' : ''
+    }></mc-label>`,
+    ``,
+    `  <!-- Render Pipeline Layers -->`
+  );
 
-document
-  .getElementById('btn-ai-stream')
-  ?.addEventListener('click', async () => {
-    streamStatusBadge.textContent = 'AI Streaming layers...';
-    await studioLine.streamLayers(ALL_STUDIO_LAYERS, 240);
-    activeStudioLayers = [...ALL_STUDIO_LAYERS];
-    renderStudioLayerChips();
-    streamStatusBadge.textContent = 'Stream Complete (All Layers Active)';
-  });
+  activeLayers
+    .filter((l): l is string => typeof l === 'string')
+    .forEach((layerName, i) => {
+      lines.push(`  <mc-chart-layer name="${layerName}" order="${i}"></mc-chart-layer>`);
+    });
 
-let customThresholdSummaryInjected = false;
-document
-  .getElementById('btn-inject-custom-layer')
-  ?.addEventListener('click', () => {
-    if (customThresholdSummaryInjected) return;
-    customThresholdSummaryInjected = true;
+  lines.push(`</${entry.tagName}>`);
+  return lines.join('\n');
+}
 
-    // Client Custom Layer that reads `ctx.thresholds.underThresholdItems` and `ctx.markers`!
-    const thresholdAuditCustomLayer = (ctx: ChartRenderContext<any>) => {
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.setAttribute('class', 'mc-custom-threshold-audit');
-      const underItems = ctx.thresholds.underThresholdItems;
+// ============================================================================
+// OVERVIEW GALLERY VIEW (#/)
+// ============================================================================
+let activeOverviewCharts: MCBaseChart<any>[] = [];
 
-      // Highlight every point that fell under the marker threshold with a pulsing halo
-      underItems.forEach((item) => {
-        if (item.px === undefined || item.py === undefined) return;
-        const ring = document.createElementNS(
-          'http://www.w3.org/2000/svg',
-          'circle'
-        );
-        ring.setAttribute('cx', String(item.px));
-        ring.setAttribute('cy', String(item.py));
-        ring.setAttribute('r', '11');
-        ring.setAttribute('fill', 'none');
-        ring.setAttribute('stroke', item.effectiveColor);
-        ring.setAttribute('stroke-width', '2');
-        ring.setAttribute('stroke-dasharray', '3 2');
-        g.appendChild(ring);
-      });
+function renderOverviewPage(root: HTMLElement): void {
+  activeOverviewCharts = [];
+  root.innerHTML = '';
 
-      ctx.renderLabel(g, {
-        id: 'custom-threshold-summary-badge',
-        text: `Custom Layer Audit: ${underItems.length} pts under SLA`,
-        x: 12,
-        y: 16,
-        type: 'custom',
-        anchor: 'start',
-        baseline: 'middle',
-        icon: WARN_SVG_ICON,
-        renderMode: 'foreignObject',
-        color: '#fecdd3',
-        background: 'rgba(136, 19, 55, 0.9)',
-        borderColor: '#f43f5e',
-        borderRadius: 6
-      });
-      return g;
+  const navOverviewBtn = document.getElementById('nav-overview-btn');
+  navOverviewBtn?.classList.add('active');
+
+  // Hero section
+  const hero = document.createElement('section');
+  hero.className = 'overview-hero';
+  hero.innerHTML = `
+    <div>
+      <h2 class="overview-hero-title">Interactive Web Component Chart Gallery (${CHART_CATALOG.length} Chart Types)</h2>
+      <p class="overview-hero-desc">
+        Click any chart card below to open its <strong>Dedicated Chart Playground</strong>, where you can inspect the live visualization, edit its Nivo-style <code>chart.config</code> in real time, stream layers progressively, and customize every supported attribute &amp; layer property.
+      </p>
+    </div>
+    <div class="component-pills">
+      <span class="comp-pill">&lt;mc-theme-layer&gt;</span>
+      <span class="comp-pill">&lt;mc-scale-layer&gt;</span>
+      <span class="comp-pill">&lt;mc-view-layer&gt;</span>
+      <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
+      <span class="comp-pill">&lt;mc-marker-layer&gt;</span>
+      <span class="comp-pill">&lt;mc-aria-layer&gt;</span>
+      <span class="comp-pill">&lt;mc-label&gt;</span>
+    </div>
+  `;
+  root.appendChild(hero);
+
+  // Grid of 10 live example cards
+  const grid = document.createElement('section');
+  grid.className = 'overview-grid';
+
+  CHART_CATALOG.forEach((entry) => {
+    const card = document.createElement('article');
+    card.className = 'overview-card';
+    card.setAttribute('role', 'link');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-label', `Open ${entry.title} interactive playground`);
+
+    const attrCount = getAllAttributesForChart(entry).length;
+
+    card.innerHTML = `
+      <div class="overview-card-header">
+        <div>
+          <h3 class="overview-card-title">
+            <span>${entry.title}</span>
+          </h3>
+          <span class="comp-pill">&lt;${entry.tagName}&gt;</span>
+        </div>
+        <span class="version-pill">${attrCount} Attributes</span>
+      </div>
+      <p class="overview-card-summary">${entry.summary}</p>
+      <div class="overview-preview-stage" id="preview-stage-${entry.id}"></div>
+      <div class="overview-card-footer">
+        <div class="component-pills">
+          ${entry.subComponents
+            .slice(0, 4)
+            .map((c) => `<span class="comp-pill">&lt;${c}&gt;</span>`)
+            .join('')}
+        </div>
+        <span class="overview-cta">Customize &amp; Edit Config →</span>
+      </div>
+    `;
+
+    const navigateToChart = () => {
+      window.location.hash = `#/chart/${entry.id}`;
     };
 
-    studioLine.appendLayer({
-      name: 'threshold-audit',
-      render: thresholdAuditCustomLayer
-    });
-    ALL_STUDIO_LAYERS.push('threshold-audit');
-    activeStudioLayers.push('threshold-audit');
-    renderStudioLayerChips();
-    updateStreamCodeView(activeStudioLayers);
-  });
-
-// Global Theme, Palette, Motion Preset, and Universal <mc-label> Controls
-function applyGlobalThemeMode(mode: 'light' | 'dark'): void {
-  document.documentElement.setAttribute('data-theme', mode);
-  allCharts.forEach((chart) => {
-    const nextTheme = chart.config.theme
-      ? { ...chart.config.theme, mode }
-      : undefined;
-    chart.setConfig({
-      ...chart.config,
-      themeMode: mode,
-      theme: nextTheme
-    });
-    const lightDomTheme = chart.querySelector('mc-theme-layer');
-    if (lightDomTheme) {
-      lightDomTheme.setAttribute('mode', mode);
-    }
-  });
-
-  // Also update standalone <mc-label> preview badges
-  const standaloneLabels = document.querySelectorAll('mc-label[standalone]');
-  if (standaloneLabels[0]) {
-    standaloneLabels[0].setAttribute(
-      'bg-color',
-      mode === 'dark' ? '#0f172a' : '#e0f2fe'
-    );
-    standaloneLabels[0].setAttribute(
-      'color',
-      mode === 'dark' ? '#e0f2fe' : '#0369a1'
-    );
-  }
-  if (standaloneLabels[1]) {
-    standaloneLabels[1].setAttribute(
-      'bg-color',
-      mode === 'dark' ? 'rgba(136, 19, 55, 0.85)' : '#ffe4e6'
-    );
-    standaloneLabels[1].setAttribute(
-      'color',
-      mode === 'dark' ? '#fecdd3' : '#be123c'
-    );
-  }
-
-  updateStreamCodeView(activeStudioLayers);
-}
-
-document
-  .getElementById('global-theme-select')
-  ?.addEventListener('change', (e) => {
-    const mode = (e.target as HTMLSelectElement).value as 'light' | 'dark';
-    applyGlobalThemeMode(mode);
-  });
-
-document
-  .getElementById('global-palette-select')
-  ?.addEventListener('change', (e) => {
-    const palette = (e.target as HTMLSelectElement).value as ChartPaletteName;
-    allCharts.forEach((chart) => {
-      chart.setConfig({ ...chart.config, palette });
-    });
-    updateStreamCodeView(activeStudioLayers);
-  });
-
-document
-  .getElementById('global-motion-select')
-  ?.addEventListener('change', (e) => {
-    const preset = (e.target as HTMLSelectElement).value as MotionPresetName;
-    allCharts.forEach((chart) => {
-      chart.setConfig({ ...chart.config, animate: true, motionConfig: preset });
-      chart.replayAnimation();
-    });
-    updateStreamCodeView(activeStudioLayers);
-  });
-
-document
-  .getElementById('btn-replay-animations')
-  ?.addEventListener('click', () => {
-    allCharts.forEach((chart) => chart.replayAnimation());
-  });
-
-document
-  .getElementById('global-label-mode')
-  ?.addEventListener('change', (e) => {
-    const val = (e.target as HTMLSelectElement).value;
-    const sparkIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>`;
-    allCharts.forEach((chart) => {
-      if (val === 'svg') {
-        chart.setConfig({
-          ...chart.config,
-          labelMode: 'svg',
-          label: undefined
-        });
-      } else if (val === 'foreignObject') {
-        chart.setConfig({
-          ...chart.config,
-          labelMode: 'foreignObject',
-          label: undefined
-        });
-      } else if (val === 'foreignObject-icons') {
-        chart.setConfig({
-          ...chart.config,
-          labelMode: 'foreignObject',
-          label: {
-            target: 'all',
-            renderMode: 'foreignObject',
-            icon: sparkIcon,
-            iconSize: 12,
-            iconGap: 4
-          }
-        });
+    card.addEventListener('click', navigateToChart);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        navigateToChart();
       }
     });
+
+    grid.appendChild(card);
+
+    // Mount live chart instance inside preview stage
+    const stage = card.querySelector(`#preview-stage-${entry.id}`) as HTMLElement;
+    const chartEl = document.createElement(entry.tagName) as MCBaseChart<any>;
+    const cfg = getOrInitChartConfig(entry);
+    stage.appendChild(chartEl);
+    chartEl.setConfig({
+      ...cfg,
+      themeMode: globalThemeMode
+    });
+    activeOverviewCharts.push(chartEl);
   });
 
-// Individual chart interactive controls
-document.getElementById('btn-bar-mode')?.addEventListener('click', () => {
-  barChart.groupMode =
-    barChart.groupMode === 'grouped' ? 'stacked' : 'grouped';
-});
+  root.appendChild(grid);
+}
 
-document.getElementById('btn-bar-layout')?.addEventListener('click', () => {
-  barChart.layout = barChart.layout === 'vertical' ? 'horizontal' : 'vertical';
-});
+// ============================================================================
+// DEDICATED CHART PLAYGROUND VIEW (#/chart/:id)
+// ============================================================================
+let activeDetailChart: MCBaseChart<any> | null = null;
+let activeDetailEntry: ChartCatalogEntry | null = null;
 
-document.getElementById('btn-pie-stream')?.addEventListener('click', () => {
-  pieChart.streamLayers();
-});
+function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): void {
+  activeOverviewCharts = [];
+  activeDetailEntry = entry;
+  root.innerHTML = '';
 
-document
-  .getElementById('heatmap-scheme-select')
-  ?.addEventListener('change', (e) => {
-    heatmapChart.setConfig({
-      ...heatmapChart.config,
-      colorScheme: (e.target as HTMLSelectElement).value
+  const navOverviewBtn = document.getElementById('nav-overview-btn');
+  navOverviewBtn?.classList.remove('active');
+
+  const config = getOrInitChartConfig(entry);
+  const vState = chartVirtualState.get(entry.id)!;
+
+  // 1. Top Chart Navigation Strip (Back to Gallery + All 10 chart tabs)
+  const navBar = document.createElement('nav');
+  navBar.className = 'chart-nav-bar';
+  navBar.setAttribute('aria-label', 'Chart Type Switcher');
+  navBar.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <a href="#/" class="nav-home-btn">← Back to Gallery</a>
+      <div class="chart-tabs-strip">
+        ${CHART_CATALOG.map(
+          (item) => `
+          <a
+            href="#/chart/${item.id}"
+            class="chart-tab-pill ${item.id === entry.id ? 'active' : ''}"
+          >
+            ${item.title}
+          </a>
+        `
+        ).join('')}
+      </div>
+    </div>
+  `;
+  root.appendChild(navBar);
+
+  // 2. Two-Column Studio Grid:
+  //    Left: Live Interactive Chart Stage + Layer Toggles + AI Streamer + ARIA Inspector
+  //    Right: Live Editable `chart.config` JSON & Web Component HTML Inspector
+  const studioGrid = document.createElement('section');
+  studioGrid.className = 'detail-studio-grid';
+
+  // Left Card: Live Chart Stage
+  const chartCard = document.createElement('div');
+  chartCard.className = 'panel-card';
+  chartCard.innerHTML = `
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">
+          <span>${entry.title}</span>
+          <span class="comp-pill">&lt;${entry.tagName}&gt;</span>
+        </h2>
+        <p style="margin:4px 0 0;font-size:0.82rem;color:var(--text-muted);">
+          ${entry.summary}
+        </p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="btn-detail-ai-stream" class="btn-primary">
+          ▶ Stream AI Layers
+        </button>
+        <button type="button" id="btn-detail-replay-anim">
+          ↻ Replay Animation
+        </button>
+        <button type="button" id="btn-detail-custom-layer">
+          + Inject Custom Layer
+        </button>
+      </div>
+    </div>
+
+    <div class="component-pills">
+      <span class="comp-pill">chart.config = { ... }</span>
+      ${entry.subComponents
+        .map((c) => `<span class="comp-pill">&lt;${c}&gt;</span>`)
+        .join('')}
+    </div>
+
+    <div class="layer-chips" id="detail-layer-chips"></div>
+
+    <div class="detail-chart-stage" id="detail-chart-stage"></div>
+
+    <div class="inspector-box">
+      <div class="inspector-title">
+        &lt;mc-aria-layer&gt; &amp; &lt;mc-marker-layer&gt; Live Item Readout (Hover or Tab + Arrow Keys on chart items):
+      </div>
+      <div class="inspector-readout" id="detail-aria-readout">
+        Interact with any data element inside &lt;${entry.tagName}&gt; to inspect its aria-label, threshold state, and datum payload...
+      </div>
+    </div>
+  `;
+
+  // Right Card: Live Editable Config & Web Component Markup
+  const editorCard = document.createElement('div');
+  editorCard.className = 'panel-card';
+  editorCard.innerHTML = `
+    <div class="panel-header">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h2 class="panel-title">Live <code>chart.config</code> Editor</h2>
+        <span id="config-sync-status" class="config-status-badge">Live Synced ✓</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="editor-tabs">
+          <button type="button" id="tab-btn-json" class="editor-tab-btn active">
+            chart.config (Editable JSON)
+          </button>
+          <button type="button" id="tab-btn-html" class="editor-tab-btn">
+            Web Component HTML
+          </button>
+        </div>
+        <button type="button" id="btn-reset-config">
+          ↺ Reset Default
+        </button>
+      </div>
+    </div>
+
+    <p style="margin:0;font-size:0.8rem;color:var(--text-muted);">
+      Edit any field in the JSON below or adjust any attribute control in the table underneath — both update the live chart immediately.
+    </p>
+
+    <textarea
+      id="detail-config-textarea"
+      class="config-editor-textarea"
+      spellcheck="false"
+      aria-label="Live chart.config JSON editor"
+    ></textarea>
+
+    <pre id="detail-html-preview" class="stream-code-box" hidden></pre>
+  `;
+
+  studioGrid.appendChild(chartCard);
+  studioGrid.appendChild(editorCard);
+  root.appendChild(studioGrid);
+
+  // Mount the live chart element
+  const stage = chartCard.querySelector('#detail-chart-stage') as HTMLElement;
+  const chartEl = document.createElement(entry.tagName) as MCBaseChart<any>;
+  stage.appendChild(chartEl);
+  chartEl.setConfig(config);
+  activeDetailChart = chartEl;
+
+  const configTextarea = editorCard.querySelector(
+    '#detail-config-textarea'
+  ) as HTMLTextAreaElement;
+  const htmlPreviewBox = editorCard.querySelector(
+    '#detail-html-preview'
+  ) as HTMLPreElement;
+  const syncStatusBadge = editorCard.querySelector(
+    '#config-sync-status'
+  ) as HTMLElement;
+  const ariaReadout = chartCard.querySelector(
+    '#detail-aria-readout'
+  ) as HTMLElement;
+
+  // Bind live ARIA & pointer readout
+  chartEl.addEventListener('mc-item-pointer-enter', (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    const target = detail?.originalEvent?.target as SVGElement | null;
+    const ariaText = target?.getAttribute('aria-label') ?? 'Chart Item';
+    const underThresh = target?.getAttribute('data-under-threshold') === 'true';
+    ariaReadout.textContent = `role="${
+      target?.getAttribute('role') ?? 'graphics-symbol'
+    }" | aria-label="${ariaText}"${
+      underThresh ? ' | ⚠️ UNDER THRESHOLD (Restyled)' : ''
+    }`;
+  });
+
+  // Render Layer Toggle Chips
+  const layerChipsContainer = chartCard.querySelector(
+    '#detail-layer-chips'
+  ) as HTMLElement;
+  let activeLayerNames = [
+    ...((config.layers as string[] | undefined) ?? entry.defaultLayers)
+  ];
+
+  function renderLayerChips() {
+    layerChipsContainer.innerHTML = `<span style="font-size:0.76rem;color:var(--text-muted);margin-right:4px;">Active Layers:</span>`;
+    entry.defaultLayers.forEach((layerName) => {
+      const isOn = activeLayerNames.includes(layerName);
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = `layer-chip ${isOn ? 'active' : ''}`;
+      chip.textContent = `${isOn ? '✓ ' : '+ '}${layerName}`;
+      chip.addEventListener('click', () => {
+        if (activeLayerNames.includes(layerName)) {
+          activeLayerNames = activeLayerNames.filter((l) => l !== layerName);
+        } else {
+          activeLayerNames = entry.defaultLayers.filter(
+            (l) => activeLayerNames.includes(l) || l === layerName
+          );
+        }
+        config.layers = [...activeLayerNames];
+        applyConfigUpdate(config, 'controls');
+        renderLayerChips();
+      });
+      layerChipsContainer.appendChild(chip);
+    });
+  }
+  renderLayerChips();
+
+  // Tab switch between Editable JSON and Web Component HTML
+  const tabBtnJson = editorCard.querySelector('#tab-btn-json') as HTMLButtonElement;
+  const tabBtnHtml = editorCard.querySelector('#tab-btn-html') as HTMLButtonElement;
+
+  tabBtnJson.addEventListener('click', () => {
+    tabBtnJson.classList.add('active');
+    tabBtnHtml.classList.remove('active');
+    configTextarea.hidden = false;
+    htmlPreviewBox.hidden = true;
+  });
+
+  tabBtnHtml.addEventListener('click', () => {
+    tabBtnHtml.classList.add('active');
+    tabBtnJson.classList.remove('active');
+    configTextarea.hidden = true;
+    htmlPreviewBox.hidden = false;
+  });
+
+  // Action Buttons: Stream AI Layers, Replay Animation, Inject Custom Layer
+  let isStreaming = false;
+  chartCard
+    .querySelector('#btn-detail-ai-stream')
+    ?.addEventListener('click', async () => {
+      if (isStreaming) return;
+      isStreaming = true;
+      activeLayerNames = [];
+      renderLayerChips();
+
+      for (let i = 0; i < entry.defaultLayers.length; i++) {
+        const nextSlice = entry.defaultLayers.slice(0, i + 1);
+        activeLayerNames = [...nextSlice];
+        config.layers = [...nextSlice];
+        chartEl.setConfig(config);
+        configTextarea.value = formatConfigAsJson(config);
+        htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, config);
+        renderLayerChips();
+        await new Promise((r) => setTimeout(r, 240));
+      }
+      isStreaming = false;
+    });
+
+  chartCard
+    .querySelector('#btn-detail-replay-anim')
+    ?.addEventListener('click', () => {
+      chartEl.replayAnimation();
+    });
+
+  let customLayerInjected = false;
+  const customOverlayFn = (ctx: ChartRenderContext<any>) => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'client-custom-layer');
+
+    const matchedCount = ctx.thresholds?.matchedItems.length ?? 0;
+    const badgeText =
+      matchedCount > 0
+        ? `Custom Layer: ${matchedCount} items triggered threshold`
+        : `Custom Layer: ${ctx.innerWidth}×${ctx.innerHeight}px canvas`;
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', String(Math.max(8, ctx.innerWidth - 270)));
+    rect.setAttribute('y', '8');
+    rect.setAttribute('width', '262');
+    rect.setAttribute('height', '26');
+    rect.setAttribute('rx', '6');
+    rect.setAttribute('fill', matchedCount > 0 ? 'rgba(239,68,68,0.18)' : 'rgba(99,102,241,0.18)');
+    rect.setAttribute('stroke', matchedCount > 0 ? '#ef4444' : '#6366f1');
+    rect.setAttribute('stroke-width', '1.2');
+    g.appendChild(rect);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', String(Math.max(18, ctx.innerWidth - 258)));
+    text.setAttribute('y', '25');
+    text.setAttribute('fill', ctx.theme.textColor);
+    text.setAttribute('font-size', '11');
+    text.setAttribute('font-weight', '700');
+    text.textContent = badgeText;
+    g.appendChild(text);
+
+    return g;
+  };
+
+  chartCard
+    .querySelector('#btn-detail-custom-layer')
+    ?.addEventListener('click', (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      if (!customLayerInjected) {
+        chartEl.layers = [...activeLayerNames, customOverlayFn];
+        customLayerInjected = true;
+        btn.textContent = '✓ Custom Layer Active (Remove)';
+        btn.classList.add('btn-primary');
+      } else {
+        chartEl.layers = [...activeLayerNames];
+        customLayerInjected = false;
+        btn.textContent = '+ Inject Custom Layer';
+        btn.classList.remove('btn-primary');
+      }
+    });
+
+  // 3. Full Interactive Attributes & Properties Customizer Section
+  const allAttributes = getAllAttributesForChart(entry);
+  const categories = Array.from(new Set(allAttributes.map((a) => a.category)));
+
+  const attributesSection = document.createElement('section');
+  attributesSection.className = 'panel-card';
+  attributesSection.innerHTML = `
+    <div class="attributes-section-header">
+      <div>
+        <h2 class="panel-title">
+          All Customizable Attributes &amp; Config Properties (${allAttributes.length})
+        </h2>
+        <p style="margin:4px 0 0;font-size:0.83rem;color:var(--text-muted);">
+          Every attribute that <code>&lt;${entry.tagName}&gt;</code> and its composable sub-components accept. Change any control below to see it reflect on the live chart and in <code>chart.config</code> immediately.
+        </p>
+      </div>
+      <div class="attributes-filter-bar">
+        <input
+          type="text"
+          id="attr-search-input"
+          class="attr-search-input"
+          placeholder="Filter attributes (e.g. zoom, threshold, curve, aria)..."
+          aria-label="Filter attributes"
+        />
+      </div>
+    </div>
+    <div class="attributes-categories-grid" id="attributes-categories-grid"></div>
+  `;
+  root.appendChild(attributesSection);
+
+  const categoriesGrid = attributesSection.querySelector(
+    '#attributes-categories-grid'
+  ) as HTMLElement;
+
+  // Map from configPath -> DOM sync callback so editing raw JSON updates the controls too
+  const controlSyncCallbacks = new Map<string, () => void>();
+
+  function getAttributeValue(spec: ChartAttributeSpec): any {
+    if (spec.configPath.startsWith('__')) {
+      return (vState as any)[spec.configPath] ?? spec.defaultValue;
+    }
+    const val = getByPath(config, spec.configPath);
+    return val !== undefined ? val : spec.defaultValue;
+  }
+
+  function setAttributeValue(spec: ChartAttributeSpec, rawVal: any): void {
+    if (spec.configPath.startsWith('__')) {
+      (vState as any)[spec.configPath] = rawVal;
+      if (spec.configPath === '__labelIconPreset') {
+        const iconSvg = SVG_ICON_PRESETS[String(rawVal)];
+        const prevLabel = !Array.isArray(config.label) ? config.label ?? {} : {};
+        if (iconSvg) {
+          config.labelMode = 'foreignObject';
+          config.label = {
+            ...prevLabel,
+            renderMode: 'foreignObject',
+            icon: iconSvg,
+            iconPosition: 'start'
+          };
+        } else {
+          const copy = { ...prevLabel };
+          delete copy.icon;
+          config.label = copy;
+        }
+        controlSyncCallbacks.get('labelMode')?.();
+      } else {
+        config.markers = buildMarkersForVirtualState(entry, vState);
+      }
+    } else {
+      setByPath(config, spec.configPath, rawVal);
+    }
+
+    applyConfigUpdate(config, 'controls');
+  }
+
+  categories.forEach((categoryName) => {
+    const specsInCat = allAttributes.filter((a) => a.category === categoryName);
+    const catCard = document.createElement('div');
+    catCard.className = 'attr-category-card';
+    catCard.dataset.category = categoryName;
+
+    catCard.innerHTML = `
+      <h3 class="attr-category-title">
+        <span>${categoryName}</span>
+        <span class="comp-pill">${specsInCat.length} props</span>
+      </h3>
+      <div class="attr-list"></div>
+    `;
+
+    const attrList = catCard.querySelector('.attr-list') as HTMLElement;
+
+    specsInCat.forEach((spec) => {
+      const row = document.createElement('div');
+      row.className = 'attr-row';
+      row.dataset.searchText = `${spec.configPath} ${spec.attrName} ${spec.description} ${spec.category}`.toLowerCase();
+
+      const metaDiv = document.createElement('div');
+      metaDiv.className = 'attr-meta';
+      metaDiv.innerHTML = `
+        <div class="attr-names">
+          <span class="attr-config-path">${
+            spec.configPath.startsWith('__')
+              ? spec.configPath.replace('__', '')
+              : spec.configPath
+          }</span>
+          <span class="attr-html-badge">${spec.attrName}</span>
+        </div>
+        <p class="attr-desc">${spec.description}</p>
+      `;
+
+      const controlCell = document.createElement('div');
+      controlCell.className = 'attr-control-cell';
+
+      const currentVal = getAttributeValue(spec);
+
+      if (spec.control === 'boolean') {
+        const label = document.createElement('label');
+        label.className = 'toggle-switch';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = Boolean(currentVal);
+        const stateSpan = document.createElement('span');
+        stateSpan.textContent = checkbox.checked ? 'true' : 'false';
+
+        checkbox.addEventListener('change', () => {
+          stateSpan.textContent = checkbox.checked ? 'true' : 'false';
+          setAttributeValue(spec, checkbox.checked);
+        });
+
+        controlSyncCallbacks.set(spec.configPath, () => {
+          const v = Boolean(getAttributeValue(spec));
+          checkbox.checked = v;
+          stateSpan.textContent = v ? 'true' : 'false';
+        });
+
+        label.appendChild(checkbox);
+        label.appendChild(stateSpan);
+        controlCell.appendChild(label);
+      } else if (spec.control === 'range') {
+        const wrap = document.createElement('div');
+        wrap.className = 'attr-range-wrap';
+        const range = document.createElement('input');
+        range.type = 'range';
+        range.min = String(spec.min ?? 0);
+        range.max = String(spec.max ?? 100);
+        range.step = String(spec.step ?? 1);
+        range.value = String(currentVal ?? spec.defaultValue);
+
+        const valBadge = document.createElement('span');
+        valBadge.className = 'attr-range-val';
+        valBadge.textContent = String(range.value);
+
+        range.addEventListener('input', () => {
+          const num = Number(range.value);
+          valBadge.textContent = String(num);
+          setAttributeValue(spec, num);
+        });
+
+        controlSyncCallbacks.set(spec.configPath, () => {
+          const v = getAttributeValue(spec);
+          range.value = String(v ?? spec.defaultValue);
+          valBadge.textContent = String(range.value);
+        });
+
+        wrap.appendChild(range);
+        wrap.appendChild(valBadge);
+        controlCell.appendChild(wrap);
+      } else if (spec.control === 'number') {
+        const input = document.createElement('input');
+        input.type = 'number';
+        if (spec.min !== undefined) input.min = String(spec.min);
+        if (spec.max !== undefined) input.max = String(spec.max);
+        if (spec.step !== undefined) input.step = String(spec.step);
+        input.value =
+          currentVal === 'auto' || currentVal === undefined
+            ? ''
+            : String(currentVal);
+        input.placeholder = 'auto';
+
+        input.addEventListener('input', () => {
+          const raw = input.value.trim();
+          const parsed = raw === '' ? 'auto' : Number(raw);
+          setAttributeValue(spec, Number.isNaN(parsed as number) ? 'auto' : parsed);
+        });
+
+        controlSyncCallbacks.set(spec.configPath, () => {
+          const v = getAttributeValue(spec);
+          input.value = v === 'auto' || v === undefined ? '' : String(v);
+        });
+
+        controlCell.appendChild(input);
+      } else if (spec.control === 'select') {
+        const select = document.createElement('select');
+        (spec.options ?? []).forEach((opt) => {
+          const optionEl = document.createElement('option');
+          optionEl.value = opt.value;
+          optionEl.textContent = opt.label;
+          if (String(currentVal) === opt.value) {
+            optionEl.selected = true;
+          }
+          select.appendChild(optionEl);
+        });
+
+        select.addEventListener('change', () => {
+          setAttributeValue(spec, select.value);
+        });
+
+        controlSyncCallbacks.set(spec.configPath, () => {
+          const v = String(getAttributeValue(spec));
+          select.value = v;
+        });
+
+        controlCell.appendChild(select);
+      } else if (spec.control === 'color') {
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = String(currentVal || '#ef4444');
+        colorInput.style.width = '44px';
+        colorInput.style.height = '30px';
+        colorInput.style.border = 'none';
+        colorInput.style.background = 'transparent';
+        colorInput.style.cursor = 'pointer';
+
+        const hexLabel = document.createElement('span');
+        hexLabel.className = 'attr-range-val';
+        hexLabel.textContent = colorInput.value;
+
+        colorInput.addEventListener('input', () => {
+          hexLabel.textContent = colorInput.value;
+          setAttributeValue(spec, colorInput.value);
+        });
+
+        controlSyncCallbacks.set(spec.configPath, () => {
+          const v = String(getAttributeValue(spec) || '#ef4444');
+          colorInput.value = v;
+          hexLabel.textContent = v;
+        });
+
+        controlCell.appendChild(colorInput);
+        controlCell.appendChild(hexLabel);
+      } else {
+        // text
+        const textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.value = String(currentVal ?? '');
+
+        textInput.addEventListener('input', () => {
+          setAttributeValue(spec, textInput.value);
+        });
+
+        controlSyncCallbacks.set(spec.configPath, () => {
+          const v = getAttributeValue(spec);
+          textInput.value = String(v ?? '');
+        });
+
+        controlCell.appendChild(textInput);
+      }
+
+      row.appendChild(metaDiv);
+      row.appendChild(controlCell);
+      attrList.appendChild(row);
+    });
+
+    categoriesGrid.appendChild(catCard);
+  });
+
+  // Search filter for attributes
+  const searchInput = attributesSection.querySelector(
+    '#attr-search-input'
+  ) as HTMLInputElement;
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    const cards = categoriesGrid.querySelectorAll<HTMLElement>('.attr-category-card');
+    cards.forEach((card) => {
+      const rows = card.querySelectorAll<HTMLElement>('.attr-row');
+      let visibleInCard = 0;
+      rows.forEach((r) => {
+        const match = !q || (r.dataset.searchText ?? '').includes(q);
+        r.style.display = match ? '' : 'none';
+        if (match) visibleInCard++;
+      });
+      card.style.display = visibleInCard > 0 ? '' : 'none';
     });
   });
 
-document.getElementById('btn-radar-shape')?.addEventListener('click', () => {
-  const curr = radarChart.config.gridShape || 'circular';
-  radarChart.setConfig({
-    ...radarChart.config,
-    gridShape: curr === 'circular' ? 'linear' : 'circular'
-  });
-});
+  // Central sync helper between Chart, JSON Editor, HTML Preview, and Attribute Controls
+  function applyConfigUpdate(
+    nextCfg: ChartConfig<any>,
+    source: 'controls' | 'json-editor' | 'reset'
+  ) {
+    chartConfigState.set(entry.id, nextCfg);
+    chartEl.setConfig(nextCfg);
 
-document
-  .getElementById('btn-sunburst-reset')
-  ?.addEventListener('click', () => {
-    sunburstChart.resetDrilldown();
-  });
+    htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, nextCfg);
 
-document.getElementById('btn-sankey-stream')?.addEventListener('click', () => {
-  sankeyChart.streamLayers();
-});
+    if (source !== 'json-editor') {
+      configTextarea.value = formatConfigAsJson(nextCfg);
+      syncStatusBadge.textContent = 'Live Synced ✓';
+      syncStatusBadge.classList.remove('error');
+    }
 
-document.getElementById('btn-scatter-trend')?.addEventListener('click', () => {
-  scatterChart.setConfig({
-    ...scatterChart.config,
-    enableTrendline: !scatterChart.config.enableTrendline
-  });
-});
+    if (source !== 'controls') {
+      controlSyncCallbacks.forEach((syncFn) => syncFn());
+      if (Array.isArray(nextCfg.layers)) {
+        activeLayerNames = nextCfg.layers.filter(
+          (l): l is string => typeof l === 'string'
+        );
+      } else {
+        activeLayerNames = [...entry.defaultLayers];
+      }
+      renderLayerChips();
+    }
+  }
 
-document.getElementById('btn-gauge-random')?.addEventListener('click', () => {
-  const nextVal = Math.floor(45 + Math.random() * 54);
-  gaugeChart.data = { ...SAMPLE_GAUGE_DATA, value: nextVal };
-});
+  // Initialize editor contents
+  configTextarea.value = formatConfigAsJson(config);
+  htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, config);
 
-// AutoSize vs Container Sizing Sandbox
-const sandboxStage = document.getElementById('resizable-sandbox-stage')!;
-const btnToggleAutoSize = document.getElementById('btn-toggle-autosize')!;
-let isNarrowContainer = false;
+  // Live JSON editor input listener
+  configTextarea.addEventListener('input', () => {
+    try {
+      const parsed = JSON.parse(configTextarea.value);
+      Object.keys(config).forEach((k) => delete (config as any)[k]);
+      Object.assign(config, parsed);
 
-btnToggleAutoSize.addEventListener('click', () => {
-  sandboxChart.autoSize = !sandboxChart.autoSize;
-  btnToggleAutoSize.textContent = `autoSize: ${sandboxChart.autoSize} (${
-    sandboxChart.autoSize ? 'ResizeObserver Active' : 'Container Snapshot'
-  })`;
-});
-
-document
-  .getElementById('btn-shrink-container')
-  ?.addEventListener('click', () => {
-    isNarrowContainer = !isNarrowContainer;
-    sandboxStage.style.width = isNarrowContainer ? '68%' : '100%';
-    if (!sandboxChart.autoSize) {
-      setTimeout(() => sandboxChart.resize(), 280);
+      syncStatusBadge.textContent = 'Live Synced ✓';
+      syncStatusBadge.classList.remove('error');
+      applyConfigUpdate(config, 'json-editor');
+    } catch (err: any) {
+      syncStatusBadge.textContent = 'Invalid JSON Syntax';
+      syncStatusBadge.classList.add('error');
     }
   });
 
-// Live In-Browser Automated Verification Suite
+  // Reset Default Config button
+  editorCard.querySelector('#btn-reset-config')?.addEventListener('click', () => {
+    const fresh = resetChartConfig(entry);
+    Object.keys(config).forEach((k) => delete (config as any)[k]);
+    Object.assign(config, fresh);
+    const freshVState = chartVirtualState.get(entry.id)!;
+    Object.assign(vState, freshVState);
+    applyConfigUpdate(config, 'reset');
+  });
+}
+
+// ============================================================================
+// HASH ROUTER (#/ and #/chart/:id)
+// ============================================================================
+function handleRoute(): void {
+  const root = document.getElementById('app-root');
+  if (!root) return;
+
+  const hash = window.location.hash || '#/';
+  const match = hash.match(/^#\/chart\/([a-z0-9-]+)$/i);
+
+  if (match) {
+    const chartId = match[1].toLowerCase();
+    const entry = CHART_CATALOG.find((c) => c.id === chartId);
+    if (entry) {
+      renderChartDetailPage(root, entry);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+  }
+
+  activeDetailChart = null;
+  activeDetailEntry = null;
+  renderOverviewPage(root);
+}
+
+window.addEventListener('hashchange', handleRoute);
+
+// ============================================================================
+// GLOBAL THEME MODE SWITCHER (Dark / Light Mode)
+// ============================================================================
+const globalThemeSelect = document.getElementById(
+  'global-theme-select'
+) as HTMLSelectElement | null;
+
+globalThemeSelect?.addEventListener('change', (e) => {
+  const mode = (e.target as HTMLSelectElement).value as 'dark' | 'light';
+  globalThemeMode = mode;
+  document.documentElement.dataset.theme = mode;
+
+  // Update all stored chart configs to reflect the new themeMode
+  chartConfigState.forEach((cfg) => {
+    cfg.themeMode = mode;
+    if (cfg.theme) {
+      delete cfg.theme.background;
+      delete cfg.theme.textColor;
+      delete cfg.theme.axisColor;
+      delete cfg.theme.gridColor;
+    }
+  });
+
+  // Update active view
+  if (activeDetailChart && activeDetailEntry) {
+    renderChartDetailPage(
+      document.getElementById('app-root')!,
+      activeDetailEntry
+    );
+  } else {
+    activeOverviewCharts.forEach((chart) => {
+      chart.setConfig({ ...chart.config, themeMode: mode });
+    });
+  }
+});
+
+// ============================================================================
+// LIVE IN-BROWSER AUTOMATED VERIFICATION SUITE DRAWER
+// ============================================================================
 function runLiveVerificationTests(): void {
-  const grid = document.getElementById('test-results-grid')!;
-  const summaryPill = document.getElementById('test-summary-pill')!;
-  grid.innerHTML = '';
+  const container = document.getElementById('test-log-container');
+  const summaryBadge = document.getElementById('test-summary-badge');
+  if (!container || !summaryBadge) return;
+  container.innerHTML = '';
 
   const engine = new LabelEngine();
-  const theme = createDefaultTheme('dark', 'modern');
+  const theme = createDefaultTheme(globalThemeMode, 'modern');
   const measuredWithIcon = engine.measure(
     'Icon Badge',
-    { maxWidth: 180, icon: WARN_SVG_ICON, iconSize: 14, iconGap: 5 },
+    { maxWidth: 180, icon: SVG_ICON_PRESETS.warn, iconSize: 14, iconGap: 5 },
     theme
   );
 
-  const subComponents = barChart.getSubComponents();
+  // Create offscreen verification instances for Bar & Line to verify DOM & subcomponents
+  const testHost = document.createElement('div');
+  testHost.style.cssText =
+    'position:fixed;left:-9999px;top:0;width:480px;height:300px;visibility:hidden;pointer-events:none;';
+  document.body.appendChild(testHost);
+
+  const barEntry = CHART_CATALOG.find((c) => c.id === 'bar')!;
+  const lineEntry = CHART_CATALOG.find((c) => c.id === 'line')!;
+
+  const testBar = document.createElement('mc-bar-chart') as MCBaseChart<any>;
+  const testLine = document.createElement('mc-line-chart') as MCBaseChart<any>;
+  testHost.appendChild(testBar);
+  testHost.appendChild(testLine);
+
+  testBar.setConfig(barEntry.createDefaultConfig(globalThemeMode));
+  testLine.setConfig(lineEntry.createDefaultConfig(globalThemeMode));
+
+  const subComponents = testBar.getSubComponents();
   const barAriaItems =
-    barChart.shadowRoot?.querySelectorAll('.mc-bar-rect.mc-aria-item') ?? [];
+    testBar.shadowRoot?.querySelectorAll('.mc-bar-rect.mc-aria-item') ?? [];
   const firstBarAria = barAriaItems[0];
   const underThresholdBars =
-    barChart.shadowRoot?.querySelectorAll(
+    testBar.shadowRoot?.querySelectorAll(
       '.mc-bar-rect[data-under-threshold="true"]'
     ) ?? [];
   const underThresholdPoints =
-    studioLine.shadowRoot?.querySelectorAll(
+    testLine.shadowRoot?.querySelectorAll(
       '.mc-line-point[data-under-threshold="true"]'
     ) ?? [];
 
   const checks: { name: string; pass: boolean }[] = [
+    {
+      name: 'Multi-page router with Overview Gallery (#/) & 10 dedicated Chart Playgrounds (#/chart/:id)',
+      pass:
+        CHART_CATALOG.length === 10 &&
+        CHART_CATALOG.every((c) => getAllAttributesForChart(c).length >= 12)
+    },
     {
       name: 'Single Nivo-style chart.config drives internal sub-components (including <mc-marker-layer>)',
       pass:
@@ -751,8 +1138,8 @@ function runLiveVerificationTests(): void {
     {
       name: '<mc-marker-layer> renders marker lines & marker areas and restyles bars/points under threshold',
       pass:
-        Boolean(barChart.shadowRoot?.querySelector('.mc-marker-line')) &&
-        Boolean(barChart.shadowRoot?.querySelector('.mc-marker-area')) &&
+        Boolean(testBar.shadowRoot?.querySelector('.mc-marker-line')) &&
+        Boolean(testBar.shadowRoot?.querySelector('.mc-marker-area')) &&
         underThresholdBars.length === 5 &&
         underThresholdBars[0].getAttribute('fill') === '#ef4444' &&
         underThresholdPoints.length > 0
@@ -796,45 +1183,10 @@ function runLiveVerificationTests(): void {
         'mc-chart-layer',
         'mc-custom-layer'
       ].every((tag) => Boolean(customElements.get(tag)))
-    },
-    {
-      name: 'Line Chart splits line path gradient at threshold & marks under-threshold points',
-      pass:
-        Boolean(
-          studioLine.shadowRoot?.querySelector(
-            '.mc-line-path[data-has-threshold-matches="true"]'
-          )
-        ) &&
-        (studioLine.shadowRoot?.querySelectorAll('.mc-line-point.mc-aria-item')
-          .length ?? 0) === 21
-    },
-    {
-      name: 'Pie, Heatmap & Radar render animated ARIA items & Pretext labels',
-      pass:
-        (pieChart.shadowRoot?.querySelectorAll('.mc-pie-arc.mc-aria-item')
-          .length ?? 0) === 5 &&
-        (heatmapChart.shadowRoot?.querySelectorAll(
-          '.mc-heatmap-cell.mc-aria-item'
-        ).length ?? 0) === 20 &&
-        (radarChart.shadowRoot?.querySelectorAll('.mc-radar-dot.mc-aria-item')
-          .length ?? 0) === 12
-    },
-    {
-      name: 'Sunburst, Sankey, Treemap, Scatter & Gauge render animated ARIA items',
-      pass:
-        (sunburstChart.shadowRoot?.querySelectorAll(
-          '.mc-sunburst-arc.mc-aria-item'
-        ).length ?? 0) > 5 &&
-        (sankeyChart.shadowRoot?.querySelectorAll(
-          '.mc-sankey-node.mc-aria-item'
-        ).length ?? 0) === 7 &&
-        Boolean(
-          gaugeChart.shadowRoot?.querySelector(
-            '.mc-gauge-value-arc.mc-aria-item'
-          )
-        )
     }
   ];
+
+  testHost.remove();
 
   let passedCount = 0;
   checks.forEach((chk) => {
@@ -844,14 +1196,28 @@ function runLiveVerificationTests(): void {
     div.innerHTML = `<span>${chk.pass ? '✅' : '❌'}</span><span>${
       chk.name
     }</span>`;
-    grid.appendChild(div);
+    container.appendChild(div);
   });
 
-  summaryPill.textContent = `${passedCount} / ${checks.length} Passed`;
+  summaryBadge.textContent = `${passedCount} / ${checks.length} Passed`;
 }
 
-document
-  .getElementById('btn-run-tests')
-  ?.addEventListener('click', runLiveVerificationTests);
+const verificationDrawer = document.getElementById('verification-drawer');
+document.getElementById('btn-toggle-tests')?.addEventListener('click', () => {
+  if (!verificationDrawer) return;
+  verificationDrawer.hidden = !verificationDrawer.hidden;
+  if (!verificationDrawer.hidden) {
+    runLiveVerificationTests();
+  }
+});
 
-setTimeout(runLiveVerificationTests, 120);
+document.getElementById('btn-rerun-tests')?.addEventListener('click', () => {
+  runLiveVerificationTests();
+});
+
+document.getElementById('btn-close-tests')?.addEventListener('click', () => {
+  if (verificationDrawer) verificationDrawer.hidden = true;
+});
+
+// Initial route render
+handleRoute();

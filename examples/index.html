@@ -8,361 +8,57 @@
   </head>
   <body>
     <header class="site-header">
-      <div>
-        <div class="brand-group">
-          <h1 class="brand-title">modern-charts</h1>
-          <span class="version-pill">v0.1.0-alpha.0</span>
-          <span class="comp-pill">Only D3 + @chenglou/pretext</span>
-        </div>
-        <p class="brand-subtitle">
-          Single Nivo-style <code>chart.config</code> driving composable Web Component layers (<code>&lt;mc-theme-layer&gt;</code>, <code>&lt;mc-scale-layer&gt;</code>, <code>&lt;mc-view-layer&gt;</code>, <code>&lt;mc-animation-layer&gt;</code>, <code>&lt;mc-aria-layer&gt;</code>, <code>&lt;mc-marker-layer&gt;</code>, <code>&lt;mc-label&gt;</code>)
-        </p>
+      <div class="header-left">
+        <a href="#/" class="brand-link" id="brand-home-link" aria-label="Go to Overview Gallery">
+          <div class="brand-group">
+            <h1 class="brand-title">modern-charts</h1>
+            <span class="version-pill">v0.1.0-alpha.0</span>
+            <span class="comp-pill">Only D3 + @chenglou/pretext</span>
+          </div>
+          <p class="brand-subtitle">
+            Single Nivo-style <code>chart.config</code> driving composable Web Component layers (<code>&lt;mc-theme-layer&gt;</code>, <code>&lt;mc-scale-layer&gt;</code>, <code>&lt;mc-view-layer&gt;</code>, <code>&lt;mc-animation-layer&gt;</code>, <code>&lt;mc-aria-layer&gt;</code>, <code>&lt;mc-marker-layer&gt;</code>, <code>&lt;mc-label&gt;</code>)
+          </p>
+        </a>
       </div>
 
       <div class="global-controls">
+        <a href="#/" class="nav-home-btn" id="nav-overview-btn">
+          ⊞ All Chart Examples
+        </a>
+
         <div class="control-group">
-          <label for="global-theme-select">Theme:</label>
+          <label for="global-theme-select">Site &amp; Default Theme:</label>
           <select id="global-theme-select">
             <option value="dark" selected>Dark Mode</option>
             <option value="light">Light Mode</option>
           </select>
         </div>
 
-        <div class="control-group">
-          <label for="global-palette-select">Palette:</label>
-          <select id="global-palette-select">
-            <option value="modern" selected>Modern</option>
-            <option value="nivo">Nivo</option>
-            <option value="echarts">ECharts</option>
-            <option value="emerald">Emerald</option>
-            <option value="sunset">Sunset</option>
-            <option value="ocean">Ocean</option>
-            <option value="cyber">Cyber</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <label for="global-motion-select">&lt;mc-animation-layer&gt;:</label>
-          <select id="global-motion-select">
-            <option value="default" selected>default (520ms cubic)</option>
-            <option value="gentle">gentle (680ms quad)</option>
-            <option value="wobbly">wobbly (760ms elastic)</option>
-            <option value="stiff">stiff (320ms snappy)</option>
-            <option value="slow">slow (980ms smooth)</option>
-            <option value="molasses">molasses (1450ms)</option>
-            <option value="bounce">bounce (780ms bounce)</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <label for="global-label-mode">Universal &lt;mc-label&gt;:</label>
-          <select id="global-label-mode">
-            <option value="svg" selected>SVG &lt;text&gt; (Pretext Wrapped)</option>
-            <option value="foreignObject">SVG &lt;foreignObject&gt; HTML Badge</option>
-            <option value="foreignObject-icons">SVG &lt;foreignObject&gt; + Inline SVG Icons</option>
-          </select>
-        </div>
-
-        <button type="button" id="btn-replay-animations">
-          ↻ Replay Animations
-        </button>
-
-        <button type="button" id="btn-run-tests" class="btn-primary">
-          Run Live Verification Tests
+        <button type="button" id="btn-toggle-tests" class="btn-secondary">
+          ✓ Verification Suite
         </button>
       </div>
     </header>
 
-    <main class="main-content">
-      <!-- 1. Single Unified Config + Marker Thresholds + AI Layer-by-Layer Streamer -->
-      <section class="studio-grid">
-        <div class="panel-card">
-          <div class="panel-header">
-            <h2 class="panel-title">
-              Nivo-Style Single <code>chart.config</code> + <code>&lt;mc-marker-layer&gt;</code> Thresholds &amp; AI Streamer
-            </h2>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-              <label for="threshold-slider" style="font-size:0.78rem;color:#fda4af;font-weight:600;">
-                Threshold: <span id="threshold-val-label">135</span>
-              </label>
-              <input
-                type="range"
-                id="threshold-slider"
-                min="60"
-                max="220"
-                value="135"
-                style="width:95px;accent-color:#ef4444;"
-              />
-              <button type="button" id="btn-ai-stream" class="btn-primary">
-                ▶ Stream AI Layers
-              </button>
-              <button type="button" id="btn-inject-custom-layer">
-                + Inject Custom Threshold Layer
-              </button>
-            </div>
-          </div>
-
-          <div class="component-pills">
-            <span class="comp-pill">chart.config = { ... }</span>
-            <span class="comp-pill">&lt;mc-theme-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-scale-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-view-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-aria-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-marker-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-label&gt;</span>
-          </div>
-
-          <div class="layer-chips" id="studio-layer-toggles"></div>
-
-          <div class="chart-stage" id="studio-stage">
-            <mc-line-chart id="studio-line-chart"></mc-line-chart>
-          </div>
-        </div>
-
-        <div class="panel-card">
-          <div class="panel-header">
-            <h2 class="panel-title">Single Unified Config + Marker &amp; ARIA Inspector</h2>
-            <span class="version-pill" id="stream-status-badge">Ready</span>
-          </div>
-          <pre class="stream-code-box" id="stream-code-output"></pre>
-
-          <div class="inspector-box">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-              <strong class="inspector-title">
-                Universal &lt;mc-aria-layer&gt; &amp; &lt;mc-label&gt; ForeignObject Icon Preview:
-              </strong>
-              <select id="aria-template-select" style="font-size:0.75rem;padding:3px 8px;">
-                <option value="default" selected>Default Nivo-Style Item ARIA</option>
-                <option value="executive">Executive Summary ARIA Template</option>
-                <option value="scientific">Detailed Metric + Rank ARIA Callback</option>
-              </select>
-            </div>
-            <div id="aria-focus-readout" class="inspector-readout">
-              Focus or hover any bar, point, slice, cell, node, or arc to inspect its ARIA &amp; threshold state...
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:4px;">
-              <mc-label
-                standalone
-                text="ForeignObject + SVG Icon"
-                mode="foreignObject"
-                icon='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>'
-                bg-color="#0f172a"
-                border-color="#38bdf8"
-                color="#e0f2fe"
-                border-radius="6"
-              ></mc-label>
-              <mc-label
-                standalone
-                text="Under Threshold Alert"
-                mode="foreignObject"
-                icon='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>'
-                bg-color="rgba(136, 19, 55, 0.85)"
-                border-color="#f43f5e"
-                color="#fecdd3"
-                border-radius="6"
-              ></mc-label>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 2. Live In-Browser Automated Test Suite Results -->
-      <section class="panel-card">
+    <!-- Collapsible Live Verification Suite Drawer -->
+    <section class="verification-drawer" id="verification-drawer" hidden>
+      <div class="panel-card">
         <div class="panel-header">
-          <h2 class="panel-title">In-Browser Web Component, Unified Config, Marker Threshold, Animation, ARIA &amp; Pretext Verification Suite</h2>
-          <span class="version-pill" id="test-summary-pill">Running...</span>
+          <h2 class="panel-title">
+            Live Component &amp; Layer Verification Suite
+          </h2>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span id="test-summary-badge" class="comp-pill">Running checks...</span>
+            <button type="button" id="btn-rerun-tests" class="btn-primary">↻ Re-run Checks</button>
+            <button type="button" id="btn-close-tests">✕ Close</button>
+          </div>
         </div>
-        <div class="test-log-list" id="test-results-grid"></div>
-      </section>
+        <div class="test-log-list" id="test-log-container"></div>
+      </div>
+    </section>
 
-      <!-- 3. All 10 Chart Web Components Gallery -->
-      <section class="gallery-grid">
-        <!-- Bar Chart -->
-        <div class="panel-card">
-          <div class="panel-header">
-            <h3 class="panel-title">1. Bar Chart (&lt;mc-bar-chart&gt; + Marker Thresholds)</h3>
-            <div style="display:flex;gap:6px;">
-              <button type="button" id="btn-bar-mode">Toggle Stacked / Grouped</button>
-              <button type="button" id="btn-bar-layout">Toggle Horizontal</button>
-            </div>
-          </div>
-          <div class="component-pills">
-            <span class="comp-pill">chart.config</span>
-            <span class="comp-pill">&lt;mc-marker-layer&gt; (Bars &lt; 100 turn Red)</span>
-            <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-aria-layer&gt;</span>
-          </div>
-          <div class="chart-stage">
-            <mc-bar-chart id="demo-bar-chart"></mc-bar-chart>
-          </div>
-        </div>
-
-        <!-- Pie / Donut Chart -->
-        <div class="panel-card">
-          <div class="panel-header">
-            <h3 class="panel-title">2. Pie &amp; Donut Chart (&lt;mc-pie-chart&gt;)</h3>
-            <button type="button" id="btn-pie-stream">Stream Layers</button>
-          </div>
-          <div class="component-pills">
-            <span class="comp-pill">chart.config</span>
-            <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-aria-layer&gt; (arcAriaLabel)</span>
-            <span class="comp-pill">&lt;mc-label&gt;</span>
-          </div>
-          <div class="chart-stage">
-            <mc-pie-chart id="demo-pie-chart"></mc-pie-chart>
-          </div>
-        </div>
-
-        <!-- Heatmap Chart -->
-        <div class="panel-card">
-          <div class="panel-header">
-            <h3 class="panel-title">3. Heatmap Chart (&lt;mc-heatmap-chart&gt;)</h3>
-            <select id="heatmap-scheme-select">
-              <option value="viridis" selected>Viridis</option>
-              <option value="plasma">Plasma</option>
-              <option value="turbo">Turbo</option>
-              <option value="ylGnBu">YlGnBu</option>
-            </select>
-          </div>
-          <div class="component-pills">
-            <span class="comp-pill">chart.config</span>
-            <span class="comp-pill">&lt;mc-scale-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-aria-layer&gt; (cellAriaLabel)</span>
-          </div>
-          <div class="chart-stage">
-            <mc-heatmap-chart id="demo-heatmap-chart"></mc-heatmap-chart>
-          </div>
-        </div>
-
-        <!-- Radar Chart -->
-        <div class="panel-card">
-          <div class="panel-header">
-            <h3 class="panel-title">4. Radar Chart (&lt;mc-radar-chart&gt;)</h3>
-            <button type="button" id="btn-radar-shape">Toggle Grid Shape</button>
-          </div>
-          <div class="component-pills">
-            <span class="comp-pill">chart.config</span>
-            <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-aria-layer&gt; (pointAriaLabel)</span>
-            <span class="comp-pill">&lt;mc-label&gt;</span>
-          </div>
-          <div class="chart-stage">
-            <mc-radar-chart id="demo-radar-chart"></mc-radar-chart>
-          </div>
-        </div>
-
-        <!-- Sunburst Chart -->
-        <div class="panel-card">
-          <div class="panel-header">
-            <h3 class="panel-title">5. Sunburst Chart (&lt;mc-sunburst-chart&gt;)</h3>
-            <button type="button" id="btn-sunburst-reset">Reset Drilldown</button>
-          </div>
-          <div class="component-pills">
-            <span class="comp-pill">chart.config</span>
-            <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-aria-layer&gt; (arcAriaLabel)</span>
-            <span class="comp-pill">&lt;mc-label&gt;</span>
-          </div>
-          <div class="chart-stage">
-            <mc-sunburst-chart id="demo-sunburst-chart"></mc-sunburst-chart>
-          </div>
-        </div>
-
-        <!-- Sankey Chart -->
-        <div class="panel-card">
-          <div class="panel-header">
-            <h3 class="panel-title">6. Sankey Flow Chart (&lt;mc-sankey-chart&gt;)</h3>
-            <button type="button" id="btn-sankey-stream">Stream Layers</button>
-          </div>
-          <div class="component-pills">
-            <span class="comp-pill">chart.config</span>
-            <span class="comp-pill">&lt;mc-view-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-aria-layer&gt; (nodeAriaLabel &amp; linkAriaLabel)</span>
-          </div>
-          <div class="chart-stage">
-            <mc-sankey-chart id="demo-sankey-chart"></mc-sankey-chart>
-          </div>
-        </div>
-
-        <!-- Scatter / Bubble Chart -->
-        <div class="panel-card">
-          <div class="panel-header">
-            <h3 class="panel-title">7. Scatter &amp; Bubble Chart (&lt;mc-scatter-chart&gt;)</h3>
-            <button type="button" id="btn-scatter-trend">Toggle Trendline Layer</button>
-          </div>
-          <div class="component-pills">
-            <span class="comp-pill">chart.config</span>
-            <span class="comp-pill">&lt;mc-scale-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-view-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-aria-layer&gt;</span>
-          </div>
-          <div class="chart-stage">
-            <mc-scatter-chart id="demo-scatter-chart"></mc-scatter-chart>
-          </div>
-        </div>
-
-        <!-- Treemap Chart -->
-        <div class="panel-card">
-          <div class="panel-header">
-            <h3 class="panel-title">8. Treemap Chart (&lt;mc-treemap-chart&gt;)</h3>
-            <span class="comp-pill">Pretext Box-Clamped Multiline Labels</span>
-          </div>
-          <div class="component-pills">
-            <span class="comp-pill">chart.config</span>
-            <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-aria-layer&gt; (cellAriaLabel)</span>
-            <span class="comp-pill">&lt;mc-label&gt;</span>
-          </div>
-          <div class="chart-stage">
-            <mc-treemap-chart id="demo-treemap-chart"></mc-treemap-chart>
-          </div>
-        </div>
-
-        <!-- Gauge Chart -->
-        <div class="panel-card">
-          <div class="panel-header">
-            <h3 class="panel-title">9. Radial Gauge Chart (&lt;mc-gauge-chart&gt;)</h3>
-            <button type="button" id="btn-gauge-random">Randomize Metric</button>
-          </div>
-          <div class="component-pills">
-            <span class="comp-pill">chart.config</span>
-            <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-aria-layer&gt;</span>
-            <span class="comp-pill">&lt;mc-label&gt;</span>
-          </div>
-          <div class="chart-stage">
-            <mc-gauge-chart id="demo-gauge-chart"></mc-gauge-chart>
-          </div>
-        </div>
-
-        <!-- AutoSize vs Container Size Sandbox -->
-        <div class="panel-card">
-          <div class="panel-header">
-            <h3 class="panel-title">10. autoSize Flag vs Container Sizing Sandbox</h3>
-            <div style="display:flex;gap:6px;">
-              <button type="button" id="btn-toggle-autosize" class="btn-primary">
-                autoSize: true (Active)
-              </button>
-              <button type="button" id="btn-shrink-container">
-                Resize Container Width
-              </button>
-            </div>
-          </div>
-          <div class="component-pills">
-            <span class="comp-pill">config.autoSize = true → ResizeObserver</span>
-            <span class="comp-pill">config.autoSize = false → Container Size + .resize()</span>
-          </div>
-          <div class="chart-stage" id="resizable-sandbox-stage" style="transition: width 260ms ease; margin: 0 auto;">
-            <mc-line-chart id="sandbox-size-chart"></mc-line-chart>
-          </div>
-        </div>
-      </section>
-    </main>
+    <!-- Dynamic Router View: Overview Gallery (#/) or Dedicated Chart Playground (#/chart/:id) -->
+    <main class="main-content" id="app-root"></main>
 
     <script type="module" src="./main.ts"></script>
   </body>
