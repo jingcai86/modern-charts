@@ -15,6 +15,7 @@ import {
   type ChartAttributeSpec,
   type ChartCatalogEntry
 } from './chart-catalog';
+import { generateRandomDataForChart } from './sample-data';
 
 registerModernCharts();
 
@@ -418,7 +419,10 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
         </p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" id="btn-detail-ai-stream" class="btn-primary">
+        <button type="button" id="btn-detail-randomize-data" class="btn-primary">
+          🎲 Randomize Data
+        </button>
+        <button type="button" id="btn-detail-ai-stream">
           ▶ Stream AI Layers
         </button>
         <button type="button" id="btn-detail-replay-anim">
@@ -451,39 +455,53 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
     </div>
   `;
 
-  // Right Card: Live Editable Config & Web Component Markup
+  // Right Card: Live Editable Data, Config & Web Component Markup
   const editorCard = document.createElement('div');
   editorCard.className = 'panel-card';
   editorCard.innerHTML = `
     <div class="panel-header">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <h2 class="panel-title">Live <code>chart.config</code> Editor</h2>
+        <h2 class="panel-title">Live Config &amp; Data Editor</h2>
         <span id="config-sync-status" class="config-status-badge">Live Synced ✓</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <div class="editor-tabs">
-          <button type="button" id="tab-btn-json" class="editor-tab-btn active">
-            chart.config (Editable JSON)
+          <button type="button" id="tab-btn-data" class="editor-tab-btn active">
+            chart.config.data (Edit Data)
+          </button>
+          <button type="button" id="tab-btn-json" class="editor-tab-btn">
+            chart.config (Full Config)
           </button>
           <button type="button" id="tab-btn-html" class="editor-tab-btn">
             Web Component HTML
           </button>
         </div>
+        <button type="button" id="btn-editor-randomize-data" class="btn-primary">
+          🎲 Randomize Data
+        </button>
         <button type="button" id="btn-reset-config">
           ↺ Reset Default
         </button>
       </div>
     </div>
 
-    <p style="margin:0;font-size:0.8rem;color:var(--text-muted);">
-      Edit any field in the JSON below or adjust any attribute control in the table underneath — both update the live chart immediately.
+    <p style="margin:0;font-size:0.8rem;color:var(--text-muted);" id="editor-helper-desc">
+      Edit the dataset JSON below or click <strong>🎲 Randomize Data</strong> to generate new values — changes reflect on the chart and in <code>chart.config</code> immediately.
     </p>
+
+    <textarea
+      id="detail-data-textarea"
+      class="config-editor-textarea"
+      spellcheck="false"
+      aria-label="Live chart.config.data JSON editor"
+    ></textarea>
 
     <textarea
       id="detail-config-textarea"
       class="config-editor-textarea"
       spellcheck="false"
       aria-label="Live chart.config JSON editor"
+      hidden
     ></textarea>
 
     <pre id="detail-html-preview" class="stream-code-box" hidden></pre>
@@ -500,6 +518,9 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   chartEl.setConfig(config);
   activeDetailChart = chartEl;
 
+  const dataTextarea = editorCard.querySelector(
+    '#detail-data-textarea'
+  ) as HTMLTextAreaElement;
   const configTextarea = editorCard.querySelector(
     '#detail-config-textarea'
   ) as HTMLTextAreaElement;
@@ -508,6 +529,9 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   ) as HTMLPreElement;
   const syncStatusBadge = editorCard.querySelector(
     '#config-sync-status'
+  ) as HTMLElement;
+  const editorHelperDesc = editorCard.querySelector(
+    '#editor-helper-desc'
   ) as HTMLElement;
   const ariaReadout = chartCard.querySelector(
     '#detail-aria-readout'
@@ -559,23 +583,55 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   }
   renderLayerChips();
 
-  // Tab switch between Editable JSON and Web Component HTML
+  // Tab switch between Editable Data, Editable Full Config JSON, and Web Component HTML
+  const tabBtnData = editorCard.querySelector('#tab-btn-data') as HTMLButtonElement;
   const tabBtnJson = editorCard.querySelector('#tab-btn-json') as HTMLButtonElement;
   const tabBtnHtml = editorCard.querySelector('#tab-btn-html') as HTMLButtonElement;
 
+  tabBtnData.addEventListener('click', () => {
+    tabBtnData.classList.add('active');
+    tabBtnJson.classList.remove('active');
+    tabBtnHtml.classList.remove('active');
+    dataTextarea.hidden = false;
+    configTextarea.hidden = true;
+    htmlPreviewBox.hidden = true;
+    editorHelperDesc.innerHTML =
+      'Edit the dataset JSON below or click <strong>🎲 Randomize Data</strong> to generate new values — changes reflect on the chart and in <code>chart.config</code> immediately.';
+  });
+
   tabBtnJson.addEventListener('click', () => {
     tabBtnJson.classList.add('active');
+    tabBtnData.classList.remove('active');
     tabBtnHtml.classList.remove('active');
+    dataTextarea.hidden = true;
     configTextarea.hidden = false;
     htmlPreviewBox.hidden = true;
+    editorHelperDesc.innerHTML =
+      'Edit any field in the full <code>chart.config</code> JSON below or adjust any attribute control in the table underneath — both update the live chart immediately.';
   });
 
   tabBtnHtml.addEventListener('click', () => {
     tabBtnHtml.classList.add('active');
+    tabBtnData.classList.remove('active');
     tabBtnJson.classList.remove('active');
+    dataTextarea.hidden = true;
     configTextarea.hidden = true;
     htmlPreviewBox.hidden = false;
+    editorHelperDesc.innerHTML =
+      'Declarative Web Component HTML markup representing the current <code>chart.config</code> and its internal composable layer elements.';
   });
+
+  const handleRandomizeData = () => {
+    config.data = generateRandomDataForChart(entry.id, config.data);
+    applyConfigUpdate(config, 'randomize');
+  };
+
+  chartCard
+    .querySelector('#btn-detail-randomize-data')
+    ?.addEventListener('click', handleRandomizeData);
+  editorCard
+    .querySelector('#btn-editor-randomize-data')
+    ?.addEventListener('click', handleRandomizeData);
 
   // Action Buttons: Stream AI Layers, Replay Animation, Inject Custom Layer
   let isStreaming = false;
@@ -942,18 +998,25 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
     });
   });
 
-  // Central sync helper between Chart, JSON Editor, HTML Preview, and Attribute Controls
+  // Central sync helper between Chart, Data Editor, JSON Editor, HTML Preview, and Attribute Controls
   function applyConfigUpdate(
     nextCfg: ChartConfig<any>,
-    source: 'controls' | 'json-editor' | 'reset'
+    source: 'controls' | 'data-editor' | 'json-editor' | 'randomize' | 'reset'
   ) {
     chartConfigState.set(entry.id, nextCfg);
     chartEl.setConfig(nextCfg);
 
     htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, nextCfg);
 
+    if (source !== 'data-editor') {
+      dataTextarea.value = JSON.stringify(nextCfg.data, null, 2);
+    }
+
     if (source !== 'json-editor') {
       configTextarea.value = formatConfigAsJson(nextCfg);
+    }
+
+    if (source !== 'data-editor' && source !== 'json-editor') {
       syncStatusBadge.textContent = 'Live Synced ✓';
       syncStatusBadge.classList.remove('error');
     }
@@ -972,21 +1035,37 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   }
 
   // Initialize editor contents
+  dataTextarea.value = JSON.stringify(config.data, null, 2);
   configTextarea.value = formatConfigAsJson(config);
   htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, config);
 
-  // Live JSON editor input listener
+  // Live Data JSON editor input listener
+  dataTextarea.addEventListener('input', () => {
+    try {
+      const parsedData = JSON.parse(dataTextarea.value);
+      config.data = parsedData;
+
+      syncStatusBadge.textContent = 'Data Synced ✓';
+      syncStatusBadge.classList.remove('error');
+      applyConfigUpdate(config, 'data-editor');
+    } catch (_err: any) {
+      syncStatusBadge.textContent = 'Invalid Data JSON';
+      syncStatusBadge.classList.add('error');
+    }
+  });
+
+  // Live Full Config JSON editor input listener
   configTextarea.addEventListener('input', () => {
     try {
       const parsed = JSON.parse(configTextarea.value);
       Object.keys(config).forEach((k) => delete (config as any)[k]);
       Object.assign(config, parsed);
 
-      syncStatusBadge.textContent = 'Live Synced ✓';
+      syncStatusBadge.textContent = 'Config Synced ✓';
       syncStatusBadge.classList.remove('error');
       applyConfigUpdate(config, 'json-editor');
-    } catch (err: any) {
-      syncStatusBadge.textContent = 'Invalid JSON Syntax';
+    } catch (_err: any) {
+      syncStatusBadge.textContent = 'Invalid Config JSON';
       syncStatusBadge.classList.add('error');
     }
   });

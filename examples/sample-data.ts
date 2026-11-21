@@ -221,3 +221,167 @@ export const SAMPLE_GAUGE_DATA: GaugeDatum = {
     { from: 80, to: 100, color: '#10b981' }
   ]
 };
+
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomizeHierarchy(node: HierarchyNode): HierarchyNode {
+  if (node.children && node.children.length > 0) {
+    return {
+      ...node,
+      children: node.children.map((child) => randomizeHierarchy(child))
+    };
+  }
+  return {
+    ...node,
+    value: randInt(70, 380)
+  };
+}
+
+export function generateRandomDataForChart(
+  chartId: string,
+  currentData: any
+): any {
+  switch (chartId) {
+    case 'line': {
+      const base: LineSeries[] =
+        Array.isArray(currentData) && currentData.length > 0
+          ? currentData
+          : SAMPLE_LINE_DATA;
+      return base.map((series) => ({
+        ...series,
+        data: (series.data ?? []).map((pt) => ({
+          ...pt,
+          y: randInt(55, 295)
+        }))
+      }));
+    }
+
+    case 'bar': {
+      const base: BarDatum[] =
+        Array.isArray(currentData) && currentData.length > 0
+          ? currentData
+          : SAMPLE_BAR_DATA;
+      return base.map((row) => {
+        const nextRow: BarDatum = { ...row };
+        Object.keys(nextRow).forEach((k) => {
+          if (k !== 'quarter' && typeof nextRow[k] === 'number') {
+            nextRow[k] = randInt(35, 250);
+          }
+        });
+        return nextRow;
+      });
+    }
+
+    case 'pie': {
+      const base: PieDatum[] =
+        Array.isArray(currentData) && currentData.length > 0
+          ? currentData
+          : SAMPLE_PIE_DATA;
+      return base.map((slice) => ({
+        ...slice,
+        value: randInt(80, 480)
+      }));
+    }
+
+    case 'heatmap': {
+      const base: HeatmapRow[] =
+        Array.isArray(currentData) && currentData.length > 0
+          ? currentData
+          : SAMPLE_HEATMAP_DATA;
+      return base.map((row) => ({
+        ...row,
+        data: (row.data ?? []).map((cell) => ({
+          ...cell,
+          y: randInt(10, 100)
+        }))
+      }));
+    }
+
+    case 'radar': {
+      const base: RadarDatum[] =
+        Array.isArray(currentData) && currentData.length > 0
+          ? currentData
+          : SAMPLE_RADAR_DATA;
+      return base.map((row) => {
+        const nextRow: RadarDatum = { ...row };
+        Object.keys(nextRow).forEach((k) => {
+          if (k !== 'metric' && typeof nextRow[k] === 'number') {
+            nextRow[k] = randInt(35, 100);
+          }
+        });
+        return nextRow;
+      });
+    }
+
+    case 'sunburst':
+    case 'treemap': {
+      const base: HierarchyNode =
+        currentData && typeof currentData === 'object' && currentData.children
+          ? currentData
+          : SAMPLE_SUNBURST_DATA;
+      return randomizeHierarchy(base);
+    }
+
+    case 'sankey': {
+      const base: SankeyData =
+        currentData && Array.isArray(currentData.nodes)
+          ? currentData
+          : SAMPLE_SANKEY_DATA;
+      const promptToDom = randInt(280, 560);
+      const jsToD3 = randInt(180, 420);
+      const domToPretext = Math.round(promptToDom * (randInt(40, 65) / 100));
+      const domToD3 = promptToDom - domToPretext;
+      const pretextToSvg = Math.round(domToPretext * (randInt(35, 65) / 100));
+      const pretextToFo = domToPretext - pretextToSvg;
+      const d3Total = jsToD3 + domToD3;
+      const d3ToSvg = Math.round(d3Total * (randInt(45, 75) / 100));
+      const d3ToFo = d3Total - d3ToSvg;
+
+      return {
+        nodes: base.nodes.map((n) => ({ ...n })),
+        links: [
+          { source: 'AI Prompt', target: 'DOM Stream', value: promptToDom },
+          { source: 'JS API', target: 'D3 Engine', value: jsToD3 },
+          { source: 'DOM Stream', target: 'Pretext', value: domToPretext },
+          { source: 'DOM Stream', target: 'D3 Engine', value: domToD3 },
+          { source: 'Pretext', target: 'SVG Output', value: pretextToSvg },
+          { source: 'Pretext', target: 'FO Output', value: pretextToFo },
+          { source: 'D3 Engine', target: 'SVG Output', value: d3ToSvg },
+          { source: 'D3 Engine', target: 'FO Output', value: d3ToFo }
+        ]
+      };
+    }
+
+    case 'scatter': {
+      const base: ScatterSeries[] =
+        Array.isArray(currentData) && currentData.length > 0
+          ? currentData
+          : SAMPLE_SCATTER_DATA;
+      return base.map((series) => ({
+        ...series,
+        data: (series.data ?? []).map((pt) => ({
+          ...pt,
+          x: randInt(8, 56),
+          y: randInt(48, 99),
+          size: randInt(14, 36)
+        }))
+      }));
+    }
+
+    case 'gauge': {
+      const base: GaugeDatum =
+        currentData && typeof currentData === 'object'
+          ? currentData
+          : SAMPLE_GAUGE_DATA;
+      return {
+        ...base,
+        value: randInt(15, 100)
+      };
+    }
+
+    default:
+      return currentData;
+  }
+}
