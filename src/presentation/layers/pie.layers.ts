@@ -1,0 +1,141 @@
+import * as d3 from 'd3';
+import { renderLegendLayer } from '../../core/scale-manager';
+import type { ChartRenderContext, PieDatum } from '../../core/types';
+import type { PieChartModel } from '../../models/pie.model';
+import { renderPieArcItem } from '../items/arc.item';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+export function renderPieArcsLayer(
+  model: PieChartModel,
+  ctx: ChartRenderContext<PieDatum[]>
+): void {
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+
+  model.arcs.forEach((arcModel) => {
+    g.appendChild(renderPieArcItem(arcModel, ctx));
+  });
+
+  ctx.layerGroup.appendChild(g);
+}
+
+export function renderPieArcLabelsLayer(
+  model: PieChartModel,
+  ctx: ChartRenderContext<PieDatum[]>
+): void {
+  if (!model.enableArcLabels) return;
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+
+  model.arcs.forEach((arc, idx) => {
+    if (arc.endAngle - arc.startAngle < 0.25) return;
+    ctx.renderLabel(g, {
+      id: `arc-label-${idx}`,
+      text: `${Math.round(arc.percentage)}%`,
+      x: arc.centroid[0],
+      y: arc.centroid[1],
+      type: 'arc',
+      anchor: 'middle',
+      baseline: 'middle',
+      fontSize: Math.max(10, ctx.theme.fontSize - 1),
+      fontWeight: 700,
+      color: '#ffffff',
+      datum: {
+        id: arc.data.id,
+        label: arc.data.label || arc.data.id,
+        value: arc.value,
+        percentage: Math.round(arc.percentage)
+      }
+    });
+  });
+
+  ctx.layerGroup.appendChild(g);
+}
+
+export function renderPieArcLinkLabelsLayer(
+  model: PieChartModel,
+  ctx: ChartRenderContext<PieDatum[]>
+): void {
+  if (!model.enableArcLinkLabels) return;
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+
+  model.arcs.forEach((arc, idx) => {
+    if (arc.endAngle - arc.startAngle < 0.14) return;
+    const [p0, p1, p2] = arc.linkPoints;
+    const polyline = document.createElementNS(SVG_NS, 'polyline');
+    polyline.setAttribute('class', 'mc-pie-link-line');
+    polyline.setAttribute(
+      'points',
+      `${p0[0]},${p0[1]} ${p1[0]},${p1[1]} ${p2[0]},${p2[1]}`
+    );
+    polyline.setAttribute('fill', 'none');
+    polyline.setAttribute('stroke', arc.color);
+    polyline.setAttribute('stroke-width', '1.5');
+    g.appendChild(polyline);
+
+    ctx.renderLabel(g, {
+      id: `arc-link-label-${idx}`,
+      text: `${arc.data.label || arc.data.id} (${arc.value})`,
+      x: p2[0] + (arc.isRightSide ? 6 : -6),
+      y: p2[1],
+      type: 'arc-link',
+      anchor: arc.isRightSide ? 'start' : 'end',
+      baseline: 'middle',
+      maxWidth: 115,
+      fontSize: Math.max(11, ctx.theme.fontSize - 1),
+      fontWeight: 500,
+      color: ctx.theme.textColor,
+      datum: {
+        id: arc.data.id,
+        label: arc.data.label || arc.data.id,
+        value: arc.value
+      }
+    });
+  });
+
+  ctx.layerGroup.appendChild(g);
+}
+
+export function renderPieCenterLayer(
+  model: PieChartModel,
+  ctx: ChartRenderContext<PieDatum[]>
+): void {
+  if (model.innerRadius < 25) return;
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+
+  const text = model.centerLabel || `Total\n${d3.format(',')(model.total)}`;
+  ctx.renderLabel(g, {
+    id: 'pie-center-label',
+    text,
+    x: 0,
+    y: 0,
+    type: 'center',
+    anchor: 'middle',
+    baseline: 'middle',
+    maxWidth: model.innerRadius * 1.7,
+    fontSize: ctx.theme.fontSize + 2,
+    fontWeight: 700,
+    color: ctx.theme.textColor,
+    datum: { total: model.total }
+  });
+
+  ctx.layerGroup.appendChild(g);
+}
+
+export function renderPieLegendsLayer(
+  model: PieChartModel,
+  ctx: ChartRenderContext<PieDatum[]>
+): void {
+  renderLegendLayer(
+    ctx,
+    model.arcs.map((a) => ({
+      id: a.data.id,
+      label: a.data.label || a.data.id,
+      color: a.color
+    })),
+    'bottom'
+  );
+}

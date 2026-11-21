@@ -1,0 +1,95 @@
+import type { ChartRenderContext } from '../../core/types';
+import type {
+  ComputedRadarPointModel,
+  ComputedRadarSeriesModel
+} from '../../models/radar.model';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * Dumb Presentation Renderer for a single Radar Series Polygon Item.
+ */
+export function renderRadarPolygonItem(
+  s: ComputedRadarSeriesModel,
+  ctx: ChartRenderContext<any>
+): SVGPolygonElement {
+  const poly = document.createElementNS(SVG_NS, 'polygon');
+  poly.setAttribute('class', 'mc-radar-polygon');
+  poly.setAttribute('data-item-component', 'mc-radar-item');
+  poly.setAttribute('data-key', s.key);
+  poly.setAttribute('points', s.polygonPointsAttr);
+  poly.setAttribute('fill', s.color);
+  poly.setAttribute('fill-opacity', String(s.fillOpacity));
+  poly.setAttribute('stroke', s.color);
+  poly.setAttribute('stroke-width', '2.2');
+
+  ctx.animateItem(poly, {
+    type: 'radar-expand',
+    index: s.index,
+    originX: 0,
+    originY: 0
+  });
+
+  return poly;
+}
+
+/**
+ * Dumb Presentation Renderer for a single Radar Vertex Dot Item.
+ */
+export function renderRadarDotItem(
+  pt: ComputedRadarPointModel,
+  ctx: ChartRenderContext<any>
+): SVGCircleElement {
+  const dot = document.createElementNS(SVG_NS, 'circle');
+  dot.setAttribute('class', 'mc-radar-dot');
+  dot.setAttribute('data-item-component', 'mc-radar-dot-item');
+  dot.setAttribute('cx', String(pt.x));
+  dot.setAttribute('cy', String(pt.y));
+  dot.setAttribute('r', '4.2');
+  dot.setAttribute('fill', pt.color);
+  dot.setAttribute('stroke', ctx.theme.background);
+  dot.setAttribute('stroke-width', '1.8');
+  dot.style.cursor = 'pointer';
+
+  ctx.decorateAriaItem(dot, {
+    type: 'radar-point',
+    index: pt.globalIndex,
+    total: pt.totalDots,
+    id: `${pt.seriesKey}-${pt.axis}`,
+    label: `${pt.seriesKey} ${pt.axis}`,
+    seriesId: pt.seriesKey,
+    category: pt.axis,
+    value: pt.value,
+    formattedValue: String(pt.value),
+    color: pt.color,
+    datum: {
+      key: pt.seriesKey,
+      axis: pt.axis,
+      value: pt.value
+    }
+  });
+
+  ctx.animateItem(dot, {
+    type: 'point-pop',
+    index: pt.globalIndex,
+    originX: pt.x,
+    originY: pt.y
+  });
+
+  dot.addEventListener('mouseenter', (e) => {
+    dot.setAttribute('r', '6');
+    ctx.showTooltip(
+      `<strong>${pt.axis}</strong><br/>${pt.seriesKey}: <b>${pt.value}</b>`,
+      (e as MouseEvent).clientX,
+      (e as MouseEvent).clientY
+    );
+  });
+  dot.addEventListener('mouseleave', () => {
+    dot.setAttribute('r', '4.2');
+    ctx.hideTooltip();
+  });
+
+  return dot;
+}
+
+export class MCRadarItem extends HTMLElement {}

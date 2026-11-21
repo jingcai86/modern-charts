@@ -1,0 +1,124 @@
+import type { ChartRenderContext, GaugeDatum } from '../../core/types';
+import type { GaugeChartModel } from '../../models/gauge.model';
+import {
+  renderGaugeNeedleItem,
+  renderGaugeValueArcItem
+} from '../items/arc.item';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+export function renderGaugeTrackLayer(
+  model: GaugeChartModel,
+  ctx: ChartRenderContext<GaugeDatum>
+): void {
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('class', 'mc-gauge-track');
+  path.setAttribute('d', model.trackPathD);
+  path.setAttribute('fill', ctx.theme.gridColor);
+  g.appendChild(path);
+  ctx.layerGroup.appendChild(g);
+}
+
+export function renderGaugeBandsLayer(
+  model: GaugeChartModel,
+  ctx: ChartRenderContext<GaugeDatum>
+): void {
+  if (model.bands.length === 0) return;
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+
+  model.bands.forEach((b) => {
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('class', 'mc-gauge-band');
+    path.setAttribute('d', b.pathD);
+    path.setAttribute('fill', b.band.color);
+    g.appendChild(path);
+  });
+
+  ctx.layerGroup.appendChild(g);
+}
+
+export function renderGaugeValueArcLayer(
+  model: GaugeChartModel,
+  ctx: ChartRenderContext<GaugeDatum>
+): void {
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+  g.appendChild(renderGaugeValueArcItem(model, ctx));
+  ctx.layerGroup.appendChild(g);
+}
+
+export function renderGaugeTicksLayer(
+  model: GaugeChartModel,
+  ctx: ChartRenderContext<GaugeDatum>
+): void {
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+
+  model.ticks.forEach((tick) => {
+    ctx.renderLabel(g, {
+      id: `gauge-tick-${tick.index}`,
+      text: String(tick.value),
+      x: tick.x,
+      y: tick.y,
+      type: 'axis-tick',
+      anchor: 'middle',
+      baseline: 'middle',
+      fontSize: Math.max(10, ctx.theme.fontSize - 2),
+      color: ctx.theme.mutedTextColor,
+      datum: { value: tick.value }
+    });
+  });
+
+  ctx.layerGroup.appendChild(g);
+}
+
+export function renderGaugeNeedleLayer(
+  model: GaugeChartModel,
+  ctx: ChartRenderContext<GaugeDatum>
+): void {
+  ctx.layerGroup.appendChild(renderGaugeNeedleItem(model, ctx));
+}
+
+export function renderGaugeCenterLayer(
+  model: GaugeChartModel,
+  ctx: ChartRenderContext<GaugeDatum>
+): void {
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+
+  ctx.renderLabel(g, {
+    id: 'gauge-value-label',
+    text: `${model.value}${model.unit}`,
+    x: 0,
+    y: model.outerRadius * 0.34,
+    type: 'center',
+    anchor: 'middle',
+    baseline: 'middle',
+    fontSize: ctx.theme.fontSize + 8,
+    fontWeight: 800,
+    color: ctx.theme.textColor,
+    datum: { value: model.value, label: model.label }
+  });
+
+  if (model.label) {
+    ctx.renderLabel(g, {
+      id: 'gauge-subtitle-label',
+      text: model.label,
+      x: 0,
+      y: model.outerRadius * 0.56,
+      type: 'title',
+      anchor: 'middle',
+      baseline: 'middle',
+      fontSize: ctx.theme.fontSize,
+      fontWeight: 500,
+      color: ctx.theme.mutedTextColor,
+      datum: { value: model.value, label: model.label }
+    });
+  }
+
+  ctx.layerGroup.appendChild(g);
+}

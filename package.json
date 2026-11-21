@@ -1,0 +1,53 @@
+{
+  "name": "modern-charts",
+  "version": "0.1.0-alpha.0",
+  "description": "Composable, framework-agnostic Web Component charting library inspired by Nivo and Apache ECharts, powered solely by D3 and @chenglou/pretext.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite --config vite.examples.config.ts",
+    "build": "tsc --noEmit && vite build",
+    "build:examples": "vite build --config vite.examples.config.ts",
+    "preview:examples": "vite preview --config vite.examples.config.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "charts",
+    "web-components",
+    "custom-elements",
+    "d3",
+    "pretext",
+    "nivo",
+    "echarts",
+    "data-visualization",
+    "svg",
+    "ai-streaming"
+  ],
+  "author": "yoyo",
+  "license": "MIT",
+  "dependencies": {
+    "@chenglou/pretext": "^1.0.0",
+    "d3": "^7.9.0"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "happy-dom": "^15.11.7",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.8"
+  }
+}
