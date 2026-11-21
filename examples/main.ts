@@ -518,14 +518,54 @@ document
   });
 
 // Global Theme, Palette, Motion Preset, and Universal <mc-label> Controls
+function applyGlobalThemeMode(mode: 'light' | 'dark'): void {
+  document.documentElement.setAttribute('data-theme', mode);
+  allCharts.forEach((chart) => {
+    const nextTheme = chart.config.theme
+      ? { ...chart.config.theme, mode }
+      : undefined;
+    chart.setConfig({
+      ...chart.config,
+      themeMode: mode,
+      theme: nextTheme
+    });
+    const lightDomTheme = chart.querySelector('mc-theme-layer');
+    if (lightDomTheme) {
+      lightDomTheme.setAttribute('mode', mode);
+    }
+  });
+
+  // Also update standalone <mc-label> preview badges
+  const standaloneLabels = document.querySelectorAll('mc-label[standalone]');
+  if (standaloneLabels[0]) {
+    standaloneLabels[0].setAttribute(
+      'bg-color',
+      mode === 'dark' ? '#0f172a' : '#e0f2fe'
+    );
+    standaloneLabels[0].setAttribute(
+      'color',
+      mode === 'dark' ? '#e0f2fe' : '#0369a1'
+    );
+  }
+  if (standaloneLabels[1]) {
+    standaloneLabels[1].setAttribute(
+      'bg-color',
+      mode === 'dark' ? 'rgba(136, 19, 55, 0.85)' : '#ffe4e6'
+    );
+    standaloneLabels[1].setAttribute(
+      'color',
+      mode === 'dark' ? '#fecdd3' : '#be123c'
+    );
+  }
+
+  updateStreamCodeView(activeStudioLayers);
+}
+
 document
   .getElementById('global-theme-select')
   ?.addEventListener('change', (e) => {
     const mode = (e.target as HTMLSelectElement).value as 'light' | 'dark';
-    allCharts.forEach((chart) => {
-      chart.setConfig({ ...chart.config, themeMode: mode });
-    });
-    updateStreamCodeView(activeStudioLayers);
+    applyGlobalThemeMode(mode);
   });
 
 document

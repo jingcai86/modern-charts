@@ -102,16 +102,21 @@ export class MCThemeLayer extends MCConfigBaseElement {
   public applyFromConfig(theme: Partial<ChartTheme>): void {
     if (theme.mode) this.setAttribute('mode', theme.mode);
     if (theme.palette) this.setAttribute('palette', theme.palette);
-    if (theme.colors) this.#customColors = theme.colors;
+    this.#customColors = theme.colors;
     if (theme.background) this.setAttribute('background', theme.background);
+    else this.removeAttribute('background');
     if (theme.textColor) this.setAttribute('text-color', theme.textColor);
+    else this.removeAttribute('text-color');
     if (theme.mutedTextColor)
       this.setAttribute('muted-text-color', theme.mutedTextColor);
+    else this.removeAttribute('muted-text-color');
     if (theme.fontFamily) this.setAttribute('font-family', theme.fontFamily);
     if (theme.fontSize !== undefined)
       this.setAttribute('font-size', String(theme.fontSize));
     if (theme.axisColor) this.setAttribute('axis-color', theme.axisColor);
+    else this.removeAttribute('axis-color');
     if (theme.gridColor) this.setAttribute('grid-color', theme.gridColor);
+    else this.removeAttribute('grid-color');
     if (theme.gridStrokeDasharray)
       this.setAttribute('grid-dash', theme.gridStrokeDasharray);
     if (theme.labelRenderMode)

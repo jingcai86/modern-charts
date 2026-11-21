@@ -170,6 +170,12 @@ describe('Nivo-style Single Unified chart.config & Underlying Sub-Components', (
     const foLabels =
       bar.shadowRoot?.querySelectorAll('.mc-label foreignObject') ?? [];
     expect(foLabels.length).toBeGreaterThan(0);
+
+    // Switch to light mode via setConfig and verify SVG & theme switch cleanly
+    bar.setConfig({ ...bar.config, themeMode: 'light' });
+    expect(bar.resolveTheme().mode).toBe('light');
+    expect(bar.resolveTheme().background).toBe('#ffffff');
+    expect(subs.themeLayer?.getAttribute('mode')).toBe('light');
   });
 });
 
