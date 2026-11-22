@@ -1,7 +1,11 @@
 import type {
+  MarkerAnnotationConfig,
+  MarkerAnnotationPosition,
   MarkerCondition,
   MarkerConfig,
   MarkerLabelPosition,
+  MarkerLegendConfig,
+  MarkerLegendSwatch,
   MarkerMatchScope,
   MarkerMatchStyle,
   MarkerType
@@ -42,11 +46,27 @@ export class MCMarkerElement extends HTMLElement {
     'match-opacity',
     'match-radius',
     'match-class',
-    'match-icon'
+    'match-icon',
+    'annotation',
+    'annotation-text',
+    'annotation-icon',
+    'annotation-position',
+    'annotation-padding',
+    'annotation-offset-x',
+    'annotation-offset-y',
+    'annotation-enable-tooltip',
+    'annotation-tooltip',
+    'legend',
+    'legend-label',
+    'legend-color',
+    'legend-swatch',
+    'legend-tooltip'
   ];
 
   #conditionFn?: (value: number, datum?: any) => boolean;
   #matchStyle?: MarkerMatchStyle;
+  #annotation?: string | MarkerAnnotationConfig;
+  #legend?: boolean | MarkerLegendConfig;
 
   constructor() {
     super();
@@ -100,6 +120,22 @@ export class MCMarkerElement extends HTMLElement {
     this.#notifyChange();
   }
 
+  get annotation(): string | MarkerAnnotationConfig | undefined {
+    return this.#annotation;
+  }
+  set annotation(val: string | MarkerAnnotationConfig | undefined) {
+    this.#annotation = val;
+    this.#notifyChange();
+  }
+
+  get legend(): boolean | MarkerLegendConfig | undefined {
+    return this.#legend;
+  }
+  set legend(val: boolean | MarkerLegendConfig | undefined) {
+    this.#legend = val;
+    this.#notifyChange();
+  }
+
   private parseValue(raw: string | null): number | string | undefined {
     if (raw === null || raw === '') return undefined;
     const n = Number(raw);
@@ -139,6 +175,113 @@ export class MCMarkerElement extends HTMLElement {
     const hasFromTo = this.hasAttribute('from') && this.hasAttribute('to');
     const typeAttr = this.getAttribute('type') as MarkerType | null;
 
+    // Resolve declarative outside annotation attributes + JS property
+    const annTextAttr =
+      this.getAttribute('annotation-text') ?? this.getAttribute('annotation');
+    const annIconAttr = this.getAttribute('annotation-icon') || undefined;
+    const annPosAttr = this.getAttribute(
+      'annotation-position'
+    ) as MarkerAnnotationPosition | null;
+    const annPadAttr = this.hasAttribute('annotation-padding')
+      ? Number(this.getAttribute('annotation-padding'))
+      : undefined;
+    const annOffXAttr = this.hasAttribute('annotation-offset-x')
+      ? Number(this.getAttribute('annotation-offset-x'))
+      : undefined;
+    const annOffYAttr = this.hasAttribute('annotation-offset-y')
+      ? Number(this.getAttribute('annotation-offset-y'))
+      : undefined;
+    const annEnableTipAttr = this.hasAttribute('annotation-enable-tooltip')
+      ? this.getAttribute('annotation-enable-tooltip') !== 'false'
+      : undefined;
+    const annTipAttr = this.getAttribute('annotation-tooltip') || undefined;
+
+    let resolvedAnnotation: string | MarkerAnnotationConfig | undefined =
+      this.#annotation;
+    if (
+      annTextAttr !== null ||
+      annIconAttr !== undefined ||
+      annPosAttr !== null ||
+      annPadAttr !== undefined ||
+      annEnableTipAttr !== undefined ||
+      annTipAttr !== undefined
+    ) {
+      const baseAnn: MarkerAnnotationConfig =
+        typeof this.#annotation === 'string'
+          ? { text: this.#annotation }
+          : { ...(this.#annotation ?? {}) };
+      resolvedAnnotation = {
+        ...baseAnn,
+        ...(annTextAttr !== null ? { text: annTextAttr } : {}),
+        ...(annIconAttr !== undefined ? { icon: annIconAttr } : {}),
+        ...(annPosAttr === 'left' ||
+        annPosAttr === 'right' ||
+        annPosAttr === 'top' ||
+        annPosAttr === 'bottom'
+          ? { position: annPosAttr }
+          : {}),
+        ...(annPadAttr !== undefined && !Number.isNaN(annPadAttr)
+          ? { padding: annPadAttr }
+          : {}),
+        ...(annOffXAttr !== undefined && !Number.isNaN(annOffXAttr)
+          ? { offsetX: annOffXAttr }
+          : {}),
+        ...(annOffYAttr !== undefined && !Number.isNaN(annOffYAttr)
+          ? { offsetY: annOffYAttr }
+          : {}),
+        ...(annEnableTipAttr !== undefined
+          ? { enableTooltip: annEnableTipAttr }
+          : {}),
+        ...(annTipAttr !== undefined ? { tooltip: annTipAttr } : {})
+      };
+    }
+
+    // Resolve declarative marker legend attributes + JS property
+    const legAttr = this.getAttribute('legend');
+    const legLabelAttr = this.getAttribute('legend-label') || undefined;
+    const legColorAttr = this.getAttribute('legend-color') || undefined;
+    const legSwatchAttr = this.getAttribute(
+      'legend-swatch'
+    ) as MarkerLegendSwatch | null;
+    const legTipAttr = this.getAttribute('legend-tooltip') || undefined;
+
+    let resolvedLegend: boolean | MarkerLegendConfig | undefined = this.#legend;
+    if (
+      legAttr !== null ||
+      legLabelAttr !== undefined ||
+      legColorAttr !== undefined ||
+      legSwatchAttr !== null ||
+      legTipAttr !== undefined
+    ) {
+      if (
+        legAttr === 'false' &&
+        !legLabelAttr &&
+        !legColorAttr &&
+        !legSwatchAttr &&
+        !legTipAttr
+      ) {
+        resolvedLegend = false;
+      } else {
+        const baseLeg: MarkerLegendConfig =
+          typeof this.#legend === 'object' && this.#legend !== null
+            ? { ...this.#legend }
+            : {};
+        resolvedLegend = {
+          ...baseLeg,
+          ...(legAttr !== null ? { enabled: legAttr !== 'false' } : {}),
+          ...(legLabelAttr !== undefined ? { label: legLabelAttr } : {}),
+          ...(legColorAttr !== undefined ? { color: legColorAttr } : {}),
+          ...(legSwatchAttr === 'auto' ||
+          legSwatchAttr === 'line' ||
+          legSwatchAttr === 'area' ||
+          legSwatchAttr === 'square'
+            ? { swatch: legSwatchAttr }
+            : {}),
+          ...(legTipAttr !== undefined ? { tooltip: legTipAttr } : {})
+        };
+      }
+    }
+
     return {
       id: this.getAttribute('id') || undefined,
       type: typeAttr || (hasFromTo ? 'area' : 'line'),
@@ -163,6 +306,8 @@ export class MCMarkerElement extends HTMLElement {
         ? Number(this.getAttribute('label-offset-y'))
         : undefined,
       icon: this.getAttribute('icon') || undefined,
+      annotation: resolvedAnnotation,
+      legend: resolvedLegend,
       stroke: this.getAttribute('stroke') || undefined,
       strokeWidth: this.hasAttribute('stroke-width')
         ? Number(this.getAttribute('stroke-width'))

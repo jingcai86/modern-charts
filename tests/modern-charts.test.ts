@@ -981,40 +981,48 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
           labelEdgePadding: 12
         },
         {
-          id: 'out-r',
+          id: 'ann-r',
           type: 'line',
           axis: 'y',
           value: 100,
-          label: 'Outside Right',
-          labelPosition: 'outside-right',
-          labelPadding: 12
+          annotation: {
+            text: 'SLA 100',
+            position: 'right',
+            padding: 12
+          }
         },
         {
-          id: 'out-l',
+          id: 'ann-l',
           type: 'line',
           axis: 'y',
           value: 100,
-          label: 'Outside Left',
-          labelPosition: 'outside-left',
-          labelPadding: 15
+          annotation: {
+            text: 'Left Target',
+            position: 'left',
+            padding: 15
+          }
         },
         {
-          id: 'out-top',
+          id: 'ann-top',
           type: 'line',
           axis: 'x',
           value: 'Q2',
-          label: 'Outside Top',
-          labelPosition: 'outside-top',
-          labelPadding: 10
+          annotation: {
+            text: 'Launch',
+            position: 'top',
+            padding: 10
+          }
         },
         {
-          id: 'out-bot',
+          id: 'ann-bot',
           type: 'line',
           axis: 'x',
           value: 'Q3',
-          label: 'Outside Bottom',
-          labelPosition: 'outside-bottom',
-          labelPadding: 14
+          annotation: {
+            icon: '⚠️',
+            position: 'bottom',
+            padding: 14
+          }
         }
       ]
     };
@@ -1025,7 +1033,7 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
     const lineY = Number(lineEl?.getAttribute('y1'));
     const innerWidth = Number(lineEl?.getAttribute('x2'));
     const xLineEl = bar.shadowRoot?.querySelector(
-      '.mc-marker[data-marker-id="out-top"] .mc-marker-line'
+      '.mc-marker[data-marker-id="ann-top"] .mc-marker-line'
     );
     const innerHeight = Number(xLineEl?.getAttribute('y2'));
 
@@ -1035,17 +1043,17 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
     const brPos = parseTranslate(
       bar.shadowRoot?.querySelector('[data-label-id="marker-label-br"]') ?? null
     );
-    const outRPos = parseTranslate(
-      bar.shadowRoot?.querySelector('[data-label-id="marker-label-out-r"]') ?? null
+    const annRPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="marker-annotation-ann-r"]') ?? null
     );
-    const outLPos = parseTranslate(
-      bar.shadowRoot?.querySelector('[data-label-id="marker-label-out-l"]') ?? null
+    const annLPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="marker-annotation-ann-l"]') ?? null
     );
-    const outTopPos = parseTranslate(
-      bar.shadowRoot?.querySelector('[data-label-id="marker-label-out-top"]') ?? null
+    const annTopPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="marker-annotation-ann-top"]') ?? null
     );
-    const outBotPos = parseTranslate(
-      bar.shadowRoot?.querySelector('[data-label-id="marker-label-out-bot"]') ?? null
+    const annBotPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="marker-annotation-ann-bot"]') ?? null
     );
 
     // Inside top-left sits above the line by labelPadding (14) and inset from left by labelEdgePadding (16)
@@ -1056,26 +1064,26 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
     expect(brPos.x).toBeCloseTo(innerWidth - 12, 1);
     expect(brPos.y).toBeCloseTo(lineY + 18, 1);
 
-    // Outside right sits to the right of innerWidth by labelPadding (12)
-    expect(outRPos.x).toBeCloseTo(innerWidth + 12, 1);
-    expect(outRPos.y).toBeCloseTo(lineY, 1);
+    // Outside right annotation sits to the right of innerWidth by padding (12)
+    expect(annRPos.x).toBeCloseTo(innerWidth + 12, 1);
+    expect(annRPos.y).toBeCloseTo(lineY, 1);
 
-    // Outside left sits to the left of the Y-axis by labelPadding (15)
-    expect(outLPos.x).toBe(-15);
-    expect(outLPos.y).toBeCloseTo(lineY, 1);
+    // Outside left annotation sits to the left of the Y-axis by padding (15)
+    expect(annLPos.x).toBe(-15);
+    expect(annLPos.y).toBeCloseTo(lineY, 1);
 
-    // Outside top sits above top edge by labelPadding (10)
-    expect(outTopPos.y).toBe(-10);
+    // Outside top annotation sits above top edge by padding (10)
+    expect(annTopPos.y).toBe(-10);
 
-    // Outside bottom sits below bottom X-axis by labelPadding (14)
-    expect(outBotPos.y).toBeCloseTo(innerHeight + 14, 1);
+    // Outside bottom icon-only annotation sits below bottom edge by padding (14)
+    expect(annBotPos.y).toBeCloseTo(innerHeight + 14, 1);
 
-    // Margins automatically expanded to fit outside-left and outside-right labels
+    // Margins automatically expanded to fit outside annotations
     const resolvedDims = bar.resolveDimensions();
     expect(resolvedDims.margin.right).toBeGreaterThan(24);
     expect(resolvedDims.margin.left).toBeGreaterThan(52);
 
-    // Declarative <mc-marker> attributes forward label-position & label-padding cleanly
+    // Declarative <mc-marker> attributes forward inside label + annotation + legend cleanly
     const declMarker = document.createElement('mc-marker') as any;
     declMarker.setAttribute('axis', 'y');
     declMarker.setAttribute('value', '100');
@@ -1083,10 +1091,250 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
     declMarker.setAttribute('label-position', 'bottom-left');
     declMarker.setAttribute('label-padding', '16');
     declMarker.setAttribute('label-edge-padding', '20');
+    declMarker.setAttribute('annotation-text', 'SLA');
+    declMarker.setAttribute('annotation-icon', '⚡');
+    declMarker.setAttribute('annotation-position', 'right');
+    declMarker.setAttribute('annotation-padding', '12');
+    declMarker.setAttribute('legend', 'true');
+    declMarker.setAttribute('legend-label', 'SLA Floor');
     const parsed = declMarker.toMarkerConfig();
     expect(parsed.labelPosition).toBe('bottom-left');
     expect(parsed.labelPadding).toBe(16);
     expect(parsed.labelEdgePadding).toBe(20);
+    expect(parsed.annotation).toMatchObject({
+      text: 'SLA',
+      icon: '⚡',
+      position: 'right',
+      padding: 12
+    });
+    expect(parsed.legend).toMatchObject({
+      enabled: true,
+      label: 'SLA Floor'
+    });
+  });
+
+  it('supports marker legends (line & area) with dedicated legend tooltips and interactive outside annotation tooltips (default true)', () => {
+    const line = document.createElement('mc-line-chart') as MCLineChart;
+    document.body.appendChild(line);
+
+    line.config = {
+      data: SAMPLE_LINE_DATA,
+      width: 680,
+      height: 360,
+      markers: [
+        {
+          id: 'alert-zone',
+          type: 'area',
+          axis: 'y',
+          from: 0,
+          to: 120,
+          fill: '#f59e0b',
+          fillOpacity: 0.14,
+          annotation: {
+            text: 'Alert Band',
+            position: 'left',
+            padding: 10,
+            tooltip: 'Values under 120 trigger alerts'
+          },
+          legend: {
+            label: 'Alert Band (0-120)',
+            tooltip: 'Highlighted area marker band'
+          }
+        },
+        {
+          id: 'sla-line',
+          type: 'line',
+          axis: 'y',
+          value: 120,
+          stroke: '#ef4444',
+          strokeDasharray: '6 4',
+          condition: 'below',
+          annotation: {
+            icon: '⚠️',
+            text: 'SLA 120',
+            position: 'right',
+            padding: 10
+          },
+          legend: true
+        },
+        {
+          id: 'no-tip-ann',
+          type: 'line',
+          axis: 'x',
+          value: 'Mar',
+          stroke: '#38bdf8',
+          annotation: {
+            text: 'Silent',
+            position: 'top',
+            enableTooltip: false
+          }
+        }
+      ]
+    };
+
+    // 1. Marker lines & areas keep pointer-events: none while annotations have pointer-events: auto
+    const markerLine = line.shadowRoot?.querySelector(
+      '.mc-marker[data-marker-id="sla-line"] .mc-marker-line'
+    );
+    expect(markerLine?.getAttribute('pointer-events')).toBe('none');
+
+    const slaAnn = line.shadowRoot?.querySelector(
+      '.mc-marker-annotation[data-marker-id="sla-line"]'
+    ) as SVGGElement | null;
+    expect(slaAnn).not.toBeNull();
+    expect(slaAnn?.getAttribute('pointer-events')).toBe('auto');
+    expect(slaAnn?.getAttribute('data-annotation-position')).toBe('right');
+
+    // 2. Hovering & focusing outside annotation shows unified chart tooltip by default
+    const itemTip = line.getTooltipElement()!;
+    slaAnn!.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 600, clientY: 180 })
+    );
+    expect(itemTip.hidden).toBe(false);
+    expect(itemTip.renderedHtml).toContain('SLA 120');
+    expect(itemTip.renderedHtml).toContain('Line Marker');
+    slaAnn!.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    expect(itemTip.hidden).toBe(true);
+
+    // Area annotation with custom tooltip string also works on keyboard focus & hides on Escape
+    const areaAnn = line.shadowRoot?.querySelector(
+      '.mc-marker-annotation[data-marker-id="alert-zone"]'
+    ) as SVGGElement;
+    areaAnn.dispatchEvent(new FocusEvent('focus'));
+    expect(itemTip.hidden).toBe(false);
+    expect(itemTip.renderedHtml).toContain('Values under 120 trigger alerts');
+    areaAnn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(itemTip.hidden).toBe(true);
+
+    // Annotation with enableTooltip: false does not open tooltip and disables pointer-events
+    const silentAnn = line.shadowRoot?.querySelector(
+      '.mc-marker-annotation[data-marker-id="no-tip-ann"]'
+    ) as SVGGElement;
+    expect(silentAnn.getAttribute('pointer-events')).toBe('none');
+    silentAnn.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 250, clientY: 20 })
+    );
+    expect(itemTip.hidden).toBe(true);
+
+    // Line slice hit bands must stay strictly within [0, innerWidth] so they never overlap right-side outside annotations
+    const lineDims = line.resolveDimensions();
+    const sliceRects = Array.from(
+      line.shadowRoot?.querySelectorAll('.mc-slice-hit') ?? []
+    );
+    expect(sliceRects.length).toBeGreaterThan(0);
+    for (const sr of sliceRects) {
+      const sx = Number(sr.getAttribute('x'));
+      const sw = Number(sr.getAttribute('width'));
+      expect(sx).toBeGreaterThanOrEqual(0);
+      expect(sx + sw).toBeLessThanOrEqual(lineDims.innerWidth + 0.01);
+    }
+
+    // 3. Both line and area markers appear in the unified legend with distinct swatches + legend tooltips
+    const markerLegendItems = line.shadowRoot?.querySelectorAll(
+      '.mc-legend-item[data-legend-kind="marker"]'
+    );
+    expect(markerLegendItems?.length).toBe(2);
+
+    const areaLegendItem = line.shadowRoot?.querySelector(
+      '.mc-legend-item[data-legend-id="marker:alert-zone"]'
+    ) as SVGGElement | null;
+    const lineLegendItem = line.shadowRoot?.querySelector(
+      '.mc-legend-item[data-legend-id="marker:sla-line"]'
+    ) as SVGGElement | null;
+    expect(areaLegendItem?.querySelector('.mc-legend-swatch--area')).not.toBeNull();
+    expect(lineLegendItem?.querySelector('.mc-legend-swatch--line')).not.toBeNull();
+
+    // Hovering and Tab-focusing marker legend items shows the dedicated legend tooltip
+    const legendTip = line.getLegendTooltipElement()!;
+    areaLegendItem!.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 220, clientY: 340 })
+    );
+    expect(legendTip.hidden).toBe(false);
+    expect(legendTip.renderedHtml).toContain('Alert Band (0-120)');
+    expect(legendTip.renderedHtml).toContain('Highlighted area marker band');
+    areaLegendItem!.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    expect(legendTip.hidden).toBe(true);
+
+    lineLegendItem!.dispatchEvent(new FocusEvent('focus'));
+    expect(legendTip.hidden).toBe(false);
+    expect(legendTip.renderedHtml).toContain('Line Marker');
+    lineLegendItem!.dispatchEvent(new FocusEvent('blur'));
+    expect(legendTip.hidden).toBe(true);
+
+    // 4. Marker labels & annotations render boxless by default (both SVG and foreignObject with SVG icon!),
+    //    and accept explicit background/border/color/formatter via labelStyle or annotation
+    expect(
+      line.shadowRoot?.querySelector(
+        '[data-label-id="marker-annotation-alert-zone"] .mc-label-bg'
+      )
+    ).toBeNull();
+
+    // Verify foreignObject marker label & annotation (triggered by inline <svg> icon) have transparent bg & no border by default
+    line.config = {
+      ...line.config,
+      markers: [
+        {
+          id: 'svg-icon-marker',
+          type: 'line',
+          axis: 'y',
+          value: 120,
+          label: 'Warn 120',
+          icon: '<svg width="11" height="11" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>',
+          annotation: {
+            text: '120',
+            icon: '<svg width="11" height="11" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>',
+            position: 'right'
+          }
+        }
+      ]
+    };
+    const foLabelDiv = line.shadowRoot?.querySelector(
+      '[data-label-id="marker-label-svg-icon-marker"] .mc-fo-label'
+    ) as HTMLElement | null;
+    const foAnnDiv = line.shadowRoot?.querySelector(
+      '[data-label-id="marker-annotation-svg-icon-marker"] .mc-fo-label'
+    ) as HTMLElement | null;
+    expect(foLabelDiv?.style.background).toBe('');
+    expect(foLabelDiv?.style.border).toBe('');
+    expect(foAnnDiv?.style.background).toBe('');
+    expect(foAnnDiv?.style.border).toBe('');
+
+    line.config = {
+      ...line.config,
+      markers: [
+        {
+          id: 'styled-marker',
+          type: 'line',
+          axis: 'y',
+          value: 120,
+          label: '120',
+          labelStyle: {
+            color: '#ffffff',
+            background: '#0f172a',
+            borderColor: '#ef4444',
+            borderRadius: 6,
+            formatter: (t) => `Target: ${t}`
+          },
+          annotation: {
+            text: 'SLA',
+            position: 'right',
+            background: '#1e293b',
+            borderColor: '#38bdf8'
+          }
+        }
+      ]
+    };
+
+    const styledLabel = line.shadowRoot?.querySelector(
+      '[data-label-id="marker-label-styled-marker"]'
+    );
+    expect(styledLabel?.querySelector('.mc-label-bg')).not.toBeNull();
+    expect(styledLabel?.textContent).toContain('Target: 120');
+
+    const styledAnn = line.shadowRoot?.querySelector(
+      '[data-label-id="marker-annotation-styled-marker"]'
+    );
+    expect(styledAnn?.querySelector('.mc-label-bg')).not.toBeNull();
   });
 });
 

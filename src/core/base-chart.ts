@@ -8,7 +8,7 @@ import {
 import { AriaEngine, createDefaultAriaConfig } from './aria-engine';
 import { LabelEngine } from './label-engine';
 import { createDefaultLegendConfig } from './legend-engine';
-import { MarkerEngine } from './marker-engine';
+import { MarkerEngine, resolveMarkerAnnotation } from './marker-engine';
 import { createDefaultScaleConfig } from './scale-manager';
 import { createDefaultTheme, createOrdinalColorScale } from './theme';
 import type {
@@ -188,6 +188,11 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
         .mc-layer--grid,
         .mc-layer--grid * {
           pointer-events: none;
+        }
+
+        .mc-layer--markers .mc-marker-annotation,
+        .mc-layer--markers .mc-marker-annotation * {
+          pointer-events: auto;
         }
 
         @keyframes mc-layer-reveal {
@@ -892,7 +897,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     height = Math.max(140, Math.round(height));
 
     const margin = { ...this.resolveMargin() };
-    this.expandMarginForOutsideMarkers(margin);
+    this.expandMarginForMarkerAnnotations(margin);
     this.expandMarginForLegend(margin);
     const innerWidth = Math.max(40, width - margin.left - margin.right);
     const innerHeight = Math.max(40, height - margin.top - margin.bottom);
@@ -901,52 +906,52 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   }
 
   /**
-   * Automatically reserves enough margin space when any active marker uses an
-   * `'outside-left'`, `'outside-right'`, `'outside-top'`, or `'outside-bottom'`
-   * label position so outside marker badges never clip against the SVG viewport.
+   * Automatically reserves enough margin space when any active marker defines
+   * an outside `annotation` (`left`, `right`, `top`, or `bottom`) so outside
+   * annotation icons/text never clip against the SVG viewport.
    */
-  private expandMarginForOutsideMarkers(margin: ChartMargin): void {
+  private expandMarginForMarkerAnnotations(margin: ChartMargin): void {
     const markers = this.resolveMarkersConfig();
     if (markers.length === 0) return;
 
     let theme: ChartTheme | null = null;
     for (const m of markers) {
-      if (!m.label || !m.labelPosition || !m.labelPosition.startsWith('outside-')) {
-        continue;
-      }
+      const ann = resolveMarkerAnnotation(m);
+      if (!ann) continue;
+
       if (!theme) theme = this.resolveTheme();
-      const pad = m.labelPadding ?? 8;
       const measured = this.labelEngine.measure(
-        m.label,
+        ann.text,
         {
           type: 'marker',
-          fontSize: Math.max(10, theme.fontSize - 1),
-          fontWeight: 600,
-          background: 'rgba(0,0,0,0.8)',
-          icon: m.icon
+          fontSize: ann.fontSize ?? Math.max(10, theme.fontSize - 1),
+          fontWeight: ann.fontWeight ?? 600,
+          background: ann.background,
+          padding: ann.labelPadding,
+          icon: ann.icon
         },
         theme
       );
 
-      if (m.labelPosition === 'outside-left') {
+      if (ann.position === 'left') {
         margin.left = Math.max(
           margin.left,
-          Math.ceil(measured.boxWidth + pad + 14)
+          Math.ceil(measured.boxWidth + ann.padding + 14)
         );
-      } else if (m.labelPosition === 'outside-right') {
+      } else if (ann.position === 'right') {
         margin.right = Math.max(
           margin.right,
-          Math.ceil(measured.boxWidth + pad + 14)
+          Math.ceil(measured.boxWidth + ann.padding + 14)
         );
-      } else if (m.labelPosition === 'outside-top') {
+      } else if (ann.position === 'top') {
         margin.top = Math.max(
           margin.top,
-          Math.ceil(measured.boxHeight + pad + 14)
+          Math.ceil(measured.boxHeight + ann.padding + 14)
         );
-      } else if (m.labelPosition === 'outside-bottom') {
+      } else if (ann.position === 'bottom') {
         margin.bottom = Math.max(
           margin.bottom,
-          Math.ceil(measured.boxHeight + pad + 14)
+          Math.ceil(measured.boxHeight + ann.padding + 14)
         );
       }
     }
@@ -1620,8 +1625,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       showTooltip: (
         content: TooltipInput,
         clientX: number,
-        clientY: number
-      ) => this.showTooltip(content, clientX, clientY, theme),
+        clientY: number,
+        overrideConfig?: TooltipConfig<any>
+      ) => this.showTooltip(content, clientX, clientY, theme, overrideConfig),
       hideTooltip: () => this.hideTooltip(),
       showLegendTooltip: (
         content: TooltipInput<LegendItem>,
@@ -1939,7 +1945,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     content: TooltipInput,
     clientX: number,
     clientY: number,
-    theme?: ChartTheme
+    theme?: ChartTheme,
+    overrideConfig?: TooltipConfig<any>
   ): void {
     const tooltip = this.getTooltipElement();
     const container = this.shadowRoot?.querySelector(
@@ -1947,7 +1954,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     ) as HTMLDivElement | null;
     if (!tooltip || !container) return;
 
-    const tooltipConfig = this.resolveTooltipConfig();
+    const baseConfig = this.resolveTooltipConfig();
+    const tooltipConfig: TooltipConfig<any> = overrideConfig
+      ? { ...baseConfig, ...overrideConfig }
+      : baseConfig;
     if (tooltipConfig.enabled === false) {
       this.hideTooltip();
       return;

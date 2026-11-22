@@ -176,7 +176,7 @@ interface SharedChartConfig<TData> {
 
 ## 3. Markers & Threshold Styling (`markers` / `<mc-marker>`)
 
-Supported on Cartesian charts (`<mc-bar-chart>`, `<mc-line-chart>`, `<mc-scatter-chart>`). Markers have `pointer-events: none` so tooltips on underlying data items are never blocked.
+Supported on Cartesian charts (`<mc-bar-chart>`, `<mc-line-chart>`, `<mc-scatter-chart>`). Marker lines, areas, and inside labels have `pointer-events: none` so tooltips on underlying data items are never blocked, while outside `annotation` callouts have `pointer-events: auto` with interactive hover/focus tooltips enabled by default.
 
 ```ts
 interface MarkerConfig {
@@ -190,13 +190,43 @@ interface MarkerConfig {
   labelPosition?:
     | 'start' | 'middle' | 'end'
     | 'top-left' | 'top-center' | 'top-right'
-    | 'bottom-left' | 'bottom-center' | 'bottom-right'
-    | 'outside-left' | 'outside-right' | 'outside-top' | 'outside-bottom';
-  labelPadding?: number;     // px away from marker line or axis (default 8)
-  labelEdgePadding?: number; // px inset from plot edge for inside labels (default 8)
+    | 'bottom-left' | 'bottom-center' | 'bottom-right';
+  labelPadding?: number;     // px away from marker line/area edge for inside labels (default 10)
+  labelEdgePadding?: number; // px inset from plot edge for inside labels (default 10)
   labelOffsetX?: number;
   labelOffsetY?: number;
+  // Optional per-marker inside label styling (boxless text by default)
+  labelStyle?: Partial<Omit<LabelStyleOverride, 'target'>>;
   icon?: string;
+  // Outside callout (icon and/or text, boxless by default) placed where the mark line/area reaches the plot boundary
+  annotation?: string | {
+    text?: string;
+    icon?: string | SVGElement | HTMLElement;
+    position?: 'left' | 'right' | 'top' | 'bottom'; // defaults to 'right' for axis:'y', 'top' for axis:'x'
+    padding?: number;       // px gap outside plot edge (default 8)
+    offsetX?: number;
+    offsetY?: number;
+    color?: string;
+    background?: string;
+    borderColor?: string;
+    borderRadius?: number;
+    fontSize?: number;
+    fontWeight?: string | number;
+    fontFamily?: string;
+    labelPadding?: LabelPadding;
+    formatter?: LabelStyleOverride['formatter'];
+    renderer?: CustomLabelRenderer;
+    enableTooltip?: boolean; // default true (hover + keyboard Tab focus)
+    tooltip?: boolean | string | TooltipConfig<ResolvedMarker>;
+  };
+  // Include this line or area marker in the unified <mc-legend> (with hover/focus legend tooltip)
+  legend?: boolean | {
+    enabled?: boolean;
+    label?: string;
+    color?: string;
+    swatch?: 'auto' | 'line' | 'area' | 'square';
+    tooltip?: string;
+  };
   stroke?: string;
   strokeWidth?: number;
   strokeDasharray?: string;
@@ -217,7 +247,7 @@ interface MarkerConfig {
 }
 ```
 
-Note: When any marker uses `outside-left`, `outside-right`, `outside-top`, or `outside-bottom`, `MCBaseChart` automatically expands the corresponding chart margin so the label never clips.
+Note: When any marker defines an outside `annotation` (`left`, `right`, `top`, or `bottom`), `MCBaseChart` automatically expands the corresponding chart margin so the annotation never clips.
 
 ---
 

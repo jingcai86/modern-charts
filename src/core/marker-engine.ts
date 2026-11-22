@@ -1,7 +1,13 @@
 import { getScalePosition } from './scale-manager';
 import type {
   ChartRenderContext,
+  CustomLabelRenderer,
   LabelDescriptor,
+  LabelPadding,
+  LabelStyleOverride,
+  LegendItem,
+  MarkerAnnotationConfig,
+  MarkerAnnotationPosition,
   MarkerCondition,
   MarkerConfig,
   MarkerLabelPosition,
@@ -9,10 +15,161 @@ import type {
   ResolvedMarker,
   ThresholdContextInfo,
   ThresholdEvaluationResult,
-  ThresholdMatchedItem
+  ThresholdMatchedItem,
+  TooltipConfig
 } from './types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+export interface ResolvedMarkerAnnotation {
+  text: string;
+  icon?: string | SVGElement | HTMLElement;
+  position: MarkerAnnotationPosition;
+  padding: number;
+  offsetX: number;
+  offsetY: number;
+  color?: string;
+  background?: string;
+  borderColor?: string;
+  borderRadius?: number;
+  fontSize?: number;
+  fontWeight?: string | number;
+  fontFamily?: string;
+  labelPadding?: LabelPadding;
+  formatter?: LabelStyleOverride['formatter'];
+  renderer?: CustomLabelRenderer;
+  enableTooltip: boolean;
+  tooltipText?: string;
+  tooltipConfig?: TooltipConfig<ResolvedMarker>;
+}
+
+/**
+ * Resolves a marker's optional outside `annotation` into a normalized descriptor.
+ * Returns `null` when the marker has no annotation configured.
+ */
+export function resolveMarkerAnnotation(
+  marker: MarkerConfig
+): ResolvedMarkerAnnotation | null {
+  const raw = marker.annotation;
+  if (!raw) return null;
+
+  const axis = marker.axis ?? 'y';
+  const defaultPos: MarkerAnnotationPosition = axis === 'x' ? 'top' : 'right';
+
+  if (typeof raw === 'string') {
+    const text = raw.trim();
+    if (!text) return null;
+    return {
+      text,
+      position: defaultPos,
+      padding: 8,
+      offsetX: 0,
+      offsetY: 0,
+      enableTooltip: true
+    };
+  }
+
+  const text = raw.text !== undefined ? String(raw.text) : raw.icon ? '' : (marker.label ?? '');
+  if (!text && !raw.icon) return null;
+
+  const rawTip = raw.tooltip;
+  const tooltipConfig =
+    typeof rawTip === 'object' && rawTip !== null ? rawTip : undefined;
+  const enableTooltip =
+    raw.enableTooltip === false ||
+    rawTip === false ||
+    tooltipConfig?.enabled === false
+      ? false
+      : true;
+
+  return {
+    text,
+    icon: raw.icon,
+    position: raw.position ?? defaultPos,
+    padding:
+      raw.padding !== undefined && Number.isFinite(raw.padding)
+        ? Math.max(0, raw.padding)
+        : 8,
+    offsetX: raw.offsetX ?? 0,
+    offsetY: raw.offsetY ?? 0,
+    color: raw.color,
+    background: raw.background,
+    borderColor: raw.borderColor,
+    borderRadius: raw.borderRadius,
+    fontSize: raw.fontSize,
+    fontWeight: raw.fontWeight,
+    fontFamily: raw.fontFamily,
+    labelPadding: raw.labelPadding,
+    formatter: raw.formatter,
+    renderer: raw.renderer,
+    enableTooltip,
+    tooltipText: typeof rawTip === 'string' ? rawTip : undefined,
+    tooltipConfig
+  };
+}
+
+/**
+ * Builds unified `LegendItem` entries for all line and area markers that opt
+ * into the chart legend (`marker.legend: true | MarkerLegendConfig`).
+ */
+export function buildMarkerLegendItems(markers: ResolvedMarker[]): LegendItem[] {
+  const items: LegendItem[] = [];
+  for (const marker of markers) {
+    if (!marker.legend) continue;
+    const legCfg = typeof marker.legend === 'object' ? marker.legend : {};
+    if (legCfg.enabled === false) continue;
+
+    const annText =
+      typeof marker.annotation === 'string'
+        ? marker.annotation
+        : marker.annotation?.text;
+    const label = legCfg.label || marker.label || annText || marker.id;
+    const color =
+      legCfg.color ||
+      (marker.type === 'area'
+        ? marker.fill || marker.stroke || '#ef4444'
+        : marker.stroke || marker.fill || '#ef4444');
+    const swatchPref = legCfg.swatch ?? 'auto';
+    const swatch: 'square' | 'line' | 'area' =
+      swatchPref === 'auto'
+        ? marker.type === 'area'
+          ? 'area'
+          : 'line'
+        : swatchPref;
+
+    const valueDisplay =
+      marker.type === 'area'
+        ? `${marker.from ?? 0} – ${marker.to ?? 0}`
+        : marker.value;
+
+    items.push({
+      id: `marker:${marker.id}`,
+      label,
+      color,
+      value: valueDisplay,
+      swatch,
+      strokeDasharray:
+        swatch === 'line' ? marker.strokeDasharray ?? '6 4' : marker.strokeDasharray,
+      fillOpacity: swatch === 'area' ? marker.fillOpacity ?? 0.25 : undefined,
+      kind: 'marker',
+      tooltipText: legCfg.tooltip,
+      meta: {
+        kind: 'marker',
+        markerId: marker.id,
+        markerType: marker.type,
+        axis: marker.axis,
+        value: marker.value,
+        from: marker.from,
+        to: marker.to,
+        condition:
+          typeof marker.condition === 'string' ? marker.condition : undefined,
+        matchScope: marker.matchScope,
+        matchedCount: marker.matchedItems?.length ?? 0
+      }
+    });
+  }
+  return items;
+}
 
 export class MarkerEngine {
   /**
@@ -274,11 +431,10 @@ export class MarkerEngine {
   }
 
   /**
-   * Resolves marker label coordinates, text-anchor, and vertical baseline
-   * for inside (`top-left`, `top-center`, `top-right`, `bottom-left`,
-   * `bottom-center`, `bottom-right`, plus legacy `start`/`middle`/`end`)
-   * and outside (`outside-left`, `outside-right`, `outside-top`, `outside-bottom`)
-   * positions with configurable `labelPadding` and `labelEdgePadding`.
+   * Resolves inside marker label coordinates, text-anchor, and vertical baseline
+   * for `top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center`,
+   * `bottom-right` (plus shorthands `start`, `middle`, `end`) with configurable
+   * `labelPadding` and `labelEdgePadding`.
    */
   private resolveMarkerLabelPlacement(
     marker: ResolvedMarker,
@@ -290,8 +446,7 @@ export class MarkerEngine {
     anchor: NonNullable<LabelDescriptor['anchor']>;
     baseline: NonNullable<LabelDescriptor['baseline']>;
   } {
-    const rawPos: MarkerLabelPosition =
-      marker.labelPosition ?? (marker.axis === 'x' ? 'top-right' : 'top-right');
+    const rawPos: MarkerLabelPosition = marker.labelPosition ?? 'top-right';
 
     // Normalize legacy shorthands ('start' | 'middle' | 'end')
     const normalizedPos: Exclude<MarkerLabelPosition, 'start' | 'middle' | 'end'> =
@@ -305,8 +460,7 @@ export class MarkerEngine {
         ? 'top-right'
         : rawPos;
 
-    const isOutside = normalizedPos.startsWith('outside-');
-    const pad = marker.labelPadding ?? (isOutside ? 8 : 10);
+    const pad = marker.labelPadding ?? 10;
     const edgePad = marker.labelEdgePadding ?? 10;
     const offsetX = marker.labelOffsetX ?? 0;
     const offsetY = marker.labelOffsetY ?? 0;
@@ -323,30 +477,6 @@ export class MarkerEngine {
 
     if (marker.axis === 'y') {
       switch (normalizedPos) {
-        case 'outside-left':
-          x = -pad;
-          y = centerP;
-          anchor = 'end';
-          baseline = 'middle';
-          break;
-        case 'outside-right':
-          x = ctx.innerWidth + pad;
-          y = centerP;
-          anchor = 'start';
-          baseline = 'middle';
-          break;
-        case 'outside-top':
-          x = ctx.innerWidth / 2;
-          y = -pad;
-          anchor = 'middle';
-          baseline = 'alphabetic';
-          break;
-        case 'outside-bottom':
-          x = ctx.innerWidth / 2;
-          y = ctx.innerHeight + pad;
-          anchor = 'middle';
-          baseline = 'hanging';
-          break;
         case 'top-left':
           x = edgePad;
           y = isArea ? minP + pad : centerP - pad;
@@ -387,30 +517,6 @@ export class MarkerEngine {
     } else {
       // axis === 'x' (vertical marker line or vertical marker area)
       switch (normalizedPos) {
-        case 'outside-top':
-          x = centerP;
-          y = -pad;
-          anchor = 'middle';
-          baseline = 'alphabetic';
-          break;
-        case 'outside-bottom':
-          x = centerP;
-          y = ctx.innerHeight + pad;
-          anchor = 'middle';
-          baseline = 'hanging';
-          break;
-        case 'outside-left':
-          x = -pad;
-          y = edgePad;
-          anchor = 'end';
-          baseline = 'hanging';
-          break;
-        case 'outside-right':
-          x = ctx.innerWidth + pad;
-          y = edgePad;
-          anchor = 'start';
-          baseline = 'hanging';
-          break;
         case 'top-left':
           x = isArea ? minP + pad : centerP - pad;
           y = edgePad;
@@ -456,6 +562,242 @@ export class MarkerEngine {
       anchor,
       baseline
     };
+  }
+
+  /**
+   * Renders an outside marker annotation (icon and/or text) placed at the plot
+   * edge where the mark line/area reaches (`left`, `right`, `top`, or `bottom`),
+   * with interactive hover and keyboard focus tooltip support (enabled by default).
+   */
+  private renderMarkerAnnotation(
+    marker: ResolvedMarker,
+    ctx: ChartRenderContext<any>,
+    parentG: SVGGElement,
+    bounds: { posPx?: number; minP?: number; maxP?: number }
+  ): void {
+    const ann = resolveMarkerAnnotation(marker);
+    if (!ann) return;
+
+    const isArea = marker.type === 'area';
+    const minP = bounds.minP ?? bounds.posPx ?? 0;
+    const maxP = bounds.maxP ?? bounds.posPx ?? 0;
+    const centerP = isArea ? (minP + maxP) / 2 : bounds.posPx ?? 0;
+
+    let x = 0;
+    let y = 0;
+    let anchor: NonNullable<LabelDescriptor['anchor']> = 'middle';
+    let baseline: NonNullable<LabelDescriptor['baseline']> = 'middle';
+
+    if (marker.axis === 'y') {
+      switch (ann.position) {
+        case 'left':
+          x = -ann.padding;
+          y = centerP;
+          anchor = 'end';
+          baseline = 'middle';
+          break;
+        case 'right':
+          x = ctx.innerWidth + ann.padding;
+          y = centerP;
+          anchor = 'start';
+          baseline = 'middle';
+          break;
+        case 'top':
+          x = ctx.innerWidth / 2;
+          y = -ann.padding;
+          anchor = 'middle';
+          baseline = 'alphabetic';
+          break;
+        case 'bottom':
+          x = ctx.innerWidth / 2;
+          y = ctx.innerHeight + ann.padding;
+          anchor = 'middle';
+          baseline = 'hanging';
+          break;
+      }
+    } else {
+      switch (ann.position) {
+        case 'top':
+          x = centerP;
+          y = -ann.padding;
+          anchor = 'middle';
+          baseline = 'alphabetic';
+          break;
+        case 'bottom':
+          x = centerP;
+          y = ctx.innerHeight + ann.padding;
+          anchor = 'middle';
+          baseline = 'hanging';
+          break;
+        case 'left':
+          x = -ann.padding;
+          y = ctx.innerHeight / 2;
+          anchor = 'end';
+          baseline = 'middle';
+          break;
+        case 'right':
+          x = ctx.innerWidth + ann.padding;
+          y = ctx.innerHeight / 2;
+          anchor = 'start';
+          baseline = 'middle';
+          break;
+      }
+    }
+
+    x += ann.offsetX;
+    y += ann.offsetY;
+
+    const accent = marker.stroke || marker.fill || '#ef4444';
+    const annG = document.createElementNS(SVG_NS, 'g');
+    annG.setAttribute(
+      'class',
+      `mc-marker-annotation mc-marker-annotation--${ann.position}`
+    );
+    annG.setAttribute('data-marker-id', marker.id);
+    annG.setAttribute('data-annotation-position', ann.position);
+    annG.setAttribute('role', 'note');
+    if (ann.enableTooltip) {
+      annG.setAttribute('tabindex', '0');
+      annG.setAttribute('pointer-events', 'auto');
+      annG.style.pointerEvents = 'auto';
+      annG.style.cursor = 'pointer';
+    } else {
+      annG.setAttribute('pointer-events', 'none');
+      annG.style.pointerEvents = 'none';
+      annG.style.cursor = 'default';
+    }
+    annG.setAttribute(
+      'aria-label',
+      ann.text || marker.label || `Marker annotation: ${marker.id}`
+    );
+    annG.style.outline = 'none';
+
+    const annFontSize = ann.fontSize ?? Math.max(10, ctx.theme.fontSize - 1);
+    const annFontWeight = ann.fontWeight ?? 600;
+    const annDescriptor: LabelDescriptor = {
+      id: `marker-annotation-${marker.id}`,
+      text: ann.text,
+      x,
+      y,
+      type: 'marker',
+      anchor,
+      baseline,
+      fontSize: annFontSize,
+      fontWeight: annFontWeight,
+      fontFamily: ann.fontFamily,
+      color:
+        ann.color ??
+        (ctx.theme.mode === 'dark' ? '#fecdd3' : accent),
+      ...(ann.background ? { background: ann.background } : {}),
+      ...(ann.borderColor ? { borderColor: ann.borderColor } : {}),
+      ...(ann.borderRadius !== undefined ? { borderRadius: ann.borderRadius } : {}),
+      ...(ann.labelPadding ? { padding: ann.labelPadding } : {}),
+      ...(ann.renderer ? { renderer: ann.renderer } : {}),
+      icon: ann.icon,
+      datum: marker
+    };
+    if (typeof ann.formatter === 'function') {
+      annDescriptor.text = ann.formatter(annDescriptor.text, annDescriptor);
+    }
+
+    // Transparent hover hit-area so boxless annotation text/icons remain easy to hover
+    if (ann.enableTooltip) {
+      const measured = ctx.measureText(annDescriptor.text, annDescriptor);
+      const hitW = Math.max(18, measured.boxWidth + 8);
+      const hitH = Math.max(18, measured.boxHeight + 6);
+      const hitX =
+        anchor === 'end'
+          ? x - hitW + 4
+          : anchor === 'middle'
+          ? x - hitW / 2
+          : x - 4;
+      const hitY =
+        baseline === 'hanging'
+          ? y - 3
+          : baseline === 'alphabetic'
+          ? y - hitH + 3
+          : y - hitH / 2;
+      const hitRect = document.createElementNS(SVG_NS, 'rect');
+      hitRect.setAttribute('class', 'mc-marker-annotation-hit');
+      hitRect.setAttribute('x', String(hitX));
+      hitRect.setAttribute('y', String(hitY));
+      hitRect.setAttribute('width', String(hitW));
+      hitRect.setAttribute('height', String(hitH));
+      hitRect.setAttribute('rx', '4');
+      hitRect.setAttribute('fill', 'transparent');
+      annG.appendChild(hitRect);
+    }
+
+    ctx.renderLabel(annG, annDescriptor);
+
+    if (ann.enableTooltip) {
+      const valueDisplay =
+        marker.type === 'area'
+          ? `${marker.from ?? 0} – ${marker.to ?? 0}`
+          : marker.value ?? '';
+      const conditionBadge =
+        typeof marker.condition === 'string'
+          ? `Condition: ${marker.condition}${
+              marker.type === 'area'
+                ? ` (${marker.from ?? 0}–${marker.to ?? 0})`
+                : marker.value !== undefined
+                ? ` ${marker.value}`
+                : ''
+            }`
+          : undefined;
+
+      const buildPayload = () => ({
+        title: ann.text || marker.label || marker.id,
+        label: marker.type === 'area' ? 'Area Marker' : 'Line Marker',
+        seriesId: marker.id,
+        value: valueDisplay,
+        formattedValue: ann.tooltipText ?? String(valueDisplay),
+        color: accent,
+        badge: conditionBadge,
+        datum: marker
+      });
+
+      annG.addEventListener('mouseenter', (e) => {
+        const me = e as MouseEvent;
+        ctx.showTooltip(
+          buildPayload(),
+          me.clientX,
+          me.clientY,
+          ann.tooltipConfig
+        );
+      });
+      annG.addEventListener('mousemove', (e) => {
+        const me = e as MouseEvent;
+        ctx.showTooltip(
+          buildPayload(),
+          me.clientX,
+          me.clientY,
+          ann.tooltipConfig
+        );
+      });
+      annG.addEventListener('mouseleave', () => {
+        ctx.hideTooltip();
+      });
+      annG.addEventListener('focus', () => {
+        const rect = annG.getBoundingClientRect();
+        ctx.showTooltip(
+          buildPayload(),
+          rect.left + rect.width / 2,
+          rect.top,
+          ann.tooltipConfig
+        );
+      });
+      annG.addEventListener('blur', () => {
+        ctx.hideTooltip();
+      });
+      annG.addEventListener('keydown', (e) => {
+        if ((e as KeyboardEvent).key === 'Escape') {
+          ctx.hideTooltip();
+        }
+      });
+    }
+
+    parentG.appendChild(annG);
   }
 
   /**
@@ -524,8 +866,8 @@ export class MarkerEngine {
             minP,
             maxP
           });
-
-          const areaLabel = ctx.renderLabel(itemG, {
+          const ls = marker.labelStyle;
+          const areaLabelDesc: LabelDescriptor = {
             id: `marker-label-${marker.id}`,
             text: marker.label,
             x: placement.x,
@@ -533,23 +875,35 @@ export class MarkerEngine {
             type: 'marker',
             anchor: placement.anchor,
             baseline: placement.baseline,
-            fontSize: Math.max(10, ctx.theme.fontSize - 1),
-            fontWeight: 600,
-            color: marker.stroke || '#fda4af',
-            background:
-              ctx.theme.mode === 'dark'
-                ? 'rgba(15, 23, 42, 0.84)'
-                : 'rgba(255, 255, 255, 0.9)',
-            borderColor: marker.stroke || fill,
-            borderRadius: 5,
-            icon: marker.icon,
+            fontSize: ls?.fontSize ?? Math.max(10, ctx.theme.fontSize - 1),
+            fontWeight: ls?.fontWeight ?? 600,
+            fontFamily: ls?.fontFamily,
+            color: ls?.color ?? (marker.stroke || fill),
+            ...(ls?.renderMode ? { renderMode: ls.renderMode } : {}),
+            ...(ls?.background ? { background: ls.background } : {}),
+            ...(ls?.borderColor ? { borderColor: ls.borderColor } : {}),
+            ...(ls?.borderRadius !== undefined ? { borderRadius: ls.borderRadius } : {}),
+            ...(ls?.padding ? { padding: ls.padding } : {}),
+            ...(ls?.maxWidth !== undefined ? { maxWidth: ls.maxWidth } : {}),
+            ...(ls?.rotation !== undefined ? { rotation: ls.rotation } : {}),
+            ...(ls?.templateHtml ? { templateHtml: ls.templateHtml } : {}),
+            ...(ls?.renderer ? { renderer: ls.renderer } : {}),
+            icon: ls?.icon ?? marker.icon,
+            ...(ls?.iconPosition ? { iconPosition: ls.iconPosition } : {}),
             datum: marker
-          });
+          };
+          if (typeof ls?.formatter === 'function') {
+            areaLabelDesc.text = ls.formatter(areaLabelDesc.text, areaLabelDesc);
+          }
+
+          const areaLabel = ctx.renderLabel(itemG, areaLabelDesc);
           if (areaLabel) {
             areaLabel.setAttribute('pointer-events', 'none');
             areaLabel.style.pointerEvents = 'none';
           }
         }
+
+        this.renderMarkerAnnotation(marker, ctx, itemG, { minP, maxP });
       } else {
         const posPx = marker.pixelPos ?? 0;
         const line = document.createElementNS(SVG_NS, 'line');
@@ -582,8 +936,8 @@ export class MarkerEngine {
           const placement = this.resolveMarkerLabelPlacement(marker, ctx, {
             posPx
           });
-
-          const lineLabel = ctx.renderLabel(itemG, {
+          const ls = marker.labelStyle;
+          const lineLabelDesc: LabelDescriptor = {
             id: `marker-label-${marker.id}`,
             text: marker.label,
             x: placement.x,
@@ -591,24 +945,36 @@ export class MarkerEngine {
             type: 'marker',
             anchor: placement.anchor,
             baseline: placement.baseline,
-            fontSize: Math.max(10, ctx.theme.fontSize - 1),
-            fontWeight: 600,
+            fontSize: ls?.fontSize ?? Math.max(10, ctx.theme.fontSize - 1),
+            fontWeight: ls?.fontWeight ?? 600,
+            fontFamily: ls?.fontFamily,
             color:
-              ctx.theme.mode === 'dark' ? '#fecdd3' : stroke,
-            background:
-              ctx.theme.mode === 'dark'
-                ? 'rgba(136, 19, 55, 0.82)'
-                : 'rgba(255, 241, 242, 0.95)',
-            borderColor: stroke,
-            borderRadius: 5,
-            icon: marker.icon,
+              ls?.color ?? (ctx.theme.mode === 'dark' ? '#fecdd3' : stroke),
+            ...(ls?.renderMode ? { renderMode: ls.renderMode } : {}),
+            ...(ls?.background ? { background: ls.background } : {}),
+            ...(ls?.borderColor ? { borderColor: ls.borderColor } : {}),
+            ...(ls?.borderRadius !== undefined ? { borderRadius: ls.borderRadius } : {}),
+            ...(ls?.padding ? { padding: ls.padding } : {}),
+            ...(ls?.maxWidth !== undefined ? { maxWidth: ls.maxWidth } : {}),
+            ...(ls?.rotation !== undefined ? { rotation: ls.rotation } : {}),
+            ...(ls?.templateHtml ? { templateHtml: ls.templateHtml } : {}),
+            ...(ls?.renderer ? { renderer: ls.renderer } : {}),
+            icon: ls?.icon ?? marker.icon,
+            ...(ls?.iconPosition ? { iconPosition: ls.iconPosition } : {}),
             datum: marker
-          });
+          };
+          if (typeof ls?.formatter === 'function') {
+            lineLabelDesc.text = ls.formatter(lineLabelDesc.text, lineLabelDesc);
+          }
+
+          const lineLabel = ctx.renderLabel(itemG, lineLabelDesc);
           if (lineLabel) {
             lineLabel.setAttribute('pointer-events', 'none');
             lineLabel.style.pointerEvents = 'none';
           }
         }
+
+        this.renderMarkerAnnotation(marker, ctx, itemG, { posPx });
       }
 
       ctx.layerGroup.appendChild(itemG);
