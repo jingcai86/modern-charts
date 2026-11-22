@@ -178,11 +178,46 @@ describe('Per-chart standalone subpath exports & scoped registration (Issue #11)
 
     const barGraphCode = collectSource(barBundlePath);
     expect(barGraphCode).toContain('mc-bar-chart');
-    expect(barGraphCode).not.toContain('mc-sankey-chart');
-    expect(barGraphCode).not.toContain('mc-sunburst-chart');
-    expect(barGraphCode).not.toContain('mc-treemap-chart');
-    expect(barGraphCode).not.toContain('mc-pie-chart');
     expect(barGraphCode).not.toContain('interpolateViridis');
+
+    // Verify EVERY single standalone chart bundle (all 10) + core is isolated
+    // and never pulls in any unrelated chart custom element
+    const chartTagBySubpath: Record<string, string> = {
+      bar: 'mc-bar-chart',
+      line: 'mc-line-chart',
+      pie: 'mc-pie-chart',
+      heatmap: 'mc-heatmap-chart',
+      radar: 'mc-radar-chart',
+      sunburst: 'mc-sunburst-chart',
+      sankey: 'mc-sankey-chart',
+      scatter: 'mc-scatter-chart',
+      treemap: 'mc-treemap-chart',
+      gauge: 'mc-gauge-chart'
+    };
+
+    // Core bundle must not pull in ANY chart tag
+    visited.clear();
+    const coreCode = collectSource(resolvePath(cwd, 'dist/core.js'));
+    for (const tag of Object.values(chartTagBySubpath)) {
+      expect(coreCode).not.toContain(tag);
+    }
+
+    // Each of the 10 chart bundles contains ONLY its own chart tag and none of the other 9
+    for (const subpath of ALL_CHART_SUBPATHS) {
+      visited.clear();
+      const graphCode = collectSource(resolvePath(cwd, `dist/${subpath}.js`));
+      const ownTag = chartTagBySubpath[subpath];
+      expect(graphCode).toContain(ownTag);
+      for (const [otherSubpath, otherTag] of Object.entries(chartTagBySubpath)) {
+        if (otherSubpath !== subpath) {
+          expect(graphCode).not.toContain(otherTag);
+        }
+      }
+      // Sequential color interpolators should only appear in heatmap (not other standalone charts)
+      if (subpath !== 'heatmap') {
+        expect(graphCode).not.toContain('interpolateViridis');
+      }
+    }
 
     // Verify declaration files exist for all subpaths
     for (const subpath of ['core', ...ALL_CHART_SUBPATHS]) {
