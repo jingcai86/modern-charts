@@ -812,4 +812,124 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
       gauge.shadowRoot?.querySelector('.mc-gauge-needle[data-animated="true"]')
     ).not.toBeNull();
   });
+
+  it('keeps markers non-blocking (pointer-events: none) so tooltips work on items under markers across bar, line, and scatter charts', () => {
+    // 1. Bar Chart: markers layer sits on top of bars
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+    bar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 600,
+      height: 360,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge', 'OnPrem'],
+      markers: [
+        {
+          id: 'floor-area',
+          type: 'area',
+          axis: 'y',
+          from: 0,
+          to: 100,
+          label: 'Risk Zone',
+          fill: '#ef4444'
+        },
+        {
+          id: 'floor-line',
+          type: 'line',
+          axis: 'y',
+          value: 100,
+          label: 'Floor $100K',
+          condition: 'below',
+          matchStyle: { fill: '#ef4444' }
+        }
+      ],
+      layers: ['grid', 'axes', 'bars', 'markers', 'labels', 'legends']
+    };
+
+    const barMarkerLayer = bar.shadowRoot?.querySelector('.mc-layer--markers');
+    expect(barMarkerLayer?.getAttribute('pointer-events')).toBe('none');
+    bar.shadowRoot
+      ?.querySelectorAll('.mc-marker, .mc-marker-area, .mc-marker-line, .mc-label--marker')
+      .forEach((el) => {
+        expect(el.getAttribute('pointer-events')).toBe('none');
+      });
+
+    const underBar = bar.shadowRoot?.querySelector(
+      '.mc-bar-rect[data-under-threshold="true"]'
+    ) as SVGRectElement | null;
+    expect(underBar).not.toBeNull();
+    underBar!.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 120, clientY: 220 })
+    );
+    const barTooltip = bar.shadowRoot?.querySelector('.mc-tooltip') as HTMLElement;
+    expect(barTooltip.hidden).toBe(false);
+    expect(barTooltip.innerHTML).toContain('Under Threshold');
+
+    // 2. Line Chart: markers layer placed above points & slices
+    const line = document.createElement('mc-line-chart') as MCLineChart;
+    document.body.appendChild(line);
+    line.config = {
+      data: SAMPLE_LINE_DATA,
+      width: 600,
+      height: 360,
+      enableSlices: false,
+      markers: [
+        {
+          id: 'line-zone',
+          type: 'area',
+          axis: 'y',
+          from: 0,
+          to: 120,
+          label: 'Below Target',
+          condition: 'below',
+          matchStyle: { color: '#ef4444' }
+        }
+      ],
+      layers: ['grid', 'axes', 'areas', 'lines', 'points', 'markers', 'legends']
+    };
+
+    const lineMarkerLayer = line.shadowRoot?.querySelector('.mc-layer--markers');
+    expect(lineMarkerLayer?.getAttribute('pointer-events')).toBe('none');
+    const linePoint = line.shadowRoot?.querySelector(
+      '.mc-line-point'
+    ) as SVGCircleElement | null;
+    expect(linePoint).not.toBeNull();
+    linePoint!.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 140, clientY: 180 })
+    );
+    const lineTooltip = line.shadowRoot?.querySelector('.mc-tooltip') as HTMLElement;
+    expect(lineTooltip.hidden).toBe(false);
+
+    // 3. Scatter Chart: markers layer placed above nodes
+    const scatter = document.createElement('mc-scatter-chart') as MCScatterChart;
+    document.body.appendChild(scatter);
+    scatter.config = {
+      data: SAMPLE_SCATTER_DATA,
+      width: 600,
+      height: 360,
+      markers: [
+        {
+          id: 'scatter-band',
+          type: 'area',
+          axis: 'y',
+          from: 0,
+          to: 75,
+          label: 'Target Band'
+        }
+      ],
+      layers: ['grid', 'axes', 'nodes', 'markers', 'labels', 'legends']
+    };
+
+    const scatterMarkerLayer = scatter.shadowRoot?.querySelector('.mc-layer--markers');
+    expect(scatterMarkerLayer?.getAttribute('pointer-events')).toBe('none');
+    const scatterNode = scatter.shadowRoot?.querySelector(
+      '.mc-scatter-node'
+    ) as SVGCircleElement | null;
+    expect(scatterNode).not.toBeNull();
+    scatterNode!.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 160, clientY: 160 })
+    );
+    const scatterTooltip = scatter.shadowRoot?.querySelector('.mc-tooltip') as HTMLElement;
+    expect(scatterTooltip.hidden).toBe(false);
+  });
 });

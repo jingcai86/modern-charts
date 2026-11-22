@@ -154,6 +154,19 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
           transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1);
         }
 
+        .mc-layer--markers,
+        .mc-layer--markers *,
+        .mc-marker,
+        .mc-marker *,
+        .mc-layer--labels,
+        .mc-layer--labels *,
+        .mc-layer--pointLabels,
+        .mc-layer--pointLabels *,
+        .mc-layer--grid,
+        .mc-layer--grid * {
+          pointer-events: none;
+        }
+
         @keyframes mc-layer-reveal {
           from {
             opacity: 0;
