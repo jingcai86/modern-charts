@@ -8,6 +8,7 @@ import {
   buildMarkersForVirtualState,
   type ChartVirtualState
 } from '../../state/config-store';
+import { escapeHtml } from '../../guides/shared';
 import { getByPath, setByPath } from '../../utils/object-path';
 
 export interface AttributePanelHandle {
@@ -140,14 +141,14 @@ export function createAttributePanel(opts: {
       metaDiv.className = 'attr-meta';
       metaDiv.innerHTML = `
         <div class="attr-names">
-          <span class="attr-config-path">${
+          <span class="attr-config-path">${escapeHtml(
             spec.configPath.startsWith('__')
               ? spec.configPath.replace('__', '')
               : spec.configPath
-          }</span>
-          <span class="attr-html-badge">${cleanAttrBadge}</span>
+          )}</span>
+          <span class="attr-html-badge">${escapeHtml(cleanAttrBadge)}</span>
         </div>
-        <p class="attr-desc">${spec.description}</p>
+        <p class="attr-desc">${escapeHtml(spec.description)}</p>
       `;
 
       const controlCell = document.createElement('div');

@@ -1,6 +1,7 @@
 import type { MCBaseChart } from '../../../src/index';
 import { CHART_CATALOG } from '../catalog';
 import { GUIDES_CATALOG, type GuideId } from '../guides';
+import { escapeHtml } from '../guides/shared';
 import { getOrInitChartConfig } from '../state/config-store';
 import { getGlobalThemeMode } from '../state/theme';
 
@@ -115,10 +116,10 @@ function createOverviewGuidesSection(): HTMLElement {
       </div>
       <div class="overview-guide-copy">
         <div class="overview-guide-card-header">
-          <span class="overview-guide-card-title">${item.icon} ${item.title}</span>
+          <span class="overview-guide-card-title">${item.icon} ${escapeHtml(item.title)}</span>
           <span class="overview-guide-arrow" aria-hidden="true">${item.external ? '↗' : '→'}</span>
         </div>
-        <p class="overview-guide-summary">${item.summary}</p>
+        <p class="overview-guide-summary">${escapeHtml(item.summary)}</p>
       </div>
     `;
     guidesGrid.appendChild(link);
@@ -148,7 +149,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
 
     card.innerHTML = `
       <div class="overview-card-header">
-        <h3 class="overview-card-title">${entry.title}</h3>
+        <h3 class="overview-card-title">${escapeHtml(entry.title)}</h3>
       </div>
       <div class="overview-preview-stage" id="preview-stage-${entry.id}"></div>
     `;
