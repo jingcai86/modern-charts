@@ -2,6 +2,7 @@ import type {
   MarkerCondition,
   MarkerConfig,
   MarkerLabelPosition,
+  MarkerMatchScope,
   MarkerMatchStyle,
   MarkerType
 } from '../core/types';
@@ -33,6 +34,7 @@ export class MCMarkerElement extends HTMLElement {
     'fill',
     'fill-opacity',
     'condition',
+    'match-scope',
     'match-color',
     'match-fill',
     'match-stroke',
@@ -171,6 +173,8 @@ export class MCMarkerElement extends HTMLElement {
         ? Number(this.getAttribute('fill-opacity'))
         : undefined,
       condition: this.condition,
+      matchScope:
+        (this.getAttribute('match-scope') as MarkerMatchScope) || undefined,
       matchStyle:
         Object.keys(attrMatchStyle).length > 0 ? attrMatchStyle : undefined
     };

@@ -4,6 +4,7 @@ import {
   resolveEffectiveThemeMode,
   type ChartConfig,
   type MarkerLabelPosition,
+  type MarkerMatchScope,
   type ThemeModePreference
 } from '../../src/index';
 import {
@@ -58,6 +59,7 @@ const chartVirtualState = new Map<
     __markerEnabled: boolean;
     __markerThresholdValue: number;
     __markerCondition: 'below' | 'above' | 'between';
+    __markerMatchScope: MarkerMatchScope;
     __markerMatchColor: string;
     __markerLabelPosition: MarkerLabelPosition;
     __markerLabelPadding: number;
@@ -78,6 +80,7 @@ function getOrInitChartConfig(entry: ChartCatalogEntry): ChartConfig<any> {
         typeof lineMarker?.value === 'number' ? lineMarker.value : 130,
       __markerCondition:
         (lineMarker?.condition as 'below' | 'above' | 'between') ?? 'below',
+      __markerMatchScope: lineMarker?.matchScope ?? 'partial',
       __markerMatchColor: lineMarker?.matchStyle?.color ?? '#ef4444',
       __markerLabelPosition: lineMarker?.labelPosition ?? 'top-right',
       __markerLabelPadding: lineMarker?.labelPadding ?? 10,
@@ -141,6 +144,7 @@ function buildMarkersForVirtualState(
     __markerEnabled: boolean;
     __markerThresholdValue: number;
     __markerCondition: 'below' | 'above' | 'between';
+    __markerMatchScope: MarkerMatchScope;
     __markerMatchColor: string;
     __markerLabelPosition: MarkerLabelPosition;
     __markerLabelPadding: number;
@@ -153,6 +157,7 @@ function buildMarkersForVirtualState(
   const val = Number(vState.__markerThresholdValue) || 130;
   const color = vState.__markerMatchColor || '#ef4444';
   const cond = vState.__markerCondition || 'below';
+  const matchScope = vState.__markerMatchScope || 'partial';
   const labelPosition = vState.__markerLabelPosition || 'top-right';
   const labelPadding = Number(vState.__markerLabelPadding ?? 10);
   const labelEdgePadding = Number(vState.__markerLabelEdgePadding ?? 10);
@@ -183,6 +188,7 @@ function buildMarkersForVirtualState(
       strokeWidth: 2,
       strokeDasharray: '6 4',
       condition: cond,
+      matchScope,
       matchStyle: {
         color,
         fill: color,
