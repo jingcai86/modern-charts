@@ -1,4 +1,5 @@
 import {
+  VERSION,
   registerModernCharts,
   type MCBaseChart,
   type ThemeModePreference
@@ -15,6 +16,13 @@ import {
 } from './state/theme';
 
 registerModernCharts();
+
+// Keep Studio header pill and page title synchronized with the active package VERSION
+const versionPill = document.querySelector('.version-pill');
+if (versionPill) {
+  versionPill.textContent = `v${VERSION}`;
+}
+document.title = `modern-charts v${VERSION} — Composable Web Component Charts`;
 
 let activeOverviewCharts: MCBaseChart<any>[] = [];
 let activeDetailChart: MCBaseChart<any> | null = null;

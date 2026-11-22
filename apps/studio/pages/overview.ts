@@ -1,6 +1,7 @@
 import type { MCBaseChart } from '../../../src/index';
 import { CHART_CATALOG } from '../catalog';
 import { GUIDES_CATALOG, type GuideId } from '../guides';
+import { escapeHtml } from '../guides/shared';
 import { getOrInitChartConfig } from '../state/config-store';
 import { getGlobalThemeMode } from '../state/theme';
 
@@ -54,27 +55,25 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
     </svg>`
 };
 
-function createOverviewGuidesSection(): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'overview-guides-section';
-  section.setAttribute('aria-labelledby', 'overview-guides-heading');
+const GUIDES_DOCK_STORAGE_KEY = 'modern-charts-studio-guides-open';
 
-  section.innerHTML = `
-    <div class="overview-guides-header">
-      <div>
-        <h2 class="overview-guides-title" id="overview-guides-heading">
-          Guides &amp; Resources
-        </h2>
-        <p class="overview-guides-subtitle">
-          Interactive documentation for layers, themes, D3 integration, Pretext labels, tooltips, and AI context.
-        </p>
-      </div>
-    </div>
-    <div class="overview-guides-grid"></div>
-  `;
+function readStoredGuidesOpen(): boolean {
+  try {
+    return localStorage.getItem(GUIDES_DOCK_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
 
-  const guidesGrid = section.querySelector('.overview-guides-grid') as HTMLElement;
+function writeStoredGuidesOpen(open: boolean): void {
+  try {
+    localStorage.setItem(GUIDES_DOCK_STORAGE_KEY, String(open));
+  } catch {
+    // Ignore storage failures in restricted contexts
+  }
+}
 
+function createOverviewGuidesDock(grid: HTMLElement): HTMLElement {
   const cards: Array<{
     id: GuideId | 'ai-context';
     href: string;
@@ -101,6 +100,49 @@ function createOverviewGuidesSection(): HTMLElement {
     }
   ];
 
+  const dock = document.createElement('aside');
+  dock.className = 'overview-guides-dock';
+  dock.setAttribute('aria-label', 'Chart Guides and Resources');
+
+  const initialOpen = readStoredGuidesOpen();
+
+  dock.innerHTML = `
+    <div class="overview-guides-dock-bar">
+      <button
+        type="button"
+        class="overview-guides-dock-toggle"
+        aria-expanded="${initialOpen}"
+        aria-controls="overview-guides-drawer-panel"
+      >
+        <span>All Chart Guides</span>
+        <span class="overview-guides-dock-count">${cards.length}</span>
+        <span class="overview-guides-dock-chevron" aria-hidden="true">▲</span>
+      </button>
+    </div>
+    <div
+      id="overview-guides-drawer-panel"
+      class="overview-guides-drawer-panel${initialOpen ? ' is-expanded' : ''}"
+      ${initialOpen ? '' : 'hidden'}
+    >
+      <div class="overview-guides-drawer-inner">
+        <div class="overview-guides-grid"></div>
+      </div>
+    </div>
+  `;
+
+  if (initialOpen) {
+    dock.classList.add('is-expanded');
+    grid.classList.add('has-guides-dock-open');
+  }
+
+  const toggleBtn = dock.querySelector(
+    '.overview-guides-dock-toggle'
+  ) as HTMLButtonElement;
+  const panel = dock.querySelector(
+    '#overview-guides-drawer-panel'
+  ) as HTMLElement;
+  const guidesGrid = dock.querySelector('.overview-guides-grid') as HTMLElement;
+
   cards.forEach((item) => {
     const link = document.createElement('a');
     link.className = 'overview-guide-card';
@@ -115,16 +157,66 @@ function createOverviewGuidesSection(): HTMLElement {
       </div>
       <div class="overview-guide-copy">
         <div class="overview-guide-card-header">
-          <span class="overview-guide-card-title">${item.icon} ${item.title}</span>
+          <span class="overview-guide-card-title">${item.icon} ${escapeHtml(item.title)}</span>
           <span class="overview-guide-arrow" aria-hidden="true">${item.external ? '↗' : '→'}</span>
         </div>
-        <p class="overview-guide-summary">${item.summary}</p>
+        <p class="overview-guide-summary">${escapeHtml(item.summary)}</p>
       </div>
     `;
     guidesGrid.appendChild(link);
   });
 
-  return section;
+  const setExpanded = (nextOpen: boolean): void => {
+    writeStoredGuidesOpen(nextOpen);
+    toggleBtn.setAttribute('aria-expanded', String(nextOpen));
+    dock.classList.toggle('is-expanded', nextOpen);
+    grid.classList.toggle('has-guides-dock-open', nextOpen);
+
+    if (nextOpen) {
+      panel.hidden = false;
+      // Flush hidden removal before toggling class so CSS block-size transition runs smoothly
+      void panel.offsetHeight;
+      panel.classList.add('is-expanded');
+    } else {
+      panel.classList.remove('is-expanded');
+      const transitions =
+        typeof panel.getAnimations === 'function'
+          ? panel
+              .getAnimations()
+              .filter(
+                (anim) =>
+                  typeof CSSTransition !== 'undefined' &&
+                  anim instanceof CSSTransition
+              )
+          : [];
+      if (transitions.length === 0) {
+        panel.hidden = true;
+      } else {
+        Promise.allSettled(transitions.map((t) => t.finished)).then(() => {
+          if (!panel.classList.contains('is-expanded')) {
+            panel.hidden = true;
+          }
+        });
+      }
+    }
+  };
+
+  toggleBtn.addEventListener('click', () => {
+    const isCurrentlyOpen = toggleBtn.getAttribute('aria-expanded') === 'true';
+    setExpanded(!isCurrentlyOpen);
+  });
+
+  dock.addEventListener('keydown', (e) => {
+    if (
+      e.key === 'Escape' &&
+      toggleBtn.getAttribute('aria-expanded') === 'true'
+    ) {
+      setExpanded(false);
+      toggleBtn.focus();
+    }
+  });
+
+  return dock;
 }
 
 /**
@@ -148,7 +240,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
 
     card.innerHTML = `
       <div class="overview-card-header">
-        <h3 class="overview-card-title">${entry.title}</h3>
+        <h3 class="overview-card-title">${escapeHtml(entry.title)}</h3>
       </div>
       <div class="overview-preview-stage" id="preview-stage-${entry.id}"></div>
     `;
@@ -185,6 +277,6 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   });
 
   root.appendChild(grid);
-  root.appendChild(createOverviewGuidesSection());
+  root.appendChild(createOverviewGuidesDock(grid));
   return mountedCharts;
 }

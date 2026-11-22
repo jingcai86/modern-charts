@@ -3,6 +3,7 @@ import {
   getAllAttributesForChart,
   type ChartCatalogEntry
 } from '../../catalog';
+import { escapeHtml } from '../../guides/shared';
 import { generateRandomDataForChart } from '../../sample-data';
 import {
   getChartVirtualState,
@@ -39,11 +40,11 @@ export function renderChartDetailPage(
     <div class="panel-header">
       <div>
         <h2 class="panel-title">
-          <span>${entry.title}</span>
-          <span class="comp-pill">&lt;${entry.tagName}&gt;</span>
+          <span>${escapeHtml(entry.title)}</span>
+          <span class="comp-pill">&lt;${escapeHtml(entry.tagName)}&gt;</span>
         </h2>
         <p style="margin:4px 0 0;font-size:0.82rem;color:var(--text-muted);">
-          ${entry.summary}
+          ${escapeHtml(entry.summary)}
         </p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">

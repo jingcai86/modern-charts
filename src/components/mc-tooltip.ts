@@ -224,6 +224,8 @@ export class MCTooltipElement extends HTMLElement {
     ) {
       this.setAttribute('data-config-only', '');
       this.#notifyParentChart();
+    } else if (!this.#lastPayload && !this.hasAttribute('hidden')) {
+      this.hidden = true;
     }
   }
 

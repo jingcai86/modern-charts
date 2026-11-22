@@ -104,7 +104,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "${BRANCH}"
-          git add package.json package-lock.json src/core/types.ts
+          git add package.json package-lock.json src/core/types.ts apps/studio/index.html
           git commit -m "chore(release): ${TAG}"
           git push -u origin "${BRANCH}" --force
 
