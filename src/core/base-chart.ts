@@ -7,6 +7,7 @@ import {
 } from './animation-engine';
 import { AriaEngine, createDefaultAriaConfig } from './aria-engine';
 import { LabelEngine } from './label-engine';
+import { createDefaultLegendConfig } from './legend-engine';
 import { MarkerEngine } from './marker-engine';
 import { createDefaultScaleConfig } from './scale-manager';
 import { createDefaultTheme, createOrdinalColorScale } from './theme';
@@ -25,8 +26,11 @@ import type {
   LabelDescriptor,
   LabelStyleOverride,
   LayerInput,
+  LegendConfig,
+  LegendItem,
   MarkerConfig,
   MotionPresetName,
+  ResolvedLegendConfig,
   ScaleConfig,
   ThresholdEvaluationResult,
   ThresholdMatchedItem,
@@ -45,6 +49,7 @@ import {
   MCViewLayer
 } from '../components/layers/mc-layers';
 import { MCLabelElement } from '../components/mc-label';
+import { MCLegendElement } from '../components/mc-legend';
 import { MCTooltipElement } from '../components/mc-tooltip';
 import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
 
@@ -70,6 +75,12 @@ baseChartTemplate.innerHTML = `
       class="mc-tooltip"
       part="tooltip-host"
       exportparts="tooltip, container: tooltip-container, header: tooltip-header, body: tooltip-body, row: tooltip-row, swatch: tooltip-swatch, label: tooltip-label, value: tooltip-value, badge: tooltip-badge"
+      hidden
+    ></mc-tooltip>
+    <mc-tooltip
+      class="mc-legend-tooltip"
+      part="legend-tooltip-host"
+      exportparts="tooltip: legend-tooltip, container: legend-tooltip-container, header: legend-tooltip-header, body: legend-tooltip-body, row: legend-tooltip-row, swatch: legend-tooltip-swatch, label: legend-tooltip-label, value: legend-tooltip-value, badge: legend-tooltip-badge"
       hidden
     ></mc-tooltip>
     <div class="mc-aria-live visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -242,7 +253,8 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
           transform: scale(0.96);
         }
 
-        .mc-tooltip {
+        .mc-tooltip,
+        .mc-legend-tooltip {
           position: absolute;
           top: 0;
           left: 0;
@@ -251,7 +263,12 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
           transition: opacity 120ms ease, transform 90ms ease;
         }
 
-        .mc-tooltip[hidden] {
+        .mc-legend-tooltip {
+          z-index: 21;
+        }
+
+        .mc-tooltip[hidden],
+        .mc-legend-tooltip[hidden] {
           display: none;
         }
       }
@@ -876,6 +893,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
     const margin = { ...this.resolveMargin() };
     this.expandMarginForOutsideMarkers(margin);
+    this.expandMarginForLegend(margin);
     const innerWidth = Math.max(40, width - margin.left - margin.right);
     const innerHeight = Math.max(40, height - margin.top - margin.bottom);
 
@@ -931,6 +949,34 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
           Math.ceil(measured.boxHeight + pad + 14)
         );
       }
+    }
+  }
+
+  private expandMarginForLegend(margin: ChartMargin): void {
+    const hasCustomLegend =
+      this._config.legend !== undefined ||
+      this.querySelector(':scope > mc-legend') !== null;
+    if (!hasCustomLegend) return;
+
+    const legend = this.resolveLegendConfig();
+    if (!legend.enabled) return;
+
+    const pad = legend.padding;
+    const hasTitle = Boolean(this.chartTitle);
+    const baseRowH = Math.max(16, (legend.fontSize ?? 11) + 6);
+
+    if (legend.position === 'top') {
+      const needed = (hasTitle ? 34 : 8) + baseRowH + pad.top + pad.bottom;
+      margin.top = Math.max(margin.top, Math.ceil(needed));
+    } else if (legend.position === 'bottom') {
+      const needed = 34 + baseRowH + pad.top + pad.bottom;
+      margin.bottom = Math.max(margin.bottom, Math.ceil(needed));
+    } else if (legend.position === 'left') {
+      const needed = 104 + pad.left + pad.right;
+      margin.left = Math.max(margin.left, Math.ceil(needed));
+    } else if (legend.position === 'right') {
+      const needed = 104 + pad.left + pad.right;
+      margin.right = Math.max(margin.right, Math.ceil(needed));
     }
   }
 
@@ -1462,6 +1508,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     const viewConfig = this.resolveViewConfig();
     const animationConfig = this.resolveAnimationConfig();
     const ariaConfig = this.resolveAriaConfig();
+    const legendConfig = this.resolveLegendConfig();
     const labelOverrides = this.resolveLabelOverrides();
 
     this.labelEngine.setOverrides(labelOverrides);
@@ -1529,6 +1576,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       viewConfig,
       animationConfig,
       ariaConfig,
+      legendConfig,
       markers: [],
       thresholds: initialThresholdCtrl,
       colorScale,
@@ -1570,6 +1618,12 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         clientY: number
       ) => this.showTooltip(content, clientX, clientY, theme),
       hideTooltip: () => this.hideTooltip(),
+      showLegendTooltip: (
+        content: TooltipInput<LegendItem>,
+        clientX: number,
+        clientY: number
+      ) => this.showLegendTooltip(content, clientX, clientY, theme),
+      hideLegendTooltip: () => this.hideLegendTooltip(),
       state: this._chartState
     };
 
@@ -1709,6 +1763,136 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (currIdx === -1) return;
     const nextIdx = (currIdx + delta + allItems.length) % allItems.length;
     allItems[nextIdx]?.focus();
+  }
+
+  /**
+   * Resolves unified legend configuration by merging `chart.config.legend`
+   * with any declarative `<mc-legend>` child placed inside the chart.
+   */
+  public resolveLegendConfig(): ResolvedLegendConfig {
+    const raw = this._config.legend;
+    const declLegend = this.querySelector(
+      ':scope > mc-legend'
+    ) as MCLegendElement | null;
+
+    if (!declLegend || typeof declLegend.toLegendConfig !== 'function') {
+      return createDefaultLegendConfig(raw, 'bottom');
+    }
+
+    const declCfg = declLegend.toLegendConfig();
+    const baseObj: LegendConfig =
+      typeof raw === 'boolean' ? { enabled: raw } : { ...(raw ?? {}) };
+
+    const mergedTooltip =
+      declCfg.tooltip !== undefined
+        ? typeof declCfg.tooltip === 'object' &&
+          typeof baseObj.tooltip === 'object'
+          ? { ...baseObj.tooltip, ...declCfg.tooltip }
+          : declCfg.tooltip
+        : baseObj.tooltip;
+
+    const mergedPadding =
+      typeof declCfg.padding === 'object' && typeof baseObj.padding === 'object'
+        ? { ...baseObj.padding, ...declCfg.padding }
+        : declCfg.padding ?? baseObj.padding;
+
+    return createDefaultLegendConfig(
+      {
+        ...baseObj,
+        ...declCfg,
+        padding: mergedPadding,
+        tooltip: mergedTooltip
+      },
+      'bottom'
+    );
+  }
+
+  /**
+   * Returns the dedicated singleton legend `<mc-tooltip>` instance owned by this
+   * chart (separate from the chart data item tooltip).
+   */
+  public getLegendTooltipElement(): MCTooltipElement | null {
+    return (
+      (this.shadowRoot?.querySelector(
+        '.mc-legend-tooltip'
+      ) as MCTooltipElement | null) ?? null
+    );
+  }
+
+  public showLegendTooltip(
+    content: TooltipInput<LegendItem>,
+    clientX: number,
+    clientY: number,
+    theme?: ChartTheme
+  ): void {
+    const tooltip = this.getLegendTooltipElement();
+    const container = this.shadowRoot?.querySelector(
+      '.mc-chart-container'
+    ) as HTMLDivElement | null;
+    if (!tooltip || !container) return;
+
+    const legendConfig = this.resolveLegendConfig();
+    if (!legendConfig.enableTooltip || legendConfig.tooltip.enabled === false) {
+      this.hideLegendTooltip();
+      return;
+    }
+
+    const payload: TooltipPayload<LegendItem> =
+      typeof content === 'string'
+        ? {
+            chartType: this.chartType,
+            defaultHtml: content,
+            data: this._data,
+            clientX,
+            clientY
+          }
+        : {
+            ...content,
+            chartType: this.chartType,
+            data: this._data,
+            clientX,
+            clientY
+          };
+
+    const activeTheme = theme ?? this.resolveTheme();
+    const rect = container.getBoundingClientRect();
+
+    if (typeof tooltip.show === 'function') {
+      const shown = tooltip.show(payload, activeTheme, rect, {
+        offsetX: 10,
+        offsetY: -36,
+        ...legendConfig.tooltip
+      });
+      if (shown) {
+        this.dispatchEvent(
+          new CustomEvent('mc-legend-tooltip-show', {
+            bubbles: true,
+            composed: true,
+            detail: payload
+          })
+        );
+      }
+    }
+  }
+
+  public hideLegendTooltip(): void {
+    const tooltip = this.getLegendTooltipElement();
+    if (tooltip) {
+      const wasVisible = !tooltip.hidden;
+      if (typeof tooltip.hide === 'function') {
+        tooltip.hide();
+      } else {
+        tooltip.hidden = true;
+      }
+      if (wasVisible) {
+        this.dispatchEvent(
+          new CustomEvent('mc-legend-tooltip-hide', {
+            bubbles: true,
+            composed: true
+          })
+        );
+      }
+    }
   }
 
   /**

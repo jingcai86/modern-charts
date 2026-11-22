@@ -600,6 +600,70 @@ export interface TooltipConfig<TDatum = any> {
   templateHtml?: string;
 }
 
+export type LegendPosition = 'top' | 'bottom' | 'left' | 'right';
+
+export interface LegendPadding {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+export interface LegendItem {
+  id: string;
+  label: string;
+  color: string;
+  value?: number | string;
+  index?: number;
+  total?: number;
+  meta?: Record<string, any>;
+}
+
+/**
+ * Configuration for the unified SVG `<mc-legend>` component shared across charts.
+ */
+export interface LegendConfig {
+  /** Enable or disable the legend layer. Default `true`. */
+  enabled?: boolean;
+  /** Legend placement around the plot area. Default `'bottom'`. */
+  position?: LegendPosition;
+  /** Padding around the legend box (number for uniform padding or per-side object). */
+  padding?: number | Partial<LegendPadding>;
+  /** Wrap items onto additional rows (top/bottom) or columns (left/right) when exceeding available space. Default `true`. */
+  wrap?: boolean;
+  /** Show a dedicated legend tooltip on hover and keyboard Tab focus. Default `true`. */
+  enableTooltip?: boolean;
+  /**
+   * Dedicated legend tooltip configuration (separate from chart item `config.tooltip`),
+   * following the exact same `TooltipConfig` API (`enabled`, `formatter`, `renderer`, `offsetX`, `offsetY`, `className`).
+   */
+  tooltip?: boolean | TooltipConfig<LegendItem>;
+  /** Horizontal gap between adjacent items in px. Default `14`. */
+  itemGap?: number;
+  /** Vertical gap between wrapped rows (or vertical items) in px. Default `8`. */
+  rowGap?: number;
+  /** Swatch rectangle size in px. Default `10`. */
+  swatchSize?: number;
+  /** Optional max width per legend label before Pretext wraps/truncates it. */
+  maxItemWidth?: number;
+  /** Font size override for legend item labels. */
+  fontSize?: number;
+}
+
+export interface ResolvedLegendConfig {
+  enabled: boolean;
+  position: LegendPosition;
+  padding: LegendPadding;
+  wrap: boolean;
+  enableTooltip: boolean;
+  tooltip: TooltipConfig<LegendItem>;
+  itemGap: number;
+  rowGap: number;
+  swatchSize: number;
+  maxItemWidth?: number;
+  fontSize?: number;
+}
+
 /**
  * Single unified Nivo-style chart configuration object (`chart.config = { ... }`).
  * Underneath, the chart maps this single config onto its composable sub-components:
@@ -648,6 +712,9 @@ export interface ChartConfig<TData = any> {
 
   // Unified <mc-tooltip> config (one singleton <mc-tooltip> per chart)
   tooltip?: boolean | TooltipConfig<any>;
+
+  // Unified SVG <mc-legend> config (shared across categorical charts)
+  legend?: boolean | LegendConfig;
 
   // Universal <mc-aria-layer> config + Nivo-style ARIA shorthands
   role?: string;
@@ -717,6 +784,7 @@ export interface ChartRenderContext<TData = unknown> {
   viewConfig: ViewConfig;
   animationConfig: AnimationConfig;
   ariaConfig: AriaConfig;
+  legendConfig: ResolvedLegendConfig;
   /** Resolved marker lines and marker areas with pixel positions and matched threshold items */
   markers: ResolvedMarker[];
   /** Threshold evaluation state and helpers passed to both built-in layers and client custom layers */
@@ -756,6 +824,12 @@ export interface ChartRenderContext<TData = unknown> {
     clientY: number
   ) => void;
   hideTooltip: () => void;
+  showLegendTooltip: (
+    content: TooltipInput<LegendItem>,
+    clientX: number,
+    clientY: number
+  ) => void;
+  hideLegendTooltip: () => void;
   state: Record<string, any>;
 }
 

@@ -16,10 +16,14 @@ import {
   MCTreemapChart,
   MCGaugeChart,
   MCLabelElement,
+  MCLegendElement,
   MCTooltipElement,
+  computeLegendLayout,
+  createDefaultLegendConfig,
   MCAnimationLayer,
   MCAriaLayer,
   MCMarkerLayer,
+  type LegendItem,
   type TooltipPayload
 } from '../src/index';
 import {
@@ -46,6 +50,7 @@ describe('modern-charts architecture & dependencies', () => {
   it('registers all chart, layer, animation, aria, marker, presentation item, and label Web Components in customElements', () => {
     const expectedTags = [
       'mc-label',
+      'mc-legend',
       'mc-tooltip',
       'mc-theme-layer',
       'mc-scale-layer',
@@ -1430,9 +1435,13 @@ describe('Unified <mc-tooltip> Web Component (Issue #30)', () => {
       document.body.appendChild(el);
       el.config = c.config;
 
-      // Strictly ONE <mc-tooltip> element per chart
-      const tooltipNodes = el.shadowRoot?.querySelectorAll('mc-tooltip') ?? [];
+      // Strictly ONE item <mc-tooltip> and ONE dedicated legend <mc-tooltip> per chart
+      const tooltipNodes =
+        el.shadowRoot?.querySelectorAll('mc-tooltip.mc-tooltip') ?? [];
       expect(tooltipNodes.length).toBe(1);
+      const legendTooltipNodes =
+        el.shadowRoot?.querySelectorAll('mc-tooltip.mc-legend-tooltip') ?? [];
+      expect(legendTooltipNodes.length).toBe(1);
 
       const tip = tooltipNodes[0] as MCTooltipElement;
       const exportparts = tip.getAttribute('exportparts') ?? '';
@@ -1460,7 +1469,9 @@ describe('Unified <mc-tooltip> Web Component (Issue #30)', () => {
         items[1].dispatchEvent(
           new MouseEvent('mouseenter', { bubbles: true, clientX: 220, clientY: 160 })
         );
-        expect(el.shadowRoot?.querySelectorAll('mc-tooltip').length).toBe(1);
+        expect(
+          el.shadowRoot?.querySelectorAll('mc-tooltip.mc-tooltip').length
+        ).toBe(1);
         expect(el.getTooltipElement()).toBe(tip);
       }
 
@@ -1558,5 +1569,289 @@ describe('Unified <mc-tooltip> Web Component (Issue #30)', () => {
     expect(pieTip.hidden).toBe(false);
     expect(pieTip.renderedHtml).toContain('Alpha | 100 | &lt;script&gt;xss&lt;/script&gt;');
     expect(pieTip.shadowRoot?.querySelector('script')).toBeNull();
+  });
+});
+
+describe('Unified SVG <mc-legend> Component (Issue #16)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('supports all 4 positions (top, bottom, left, right) and 4-side padding with automatic margin reservation', () => {
+    const positions = ['top', 'bottom', 'left', 'right'] as const;
+
+    for (const position of positions) {
+      const bar = document.createElement('mc-bar-chart') as MCBarChart;
+      document.body.appendChild(bar);
+      bar.config = {
+        data: SAMPLE_BAR_DATA,
+        width: 640,
+        height: 360,
+        indexBy: 'quarter',
+        keys: ['Cloud', 'Edge', 'AI'],
+        legend: {
+          position,
+          padding: { top: 14, right: 18, bottom: 16, left: 20 }
+        }
+      };
+
+      const legendG = bar.shadowRoot?.querySelector('.mc-legend') as SVGGElement | null;
+      expect(legendG).not.toBeNull();
+      expect(legendG?.getAttribute('data-legend-position')).toBe(position);
+      expect(legendG?.getAttribute('role')).toBe('list');
+      expect(legendG?.classList.contains(`mc-legend--${position}`)).toBe(true);
+
+      const items = legendG?.querySelectorAll('.mc-legend-item') ?? [];
+      expect(items.length).toBe(3);
+
+      const dims = bar.resolveDimensions();
+      if (position === 'top') {
+        expect(dims.margin.top).toBeGreaterThanOrEqual(48);
+      } else if (position === 'bottom') {
+        expect(dims.margin.bottom).toBeGreaterThanOrEqual(76);
+      } else if (position === 'left') {
+        expect(dims.margin.left).toBeGreaterThanOrEqual(136);
+      } else if (position === 'right') {
+        expect(dims.margin.right).toBeGreaterThanOrEqual(136);
+      }
+    }
+
+    // legend: false disables the legend completely
+    const hiddenBar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(hiddenBar);
+    hiddenBar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 600,
+      height: 360,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      legend: false
+    };
+    expect(hiddenBar.shadowRoot?.querySelector('.mc-legend')).toBeNull();
+  });
+
+  it('uses @chenglou/pretext to center each legend row accurately and wraps by default (disableable via wrap: false)', () => {
+    const labelEngine = new LabelEngine();
+    const theme = createDefaultTheme('light', 'modern');
+    const items: LegendItem[] = [
+      { id: 'North America Enterprise', label: 'North America Enterprise', color: '#38bdf8' },
+      { id: 'Europe & UK Commercial', label: 'Europe & UK Commercial', color: '#a855f7' },
+      { id: 'Asia-Pacific Cloud', label: 'Asia-Pacific Cloud', color: '#10b981' },
+      { id: 'Latin America Growth', label: 'Latin America Growth', color: '#f59e0b' }
+    ];
+
+    const measure = (text: string, opts?: { type?: 'legend'; fontSize?: number; maxWidth?: number }) =>
+      labelEngine.measure(text, opts ?? { type: 'legend' }, theme);
+
+    // Narrow width with default wrap: true -> wraps onto multiple rows, each centered symmetrically
+    const wrappedCfg = createDefaultLegendConfig({
+      position: 'bottom',
+      padding: { top: 10, right: 16, bottom: 12, left: 20 }
+    });
+    const wrapped = computeLegendLayout(items, wrappedCfg, 280, 200, measure, theme);
+    expect(wrapped.rowCount).toBeGreaterThan(1);
+
+    // Verify exact horizontal centering inside [pad.left, availableWidth - pad.right] for every row
+    const usableLeft = 20;
+    const usableRight = 280 - 16;
+    for (let r = 0; r < wrapped.rowCount; r++) {
+      const rowItems = wrapped.items.filter((i) => i.rowIndex === r);
+      const minX = rowItems[0].x;
+      const last = rowItems[rowItems.length - 1];
+      const maxX = last.x + last.width;
+      const leftGap = minX - usableLeft;
+      const rightGap = usableRight - maxX;
+      expect(Math.abs(leftGap - rightGap)).toBeLessThan(0.5);
+    }
+
+    // With wrap: false -> all items remain on a single row (rowIndex === 0)
+    const noWrapCfg = createDefaultLegendConfig({
+      position: 'bottom',
+      wrap: false,
+      padding: { top: 10, right: 16, bottom: 12, left: 20 }
+    });
+    const singleRow = computeLegendLayout(items, noWrapCfg, 280, 200, measure, theme);
+    expect(singleRow.rowCount).toBe(1);
+    expect(singleRow.items.every((i) => i.rowIndex === 0)).toBe(true);
+
+    // Verify DOM attributes on an actual narrow chart
+    const line = document.createElement('mc-line-chart') as MCLineChart;
+    document.body.appendChild(line);
+    line.config = {
+      data: items.map((it) => ({
+        id: it.id,
+        data: [
+          { x: 'Jan', y: 10 },
+          { x: 'Feb', y: 20 }
+        ]
+      })),
+      width: 300,
+      height: 280,
+      legend: { position: 'bottom', wrap: true }
+    };
+    const wrappedLegend = line.shadowRoot?.querySelector('.mc-legend')!;
+    expect(Number(wrappedLegend.getAttribute('data-legend-rows'))).toBeGreaterThan(1);
+
+    line.config = { ...line.config, legend: { position: 'bottom', wrap: false } };
+    const noWrapLegend = line.shadowRoot?.querySelector('.mc-legend')!;
+    expect(Number(noWrapLegend.getAttribute('data-legend-rows'))).toBe(1);
+  });
+
+  it('shows a dedicated legend tooltip on hover and keyboard Tab focus, separate from item tooltip, with custom config & disable flag', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    let legendEventDetail: TooltipPayload<LegendItem> | null = null;
+    bar.addEventListener('mc-legend-tooltip-show', (e: Event) => {
+      legendEventDetail = (e as CustomEvent).detail;
+    });
+
+    bar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 620,
+      height: 360,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge', 'AI'],
+      legend: {
+        position: 'top',
+        tooltip: {
+          offsetX: 16,
+          renderer: (payload, defaultRender) => {
+            const box = document.createElement('div');
+            box.appendChild(defaultRender());
+            const note = document.createElement('span');
+            note.className = 'custom-legend-tip';
+            note.textContent = `LegendCustom:${payload.title}:${payload.datum?.index}`;
+            box.appendChild(note);
+            return box;
+          }
+        }
+      }
+    };
+
+    const itemTip = bar.getTooltipElement()!;
+    const legendTip = bar.getLegendTooltipElement()!;
+    expect(legendTip).not.toBeNull();
+    expect(legendTip).not.toBe(itemTip);
+    expect(legendTip.getAttribute('exportparts')).toContain('tooltip: legend-tooltip');
+    expect(legendTip.getAttribute('exportparts')).toContain('header: legend-tooltip-header');
+
+    const legendItems = bar.shadowRoot?.querySelectorAll('.mc-legend-item') ?? [];
+    expect(legendItems.length).toBe(3);
+    const firstLegend = legendItems[0] as SVGGElement;
+    expect(firstLegend.getAttribute('tabindex')).toBe('0');
+
+    // 1. Hover triggers dedicated legend tooltip ONLY (chart item tooltip remains hidden)
+    firstLegend.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 200, clientY: 50 })
+    );
+    expect(legendTip.hidden).toBe(false);
+    expect(itemTip.hidden).toBe(true);
+    expect(legendTip.shadowRoot?.querySelector('.custom-legend-tip')?.textContent).toBe(
+      'LegendCustom:Cloud:0'
+    );
+    expect((legendEventDetail as TooltipPayload<LegendItem> | null)?.title).toBe('Cloud');
+
+    firstLegend.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    expect(legendTip.hidden).toBe(true);
+
+    // 2. Keyboard Tab focus triggers the same dedicated legend tooltip, and Escape / blur hides it
+    const secondLegend = legendItems[1] as SVGGElement;
+    secondLegend.dispatchEvent(new FocusEvent('focus'));
+    expect(legendTip.hidden).toBe(false);
+    expect(itemTip.hidden).toBe(true);
+    expect(legendTip.shadowRoot?.querySelector('.custom-legend-tip')?.textContent).toBe(
+      'LegendCustom:Edge:1'
+    );
+
+    secondLegend.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(legendTip.hidden).toBe(true);
+
+    secondLegend.dispatchEvent(new FocusEvent('focus'));
+    expect(legendTip.hidden).toBe(false);
+    secondLegend.dispatchEvent(new FocusEvent('blur'));
+    expect(legendTip.hidden).toBe(true);
+
+    // 3. Disabling legend tooltip via enableTooltip: false suppresses both hover and focus
+    bar.config = {
+      ...bar.config,
+      legend: { position: 'top', enableTooltip: false }
+    };
+    const disabledItem = bar.shadowRoot?.querySelector('.mc-legend-item') as SVGGElement;
+    disabledItem.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 200, clientY: 50 })
+    );
+    expect(legendTip.hidden).toBe(true);
+    disabledItem.dispatchEvent(new FocusEvent('focus'));
+    expect(legendTip.hidden).toBe(true);
+
+    // 4. Disabling via legend.tooltip: false also suppresses legend tooltip
+    bar.config = {
+      ...bar.config,
+      legend: { position: 'top', tooltip: false }
+    };
+    const disabledItem2 = bar.shadowRoot?.querySelector('.mc-legend-item') as SVGGElement;
+    disabledItem2.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 200, clientY: 50 })
+    );
+    expect(legendTip.hidden).toBe(true);
+  });
+
+  it('supports declarative <mc-legend> with nested <mc-tooltip> and renders across all 8 categorical-legend charts', () => {
+    // Declarative <mc-legend> with nested <mc-tooltip>
+    const pie = document.createElement('mc-pie-chart') as MCPieChart;
+    const declLegend = document.createElement('mc-legend') as MCLegendElement;
+    declLegend.setAttribute('position', 'right');
+    declLegend.setAttribute('wrap', 'false');
+    declLegend.setAttribute('padding-top', '16');
+    declLegend.setAttribute('padding-left', '22');
+
+    const nestedTip = document.createElement('mc-tooltip') as MCTooltipElement;
+    const tpl = document.createElement('template');
+    tpl.innerHTML = '<div>Series: {{title}} ({{datum.color}})</div>';
+    nestedTip.appendChild(tpl);
+    declLegend.appendChild(nestedTip);
+    pie.appendChild(declLegend);
+    document.body.appendChild(pie);
+
+    pie.config = {
+      data: SAMPLE_PIE_DATA,
+      width: 600,
+      height: 360
+    };
+
+    const resolvedLegend = pie.resolveLegendConfig();
+    expect(resolvedLegend.position).toBe('right');
+    expect(resolvedLegend.wrap).toBe(false);
+    expect(resolvedLegend.padding.top).toBe(16);
+    expect(resolvedLegend.padding.left).toBe(22);
+
+    const legendItem = pie.shadowRoot?.querySelector('.mc-legend-item') as SVGGElement;
+    legendItem.dispatchEvent(new FocusEvent('focus'));
+    const legendTip = pie.getLegendTooltipElement()!;
+    expect(legendTip.hidden).toBe(false);
+    expect(legendTip.renderedHtml).toContain('Series:');
+
+    // Verify all 8 categorical-legend charts use the unified SVG legend
+    const legendCharts: { tag: string; config: any }[] = [
+      { tag: 'mc-bar-chart', config: { data: SAMPLE_BAR_DATA, width: 520, height: 320, indexBy: 'quarter', keys: ['Cloud', 'Edge'], legend: { position: 'top' } } },
+      { tag: 'mc-line-chart', config: { data: SAMPLE_LINE_DATA, width: 520, height: 320, legend: { position: 'bottom' } } },
+      { tag: 'mc-pie-chart', config: { data: SAMPLE_PIE_DATA, width: 520, height: 320, legend: { position: 'right' } } },
+      { tag: 'mc-radar-chart', config: { data: SAMPLE_RADAR_DATA, width: 520, height: 320, indexBy: 'metric', keys: ['PlatformA', 'PlatformB'], legend: { position: 'left' } } },
+      { tag: 'mc-scatter-chart', config: { data: SAMPLE_SCATTER_DATA, width: 520, height: 320, legend: { position: 'top' } } },
+      { tag: 'mc-sunburst-chart', config: { data: SAMPLE_SUNBURST_DATA, width: 520, height: 320, legend: { position: 'bottom' } } },
+      { tag: 'mc-treemap-chart', config: { data: SAMPLE_SUNBURST_DATA, width: 520, height: 320, legend: { position: 'bottom' } } },
+      { tag: 'mc-sankey-chart', config: { data: SAMPLE_SANKEY_DATA, width: 520, height: 320, legend: { position: 'bottom' } } }
+    ];
+
+    for (const c of legendCharts) {
+      const el = document.createElement(c.tag) as any;
+      document.body.appendChild(el);
+      el.config = c.config;
+      const g = el.shadowRoot?.querySelector('.mc-legend');
+      expect(g, `${c.tag} should render unified .mc-legend`).not.toBeNull();
+      expect(g?.getAttribute('data-legend-position')).toBe(c.config.legend.position);
+      expect(g?.querySelectorAll('.mc-legend-item').length).toBeGreaterThan(0);
+    }
   });
 });

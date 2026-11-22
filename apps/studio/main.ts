@@ -9,6 +9,7 @@ import {
 import {
   CHART_CATALOG,
   COMMON_ATTRIBUTES,
+  LEGEND_ATTRIBUTES,
   MARKER_THRESHOLD_ATTRIBUTES,
   SVG_ICON_PRESETS,
   VIEW_ZOOM_ATTRIBUTES,
@@ -195,6 +196,9 @@ function buildMarkersForVirtualState(
 
 function getAllAttributesForChart(entry: ChartCatalogEntry): ChartAttributeSpec[] {
   const list: ChartAttributeSpec[] = [...entry.specificAttributes];
+  if (entry.defaultLayers.includes('legends') && entry.id !== 'heatmap') {
+    list.push(...LEGEND_ATTRIBUTES);
+  }
   if (entry.supportsMarkers) {
     list.push(...MARKER_THRESHOLD_ATTRIBUTES);
   }
