@@ -153,6 +153,8 @@ function syncActiveViewTheme(mode: 'light' | 'dark'): void {
       chart.setConfig({
         ...chart.config,
         themeMode: mode,
+        xTitle: undefined,
+        yTitle: undefined,
         view: chart.config.view
           ? { ...chart.config.view, showControls: false }
           : undefined

@@ -53,6 +53,8 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
     chartEl.setConfig({
       ...cfg,
       themeMode: getGlobalThemeMode(),
+      xTitle: undefined,
+      yTitle: undefined,
       view: cfg.view ? { ...cfg.view, showControls: false } : undefined
     });
     mountedCharts.push(chartEl);

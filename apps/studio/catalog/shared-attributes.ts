@@ -54,10 +54,10 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     category: 'Sizing & Layout',
     control: 'range',
     min: 20,
-    max: 100,
+    max: 120,
     step: 2,
     description: 'Bottom inner margin in pixels.',
-    defaultValue: 64
+    defaultValue: 76
   },
   {
     configPath: 'margin.left',
@@ -300,7 +300,7 @@ export const LEGEND_ATTRIBUTES: ChartAttributeSpec[] = [
     max: 48,
     step: 2,
     description: 'Bottom padding around the SVG legend container in pixels.',
-    defaultValue: 8
+    defaultValue: 12
   },
   {
     configPath: 'legend.padding.left',
