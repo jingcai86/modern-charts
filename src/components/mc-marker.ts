@@ -1,6 +1,7 @@
 import type {
   MarkerCondition,
   MarkerConfig,
+  MarkerLabelPosition,
   MarkerMatchStyle,
   MarkerType
 } from '../core/types';
@@ -21,6 +22,10 @@ export class MCMarkerElement extends HTMLElement {
     'to',
     'label',
     'label-position',
+    'label-padding',
+    'label-edge-padding',
+    'label-offset-x',
+    'label-offset-y',
     'icon',
     'stroke',
     'stroke-width',
@@ -141,8 +146,20 @@ export class MCMarkerElement extends HTMLElement {
       to: this.parseValue(this.getAttribute('to')),
       label: this.getAttribute('label') || undefined,
       labelPosition:
-        (this.getAttribute('label-position') as 'start' | 'middle' | 'end') ||
+        (this.getAttribute('label-position') as MarkerLabelPosition) ||
         undefined,
+      labelPadding: this.hasAttribute('label-padding')
+        ? Number(this.getAttribute('label-padding'))
+        : undefined,
+      labelEdgePadding: this.hasAttribute('label-edge-padding')
+        ? Number(this.getAttribute('label-edge-padding'))
+        : undefined,
+      labelOffsetX: this.hasAttribute('label-offset-x')
+        ? Number(this.getAttribute('label-offset-x'))
+        : undefined,
+      labelOffsetY: this.hasAttribute('label-offset-y')
+        ? Number(this.getAttribute('label-offset-y'))
+        : undefined,
       icon: this.getAttribute('icon') || undefined,
       stroke: this.getAttribute('stroke') || undefined,
       strokeWidth: this.hasAttribute('stroke-width')

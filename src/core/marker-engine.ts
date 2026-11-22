@@ -1,8 +1,10 @@
 import { getScalePosition } from './scale-manager';
 import type {
   ChartRenderContext,
+  LabelDescriptor,
   MarkerCondition,
   MarkerConfig,
+  MarkerLabelPosition,
   MarkerMatchStyle,
   ResolvedMarker,
   ThresholdContextInfo,
@@ -272,6 +274,191 @@ export class MarkerEngine {
   }
 
   /**
+   * Resolves marker label coordinates, text-anchor, and vertical baseline
+   * for inside (`top-left`, `top-center`, `top-right`, `bottom-left`,
+   * `bottom-center`, `bottom-right`, plus legacy `start`/`middle`/`end`)
+   * and outside (`outside-left`, `outside-right`, `outside-top`, `outside-bottom`)
+   * positions with configurable `labelPadding` and `labelEdgePadding`.
+   */
+  private resolveMarkerLabelPlacement(
+    marker: ResolvedMarker,
+    ctx: ChartRenderContext<any>,
+    bounds: { posPx?: number; minP?: number; maxP?: number }
+  ): {
+    x: number;
+    y: number;
+    anchor: NonNullable<LabelDescriptor['anchor']>;
+    baseline: NonNullable<LabelDescriptor['baseline']>;
+  } {
+    const rawPos: MarkerLabelPosition =
+      marker.labelPosition ?? (marker.axis === 'x' ? 'top-right' : 'top-right');
+
+    // Normalize legacy shorthands ('start' | 'middle' | 'end')
+    const normalizedPos: Exclude<MarkerLabelPosition, 'start' | 'middle' | 'end'> =
+      rawPos === 'start'
+        ? marker.axis === 'x'
+          ? 'top-right'
+          : 'top-left'
+        : rawPos === 'middle'
+        ? 'top-center'
+        : rawPos === 'end'
+        ? 'top-right'
+        : rawPos;
+
+    const isOutside = normalizedPos.startsWith('outside-');
+    const pad = marker.labelPadding ?? (isOutside ? 8 : 10);
+    const edgePad = marker.labelEdgePadding ?? 10;
+    const offsetX = marker.labelOffsetX ?? 0;
+    const offsetY = marker.labelOffsetY ?? 0;
+
+    const isArea = marker.type === 'area';
+    const minP = bounds.minP ?? bounds.posPx ?? 0;
+    const maxP = bounds.maxP ?? bounds.posPx ?? 0;
+    const centerP = isArea ? (minP + maxP) / 2 : bounds.posPx ?? 0;
+
+    let x = 0;
+    let y = 0;
+    let anchor: NonNullable<LabelDescriptor['anchor']> = 'middle';
+    let baseline: NonNullable<LabelDescriptor['baseline']> = 'middle';
+
+    if (marker.axis === 'y') {
+      switch (normalizedPos) {
+        case 'outside-left':
+          x = -pad;
+          y = centerP;
+          anchor = 'end';
+          baseline = 'middle';
+          break;
+        case 'outside-right':
+          x = ctx.innerWidth + pad;
+          y = centerP;
+          anchor = 'start';
+          baseline = 'middle';
+          break;
+        case 'outside-top':
+          x = ctx.innerWidth / 2;
+          y = -pad;
+          anchor = 'middle';
+          baseline = 'alphabetic';
+          break;
+        case 'outside-bottom':
+          x = ctx.innerWidth / 2;
+          y = ctx.innerHeight + pad;
+          anchor = 'middle';
+          baseline = 'hanging';
+          break;
+        case 'top-left':
+          x = edgePad;
+          y = isArea ? minP + pad : centerP - pad;
+          anchor = 'start';
+          baseline = isArea ? 'hanging' : 'alphabetic';
+          break;
+        case 'top-center':
+          x = ctx.innerWidth / 2;
+          y = isArea ? minP + pad : centerP - pad;
+          anchor = 'middle';
+          baseline = isArea ? 'hanging' : 'alphabetic';
+          break;
+        case 'top-right':
+          x = ctx.innerWidth - edgePad;
+          y = isArea ? minP + pad : centerP - pad;
+          anchor = 'end';
+          baseline = isArea ? 'hanging' : 'alphabetic';
+          break;
+        case 'bottom-left':
+          x = edgePad;
+          y = isArea ? maxP - pad : centerP + pad;
+          anchor = 'start';
+          baseline = isArea ? 'alphabetic' : 'hanging';
+          break;
+        case 'bottom-center':
+          x = ctx.innerWidth / 2;
+          y = isArea ? maxP - pad : centerP + pad;
+          anchor = 'middle';
+          baseline = isArea ? 'alphabetic' : 'hanging';
+          break;
+        case 'bottom-right':
+          x = ctx.innerWidth - edgePad;
+          y = isArea ? maxP - pad : centerP + pad;
+          anchor = 'end';
+          baseline = isArea ? 'alphabetic' : 'hanging';
+          break;
+      }
+    } else {
+      // axis === 'x' (vertical marker line or vertical marker area)
+      switch (normalizedPos) {
+        case 'outside-top':
+          x = centerP;
+          y = -pad;
+          anchor = 'middle';
+          baseline = 'alphabetic';
+          break;
+        case 'outside-bottom':
+          x = centerP;
+          y = ctx.innerHeight + pad;
+          anchor = 'middle';
+          baseline = 'hanging';
+          break;
+        case 'outside-left':
+          x = -pad;
+          y = edgePad;
+          anchor = 'end';
+          baseline = 'hanging';
+          break;
+        case 'outside-right':
+          x = ctx.innerWidth + pad;
+          y = edgePad;
+          anchor = 'start';
+          baseline = 'hanging';
+          break;
+        case 'top-left':
+          x = isArea ? minP + pad : centerP - pad;
+          y = edgePad;
+          anchor = isArea ? 'start' : 'end';
+          baseline = 'hanging';
+          break;
+        case 'top-center':
+          x = centerP;
+          y = edgePad;
+          anchor = 'middle';
+          baseline = 'hanging';
+          break;
+        case 'top-right':
+          x = isArea ? maxP - pad : centerP + pad;
+          y = edgePad;
+          anchor = isArea ? 'end' : 'start';
+          baseline = 'hanging';
+          break;
+        case 'bottom-left':
+          x = isArea ? minP + pad : centerP - pad;
+          y = ctx.innerHeight - edgePad;
+          anchor = isArea ? 'start' : 'end';
+          baseline = 'alphabetic';
+          break;
+        case 'bottom-center':
+          x = centerP;
+          y = ctx.innerHeight - edgePad;
+          anchor = 'middle';
+          baseline = 'alphabetic';
+          break;
+        case 'bottom-right':
+          x = isArea ? maxP - pad : centerP + pad;
+          y = ctx.innerHeight - edgePad;
+          anchor = isArea ? 'end' : 'start';
+          baseline = 'alphabetic';
+          break;
+      }
+    }
+
+    return {
+      x: x + offsetX,
+      y: y + offsetY,
+      anchor,
+      baseline
+    };
+  }
+
+  /**
    * Renders the built-in `'markers'` layer (both marker areas and marker lines,
    * with labels rendered through `<mc-label>` / `ctx.renderLabel`).
    */
@@ -298,6 +485,7 @@ export class MarkerEngine {
         const p0 = marker.pixelFrom ?? 0;
         const p1 = marker.pixelTo ?? 0;
         const minP = Math.min(p0, p1);
+        const maxP = Math.max(p0, p1);
         const sizeP = Math.max(2, Math.abs(p1 - p0));
 
         const rect = document.createElementNS(SVG_NS, 'rect');
@@ -332,28 +520,19 @@ export class MarkerEngine {
         itemG.appendChild(rect);
 
         if (marker.label) {
-          const pos = marker.labelPosition ?? 'end';
-          const lx =
-            marker.axis === 'x'
-              ? minP + sizeP / 2 + (marker.labelOffsetX ?? 0)
-              : pos === 'start'
-              ? 10 + (marker.labelOffsetX ?? 0)
-              : pos === 'middle'
-              ? ctx.innerWidth / 2 + (marker.labelOffsetX ?? 0)
-              : ctx.innerWidth - 10 + (marker.labelOffsetX ?? 0);
-          const ly =
-            marker.axis === 'x'
-              ? 16 + (marker.labelOffsetY ?? 0)
-              : minP + 14 + (marker.labelOffsetY ?? 0);
+          const placement = this.resolveMarkerLabelPlacement(marker, ctx, {
+            minP,
+            maxP
+          });
 
-        const areaLabel = ctx.renderLabel(itemG, {
+          const areaLabel = ctx.renderLabel(itemG, {
             id: `marker-label-${marker.id}`,
             text: marker.label,
-            x: lx,
-            y: ly,
+            x: placement.x,
+            y: placement.y,
             type: 'marker',
-            anchor: marker.axis === 'x' ? 'middle' : pos,
-            baseline: 'middle',
+            anchor: placement.anchor,
+            baseline: placement.baseline,
             fontSize: Math.max(10, ctx.theme.fontSize - 1),
             fontWeight: 600,
             color: marker.stroke || '#fda4af',
@@ -400,28 +579,18 @@ export class MarkerEngine {
         itemG.appendChild(line);
 
         if (marker.label) {
-          const pos = marker.labelPosition ?? 'end';
-          const lx =
-            marker.axis === 'x'
-              ? posPx + 8 + (marker.labelOffsetX ?? 0)
-              : pos === 'start'
-              ? 10 + (marker.labelOffsetX ?? 0)
-              : pos === 'middle'
-              ? ctx.innerWidth / 2 + (marker.labelOffsetX ?? 0)
-              : ctx.innerWidth - 10 + (marker.labelOffsetX ?? 0);
-          const ly =
-            marker.axis === 'x'
-              ? 16 + (marker.labelOffsetY ?? 0)
-              : posPx - 12 + (marker.labelOffsetY ?? 0);
+          const placement = this.resolveMarkerLabelPlacement(marker, ctx, {
+            posPx
+          });
 
           const lineLabel = ctx.renderLabel(itemG, {
             id: `marker-label-${marker.id}`,
             text: marker.label,
-            x: lx,
-            y: ly,
+            x: placement.x,
+            y: placement.y,
             type: 'marker',
-            anchor: marker.axis === 'x' ? 'start' : pos,
-            baseline: 'middle',
+            anchor: placement.anchor,
+            baseline: placement.baseline,
             fontSize: Math.max(10, ctx.theme.fontSize - 1),
             fontWeight: 600,
             color:
