@@ -402,7 +402,7 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
     createDefaultConfig: (themeMode) => ({
       data: SAMPLE_LINE_DATA,
       autoSize: true,
-      title: 'Monthly AI Inference & Edge Throughput (req/s)',
+      title: 'Throughput (req/s)',
       xTitle: 'Month',
       yTitle: 'Throughput (req/s)',
       curve: 'monotoneX',
@@ -585,7 +585,7 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
     createDefaultConfig: (themeMode) => ({
       data: SAMPLE_BAR_DATA,
       autoSize: true,
-      title: 'Quarterly Infrastructure Spend ($K)',
+      title: 'Quarterly Spend ($K)',
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge', 'OnPrem'],
       groupMode: 'grouped',
@@ -727,7 +727,7 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
     createDefaultConfig: (themeMode) => ({
       data: SAMPLE_PIE_DATA,
       autoSize: true,
-      title: 'Runtime Footprint Breakdown',
+      title: 'Runtime Footprint',
       innerRadius: 0.54,
       padAngle: 1.5,
       cornerRadius: 6,
@@ -805,7 +805,7 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
     createDefaultConfig: (themeMode) => ({
       data: SAMPLE_HEATMAP_DATA,
       autoSize: true,
-      title: 'Cluster Compute Utilization (%)',
+      title: 'CPU Load (%)',
       colorScheme: 'viridis',
       cellShape: 'rect',
       cellPadding: 0.1,
@@ -902,7 +902,7 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
     createDefaultConfig: (themeMode) => ({
       data: SAMPLE_RADAR_DATA,
       autoSize: true,
-      title: 'Architecture Benchmark Comparison',
+      title: 'Benchmark Score',
       indexBy: 'metric',
       keys: ['ModernCharts', 'TraditionalChart'],
       gridShape: 'circular',
@@ -990,7 +990,7 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
     createDefaultConfig: (themeMode) => ({
       data: SAMPLE_SUNBURST_DATA,
       autoSize: true,
-      title: 'Module Hierarchy (Click Any Arc to Drill Down)',
+      title: 'Module Hierarchy',
       cornerRadius: 4,
       enableLabels: true,
       interactiveDrilldown: true,
@@ -1055,7 +1055,7 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
     createDefaultConfig: (themeMode) => ({
       data: SAMPLE_SANKEY_DATA,
       autoSize: true,
-      title: 'AI Prompt → Pretext & D3 Rendering Pipeline Flow',
+      title: 'Pipeline Flow',
       nodeWidth: 18,
       nodePadding: 16,
       linkOpacity: 0.42,
@@ -1143,7 +1143,7 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
     createDefaultConfig: (themeMode) => ({
       data: SAMPLE_SCATTER_DATA,
       autoSize: true,
-      title: 'Performance vs Bundle Size Efficiency',
+      title: 'FPS vs Size',
       xTitle: 'Bundle Size (KB)',
       yTitle: 'FPS Score',
       minNodeSize: 7,
@@ -1251,7 +1251,7 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
     createDefaultConfig: (themeMode) => ({
       data: SAMPLE_SUNBURST_DATA,
       autoSize: true,
-      title: 'Hierarchical Package Footprint Treemap',
+      title: 'Package Footprint',
       tilePadding: 4,
       borderRadius: 6,
       enableLabels: true,
@@ -1316,7 +1316,7 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
     createDefaultConfig: (themeMode) => ({
       data: { ...SAMPLE_GAUGE_DATA },
       autoSize: true,
-      title: 'Real-Time Text Layout Efficiency',
+      title: 'Layout Efficiency',
       min: 0,
       max: 100,
       unit: '%',

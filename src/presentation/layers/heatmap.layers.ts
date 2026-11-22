@@ -70,9 +70,9 @@ export function renderHeatmapLegendLayer(
   }
   defs.appendChild(grad);
 
-  const barW = Math.min(180, ctx.innerWidth * 0.45);
+  const barW = Math.min(130, ctx.innerWidth * 0.34);
   const barH = 8;
-  const startX = ctx.innerWidth - barW;
+  const startX = ctx.innerWidth - barW - 22;
   const startY = -20;
 
   const barRect = document.createElementNS(SVG_NS, 'rect');
