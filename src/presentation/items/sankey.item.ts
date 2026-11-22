@@ -1,4 +1,4 @@
-import { format } from 'd3';
+import { formatGroupedNumber } from '../../core/format';
 import {
   resolveChartPointAnchor,
   resolveElementAnchor
@@ -101,7 +101,7 @@ export function renderSankeyLinkItem(
         title: `${link.source.name} → ${link.target.name}`,
         label: 'Flow',
         value: link.value,
-        formattedValue: format(',')(link.value),
+        formattedValue: formatGroupedNumber(link.value),
         color: link.source.color,
         anchor: getLinkAnchor(),
         datum: {
@@ -182,7 +182,7 @@ export function renderSankeyNodeItem(
         title: node.name,
         label: 'Total Flow',
         value: node.value,
-        formattedValue: format(',')(node.value),
+        formattedValue: formatGroupedNumber(node.value),
         color: node.color,
         anchor: resolveElementAnchor(rect, fallbackAnchor),
         datum: {

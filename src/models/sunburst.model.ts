@@ -1,12 +1,28 @@
 import {
   arc,
-  color as d3Color,
   hierarchy as d3Hierarchy,
   partition as d3Partition,
   type HierarchyRectangularNode
 } from 'd3';
 import { createOrdinalColorScale } from '../core/theme';
 import type { ChartRenderContext, HierarchyNode } from '../core/types';
+
+function brightenHexColor(input: string, k: number): string {
+  const hex = input.trim();
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex);
+  if (!match) return input;
+  let digits = match[1];
+  if (digits.length === 3) {
+    digits = digits[0] + digits[0] + digits[1] + digits[1] + digits[2] + digits[2];
+  }
+  const factor = Math.pow(1 / 0.7, k);
+  const brightenChannel = (offset: number): string => {
+    const raw = parseInt(digits.slice(offset, offset + 2), 16);
+    const next = Math.min(255, Math.round(raw === 0 ? 18 * factor : raw * factor));
+    return next.toString(16).padStart(2, '0');
+  };
+  return `#${brightenChannel(0)}${brightenChannel(2)}${brightenChannel(4)}`;
+}
 
 export interface ComputedSunburstArcModel {
   index: number;
@@ -117,10 +133,9 @@ export function computeSunburstChartModel(
       d.data.color ||
       topAncestor.data.color ||
       ctx.colorScale(topAncestor.data.name);
-    const colorObj = d3Color(baseColor);
     const shade =
-      d.depth > 1 && colorObj
-        ? colorObj.brighter((d.depth - 1) * 0.28).formatHex()
+      d.depth > 1
+        ? brightenHexColor(baseColor, (d.depth - 1) * 0.28)
         : baseColor;
 
     const midAngle = (d.x0 + d.x1) / 2;

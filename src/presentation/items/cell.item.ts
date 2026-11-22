@@ -1,4 +1,4 @@
-import { format } from 'd3';
+import { formatGroupedNumber } from '../../core/format';
 import { resolveElementAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
 import type { ComputedHeatmapCellModel } from '../../models/heatmap.model';
@@ -170,7 +170,7 @@ export function renderTreemapTileItem(
         label: 'Value',
         category: leaf.category,
         value: leaf.value,
-        formattedValue: format(',')(leaf.value),
+        formattedValue: formatGroupedNumber(leaf.value),
         color: leaf.color,
         anchor: resolveElementAnchor(rect, fallbackAnchor),
         datum: {

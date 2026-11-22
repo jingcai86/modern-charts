@@ -1,4 +1,4 @@
-import { scaleOrdinal } from 'd3';
+import { scaleOrdinal } from './scales';
 import type { ChartPaletteName, ChartTheme, ThemeModePreference } from './types';
 export { createSequentialColorScale } from './color-schemes';
 
