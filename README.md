@@ -53,7 +53,6 @@
 | ✨ **Pretext Ultra-Fast Typography** | Instant zero-DOM-reflow text measurement and line-breaking via `@chenglou/pretext` in both SVG and HTML `<foreignObject>`. |
 | 🎞️ **Nivo-Style Motion & Spring Physics** | Spring presets (`default`, `gentle`, `wobbly`, `stiff`, `slow`, `molasses`, `elastic`, `bounce`) respecting `prefers-reduced-motion`. |
 | 🤖 **AI Progressive Layer Streaming** | Stream visual chart layers onto the canvas step-by-step in real-time (`chart.streamLayers()`). |
-| 🌓 **First-Class Dark / Light / System Mode** | Automatic OS color-scheme syncing with live theme switching and persistent preferences. |
 
 ---
 
@@ -79,7 +78,7 @@
 ### 1. Installation
 
 ```bash
-npm install modern-charts d3 @chenglou/pretext
+npm install modern-charts
 ```
 
 ### 2. Basic Usage
@@ -159,7 +158,7 @@ const { themeLayer, scaleLayer, ariaLayer, animationLayer } = chart.getSubCompon
 
 <div align="center">
   <img src="./assets/hero-gallery.png" alt="modern-charts Overview Gallery" width="92%" style="border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,0.35);" />
-  <p><em>The full interactive chart gallery with 3-way theme switching and direct live playground links.</em></p>
+  <p><em>The full interactive chart gallery with direct live playground links for all 10 chart components.</em></p>
 </div>
 
 ---
