@@ -3,7 +3,6 @@ import {
   MCBaseChart,
   resolveEffectiveThemeMode,
   type ChartConfig,
-  type ChartRenderContext,
   type ThemeModePreference
 } from '../src/index';
 import {
@@ -236,6 +235,162 @@ function generateWebComponentHtmlSnippet(
   return lines.join('\n');
 }
 
+function restoreSerializedFunctions(parsed: any, prev: any): any {
+  if (parsed === '[Function]' && typeof prev === 'function') {
+    return prev;
+  }
+  if (Array.isArray(parsed)) {
+    return parsed.map((item, idx) =>
+      restoreSerializedFunctions(item, Array.isArray(prev) ? prev[idx] : undefined)
+    );
+  }
+  if (parsed && typeof parsed === 'object') {
+    const out: Record<string, any> = {};
+    for (const key of Object.keys(parsed)) {
+      if (isUnsafePathKey(key)) continue;
+      const prevVal =
+        prev && typeof prev === 'object' && Object.prototype.hasOwnProperty.call(prev, key)
+          ? prev[key]
+          : undefined;
+      out[key] = restoreSerializedFunctions(parsed[key], prevVal);
+    }
+    return out;
+  }
+  return parsed;
+}
+
+function extractChartConfigJson(markup: string): string | null {
+  const assignMatch = /\bchart\.config\s*=\s*\{/.exec(markup);
+  if (!assignMatch) return null;
+  const startIdx = assignMatch.index + assignMatch[0].length - 1;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = startIdx; i < markup.length; i++) {
+    const ch = markup[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === '{') {
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        return markup.slice(startIdx, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
+function extractTagAttributes(markup: string, tagName: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const lower = markup.toLowerCase();
+  const openToken = `<${tagName.toLowerCase()}`;
+  let idx = lower.indexOf(openToken);
+  while (idx !== -1) {
+    const nextCh = lower[idx + openToken.length];
+    if (!nextCh || /\s|>|\//.test(nextCh)) {
+      break;
+    }
+    idx = lower.indexOf(openToken, idx + openToken.length);
+  }
+  if (idx === -1) return attrs;
+
+  let i = idx + openToken.length;
+  const len = markup.length;
+  while (i < len) {
+    while (i < len && /\s/.test(markup[i])) i++;
+    if (i >= len || markup[i] === '>' || markup[i] === '/') break;
+
+    const nameStart = i;
+    while (i < len && !/[\s=/>]/.test(markup[i])) i++;
+    const name = markup.slice(nameStart, i).toLowerCase();
+    if (!name) break;
+
+    while (i < len && /\s/.test(markup[i])) i++;
+    if (markup[i] !== '=') {
+      if (!isUnsafePathKey(name)) attrs[name] = 'true';
+      continue;
+    }
+    i++;
+    while (i < len && /\s/.test(markup[i])) i++;
+
+    let val = '';
+    const quote = markup[i];
+    if (quote === '"' || quote === "'") {
+      i++;
+      const valStart = i;
+      while (i < len && markup[i] !== quote) i++;
+      val = markup.slice(valStart, i);
+      if (i < len) i++;
+    } else {
+      const valStart = i;
+      while (i < len && !/[\s>]/.test(markup[i])) i++;
+      val = markup.slice(valStart, i);
+    }
+
+    if (!isUnsafePathKey(name)) {
+      attrs[name] = val;
+    }
+  }
+  return attrs;
+}
+
+const STANDARD_HTML_ATTR_TO_CONFIG: Record<string, { path: string; type: 'boolean' | 'string' }> = {
+  'auto-size': { path: 'autoSize', type: 'boolean' },
+  'theme-mode': { path: 'themeMode', type: 'string' },
+  palette: { path: 'palette', type: 'string' },
+  'motion-config': { path: 'motionConfig', type: 'string' },
+  'label-mode': { path: 'labelMode', type: 'string' },
+  'aria-label': { path: 'ariaLabel', type: 'string' },
+  'is-focusable': { path: 'isFocusable', type: 'boolean' }
+};
+
+function applyHtmlAttributeToConfig(
+  targetConfig: ChartConfig<any>,
+  attrName: string,
+  rawVal: string,
+  allAttributes: ChartAttributeSpec[]
+): void {
+  const std = STANDARD_HTML_ATTR_TO_CONFIG[attrName];
+  if (std) {
+    const coerced =
+      std.type === 'boolean' ? rawVal !== 'false' && rawVal !== '0' : rawVal;
+    setByPath(targetConfig, std.path, coerced);
+    return;
+  }
+
+  const spec = allAttributes.find(
+    (s) => s.attrName && s.attrName.toLowerCase() === attrName
+  );
+  if (!spec || spec.configPath.startsWith('__')) return;
+
+  if (spec.control === 'boolean') {
+    setByPath(targetConfig, spec.configPath, rawVal !== 'false' && rawVal !== '0');
+  } else if (spec.control === 'number' || spec.control === 'range') {
+    const trimmed = rawVal.trim();
+    if (trimmed === '' || trimmed === 'auto') {
+      setByPath(targetConfig, spec.configPath, 'auto');
+    } else {
+      const n = Number(trimmed);
+      if (!Number.isNaN(n)) setByPath(targetConfig, spec.configPath, n);
+    }
+  } else {
+    setByPath(targetConfig, spec.configPath, rawVal);
+  }
+}
+
 // ============================================================================
 // OVERVIEW GALLERY VIEW (#/)
 // ============================================================================
@@ -340,9 +495,6 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
         <button type="button" id="btn-detail-replay-anim">
           ↻ Replay Animation
         </button>
-        <button type="button" id="btn-detail-custom-layer">
-          + Inject Custom Layer
-        </button>
       </div>
     </div>
 
@@ -365,7 +517,7 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   const categories = Array.from(new Set(allAttributes.map((a) => a.category)));
 
   const attributesSection = document.createElement('div');
-  attributesSection.className = 'panel-card';
+  attributesSection.className = 'panel-card attributes-panel-card';
   attributesSection.innerHTML = `
     <div class="attributes-section-header">
       <div>
@@ -414,10 +566,15 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
     </div>
 
     <p style="margin:0;font-size:0.8rem;color:var(--text-muted);" id="editor-helper-desc">
-      Declarative Web Component HTML markup representing the current <code>chart.config</code>.
+      Live-editable Web Component HTML markup. Edit attributes on <code>&lt;${entry.tagName}&gt;</code> or any field (including <code>data</code>) inside <code>chart.config</code> — changes reflect on the live chart immediately.
     </p>
 
-    <pre id="detail-html-preview" class="stream-code-box"></pre>
+    <textarea
+      id="detail-html-preview"
+      class="config-editor-textarea"
+      spellcheck="false"
+      aria-label="Live editable Web Component HTML markup"
+    ></textarea>
   `;
   root.appendChild(editorCard);
 
@@ -430,7 +587,12 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
 
   const htmlPreviewBox = editorCard.querySelector(
     '#detail-html-preview'
-  ) as HTMLPreElement;
+  ) as HTMLTextAreaElement;
+  const editorHelperDesc = editorCard.querySelector(
+    '#editor-helper-desc'
+  ) as HTMLElement;
+  const defaultHelperHtml = editorHelperDesc.innerHTML;
+  let lastSyncedTagAttrs: Record<string, string> = {};
   const ariaReadout = chartCard.querySelector(
     '#detail-aria-readout'
   ) as HTMLElement;
@@ -505,7 +667,9 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
         activeLayerNames = [...nextSlice];
         config.layers = [...nextSlice];
         chartEl.setConfig(config);
-        htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, config);
+        const streamedSnippet = generateWebComponentHtmlSnippet(entry, config);
+        htmlPreviewBox.value = streamedSnippet;
+        lastSyncedTagAttrs = extractTagAttributes(streamedSnippet, entry.tagName);
         renderLayerChips();
         await new Promise((r) => setTimeout(r, 240));
       }
@@ -516,57 +680,6 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
     .querySelector('#btn-detail-replay-anim')
     ?.addEventListener('click', () => {
       chartEl.replayAnimation();
-    });
-
-  let customLayerInjected = false;
-  const customOverlayFn = (ctx: ChartRenderContext<any>) => {
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.setAttribute('class', 'client-custom-layer');
-
-    const matchedCount = ctx.thresholds?.matchedItems.length ?? 0;
-    const badgeText =
-      matchedCount > 0
-        ? `Custom Layer: ${matchedCount} items triggered threshold`
-        : `Custom Layer: ${ctx.innerWidth}×${ctx.innerHeight}px canvas`;
-
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', String(Math.max(8, ctx.innerWidth - 270)));
-    rect.setAttribute('y', '8');
-    rect.setAttribute('width', '262');
-    rect.setAttribute('height', '26');
-    rect.setAttribute('rx', '6');
-    rect.setAttribute('fill', matchedCount > 0 ? 'rgba(239,68,68,0.18)' : 'rgba(99,102,241,0.18)');
-    rect.setAttribute('stroke', matchedCount > 0 ? '#ef4444' : '#6366f1');
-    rect.setAttribute('stroke-width', '1.2');
-    g.appendChild(rect);
-
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', String(Math.max(18, ctx.innerWidth - 258)));
-    text.setAttribute('y', '25');
-    text.setAttribute('fill', ctx.theme.textColor);
-    text.setAttribute('font-size', '11');
-    text.setAttribute('font-weight', '700');
-    text.textContent = badgeText;
-    g.appendChild(text);
-
-    return g;
-  };
-
-  chartCard
-    .querySelector('#btn-detail-custom-layer')
-    ?.addEventListener('click', (e) => {
-      const btn = e.currentTarget as HTMLButtonElement;
-      if (!customLayerInjected) {
-        chartEl.layers = [...activeLayerNames, customOverlayFn];
-        customLayerInjected = true;
-        btn.textContent = '✓ Custom Layer Active (Remove)';
-        btn.classList.add('btn-primary');
-      } else {
-        chartEl.layers = [...activeLayerNames];
-        customLayerInjected = false;
-        btn.textContent = '+ Inject Custom Layer';
-        btn.classList.remove('btn-primary');
-      }
     });
 
   const categoriesGrid = attributesSection.querySelector(
@@ -862,15 +975,21 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
     });
   });
 
-  // Central sync helper between Chart, HTML Preview, and Attribute Controls
+  // Central sync helper between Chart, HTML Markup Editor, and Attribute Controls
   function applyConfigUpdate(
     nextCfg: ChartConfig<any>,
-    source: 'controls' | 'randomize' | 'reset'
+    source: 'controls' | 'html-editor' | 'randomize' | 'reset'
   ) {
     chartConfigState.set(entry.id, nextCfg);
     chartEl.setConfig(nextCfg);
 
-    htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, nextCfg);
+    if (source !== 'html-editor') {
+      const nextSnippet = generateWebComponentHtmlSnippet(entry, nextCfg);
+      htmlPreviewBox.value = nextSnippet;
+      lastSyncedTagAttrs = extractTagAttributes(nextSnippet, entry.tagName);
+      editorHelperDesc.innerHTML = defaultHelperHtml;
+      editorHelperDesc.style.color = 'var(--text-muted)';
+    }
 
     if (source !== 'controls') {
       controlSyncCallbacks.forEach((syncFn) => syncFn());
@@ -886,7 +1005,46 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   }
 
   // Initialize editor contents
-  htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, config);
+  const initialSnippet = generateWebComponentHtmlSnippet(entry, config);
+  htmlPreviewBox.value = initialSnippet;
+  lastSyncedTagAttrs = extractTagAttributes(initialSnippet, entry.tagName);
+
+  // Live two-way sync when user edits Web Component HTML Markup or chart.config inside it
+  htmlPreviewBox.addEventListener('input', () => {
+    const rawMarkup = htmlPreviewBox.value;
+    const jsonBlock = extractChartConfigJson(rawMarkup);
+    const currentTagAttrs = extractTagAttributes(rawMarkup, entry.tagName);
+
+    let nextCfg: ChartConfig<any> = { ...config };
+
+    if (jsonBlock !== null) {
+      try {
+        const parsedRaw = JSON.parse(jsonBlock);
+        if (parsedRaw && typeof parsedRaw === 'object') {
+          nextCfg = restoreSerializedFunctions(parsedRaw, config);
+          editorHelperDesc.innerHTML = defaultHelperHtml;
+          editorHelperDesc.style.color = 'var(--text-muted)';
+        }
+      } catch (err: any) {
+        editorHelperDesc.textContent = `Waiting for valid chart.config JSON: ${err?.message ?? 'Syntax error'}`;
+        editorHelperDesc.style.color = '#f87171';
+        return;
+      }
+    }
+
+    // Apply any HTML tag attribute edits that changed compared to last synced snapshot
+    for (const [attrName, attrVal] of Object.entries(currentTagAttrs)) {
+      if (attrName === 'id') continue;
+      if (lastSyncedTagAttrs[attrName] !== attrVal) {
+        applyHtmlAttributeToConfig(nextCfg, attrName, attrVal, allAttributes);
+      }
+    }
+    lastSyncedTagAttrs = currentTagAttrs;
+
+    Object.keys(config).forEach((k) => delete (config as any)[k]);
+    Object.assign(config, nextCfg);
+    applyConfigUpdate(config, 'html-editor');
+  });
 
   // Reset Default Config button
   editorCard.querySelector('#btn-reset-config')?.addEventListener('click', () => {
