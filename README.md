@@ -73,3 +73,42 @@ barChart.config = {
   layers: ['grid', 'axes', 'bars', 'labels', 'legends']
 };
 ```
+
+---
+
+## Running with Docker
+
+You can run the interactive demo site and playground in Docker in either **Production** mode (Nginx on port `8080`) or **Live Development** mode (Vite with hot-reload on port `5173`).
+
+### Option 1: Docker Compose (Production Demo on `http://localhost:8080`)
+
+```bash
+docker compose up --build
+# Or via npm script:
+npm run docker:up
+```
+
+Then open [http://localhost:8080](http://localhost:8080).
+
+### Option 2: Docker Compose (Development Mode with Hot-Reload on `http://localhost:5173`)
+
+```bash
+docker compose --profile dev up --build
+# Or via npm script:
+npm run docker:dev
+```
+
+Then open [http://localhost:5173](http://localhost:5173).
+
+### Option 3: Standalone Docker CLI
+
+```bash
+# Build and run the production Nginx container
+docker build -t modern-charts .
+docker run --rm -p 8080:80 modern-charts
+
+# Or build and run the development container
+docker build --target dev -t modern-charts:dev .
+docker run --rm -p 5173:5173 modern-charts:dev
+```
+

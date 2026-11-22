@@ -23,7 +23,10 @@
     "build:examples": "vite build --config vite.examples.config.ts",
     "preview:examples": "vite preview --config vite.examples.config.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "docker:up": "docker compose up --build",
+    "docker:dev": "docker compose --profile dev up --build",
+    "docker:down": "docker compose down"
   },
   "keywords": [
     "charts",

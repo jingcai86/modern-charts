@@ -1,0 +1,29 @@
+services:
+  # Production demo site served via Nginx at http://localhost:8080
+  modern-charts:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: prod
+    container_name: modern-charts-demo
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  # Live development server with hot-reload at http://localhost:5173
+  # Run with: docker compose --profile dev up --build
+  modern-charts-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: modern-charts-dev
+    profiles:
+      - dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
