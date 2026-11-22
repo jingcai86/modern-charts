@@ -1,17 +1,54 @@
-import {
-  easeBackOut,
-  easeBounceOut,
-  easeCubicOut,
-  easeElasticOut,
-  easeLinear,
-  easeQuadOut
-} from 'd3';
 import type {
   AnimationConfig,
   AnimationEasingName,
   ItemAnimationSpec,
   MotionPresetName
 } from './types';
+
+const BACK_OVERSHOOT = 1.70158;
+const ELASTIC_TAU = (2 * Math.PI) / 0.3;
+const ELASTIC_SHIFT = 0.075;
+const BOUNCE_B1 = 4 / 11;
+const BOUNCE_B2 = 6 / 11;
+const BOUNCE_B3 = 8 / 11;
+const BOUNCE_B4 = 3 / 4;
+const BOUNCE_B5 = 9 / 11;
+const BOUNCE_B6 = 10 / 11;
+const BOUNCE_B7 = 15 / 16;
+const BOUNCE_B8 = 21 / 22;
+const BOUNCE_B9 = 63 / 64;
+const BOUNCE_B0 = 1 / BOUNCE_B1 / BOUNCE_B1;
+
+const easeLinear = (t: number): number => +t;
+const easeQuadOut = (t: number): number => t * (2 - t);
+const easeCubicOut = (t: number): number => {
+  const u = t - 1;
+  return u * u * u + 1;
+};
+const easeBackOut = (t: number): number => {
+  const u = t - 1;
+  return u * u * ((BACK_OVERSHOOT + 1) * u + BACK_OVERSHOOT) + 1;
+};
+const easeElasticOut = (t: number): number => {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  const decay = (Math.pow(2, -10 * t) - 0.0009765625) * 1.0009775171065494;
+  return 1 - decay * Math.sin((t + ELASTIC_SHIFT) * ELASTIC_TAU);
+};
+const easeBounceOut = (t: number): number => {
+  let u = +t;
+  if (u < BOUNCE_B1) return BOUNCE_B0 * u * u;
+  if (u < BOUNCE_B3) {
+    u -= BOUNCE_B2;
+    return BOUNCE_B0 * u * u + BOUNCE_B4;
+  }
+  if (u < BOUNCE_B6) {
+    u -= BOUNCE_B5;
+    return BOUNCE_B0 * u * u + BOUNCE_B7;
+  }
+  u -= BOUNCE_B8;
+  return BOUNCE_B0 * u * u + BOUNCE_B9;
+};
 
 export const MOTION_PRESETS: Record<
   MotionPresetName,

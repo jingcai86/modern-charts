@@ -1,4 +1,4 @@
-import { format } from 'd3';
+import { formatGroupedNumber } from '../../core/format';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, PieDatum } from '../../core/types';
 import type { PieChartModel } from '../../models/pie.model';
@@ -106,7 +106,7 @@ export function renderPieCenterLayer(
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
-  const text = model.centerLabel || `Total\n${format(',')(model.total)}`;
+  const text = model.centerLabel || `Total\n${formatGroupedNumber(model.total)}`;
   ctx.renderLabel(g, {
     id: 'pie-center-label',
     text,

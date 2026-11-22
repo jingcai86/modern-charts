@@ -116,9 +116,10 @@ describe('Per-chart standalone subpath exports & scoped registration (Issue #11)
     const rects = bar.shadowRoot?.querySelectorAll('.mc-bar-rect');
     expect(rects?.length).toBe(8);
     expect(capturedD3).not.toBeNull();
-    expect(typeof capturedD3.select).toBe('function');
+    expect(typeof capturedD3.extent).toBe('function');
     expect(typeof capturedD3.scaleLinear).toBe('function');
-    expect(typeof capturedD3.format).toBe('function');
+    expect(typeof capturedD3.scaleBand).toBe('function');
+    expect(typeof capturedD3.scaleOrdinal).toBe('function');
   });
 
   it('exposes all per-chart and core subpath exports in package.json with matching types and import paths', async () => {
@@ -179,6 +180,11 @@ describe('Per-chart standalone subpath exports & scoped registration (Issue #11)
     const barGraphCode = collectSource(barBundlePath);
     expect(barGraphCode).toContain('mc-bar-chart');
     expect(barGraphCode).not.toContain('interpolateViridis');
+    // Standalone bar chart must not eagerly pull heavy unused D3 modules
+    expect(barGraphCode).not.toContain('d3-zoom');
+    expect(barGraphCode).not.toContain('d3-transition');
+    expect(barGraphCode).not.toContain('d3-geo');
+    expect(barGraphCode).not.toContain('d3-delaunay');
 
     // Verify EVERY single standalone chart bundle (all 10) + core is isolated
     // and never pulls in any unrelated chart custom element

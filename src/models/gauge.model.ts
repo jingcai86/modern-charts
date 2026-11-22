@@ -1,4 +1,5 @@
-import { arc, scaleLinear } from 'd3';
+import { arc } from 'd3';
+import { scaleLinear } from '../core/scales';
 import type { ChartRenderContext, GaugeBand, GaugeDatum } from '../core/types';
 
 export interface ComputedGaugeBandModel {

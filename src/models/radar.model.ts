@@ -1,4 +1,4 @@
-import { scaleLinear } from 'd3';
+import { scaleLinear } from '../core/scales';
 import { createOrdinalColorScale } from '../core/theme';
 import type { ChartRenderContext, RadarDatum } from '../core/types';
 
