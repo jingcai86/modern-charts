@@ -416,15 +416,15 @@ export const MARKER_THRESHOLD_ATTRIBUTES: ChartAttributeSpec[] = [
     category: 'Marker & Threshold (<mc-marker-layer>)',
     control: 'select',
     options: [
-      { label: 'top-right (Inside — Above Right)', value: 'top-right' },
-      { label: 'top-left (Inside — Above Left)', value: 'top-left' },
-      { label: 'top-center (Inside — Above Center)', value: 'top-center' },
-      { label: 'bottom-right (Inside — Below Right)', value: 'bottom-right' },
-      { label: 'bottom-left (Inside — Below Left)', value: 'bottom-left' },
-      { label: 'bottom-center (Inside — Below Center)', value: 'bottom-center' }
+      { label: 'top-right', value: 'top-right' },
+      { label: 'top-left', value: 'top-left' },
+      { label: 'top-center', value: 'top-center' },
+      { label: 'bottom-right', value: 'bottom-right' },
+      { label: 'bottom-left', value: 'bottom-left' },
+      { label: 'bottom-center', value: 'bottom-center' }
     ],
     description:
-      'Places the inside marker label relative to the marker line/area. Use Annotation for outside callouts.',
+      'Places the marker label relative to the marker line/area.',
     defaultValue: 'top-right'
   },
   {
@@ -484,13 +484,13 @@ export const MARKER_THRESHOLD_ATTRIBUTES: ChartAttributeSpec[] = [
     category: 'Marker & Threshold (<mc-marker-layer>)',
     control: 'select',
     options: [
-      { label: 'right (Outside Right)', value: 'right' },
-      { label: 'left (Outside Left)', value: 'left' },
-      { label: 'top (Outside Top)', value: 'top' },
-      { label: 'bottom (Outside Bottom)', value: 'bottom' }
+      { label: 'right', value: 'right' },
+      { label: 'left', value: 'left' },
+      { label: 'top', value: 'top' },
+      { label: 'bottom', value: 'bottom' }
     ],
     description:
-      'Outside plot edge where the marker annotation sits (left, right, top, or bottom).',
+      'Plot edge where the outside marker annotation sits.',
     defaultValue: 'right'
   },
   {
