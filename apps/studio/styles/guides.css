@@ -15,39 +15,7 @@
   box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.guide-tabs-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.guide-tab-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 14px;
-  border-radius: 999px;
-  text-decoration: none;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: var(--bg-code);
-  border: 1px solid var(--border-subtle);
-  transition: all 140ms ease;
-}
-
-.guide-tab-pill:hover {
-  color: var(--text-main);
-  border-color: var(--border-focus);
-}
-
-.guide-tab-pill.active {
-  background: var(--pill-purple-bg);
-  color: var(--pill-purple-fg);
-  border-color: rgba(99, 102, 241, 0.5);
+  gap: 10px;
 }
 
 .guide-hero-title {

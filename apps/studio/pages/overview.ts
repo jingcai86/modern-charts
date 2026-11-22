@@ -5,75 +5,82 @@ import { escapeHtml } from '../guides/shared';
 import { getOrInitChartConfig } from '../state/config-store';
 import { getGlobalThemeMode } from '../state/theme';
 
-const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
-  'custom-layers': `
-    <svg viewBox="0 0 180 64" fill="none" aria-hidden="true">
-      <rect x="20" y="38" width="140" height="16" rx="5" fill="#6366f1" fill-opacity="0.22" stroke="#818cf8" stroke-width="1.4"/>
-      <rect x="30" y="24" width="120" height="16" rx="5" fill="#06b6d4" fill-opacity="0.22" stroke="#22d3ee" stroke-width="1.4"/>
-      <rect x="40" y="10" width="100" height="16" rx="5" fill="#10b981" fill-opacity="0.24" stroke="#34d399" stroke-width="1.4"/>
-    </svg>`,
-  themes: `
-    <svg viewBox="0 0 180 64" fill="none" aria-hidden="true">
-      <circle cx="38" cy="32" r="13" fill="#6366f1"/>
-      <circle cx="64" cy="32" r="13" fill="#06b6d4"/>
-      <circle cx="90" cy="32" r="13" fill="#10b981"/>
-      <circle cx="116" cy="32" r="13" fill="#f59e0b"/>
-      <circle cx="142" cy="32" r="13" fill="#f43f5e"/>
-    </svg>`,
-  d3: `
-    <svg viewBox="0 0 180 64" fill="none" aria-hidden="true">
-      <path d="M18 50 L162 50 M18 12 L18 50" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.4"/>
-      <path d="M22 44 C48 42, 62 16, 92 26 C118 34, 134 12, 158 16" stroke="#38bdf8" stroke-width="2.4" stroke-linecap="round"/>
-      <circle cx="56" cy="28" r="3.5" fill="#a855f7"/>
-      <circle cx="92" cy="26" r="3.5" fill="#38bdf8"/>
-      <circle cx="132" cy="18" r="3.5" fill="#10b981"/>
-    </svg>`,
-  'custom-labels': `
-    <svg viewBox="0 0 180 64" fill="none" aria-hidden="true">
-      <rect x="24" y="18" width="60" height="26" rx="8" fill="#6366f1" fill-opacity="0.24" stroke="#818cf8" stroke-width="1.4"/>
-      <circle cx="38" cy="31" r="4" fill="#38bdf8"/>
-      <rect x="48" y="28" width="26" height="6" rx="3" fill="currentColor" fill-opacity="0.65"/>
-      <rect x="96" y="18" width="60" height="26" rx="8" fill="#10b981" fill-opacity="0.22" stroke="#34d399" stroke-width="1.4"/>
-      <circle cx="110" cy="31" r="4" fill="#f59e0b"/>
-      <rect x="120" y="28" width="26" height="6" rx="3" fill="currentColor" fill-opacity="0.65"/>
-    </svg>`,
-  tooltips: `
-    <svg viewBox="0 0 180 64" fill="none" aria-hidden="true">
-      <rect x="26" y="34" width="18" height="20" rx="3" fill="#6366f1" fill-opacity="0.45"/>
-      <rect x="52" y="24" width="18" height="30" rx="3" fill="#06b6d4"/>
-      <rect x="82" y="10" width="76" height="36" rx="8" fill="currentColor" fill-opacity="0.08" stroke="#38bdf8" stroke-width="1.5"/>
-      <circle cx="94" cy="23" r="3.5" fill="#06b6d4"/>
-      <rect x="103" y="20" width="44" height="5" rx="2.5" fill="currentColor" fill-opacity="0.7"/>
-      <rect x="92" y="32" width="36" height="4" rx="2" fill="currentColor" fill-opacity="0.38"/>
-    </svg>`,
-  'ai-context': `
-    <svg viewBox="0 0 180 64" fill="none" aria-hidden="true">
-      <rect x="28" y="12" width="124" height="40" rx="8" fill="currentColor" fill-opacity="0.06" stroke="#a855f7" stroke-opacity="0.6" stroke-width="1.4"/>
-      <rect x="42" y="22" width="48" height="5" rx="2.5" fill="#a855f7" fill-opacity="0.85"/>
-      <rect x="42" y="31" width="92" height="4" rx="2" fill="currentColor" fill-opacity="0.4"/>
-      <rect x="42" y="39" width="70" height="4" rx="2" fill="#38bdf8" fill-opacity="0.65"/>
-    </svg>`
-};
+type HomeTabId = 'examples' | 'guides';
 
-const GUIDES_DOCK_STORAGE_KEY = 'modern-charts-studio-guides-open';
+const HOME_TAB_STORAGE_KEY = 'modern-charts-studio-home-tab';
 
-function readStoredGuidesOpen(): boolean {
+function readStoredHomeTab(): HomeTabId {
   try {
-    return localStorage.getItem(GUIDES_DOCK_STORAGE_KEY) === 'true';
+    return localStorage.getItem(HOME_TAB_STORAGE_KEY) === 'guides'
+      ? 'guides'
+      : 'examples';
   } catch {
-    return false;
+    return 'examples';
   }
 }
 
-function writeStoredGuidesOpen(open: boolean): void {
+export function writeStoredHomeTab(tab: HomeTabId): void {
   try {
-    localStorage.setItem(GUIDES_DOCK_STORAGE_KEY, String(open));
+    localStorage.setItem(HOME_TAB_STORAGE_KEY, tab);
   } catch {
     // Ignore storage failures in restricted contexts
   }
 }
 
-function createOverviewGuidesDock(grid: HTMLElement): HTMLElement {
+const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
+  'custom-layers': `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="24" y="58" width="172" height="22" rx="6" fill="#6366f1" fill-opacity="0.22" stroke="#818cf8" stroke-width="1.5"/>
+      <rect x="38" y="38" width="144" height="22" rx="6" fill="#06b6d4" fill-opacity="0.22" stroke="#22d3ee" stroke-width="1.5"/>
+      <rect x="52" y="18" width="116" height="22" rx="6" fill="#10b981" fill-opacity="0.24" stroke="#34d399" stroke-width="1.5"/>
+    </svg>`,
+  themes: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <circle cx="46" cy="48" r="16" fill="#6366f1"/>
+      <circle cx="78" cy="48" r="16" fill="#06b6d4"/>
+      <circle cx="110" cy="48" r="16" fill="#10b981"/>
+      <circle cx="142" cy="48" r="16" fill="#f59e0b"/>
+      <circle cx="174" cy="48" r="16" fill="#f43f5e"/>
+    </svg>`,
+  d3: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <path d="M24 74 L196 74 M24 18 L24 74" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"/>
+      <path d="M30 66 C62 62, 78 24, 114 38 C146 50, 166 18, 192 24" stroke="#38bdf8" stroke-width="2.6" stroke-linecap="round"/>
+      <circle cx="70" cy="40" r="4.5" fill="#a855f7"/>
+      <circle cx="114" cy="38" r="4.5" fill="#38bdf8"/>
+      <circle cx="162" cy="27" r="4.5" fill="#10b981"/>
+    </svg>`,
+  'custom-labels': `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="26" y="28" width="76" height="36" rx="10" fill="#6366f1" fill-opacity="0.24" stroke="#818cf8" stroke-width="1.5"/>
+      <circle cx="44" cy="46" r="5" fill="#38bdf8"/>
+      <rect x="56" y="42" width="34" height="8" rx="4" fill="currentColor" fill-opacity="0.65"/>
+      <rect x="118" y="28" width="76" height="36" rx="10" fill="#10b981" fill-opacity="0.22" stroke="#34d399" stroke-width="1.5"/>
+      <circle cx="136" cy="46" r="5" fill="#f59e0b"/>
+      <rect x="148" y="42" width="34" height="8" rx="4" fill="currentColor" fill-opacity="0.65"/>
+    </svg>`,
+  tooltips: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="28" y="52" width="24" height="28" rx="4" fill="#6366f1" fill-opacity="0.45"/>
+      <rect x="62" y="36" width="24" height="44" rx="4" fill="#06b6d4"/>
+      <rect x="100" y="16" width="92" height="48" rx="10" fill="currentColor" fill-opacity="0.08" stroke="#38bdf8" stroke-width="1.6"/>
+      <circle cx="116" cy="34" r="4.5" fill="#06b6d4"/>
+      <rect x="128" y="30" width="52" height="7" rx="3.5" fill="currentColor" fill-opacity="0.72"/>
+      <rect x="114" y="46" width="46" height="6" rx="3" fill="currentColor" fill-opacity="0.38"/>
+    </svg>`,
+  'ai-context': `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="34" y="18" width="152" height="60" rx="10" fill="currentColor" fill-opacity="0.06" stroke="#a855f7" stroke-opacity="0.6" stroke-width="1.5"/>
+      <rect x="52" y="32" width="60" height="7" rx="3.5" fill="#a855f7" fill-opacity="0.85"/>
+      <rect x="52" y="46" width="114" height="6" rx="3" fill="currentColor" fill-opacity="0.42"/>
+      <rect x="52" y="58" width="86" height="6" rx="3" fill="#38bdf8" fill-opacity="0.65"/>
+    </svg>`
+};
+
+function createGuidesGrid(): HTMLElement {
+  const guidesGrid = document.createElement('section');
+  guidesGrid.className = 'overview-guides-grid';
+
   const cards: Array<{
     id: GuideId | 'ai-context';
     href: string;
@@ -86,7 +93,7 @@ function createOverviewGuidesDock(grid: HTMLElement): HTMLElement {
       id: g.id,
       href: `#/guide/${g.id}`,
       icon: g.icon,
-      title: g.shortLabel,
+      title: g.title,
       summary: g.summary
     })),
     {
@@ -94,54 +101,11 @@ function createOverviewGuidesDock(grid: HTMLElement): HTMLElement {
       href: './llms.txt',
       external: true,
       icon: '🤖',
-      title: 'AI Context',
+      title: 'AI Context (llms.txt)',
       summary:
         'Machine-readable llms.txt index, full reference, per-chart specs, and JSON schema for coding agents.'
     }
   ];
-
-  const dock = document.createElement('aside');
-  dock.className = 'overview-guides-dock';
-  dock.setAttribute('aria-label', 'Chart Guides and Resources');
-
-  const initialOpen = readStoredGuidesOpen();
-
-  dock.innerHTML = `
-    <div class="overview-guides-dock-bar">
-      <button
-        type="button"
-        class="overview-guides-dock-toggle"
-        aria-expanded="${initialOpen}"
-        aria-controls="overview-guides-drawer-panel"
-      >
-        <span>All Chart Guides</span>
-        <span class="overview-guides-dock-count">${cards.length}</span>
-        <span class="overview-guides-dock-chevron" aria-hidden="true">▲</span>
-      </button>
-    </div>
-    <div
-      id="overview-guides-drawer-panel"
-      class="overview-guides-drawer-panel${initialOpen ? ' is-expanded' : ''}"
-      ${initialOpen ? '' : 'hidden'}
-    >
-      <div class="overview-guides-drawer-inner">
-        <div class="overview-guides-grid"></div>
-      </div>
-    </div>
-  `;
-
-  if (initialOpen) {
-    dock.classList.add('is-expanded');
-    grid.classList.add('has-guides-dock-open');
-  }
-
-  const toggleBtn = dock.querySelector(
-    '.overview-guides-dock-toggle'
-  ) as HTMLButtonElement;
-  const panel = dock.querySelector(
-    '#overview-guides-drawer-panel'
-  ) as HTMLElement;
-  const guidesGrid = dock.querySelector('.overview-guides-grid') as HTMLElement;
 
   cards.forEach((item) => {
     const link = document.createElement('a');
@@ -152,84 +116,97 @@ function createOverviewGuidesDock(grid: HTMLElement): HTMLElement {
       link.rel = 'noopener noreferrer';
     }
     link.innerHTML = `
+      <div class="overview-guide-card-header">
+        <h3 class="overview-guide-card-title">${item.icon} ${escapeHtml(item.title)}</h3>
+        <span class="overview-guide-arrow" aria-hidden="true">${item.external ? '↗' : '→'}</span>
+      </div>
       <div class="overview-guide-preview">
         ${GUIDE_PREVIEW_SVGS[item.id]}
       </div>
-      <div class="overview-guide-copy">
-        <div class="overview-guide-card-header">
-          <span class="overview-guide-card-title">${item.icon} ${escapeHtml(item.title)}</span>
-          <span class="overview-guide-arrow" aria-hidden="true">${item.external ? '↗' : '→'}</span>
-        </div>
-        <p class="overview-guide-summary">${escapeHtml(item.summary)}</p>
-      </div>
+      <p class="overview-guide-summary">${escapeHtml(item.summary)}</p>
     `;
     guidesGrid.appendChild(link);
   });
 
-  const setExpanded = (nextOpen: boolean): void => {
-    writeStoredGuidesOpen(nextOpen);
-    toggleBtn.setAttribute('aria-expanded', String(nextOpen));
-    dock.classList.toggle('is-expanded', nextOpen);
-    grid.classList.toggle('has-guides-dock-open', nextOpen);
-
-    if (nextOpen) {
-      panel.hidden = false;
-      // Flush hidden removal before toggling class so CSS block-size transition runs smoothly
-      void panel.offsetHeight;
-      panel.classList.add('is-expanded');
-    } else {
-      panel.classList.remove('is-expanded');
-      const transitions =
-        typeof panel.getAnimations === 'function'
-          ? panel
-              .getAnimations()
-              .filter(
-                (anim) =>
-                  typeof CSSTransition !== 'undefined' &&
-                  anim instanceof CSSTransition
-              )
-          : [];
-      if (transitions.length === 0) {
-        panel.hidden = true;
-      } else {
-        Promise.allSettled(transitions.map((t) => t.finished)).then(() => {
-          if (!panel.classList.contains('is-expanded')) {
-            panel.hidden = true;
-          }
-        });
-      }
-    }
-  };
-
-  toggleBtn.addEventListener('click', () => {
-    const isCurrentlyOpen = toggleBtn.getAttribute('aria-expanded') === 'true';
-    setExpanded(!isCurrentlyOpen);
-  });
-
-  dock.addEventListener('keydown', (e) => {
-    if (
-      e.key === 'Escape' &&
-      toggleBtn.getAttribute('aria-expanded') === 'true'
-    ) {
-      setExpanded(false);
-      toggleBtn.focus();
-    }
-  });
-
-  return dock;
+  return guidesGrid;
 }
 
 /**
- * Renders the Home Overview Gallery (`#/`) displaying live interactive preview cards
- * for all 10 charts plus a compact bottom grid of Guides & Resources preview cards.
+ * Renders the Home Overview page (`#/`) with a clean two-tab interface:
+ * - Tab 1: Chart Examples (all 10 live interactive preview cards)
+ * - Tab 2: Guides & Resources (all documentation guides + AI Context)
  * Returns the mounted chart elements so the theme switcher can update them in-place.
  */
 export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   const mountedCharts: MCBaseChart<any>[] = [];
   root.innerHTML = '';
 
-  const grid = document.createElement('section');
-  grid.className = 'overview-grid';
+  const initialTab = readStoredHomeTab();
+  const guideCount = GUIDES_CATALOG.length + 1;
+
+  const tabsWrapper = document.createElement('div');
+  tabsWrapper.className = 'overview-tabs';
+
+  // Tablist bar
+  const tablist = document.createElement('div');
+  tablist.className = 'overview-tablist';
+  tablist.setAttribute('role', 'tablist');
+  tablist.setAttribute('focusgroup', 'tablist nomemory');
+  tablist.setAttribute('aria-label', 'Studio sections');
+
+  const createTabButton = (
+    id: HomeTabId,
+    label: string,
+    count: number,
+    selected: boolean
+  ): HTMLButtonElement => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = `overview-tab-${id}`;
+    btn.className = 'overview-tab';
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', String(selected));
+    btn.tabIndex = selected ? 0 : -1;
+    if (selected) {
+      btn.setAttribute('focusgroupstart', '');
+    }
+    btn.dataset.tabId = id;
+    btn.innerHTML = `
+      <span class="overview-tab-label">${escapeHtml(label)}</span>
+      <span class="overview-tab-count">${count}</span>
+    `;
+    return btn;
+  };
+
+  const examplesTab = createTabButton(
+    'examples',
+    'Chart Types',
+    CHART_CATALOG.length,
+    initialTab === 'examples'
+  );
+  const guidesTab = createTabButton(
+    'guides',
+    'Guides & Resources',
+    guideCount,
+    initialTab === 'guides'
+  );
+  tablist.append(examplesTab, guidesTab);
+
+  // Shared grid cell container so hidden="until-found" panels never add empty gap space
+  const panelsContainer = document.createElement('div');
+  panelsContainer.className = 'overview-tabpanels';
+
+  // Panel 1: Chart Examples
+  const examplesPanel = document.createElement('div');
+  examplesPanel.className = 'overview-tabpanel';
+  examplesPanel.setAttribute('role', 'tabpanel');
+  examplesPanel.setAttribute('aria-labelledby', examplesTab.id);
+  if (initialTab !== 'examples') {
+    (examplesPanel as any).hidden = 'until-found';
+  }
+
+  const examplesGrid = document.createElement('section');
+  examplesGrid.className = 'overview-grid';
 
   CHART_CATALOG.forEach((entry) => {
     const card = document.createElement('article');
@@ -257,9 +234,8 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
       }
     });
 
-    grid.appendChild(card);
+    examplesGrid.appendChild(card);
 
-    // Mount live chart instance inside preview stage (without zoom overlay controls or axis titles on home cards)
     const stage = card.querySelector(
       `#preview-stage-${entry.id}`
     ) as HTMLElement;
@@ -276,7 +252,81 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
     mountedCharts.push(chartEl);
   });
 
-  root.appendChild(grid);
-  root.appendChild(createOverviewGuidesDock(grid));
+  examplesPanel.appendChild(examplesGrid);
+
+  // Panel 2: Guides & Resources
+  const guidesPanel = document.createElement('div');
+  guidesPanel.className = 'overview-tabpanel';
+  guidesPanel.setAttribute('role', 'tabpanel');
+  guidesPanel.setAttribute('aria-labelledby', guidesTab.id);
+  if (initialTab !== 'guides') {
+    (guidesPanel as any).hidden = 'until-found';
+  }
+  guidesPanel.appendChild(createGuidesGrid());
+
+  panelsContainer.append(examplesPanel, guidesPanel);
+  tabsWrapper.append(tablist, panelsContainer);
+  root.appendChild(tabsWrapper);
+
+  const tabs: Array<{ id: HomeTabId; btn: HTMLButtonElement; panel: HTMLElement }> = [
+    { id: 'examples', btn: examplesTab, panel: examplesPanel },
+    { id: 'guides', btn: guidesTab, panel: guidesPanel }
+  ];
+
+  const selectTab = (nextId: HomeTabId): void => {
+    writeStoredHomeTab(nextId);
+    for (const item of tabs) {
+      const isSelected = item.id === nextId;
+      item.btn.setAttribute('aria-selected', String(isSelected));
+      item.btn.tabIndex = isSelected ? 0 : -1;
+      item.btn.toggleAttribute('focusgroupstart', isSelected);
+      if (isSelected) {
+        item.panel.hidden = false;
+      } else {
+        (item.panel as any).hidden = 'until-found';
+      }
+    }
+    const activeBtn = tabs.find((t) => t.id === nextId)?.btn;
+    activeBtn?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+    // Re-render overview charts once Examples becomes visible so responsive widths are exact
+    if (nextId === 'examples') {
+      requestAnimationFrame(() => {
+        mountedCharts.forEach((chart) => {
+          if (typeof chart.render === 'function') chart.render();
+        });
+      });
+    }
+  };
+
+  // Click activation + keyboard roving fallback (ArrowLeft/Right/Home/End) for browsers without focusgroup
+  tabs.forEach((item, idx) => {
+    item.btn.addEventListener('click', () => {
+      selectTab(item.id);
+    });
+
+    item.btn.addEventListener('keydown', (e) => {
+      let targetIdx: number | null = null;
+      if (e.key === 'ArrowRight') {
+        targetIdx = (idx + 1) % tabs.length;
+      } else if (e.key === 'ArrowLeft') {
+        targetIdx = (idx - 1 + tabs.length) % tabs.length;
+      } else if (e.key === 'Home') {
+        targetIdx = 0;
+      } else if (e.key === 'End') {
+        targetIdx = tabs.length - 1;
+      }
+      if (targetIdx !== null) {
+        e.preventDefault();
+        tabs[targetIdx].btn.focus();
+      }
+    });
+
+    // Sync tab state automatically if browser Find-in-Page matches content in a hidden="until-found" panel
+    item.panel.addEventListener('beforematch', () => {
+      selectTab(item.id);
+    });
+  });
+
   return mountedCharts;
 }
