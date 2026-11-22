@@ -83,24 +83,45 @@ function resetChartConfig(entry: ChartCatalogEntry): ChartConfig<any> {
   return getOrInitChartConfig(entry);
 }
 
+function isUnsafePathKey(key: string): boolean {
+  return key === '__proto__' || key === 'constructor' || key === 'prototype';
+}
+
 // Deep property access helpers for dotted config paths (e.g. 'yScale.max', 'view.zoomable')
 function getByPath(obj: any, path: string): any {
-  return path.split('.').reduce((acc, part) => (acc != null ? acc[part] : undefined), obj);
+  return path.split('.').reduce((acc, part) => {
+    if (acc == null || isUnsafePathKey(part) || !Object.prototype.hasOwnProperty.call(acc, part)) {
+      return undefined;
+    }
+    return acc[part];
+  }, obj);
 }
 
 function setByPath(obj: any, path: string, value: any): void {
+  if (!obj || typeof obj !== 'object') return;
   const parts = path.split('.');
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
-    if (cur[key] == null || typeof cur[key] !== 'object') {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return;
+    }
+    if (
+      !Object.prototype.hasOwnProperty.call(cur, key) ||
+      cur[key] == null ||
+      typeof cur[key] !== 'object'
+    ) {
       cur[key] = {};
     } else {
       cur[key] = { ...cur[key] };
     }
     cur = cur[key];
   }
-  cur[parts[parts.length - 1]] = value;
+  const lastKey = parts[parts.length - 1];
+  if (lastKey === '__proto__' || lastKey === 'constructor' || lastKey === 'prototype') {
+    return;
+  }
+  cur[lastKey] = value;
 }
 
 function buildMarkersForVirtualState(

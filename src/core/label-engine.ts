@@ -211,11 +211,20 @@ export class LabelEngine {
       iconCount += 1;
     }
     if (options.templateHtml) {
-      const matches = options.templateHtml.match(
-        /<(svg|img)\b|data-icon\b|class=["'][^"']*icon[^"']*["']/gi
-      );
-      if (matches) {
-        iconCount = Math.max(iconCount, matches.length);
+      let templateIconCount = 0;
+      const tokenRegex = /<(?:svg|img)\b|\bdata-icon\b|class=(?:"([^"]*)"|'([^']*)')/gi;
+      for (const match of options.templateHtml.matchAll(tokenRegex)) {
+        if (match[1] !== undefined || match[2] !== undefined) {
+          const classVal = match[1] ?? match[2] ?? '';
+          if (classVal.toLowerCase().includes('icon')) {
+            templateIconCount += 1;
+          }
+        } else {
+          templateIconCount += 1;
+        }
+      }
+      if (templateIconCount > 0) {
+        iconCount = Math.max(iconCount, templateIconCount);
       }
     }
 
