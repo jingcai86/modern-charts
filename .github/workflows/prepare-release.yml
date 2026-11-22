@@ -4,27 +4,27 @@ on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: 'Version bump (locked to 0.x: patch / minor / prerelease / auto / custom)'
+        description: 'Version bump (locked to 0.x: patch / minor / auto / custom)'
         required: true
         default: 'patch'
         type: choice
         options:
           - patch
           - minor
-          - prerelease
           - auto
           - custom
-      preid:
-        description: 'Prerelease identifier (used only when release_type is prerelease)'
+      prerelease:
+        description: 'Prerelease channel (none = stable 0.x.y; alpha/beta/rc = prerelease e.g. 0.1.0-alpha.2)'
         required: false
-        default: 'alpha'
+        default: 'none'
         type: choice
         options:
+          - none
           - alpha
           - beta
           - rc
       custom_version:
-        description: 'Exact version without "v" (used only when release_type is custom, e.g. 0.1.0)'
+        description: 'Exact version without "v" (used only when release_type is custom, e.g. 0.1.0-alpha.2)'
         required: false
         default: ''
         type: string
@@ -60,7 +60,7 @@ jobs:
         run: |
           node .github/scripts/compute-next-version.mjs \
             --type="${{ inputs.release_type }}" \
-            --preid="${{ inputs.preid }}" \
+            --preid="${{ inputs.prerelease }}" \
             --custom="${{ inputs.custom_version }}" \
             --write
 
