@@ -3,8 +3,10 @@ import {
   MCBaseChart,
   LabelEngine,
   createDefaultTheme,
+  resolveEffectiveThemeMode,
   type ChartConfig,
-  type ChartRenderContext
+  type ChartRenderContext,
+  type ThemeModePreference
 } from '../src/index';
 import {
   CHART_CATALOG,
@@ -19,7 +21,30 @@ import { generateRandomDataForChart } from './sample-data';
 
 registerModernCharts();
 
-let globalThemeMode: 'dark' | 'light' = 'dark';
+const THEME_STORAGE_KEY = 'modern-charts-theme-mode';
+
+function loadSavedThemePreference(): ThemeModePreference {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === 'light' || saved === 'dark' || saved === 'system') {
+      return saved;
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return 'system';
+}
+
+function saveThemePreference(pref: ThemeModePreference): void {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, pref);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+let globalThemeMode: ThemeModePreference = loadSavedThemePreference();
+document.documentElement.dataset.theme = resolveEffectiveThemeMode(globalThemeMode);
 
 // Per-chart active config state so user customizations persist across route changes
 const chartConfigState = new Map<string, ChartConfig<any>>();
@@ -1070,20 +1095,30 @@ function handleRoute(): void {
 window.addEventListener('hashchange', handleRoute);
 
 // ============================================================================
-// GLOBAL THEME MODE SWITCHER (Dark / Light Mode)
+// GLOBAL THEME MODE SWITCHER (System / Dark / Light Mode + localStorage)
 // ============================================================================
 const globalThemeSelect = document.getElementById(
   'global-theme-select'
 ) as HTMLSelectElement | null;
 
-globalThemeSelect?.addEventListener('change', (e) => {
-  const mode = (e.target as HTMLSelectElement).value as 'dark' | 'light';
-  globalThemeMode = mode;
-  document.documentElement.dataset.theme = mode;
+if (globalThemeSelect) {
+  globalThemeSelect.value = globalThemeMode;
+}
+
+function applyGlobalThemePreference(pref: ThemeModePreference): void {
+  globalThemeMode = pref;
+  saveThemePreference(pref);
+
+  const effectiveMode = resolveEffectiveThemeMode(pref);
+  document.documentElement.dataset.theme = effectiveMode;
+
+  if (globalThemeSelect && globalThemeSelect.value !== pref) {
+    globalThemeSelect.value = pref;
+  }
 
   // Update all stored chart configs to reflect the new themeMode
   chartConfigState.forEach((cfg) => {
-    cfg.themeMode = mode;
+    cfg.themeMode = pref;
     if (cfg.theme) {
       delete cfg.theme.background;
       delete cfg.theme.textColor;
@@ -1102,14 +1137,30 @@ globalThemeSelect?.addEventListener('change', (e) => {
     activeOverviewCharts.forEach((chart) => {
       chart.setConfig({
         ...chart.config,
-        themeMode: mode,
+        themeMode: pref,
         view: chart.config.view
           ? { ...chart.config.view, showControls: false }
           : undefined
       });
     });
   }
+}
+
+globalThemeSelect?.addEventListener('change', (e) => {
+  const pref = (e.target as HTMLSelectElement).value as ThemeModePreference;
+  applyGlobalThemePreference(pref);
 });
+
+// Listen for OS color-scheme changes so 'system' mode updates live
+if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  window
+    .matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', () => {
+      if (globalThemeMode === 'system') {
+        applyGlobalThemePreference('system');
+      }
+    });
+}
 
 // ============================================================================
 // LIVE IN-BROWSER AUTOMATED VERIFICATION SUITE DRAWER

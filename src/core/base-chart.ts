@@ -901,7 +901,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     const modeAttr =
       this._config.themeMode ||
       this._config.theme?.mode ||
-      (this.getAttribute('theme-mode') as 'light' | 'dark') ||
+      (this.getAttribute('theme-mode') as 'light' | 'dark' | 'system') ||
       'light';
     const paletteAttr =
       this._config.palette ||

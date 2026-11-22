@@ -1,4 +1,4 @@
-import type { ChartConfig } from '../src/index';
+import type { ChartConfig, ThemeModePreference } from '../src/index';
 import {
   SAMPLE_BAR_DATA,
   SAMPLE_GAUGE_DATA,
@@ -54,7 +54,7 @@ export interface ChartCatalogEntry {
   supportsMarkers: boolean;
   supportsCartesianScales: boolean;
   supportsViewZoom: boolean;
-  createDefaultConfig: (themeMode: 'light' | 'dark') => ChartConfig<any>;
+  createDefaultConfig: (themeMode: ThemeModePreference) => ChartConfig<any>;
   specificAttributes: ChartAttributeSpec[];
 }
 
@@ -136,11 +136,12 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     category: 'Theme Layer (<mc-theme-layer>)',
     control: 'select',
     options: [
+      { label: 'system (OS Default)', value: 'system' },
       { label: 'dark', value: 'dark' },
       { label: 'light', value: 'light' }
     ],
     description: 'Color scheme mode applied to the chart canvas and tooltips.',
-    defaultValue: 'dark'
+    defaultValue: 'system'
   },
   {
     configPath: 'palette',

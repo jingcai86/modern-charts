@@ -1,5 +1,20 @@
 import * as d3 from 'd3';
-import type { ChartPaletteName, ChartTheme } from './types';
+import type { ChartPaletteName, ChartTheme, ThemeModePreference } from './types';
+
+export function resolveEffectiveThemeMode(
+  mode: ThemeModePreference = 'system'
+): 'light' | 'dark' {
+  if (mode === 'light' || mode === 'dark') return mode;
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function'
+  ) {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+  }
+  return 'dark';
+}
 
 export const PALETTES: Record<ChartPaletteName, string[]> = {
   modern: [
@@ -76,12 +91,13 @@ export const PALETTES: Record<ChartPaletteName, string[]> = {
 };
 
 export function createDefaultTheme(
-  mode: 'light' | 'dark' = 'light',
+  mode: ThemeModePreference = 'light',
   palette: ChartPaletteName = 'modern'
 ): ChartTheme {
-  const isDark = mode === 'dark';
+  const effectiveMode = resolveEffectiveThemeMode(mode);
+  const isDark = effectiveMode === 'dark';
   return {
-    mode,
+    mode: effectiveMode,
     palette,
     colors: PALETTES[palette] ?? PALETTES.modern,
     background: isDark ? '#0f172a' : '#ffffff',

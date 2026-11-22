@@ -26,6 +26,8 @@ export interface ChartDimensions {
   margin: ChartMargin;
 }
 
+export type ThemeModePreference = 'light' | 'dark' | 'system';
+
 export interface ChartTheme {
   mode: 'light' | 'dark';
   palette: ChartPaletteName;
@@ -446,7 +448,7 @@ export interface ChartConfig<TData = any> {
 
   // Theme layer config
   theme?: Partial<ChartTheme>;
-  themeMode?: 'light' | 'dark';
+  themeMode?: ThemeModePreference;
   palette?: ChartPaletteName;
   colors?: string[];
 

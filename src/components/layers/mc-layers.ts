@@ -99,7 +99,9 @@ export class MCThemeLayer extends MCConfigBaseElement {
     this.notifyChange();
   }
 
-  public applyFromConfig(theme: Partial<ChartTheme>): void {
+  public applyFromConfig(
+    theme: Partial<Omit<ChartTheme, 'mode'>> & { mode?: 'light' | 'dark' | 'system' }
+  ): void {
     if (theme.mode) this.setAttribute('mode', theme.mode);
     if (theme.palette) this.setAttribute('palette', theme.palette);
     this.#customColors = theme.colors;
@@ -123,9 +125,11 @@ export class MCThemeLayer extends MCConfigBaseElement {
       this.setAttribute('label-mode', theme.labelRenderMode);
   }
 
-  public getTheme(baseMode?: 'light' | 'dark'): ChartTheme {
+  public getTheme(baseMode?: 'light' | 'dark' | 'system'): ChartTheme {
     const mode =
-      (this.getAttribute('mode') as 'light' | 'dark') || baseMode || 'light';
+      (this.getAttribute('mode') as 'light' | 'dark' | 'system') ||
+      baseMode ||
+      'light';
     const palette =
       (this.getAttribute('palette') as ChartPaletteName) || 'modern';
     const base = createDefaultTheme(mode, palette);
