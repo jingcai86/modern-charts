@@ -365,6 +365,51 @@ export const MARKER_THRESHOLD_ATTRIBUTES: ChartAttributeSpec[] = [
     description:
       'Fill/stroke color applied to bars, line segments, or points that trigger the threshold.',
     defaultValue: '#ef4444'
+  },
+  {
+    configPath: '__markerLabelPosition',
+    attrName: 'mc-marker[label-position]',
+    category: 'Marker & Threshold (<mc-marker-layer>)',
+    control: 'select',
+    options: [
+      { label: 'top-right (Inside — Above Right)', value: 'top-right' },
+      { label: 'top-left (Inside — Above Left)', value: 'top-left' },
+      { label: 'top-center (Inside — Above Center)', value: 'top-center' },
+      { label: 'bottom-right (Inside — Below Right)', value: 'bottom-right' },
+      { label: 'bottom-left (Inside — Below Left)', value: 'bottom-left' },
+      { label: 'bottom-center (Inside — Below Center)', value: 'bottom-center' },
+      { label: 'outside-right (Outside — Right of Plot)', value: 'outside-right' },
+      { label: 'outside-left (Outside — Left of Y-Axis)', value: 'outside-left' },
+      { label: 'outside-top (Outside — Above Plot)', value: 'outside-top' },
+      { label: 'outside-bottom (Outside — Below X-Axis)', value: 'outside-bottom' }
+    ],
+    description:
+      'Places the marker label inside relative to the dashed line or outside next to the chart axes.',
+    defaultValue: 'top-right'
+  },
+  {
+    configPath: '__markerLabelPadding',
+    attrName: 'mc-marker[label-padding]',
+    category: 'Marker & Threshold (<mc-marker-layer>)',
+    control: 'range',
+    min: 0,
+    max: 36,
+    step: 2,
+    description:
+      'Distance (px) away from the dashed marker line (inside) or away from the axis (outside).',
+    defaultValue: 10
+  },
+  {
+    configPath: '__markerLabelEdgePadding',
+    attrName: 'mc-marker[label-edge-padding]',
+    category: 'Marker & Threshold (<mc-marker-layer>)',
+    control: 'range',
+    min: 0,
+    max: 40,
+    step: 2,
+    description:
+      'Inset distance (px) from the left/right or top/bottom plot boundary when placed inside.',
+    defaultValue: 10
   }
 ];
 
