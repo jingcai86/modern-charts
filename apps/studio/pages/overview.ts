@@ -12,9 +12,6 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   const mountedCharts: MCBaseChart<any>[] = [];
   root.innerHTML = '';
 
-  const navOverviewBtn = document.getElementById('nav-overview-btn');
-  navOverviewBtn?.classList.add('active');
-
   const grid = document.createElement('section');
   grid.className = 'overview-grid';
 

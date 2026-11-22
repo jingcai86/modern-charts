@@ -25,9 +25,6 @@ export function renderChartDetailPage(
 ): MCBaseChart<any> {
   root.innerHTML = '';
 
-  const navOverviewBtn = document.getElementById('nav-overview-btn');
-  navOverviewBtn?.classList.remove('active');
-
   const config = getOrInitChartConfig(entry);
   const vState = getChartVirtualState(entry.id);
   const allAttributes = getAllAttributesForChart(entry);
