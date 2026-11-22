@@ -2,6 +2,8 @@ name: Release & Publish to npm
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -22,19 +24,47 @@ on:
         default: false
         type: boolean
 
-permissions:
-  contents: write
-  packages: write
-  id-token: write
-
 jobs:
+  release-please:
+    name: Manage Release PR & GitHub Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Run Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
   publish:
     name: Build, Verify & Publish to npm
+    needs: release-please
+    if: >-
+      !cancelled() &&
+      needs.release-please.result != 'failure' &&
+      (
+        needs.release-please.outputs.release_created == 'true' ||
+        github.event_name == 'workflow_dispatch' ||
+        startsWith(github.ref, 'refs/tags/v')
+      )
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.release-please.outputs.tag_name || github.ref }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -112,15 +142,22 @@ jobs:
         if: ${{ inputs.dry_run == true }}
         run: npm publish --dry-run --access public --tag "${{ steps.meta.outputs.dist_tag }}"
 
-      - name: Generate standardized release notes
+      - name: Upload packed tarball to Release Please GitHub Release
+        if: ${{ inputs.dry_run != true && needs.release-please.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ steps.meta.outputs.tag }}" "${{ steps.pack.outputs.tarball }}" --clobber
+
+      - name: Generate standardized release notes (manual tag / dispatch fallback)
+        if: ${{ inputs.dry_run != true && needs.release-please.outputs.release_created != 'true' }}
         env:
           RELEASE_VERSION: ${{ steps.meta.outputs.version }}
           RELEASE_TAG: ${{ steps.meta.outputs.tag }}
           RELEASE_DIST_TAG: ${{ steps.meta.outputs.dist_tag }}
         run: node .github/scripts/generate-release-notes.mjs release-notes.md
 
-      - name: Create GitHub Release
-        if: ${{ inputs.dry_run != true }}
+      - name: Create GitHub Release (manual tag / dispatch fallback)
+        if: ${{ inputs.dry_run != true && needs.release-please.outputs.release_created != 'true' }}
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
@@ -130,3 +167,53 @@ jobs:
           generate_release_notes: false
           draft: false
           prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
+
+  deploy-pages:
+    name: Deploy Demo to GitHub Pages
+    needs: [release-please, publish]
+    if: ${{ !cancelled() && needs.release-please.outputs.release_created == 'true' && inputs.dry_run != true }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: 'pages'
+      cancel-in-progress: false
+    steps:
+      - name: Checkout released tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build library
+        run: npm run build
+
+      - name: Build demo site
+        run: npm run build:apps
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+        with:
+          enablement: true
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: './dist-examples'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
