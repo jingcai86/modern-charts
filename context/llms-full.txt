@@ -1,0 +1,1046 @@
+# modern-charts
+
+> Composable, framework-agnostic Web Component charting library inspired by Nivo and Apache ECharts, powered exclusively by `d3` and `@chenglou/pretext`. Zero framework lock-in: runs natively in Vanilla HTML, React, Vue, Svelte, Angular, and Solid via standard Custom Elements (`<mc-*-chart>`).
+
+## Quick Rules for AI Code Generation
+
+1. **Prefer per-chart subpath imports** for tree-shaking (41–46% smaller bundle):
+   `import 'modern-charts/bar';` (or `line`, `pie`, `heatmap`, `radar`, `sunburst`, `sankey`, `scatter`, `treemap`, `gauge`, `core`).
+   Use `import 'modern-charts';` only when rendering multiple unknown chart types or needing the full `d3` namespace on `ctx.d3`.
+2. **Always give the host element an explicit height** (or `config.height`), e.g. `<mc-bar-chart style="width: 100%; height: 400px;"></mc-bar-chart>`.
+3. **Configure everything via a single `chart.config = { ... }` object** (data, theme, scales, view/zoom, animation, markers, labels, ARIA, layers). Never mutate nested properties in place without reassigning `chart.config` or calling `chart.render()`.
+4. **Never invent unsupported layer names** — use only the exact `defaultLayers` listed per chart (plus custom layer functions `(ctx) => SVGElement | string | void` or `{ name, render }`).
+5. **Match the exact `data` shape** for the chosen chart (see matrix below and per-chart specs in `charts/*.md`).
+6. **Progressive AI streaming**: Call `chart.streamLayers()` (or append `<mc-chart-layer name="...">` children sequentially) to animate layers onto the canvas step-by-step during LLM streaming responses.
+
+## Chart Selection Matrix (All 10 Charts)
+
+| User Intent / Data Shape | Tag | Subpath Import | Data Type | Spec |
+| :--- | :--- | :--- | :--- | :--- |
+| Categorical comparison, grouped/stacked/diverging bars | `<mc-bar-chart>` | `modern-charts/bar` | `BarDatum[]` (`{ [indexBy]: string, [key]: number }[]`) | [charts/bar.md](./charts/bar.md) |
+| Time-series, trends, multi-series curves, stacked area | `<mc-line-chart>` | `modern-charts/line` | `LineSeries[]` (`{ id, color?, data: { x, y, label? }[] }[]`) | [charts/line.md](./charts/line.md) |
+| Part-to-whole proportions, donut KPI breakdown | `<mc-pie-chart>` | `modern-charts/pie` | `PieDatum[]` (`{ id, label?, value, color? }[]`) | [charts/pie.md](./charts/pie.md) |
+| 2D matrix intensity, correlation grid, calendar/schedule density | `<mc-heatmap-chart>` | `modern-charts/heatmap` | `HeatmapRow[]` (`{ id, data: { x, y }[] }[]`) | [charts/heatmap.md](./charts/heatmap.md) |
+| Multi-dimensional profile comparison across shared metrics | `<mc-radar-chart>` | `modern-charts/radar` | `RadarDatum[]` (`{ [indexBy]: string, [key]: number }[]`) | [charts/radar.md](./charts/radar.md) |
+| Multi-level radial hierarchy with interactive drilldown | `<mc-sunburst-chart>` | `modern-charts/sunburst` | `HierarchyNode` (`{ name, value?, color?, children? }`) | [charts/sunburst.md](./charts/sunburst.md) |
+| Directed flow volume between stages/nodes (DAG) | `<mc-sankey-chart>` | `modern-charts/sankey` | `SankeyData` (`{ nodes: { id, name?, color? }[], links: { source, target, value }[] }`) | [charts/sankey.md](./charts/sankey.md) |
+| Correlation, clusters, bubble plots, linear regression trendline | `<mc-scatter-chart>` | `modern-charts/scatter` | `ScatterSeries[]` (`{ id, color?, data: { x, y, size?, label? }[] }[]`) | [charts/scatter.md](./charts/scatter.md) |
+| Space-filling nested hierarchy proportional by area | `<mc-treemap-chart>` | `modern-charts/treemap` | `HierarchyNode` (`{ name, value?, color?, children? }`) | [charts/treemap.md](./charts/treemap.md) |
+| Single KPI progress / radial dial with target & colored bands | `<mc-gauge-chart>` | `modern-charts/gauge` | `GaugeDatum` (`{ value, min?, max?, label?, unit?, target?, bands? }`) | [charts/gauge.md](./charts/gauge.md) |
+
+## Core Documentation & Schemas
+
+- [README.md](./README.md): How AI agents and apps should consume `context/`
+- [architecture.md](./architecture.md): Universal `chart.config`, sub-components, themes, scales, markers/thresholds, `<mc-label>` Pretext engine, custom layers, ARIA, and AI streaming
+- [charts.schema.json](./charts.schema.json): Machine-readable JSON schema catalog of all 10 charts, config fields, attributes, layers, and sample payloads
+- [llms-full.txt](./llms-full.txt): Single-file complete reference for one-shot system prompt injection
+
+## Per-Chart Specs
+
+- [charts/bar.md](./charts/bar.md): Bar, grouped, stacked & horizontal charts
+- [charts/line.md](./charts/line.md): Line, area, curved & slice-hover charts
+- [charts/pie.md](./charts/pie.md): Pie & donut charts with arc & link labels
+- [charts/heatmap.md](./charts/heatmap.md): Matrix heatmaps with sequential color schemes
+- [charts/radar.md](./charts/radar.md): Spider / radar multi-metric comparison charts
+- [charts/sunburst.md](./charts/sunburst.md): Radial partition hierarchy with click drilldown
+- [charts/sankey.md](./charts/sankey.md): Flow diagrams with gradient links
+- [charts/scatter.md](./charts/scatter.md): Scatter, bubble & regression trendline charts
+- [charts/treemap.md](./charts/treemap.md): Squarified hierarchical treemaps
+- [charts/gauge.md](./charts/gauge.md): Radial KPI gauge dials with bands & needle
+
+---
+
+# `modern-charts` Core Architecture & Shared Config Reference
+
+Every chart component (`<mc-bar-chart>`, `<mc-line-chart>`, etc.) extends `MCBaseChart` and shares the exact same unified configuration model, sub-component architecture, label engine, marker/threshold engine, ARIA accessibility system, and composable layer pipeline.
+
+---
+
+## 1. Installation & Imports
+
+```bash
+npm install modern-charts
+```
+
+Runtime dependencies are strictly `d3` and `@chenglou/pretext`.
+
+```js
+// Recommended: standalone per-chart subpath import (registers ONLY that chart + shared core)
+import 'modern-charts/bar';
+import 'modern-charts/line';
+import 'modern-charts/pie';
+import 'modern-charts/heatmap';
+import 'modern-charts/radar';
+import 'modern-charts/sunburst';
+import 'modern-charts/sankey';
+import 'modern-charts/scatter';
+import 'modern-charts/treemap';
+import 'modern-charts/gauge';
+import 'modern-charts/core'; // BaseChart, engines, and shared capability layers only
+
+// Full library import (registers all 10 charts and supplies the complete `d3` namespace on `ctx.d3`)
+import 'modern-charts';
+```
+
+---
+
+## 2. Shared `chart.config` Options (All 10 Charts)
+
+Every chart accepts a single Nivo-style `chart.config = { ... }` object:
+
+```ts
+interface SharedChartConfig<TData> {
+  data: TData;
+  width?: number;
+  height?: number;
+  autoSize?: boolean; // default true (ResizeObserver); set false to use snapshot size + .resize()
+  margin?: { top?: number; right?: number; bottom?: number; left?: number };
+  title?: string;
+
+  // Composable Layer Pipeline (built-in names or custom functions/objects)
+  layers?: Array<
+    | string
+    | ((ctx: ChartRenderContext<TData>) => SVGElement | string | void)
+    | { name: string; render: (ctx: ChartRenderContext<TData>) => SVGElement | string | void }
+  >;
+
+  // Theme (<mc-theme-layer>)
+  themeMode?: 'light' | 'dark' | 'system'; // default 'light'
+  palette?: 'modern' | 'nivo' | 'echarts' | 'emerald' | 'sunset' | 'ocean' | 'cyber';
+  colors?: string[];
+  theme?: Partial<ChartTheme>;
+
+  // Scales (<mc-scale-layer>) — applicable to Cartesian charts (bar, line, scatter, heatmap)
+  xScale?: {
+    type?: 'linear' | 'point' | 'band' | 'time' | 'log' | 'symlog' | 'sqrt';
+    min?: number | 'auto';
+    max?: number | 'auto';
+    reverse?: boolean;
+    nice?: boolean;
+    clamp?: boolean;
+    padding?: number;
+    innerPadding?: number;
+    outerPadding?: number;
+    base?: number;
+    constant?: number;
+  };
+  yScale?: {
+    type?: 'linear' | 'point' | 'band' | 'time' | 'log' | 'symlog' | 'sqrt';
+    min?: number | 'auto';
+    max?: number | 'auto';
+    stacked?: boolean;
+    reverse?: boolean;
+    nice?: boolean;
+    clamp?: boolean;
+    base?: number;
+    constant?: number;
+  };
+
+  // Pan & Zoom (<mc-view-layer>)
+  view?: {
+    enabled?: boolean;
+    zoomable?: boolean;
+    pannable?: boolean;
+    minZoom?: number;
+    maxZoom?: number;
+    direction?: 'xy' | 'x' | 'y';
+    showControls?: boolean;
+    initialZoom?: number;
+    initialPanX?: number;
+    initialPanY?: number;
+  };
+
+  // Motion & Animation (<mc-animation-layer>)
+  animate?: boolean; // default true (automatically respects prefers-reduced-motion)
+  motionConfig?:
+    | 'default'
+    | 'gentle'
+    | 'wobbly'
+    | 'stiff'
+    | 'slow'
+    | 'molasses'
+    | 'elastic'
+    | 'bounce'
+    | Partial<AnimationConfig>;
+  animation?: {
+    enabled?: boolean;
+    duration?: number;
+    easing?: 'cubic-out' | 'linear' | 'elastic-out' | 'back-out' | 'bounce-out' | 'quad-out';
+    stagger?: number;
+    streamDelay?: number;
+  };
+
+  // Markers & Thresholds (<mc-marker-layer> / <mc-marker>) — bar, line, scatter
+  markers?: MarkerConfig[];
+
+  // Universal Labels (<mc-label>, powered by @chenglou/pretext)
+  enableLabels?: boolean;
+  labelMode?: 'svg' | 'foreignObject' | 'custom';
+  label?: Partial<LabelStyleOverride> | Partial<LabelStyleOverride>[];
+  labelRenderer?: CustomLabelRenderer;
+
+  // W3C ARIA Accessibility (<mc-aria-layer> / <mc-aria>)
+  role?: string;
+  ariaLabel?: string;
+  ariaLabelledBy?: string;
+  ariaDescribedBy?: string;
+  isFocusable?: boolean;
+  barAriaLabel?: string | ((item: AriaItemDescriptor) => string);
+  pointAriaLabel?: string | ((item: AriaItemDescriptor) => string);
+  arcAriaLabel?: string | ((item: AriaItemDescriptor) => string);
+  cellAriaLabel?: string | ((item: AriaItemDescriptor) => string);
+  nodeAriaLabel?: string | ((item: AriaItemDescriptor) => string);
+  linkAriaLabel?: string | ((item: AriaItemDescriptor) => string);
+  aria?: Partial<AriaConfig>;
+}
+```
+
+### Shared HTML Attributes (All `<mc-*-chart>` Elements)
+
+`width`, `height`, `auto-size`, `margin`, `theme-mode`, `palette`, `chart-title`, `layers`, `label-mode`, `animate`, `motion-config`, `aria-label`, `is-focusable`.
+
+---
+
+## 3. Markers & Threshold Styling (`markers` / `<mc-marker>`)
+
+Supported on Cartesian charts (`<mc-bar-chart>`, `<mc-line-chart>`, `<mc-scatter-chart>`). Markers have `pointer-events: none` so tooltips on underlying data items are never blocked.
+
+```ts
+interface MarkerConfig {
+  id?: string;
+  type?: 'line' | 'area'; // default 'line'
+  axis?: 'x' | 'y';       // default 'y'
+  value?: number | string; // for type: 'line'
+  from?: number | string;  // for type: 'area'
+  to?: number | string;    // for type: 'area'
+  label?: string;
+  labelPosition?:
+    | 'start' | 'middle' | 'end'
+    | 'top-left' | 'top-center' | 'top-right'
+    | 'bottom-left' | 'bottom-center' | 'bottom-right'
+    | 'outside-left' | 'outside-right' | 'outside-top' | 'outside-bottom';
+  labelPadding?: number;     // px away from marker line or axis (default 8)
+  labelEdgePadding?: number; // px inset from plot edge for inside labels (default 8)
+  labelOffsetX?: number;
+  labelOffsetY?: number;
+  icon?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  strokeDasharray?: string;
+  fill?: string;
+  fillOpacity?: number;
+  condition?: 'below' | 'under' | 'lte' | 'above' | 'over' | 'gte' | 'between' | 'outside' | ((value: number, datum?: any) => boolean);
+  matchStyle?: {
+    color?: string;
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+    opacity?: number;
+    radius?: number;
+    icon?: string;
+    labelColor?: string;
+  };
+}
+```
+
+Note: When any marker uses `outside-left`, `outside-right`, `outside-top`, or `outside-bottom`, `MCBaseChart` automatically expands the corresponding chart margin so the label never clips.
+
+---
+
+## 4. Universal Labels (`<mc-label>` & `LabelEngine`)
+
+Every text label in every chart (ticks, titles, bar/point/arc/cell values, markers, legends, center labels) renders via `@chenglou/pretext` with zero DOM reflow.
+
+Target types (`for` attribute on `<mc-label>` or `target` in `config.label`):
+`'all' | 'axis-tick' | 'axis-title' | 'data' | 'bar-outer' | 'arc' | 'arc-link' | 'cell' | 'radar-axis' | 'radar-point' | 'node' | 'link' | 'legend' | 'title' | 'center' | 'marker' | 'custom'`.
+
+```html
+<mc-bar-chart>
+  <mc-label for="data" mode="foreignObject" bg-color="#0f172a" color="#f8fafc" border-radius="6" padding="4" icon="✨"></mc-label>
+</mc-bar-chart>
+```
+
+---
+
+## 5. Custom Layers (`layers` & `<mc-custom-layer>`)
+
+Insert custom SVG or D3 visuals at any z-index in `config.layers`:
+
+```js
+chart.config = {
+  ...baseConfig,
+  layers: [
+    'grid',
+    'axes',
+    'bars',
+    {
+      name: 'avg-callout',
+      render: (ctx) => {
+        // Available on ctx: innerWidth, innerHeight, xScale, yScale, colorScale,
+        // theme, data, markers, thresholds, layerGroup, svg, d3, renderLabel,
+        // measureText, animateItem, decorateAriaItem, showTooltip, hideTooltip, state
+        const y = ctx.yScale(150);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', '0');
+        line.setAttribute('x2', String(ctx.innerWidth));
+        line.setAttribute('y1', String(y));
+        line.setAttribute('y2', String(y));
+        line.setAttribute('stroke', '#f59e0b');
+        line.setAttribute('stroke-dasharray', '6 4');
+        ctx.layerGroup.appendChild(line);
+      }
+    },
+    'labels',
+    'legends'
+  ]
+};
+```
+
+---
+
+## 6. AI Progressive Layer Streaming
+
+For LLM interfaces that generate visualizations progressively:
+
+```js
+// Programmatic layer-by-layer reveal using animation.streamDelay (default 200ms)
+await chart.streamLayers();
+
+// Or stream specific layers one at a time via declarative children:
+const layer = document.createElement('mc-chart-layer');
+layer.setAttribute('name', 'bars');
+chart.appendChild(layer);
+```
+
+---
+
+## 7. Key Methods & Events
+
+- `chart.render()` — Re-renders immediately.
+- `chart.resize(width?, height?)` — Explicitly updates dimensions (especially when `autoSize: false`).
+- `chart.streamLayers(delayMs?)` — Streams layers progressively, firing `mc-layer-stream` per layer and `mc-stream-complete` on finish.
+- Events: `mc-rendered`, `mc-zoom`, `mc-aria-focus`, `mc-aria-activate`, `mc-layer-stream`, `mc-stream-complete`.
+
+---
+
+# `<mc-bar-chart>` — Bar & Stack Chart
+
+- **Tag**: `<mc-bar-chart>`
+- **Subpath Import**: `import 'modern-charts/bar';`
+- **Class / Item Exports**: `MCBarChart`, `MCBarItem`, `computeBarChartModel`, `registerBarChart`
+- **Default Layers**: `['grid', 'axes', 'bars', 'markers', 'labels', 'legends']`
+- **Supports Markers/Thresholds**: Yes (`y` axis in vertical layout, `x` axis in horizontal layout)
+- **Supports Cartesian Scales & View Zoom**: Yes (`xScale: band`, `yScale: linear`)
+
+## Data Schema (`BarDatum[]`)
+
+Array of flat objects where one key is the category (`indexBy`) and one or more keys hold numeric values (`keys`).
+
+```ts
+type BarDatum = Record<string, string | number>;
+// Example:
+const data: BarDatum[] = [
+  { quarter: 'Q1', Cloud: 142, Edge: 94, OnPrem: 78 },
+  { quarter: 'Q2', Cloud: 168, Edge: 118, OnPrem: 72 },
+  { quarter: 'Q3', Cloud: 196, Edge: 145, OnPrem: 64 },
+  { quarter: 'Q4', Cloud: 234, Edge: 172, OnPrem: 58 }
+];
+```
+
+## Chart-Specific Config Options & Attributes
+
+| `chart.config` Key | HTML Attribute | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `indexBy` | `index-by` | `string` | `'category'` | Category property key in each datum |
+| `keys` | `keys` (comma-separated) | `string[]` | numeric keys inferred from row 0 | Series keys to plot |
+| `groupMode` | `group-mode` | `'grouped' \| 'stacked'` | `'grouped'` | Side-by-side or stacked bars |
+| `layout` | `layout` | `'vertical' \| 'horizontal'` | `'vertical'` | Bar orientation |
+| `borderRadius` | `border-radius` | `number` | `5` | Corner radius (`rx`) in px |
+| `enableLabels` | `enable-labels` | `boolean` | `true` | Render value labels centered inside bars (coexists with `outerLabels`) |
+| `outerLabels` | `enable-outer-labels`, `outer-label-scope`, `outer-label-position`, `negative-label-position`, `outer-label-padding` | `boolean \| BarOuterLabelConfig` | `{ enabled: false, scope: 'auto', position: 'auto', negativePosition: 'outside-bottom', padding: 8 }` | Outer / stack-summary labels above positive bars/stacks and below negative bars (`outside-bottom` \| `chart-bottom` \| `above-zero`); customizable via `formatter`, `renderer`, or `<mc-label for="bar-outer">` |
+| `xTitle` | `x-title` | `string` | `undefined` | X-axis title |
+| `yTitle` | `y-title` | `string` | `undefined` | Y-axis title |
+
+## Minimal Working Example
+
+```html
+<mc-bar-chart id="bar" style="width: 100%; height: 380px;"></mc-bar-chart>
+<script type="module">
+  import 'modern-charts/bar';
+
+  document.getElementById('bar').config = {
+    data: [
+      { quarter: 'Q1', Cloud: 142, Edge: 94 },
+      { quarter: 'Q2', Cloud: 168, Edge: 118 },
+      { quarter: 'Q3', Cloud: 196, Edge: 145 }
+    ],
+    indexBy: 'quarter',
+    keys: ['Cloud', 'Edge'],
+    groupMode: 'grouped',
+    layout: 'vertical',
+    title: 'Quarterly Spend ($K)',
+    xTitle: 'Quarter',
+    yTitle: 'Spend ($K)',
+    palette: 'modern',
+    markers: [
+      {
+        id: 'floor',
+        type: 'line',
+        axis: 'y',
+        value: 100,
+        label: 'Target $100K',
+        labelPosition: 'outside-right',
+        stroke: '#ef4444',
+        condition: 'below',
+        matchStyle: { color: '#ef4444' }
+      }
+    ],
+    ariaLabel: 'Quarterly Cloud vs Edge Spend'
+  };
+</script>
+```
+
+## Common Pitfalls
+
+- Always set `indexBy` to match your category field name (default is `'category'`; omitting it when your rows use `'quarter'` or `'month'` will leave X-axis labels blank).
+- For horizontal bars, set `layout: 'horizontal'` — `modern-charts` automatically swaps the band and linear scales.
+
+---
+
+# `<mc-line-chart>` — Line & Area Chart
+
+- **Tag**: `<mc-line-chart>`
+- **Subpath Import**: `import 'modern-charts/line';`
+- **Class / Item Exports**: `MCLineChart`, `MCLineItem`, `MCPointItem`, `computeLineChartModel`, `registerLineChart`
+- **Default Layers**: `['grid', 'markers', 'axes', 'areas', 'lines', 'points', 'pointLabels', 'slices', 'legends']`
+- **Supports Markers/Thresholds**: Yes (including SVG gradient threshold split along the line path!)
+- **Supports Cartesian Scales & View Zoom**: Yes (`xScale: point | time | linear`, `yScale: linear | log | symlog | sqrt`)
+
+## Data Schema (`LineSeries[]`)
+
+Array of series objects; each has `id`, optional `color`, and `data` array of `{ x, y, label? }` points.
+
+```ts
+interface LineSeries {
+  id: string;
+  color?: string;
+  data: Array<{ x: string | number | Date; y: number; label?: string }>;
+}
+```
+
+## Chart-Specific Config Options & Attributes
+
+| `chart.config` Key | HTML Attribute | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `curve` | `curve` | `'monotoneX' \| 'linear' \| 'catmullRom' \| 'natural' \| 'step' \| 'stepAfter' \| 'stepBefore'` | `'monotoneX'` | D3 curve interpolation |
+| `enableArea` | `enable-area` | `boolean` | `false` | Fill area beneath lines |
+| `areaOpacity` | `area-opacity` | `number` (`0`–`1`) | `0.18` | Area fill opacity |
+| `lineWidth` | `line-width` | `number` | `2.5` | Stroke width of lines in px |
+| `pointSize` | `point-size` | `number` | `8` | Diameter of data point circles in px (`0` hides dots) |
+| `enablePointLabels` | `enable-point-labels` | `boolean` | `false` | Show value labels above points |
+| `enableSlices` | `enable-slices` | `boolean` | `true` | Vertical hover crosshair comparing all series at X |
+| `xTitle` | `x-title` | `string` | `undefined` | X-axis title |
+| `yTitle` | `y-title` | `string` | `undefined` | Y-axis title |
+
+## Minimal Working Example
+
+```html
+<mc-line-chart id="line" style="width: 100%; height: 380px;"></mc-line-chart>
+<script type="module">
+  import 'modern-charts/line';
+
+  document.getElementById('line').config = {
+    data: [
+      {
+        id: 'Revenue',
+        data: [
+          { x: 'Jan', y: 120 },
+          { x: 'Feb', y: 145 },
+          { x: 'Mar', y: 162 },
+          { x: 'Apr', y: 190 }
+        ]
+      },
+      {
+        id: 'Forecast',
+        data: [
+          { x: 'Jan', y: 110 },
+          { x: 'Feb', y: 138 },
+          { x: 'Mar', y: 155 },
+          { x: 'Apr', y: 175 }
+        ]
+      }
+    ],
+    curve: 'monotoneX',
+    enableArea: true,
+    areaOpacity: 0.2,
+    yScale: { type: 'linear', stacked: false },
+    title: 'Monthly Revenue vs Forecast',
+    xTitle: 'Month',
+    yTitle: 'USD ($K)',
+    ariaLabel: 'Monthly revenue and forecast line chart'
+  };
+</script>
+```
+
+## Common Pitfalls
+
+- Data MUST be grouped by series (`LineSeries[]`), NOT flat rows like `<mc-bar-chart>`.
+- For stacked area charts, set both `enableArea: true` and `yScale: { stacked: true }`.
+- For `Date` X values, set `xScale: { type: 'time' }`.
+
+---
+
+# `<mc-pie-chart>` — Pie & Donut Chart
+
+- **Tag**: `<mc-pie-chart>`
+- **Subpath Import**: `import 'modern-charts/pie';`
+- **Class / Item Exports**: `MCPieChart`, `MCArcItem`, `computePieChartModel`, `registerPieChart`
+- **Default Layers**: `['arcs', 'arcLabels', 'arcLinkLabels', 'center', 'legends']`
+- **Supports Markers/Thresholds**: No
+- **Supports Cartesian Scales**: No
+
+## Data Schema (`PieDatum[]`)
+
+```ts
+interface PieDatum {
+  id: string;
+  label?: string;
+  value: number;
+  color?: string;
+}
+```
+
+## Chart-Specific Config Options & Attributes
+
+| `chart.config` Key | HTML Attribute | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `innerRadius` | `inner-radius` | `number` (`0`–`0.9`) | `0.52` | Inner hole ratio (`0` = full pie, `0.52` = donut) |
+| `padAngle` | `pad-angle` | `number` (degrees) | `~1.15` (`0.02 rad`) | Angular gap between slices |
+| `cornerRadius` | `corner-radius` | `number` | `5` | Rounded corner radius on slice arcs |
+| `centerLabel` | `center-label` | `string` | `'Total\n<sum>'` | Center text inside donut hole (shown when inner radius >= 25px) |
+| — | `enable-arc-labels` | `boolean` | `true` | Percentage labels inside slices |
+| — | `enable-arc-link-labels` | `boolean` | `true` | External callout leader lines & labels |
+
+## Minimal Working Example
+
+```html
+<mc-pie-chart id="pie" style="width: 100%; height: 380px;"></mc-pie-chart>
+<script type="module">
+  import 'modern-charts/pie';
+
+  document.getElementById('pie').config = {
+    data: [
+      { id: 'Compute', label: 'Compute', value: 420 },
+      { id: 'Storage', label: 'Storage', value: 260 },
+      { id: 'Network', label: 'Network', value: 180 },
+      { id: 'AI', label: 'AI / GPU', value: 340 }
+    ],
+    innerRadius: 0.56,
+    cornerRadius: 6,
+    padAngle: 2,
+    title: 'Cloud Cost Breakdown',
+    palette: 'modern',
+    ariaLabel: 'Cloud cost breakdown donut chart'
+  };
+</script>
+```
+
+## Common Pitfalls
+
+- `innerRadius` is a **ratio** between `0` and `0.9` (not pixels). Use `0` for a solid pie or `0.5`–`0.7` for a donut.
+- Ensure negative values are not passed (slices clamp `value` at `>= 0`).
+
+---
+
+# `<mc-heatmap-chart>` — Matrix Heatmap Chart
+
+- **Tag**: `<mc-heatmap-chart>`
+- **Subpath Import**: `import 'modern-charts/heatmap';`
+- **Class / Item Exports**: `MCHeatmapChart`, `MCCellItem`, `computeHeatmapChartModel`, `registerHeatmapChart`
+- **Default Layers**: `['axes', 'cells', 'labels', 'legends']`
+- **Supports Markers/Thresholds**: No
+- **Supports Cartesian Scales**: Band X & Band Y + sequential color scale
+
+## Data Schema (`HeatmapRow[]`)
+
+Array of row objects where `id` is the Y-axis row label and `data` contains `{ x, y }` cells (`x` = column key, `y` = numeric intensity).
+
+```ts
+interface HeatmapRow {
+  id: string;
+  data: Array<{ x: string; y: number }>;
+}
+```
+
+## Chart-Specific Config Options & Attributes
+
+| `chart.config` Key | HTML Attribute | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `colorScheme` | `color-scheme` | `'viridis' \| 'plasma' \| 'inferno' \| 'magma' \| 'cividis' \| 'turbo' \| 'warm' \| 'cool' \| 'blues' \| 'greens' \| 'oranges' \| 'purples' \| 'ylGnBu' \| 'rdYlBu' \| 'spectral'` | `'viridis'` | D3 sequential/diverging color interpolator |
+| `cellShape` | `cell-shape` | `'rect' \| 'circle'` | `'rect'` | Cell marker geometry |
+| `cellPadding` | `cell-padding` | `number` (`0`–`0.5`) | `0.1` | Padding ratio between cells |
+| `borderRadius` | `border-radius` | `number` | `6` | Corner radius for `'rect'` cells |
+| `enableLabels` | `enable-labels` | `boolean` | `true` | Render numeric value inside each cell |
+
+## Minimal Working Example
+
+```html
+<mc-heatmap-chart id="hm" style="width: 100%; height: 380px;"></mc-heatmap-chart>
+<script type="module">
+  import 'modern-charts/heatmap';
+
+  document.getElementById('hm').config = {
+    data: [
+      { id: 'Mon', data: [{ x: '09:00', y: 24 }, { x: '12:00', y: 78 }, { x: '15:00', y: 65 }] },
+      { id: 'Tue', data: [{ x: '09:00', y: 31 }, { x: '12:00', y: 92 }, { x: '15:00', y: 54 }] },
+      { id: 'Wed', data: [{ x: '09:00', y: 18 }, { x: '12:00', y: 61 }, { x: '15:00', y: 88 }] }
+    ],
+    colorScheme: 'viridis',
+    cellShape: 'rect',
+    borderRadius: 6,
+    enableLabels: true,
+    title: 'API Load by Day & Hour',
+    ariaLabel: 'API load heatmap matrix'
+  };
+</script>
+```
+
+## Common Pitfalls
+
+- Each cell uses `{ x: '<column>', y: <number> }` (NOT `value`).
+- `colorScheme` is case-sensitive for `'ylGnBu'` and `'rdYlBu'`.
+
+---
+
+# `<mc-radar-chart>` — Radar / Spider Chart
+
+- **Tag**: `<mc-radar-chart>`
+- **Subpath Import**: `import 'modern-charts/radar';`
+- **Class / Item Exports**: `MCRadarChart`, `MCRadarItem`, `computeRadarChartModel`, `registerRadarChart`
+- **Default Layers**: `['grid', 'axes', 'layers', 'dots', 'labels', 'legends']`
+- **Supports Markers/Thresholds**: No
+- **Supports Cartesian Scales**: No (polar radial scale)
+
+## Data Schema (`RadarDatum[]`)
+
+Array of metric rows where `indexBy` names the radial spoke/axis and `keys` are the series compared across every spoke.
+
+```ts
+type RadarDatum = Record<string, string | number>;
+// Example:
+const data: RadarDatum[] = [
+  { metric: 'Speed', ModelA: 92, ModelB: 78 },
+  { metric: 'Accuracy', ModelA: 88, ModelB: 94 },
+  { metric: 'Cost', ModelA: 84, ModelB: 70 },
+  { metric: 'Context', ModelA: 95, ModelB: 82 },
+  { metric: 'Safety', ModelA: 90, ModelB: 89 }
+];
+```
+
+## Chart-Specific Config Options & Attributes
+
+| `chart.config` Key | HTML Attribute | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `indexBy` | `index-by` | `string` | `'metric'` | Property naming each spoke axis |
+| `keys` | `keys` (comma-separated) | `string[]` | numeric keys inferred from row 0 | Series polygons to plot |
+| `gridLevels` | `grid-levels` | `number` | `5` | Concentric grid rings |
+| `gridShape` | `grid-shape` | `'circular' \| 'linear'` | `'circular'` | Circular rings vs polygonal web |
+| `fillOpacity` | `fill-opacity` | `number` (`0`–`1`) | `0.24` | Polygon fill opacity |
+| `enableDots` | `enable-dots` | `boolean` | `true` | Render dots at polygon vertices |
+| `enableDotLabels` | `enable-dot-labels` | `boolean` | `false` | Render numeric value labels at dots |
+| — | `max-value` | `number` | auto max | Fixed outer radial max value |
+
+## Minimal Working Example
+
+```html
+<mc-radar-chart id="radar" style="width: 100%; height: 400px;"></mc-radar-chart>
+<script type="module">
+  import 'modern-charts/radar';
+
+  document.getElementById('radar').config = {
+    data: [
+      { metric: 'Speed', Alpha: 92, Beta: 76 },
+      { metric: 'Quality', Alpha: 88, Beta: 95 },
+      { metric: 'Efficiency', Alpha: 85, Beta: 72 },
+      { metric: 'Reliability', Alpha: 94, Beta: 89 },
+      { metric: 'UX', Alpha: 90, Beta: 84 }
+    ],
+    indexBy: 'metric',
+    keys: ['Alpha', 'Beta'],
+    gridShape: 'circular',
+    gridLevels: 5,
+    fillOpacity: 0.25,
+    title: 'Benchmark Profile',
+    ariaLabel: 'Alpha vs Beta radar benchmark'
+  };
+</script>
+```
+
+## Common Pitfalls
+
+- The polygon layer is named `'layers'` (NOT `'polygons'`) in `defaultLayers`: `['grid', 'axes', 'layers', 'dots', 'labels', 'legends']`.
+- Always provide at least 3 rows (axes) for a readable polygon.
+
+---
+
+# `<mc-sunburst-chart>` — Sunburst Hierarchy Chart
+
+- **Tag**: `<mc-sunburst-chart>`
+- **Subpath Import**: `import 'modern-charts/sunburst';`
+- **Class / Item Exports**: `MCSunburstChart`, `MCArcItem`, `computeSunburstChartModel`, `registerSunburstChart`
+- **Default Layers**: `['arcs', 'labels', 'center', 'legends']`
+- **Supports Markers/Thresholds**: No
+- **Supports Interactive Drilldown**: Yes (click any parent arc to drill in; click center circle to drill up, or call `chart.resetDrilldown()`)
+
+## Data Schema (`HierarchyNode`)
+
+Single root tree node. Leaf nodes carry numeric `value`; parent nodes derive their value from the sum of descendants.
+
+```ts
+interface HierarchyNode {
+  name: string;
+  value?: number;
+  color?: string;
+  children?: HierarchyNode[];
+}
+```
+
+## Chart-Specific Config Options & Attributes
+
+| `chart.config` Key | HTML Attribute | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `cornerRadius` | `corner-radius` | `number` | `3` | Corner radius on partition arcs |
+| `enableLabels` | `enable-labels` | `boolean` | `true` | Render Pretext-wrapped labels inside arcs that have enough room |
+| `interactiveDrilldown` | `interactive-drilldown` | `boolean` | `true` | Allow clicking arcs / center circle to zoom hierarchy |
+
+## Minimal Working Example
+
+```html
+<mc-sunburst-chart id="sunburst" style="width: 100%; height: 420px;"></mc-sunburst-chart>
+<script type="module">
+  import 'modern-charts/sunburst';
+
+  document.getElementById('sunburst').config = {
+    data: {
+      name: 'Cloud',
+      children: [
+        {
+          name: 'Compute',
+          children: [
+            { name: 'GPU', value: 320 },
+            { name: 'CPU', value: 180 }
+          ]
+        },
+        {
+          name: 'Storage',
+          children: [
+            { name: 'Object', value: 140 },
+            { name: 'Block', value: 95 }
+          ]
+        }
+      ]
+    },
+    cornerRadius: 4,
+    interactiveDrilldown: true,
+    title: 'Infrastructure Hierarchy',
+    ariaLabel: 'Cloud infrastructure sunburst hierarchy'
+  };
+</script>
+```
+
+## Common Pitfalls
+
+- `data` is a **single `HierarchyNode` object** (NOT an array).
+- Put `value` on **leaf nodes** only; parent nodes with `children` ignore their own `value` so totals are never double-counted.
+
+---
+
+# `<mc-sankey-chart>` — Sankey Flow Diagram
+
+- **Tag**: `<mc-sankey-chart>`
+- **Subpath Import**: `import 'modern-charts/sankey';`
+- **Class / Item Exports**: `MCSankeyChart`, `MCSankeyNodeItem`, `MCSankeyLinkItem`, `computeSankeyChartModel`, `registerSankeyChart`
+- **Default Layers**: `['links', 'nodes', 'labels', 'legends']`
+- **Supports Markers/Thresholds**: No
+- **Supports Cartesian Scales**: No (directed acyclic graph column layout)
+
+## Data Schema (`SankeyData`)
+
+Object with `nodes` and `links`. Every `link.source` and `link.target` MUST match an `id` in `nodes`.
+
+```ts
+interface SankeyData {
+  nodes: Array<{ id: string; name?: string; color?: string }>;
+  links: Array<{ source: string; target: string; value: number; color?: string }>;
+}
+```
+
+## Chart-Specific Config Options & Attributes
+
+| `chart.config` Key | HTML Attribute | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `nodeWidth` | `node-width` | `number` | `18` | Node rectangle width in px |
+| `nodePadding` | `node-padding` | `number` | `16` | Vertical gap between nodes in px |
+| `linkOpacity` | `link-opacity` | `number` (`0`–`1`) | `0.42` | Default stroke opacity of gradient flow links |
+| `enableLabels` | `enable-labels` | `boolean` | `true` | Render node labels next to each node |
+
+## Minimal Working Example
+
+```html
+<mc-sankey-chart id="sankey" style="width: 100%; height: 400px;"></mc-sankey-chart>
+<script type="module">
+  import 'modern-charts/sankey';
+
+  document.getElementById('sankey').config = {
+    data: {
+      nodes: [
+        { id: 'organic', name: 'Organic Search' },
+        { id: 'paid', name: 'Paid Ads' },
+        { id: 'signup', name: 'Signups' },
+        { id: 'pro', name: 'Pro Plan' },
+        { id: 'free', name: 'Free Tier' }
+      ],
+      links: [
+        { source: 'organic', target: 'signup', value: 420 },
+        { source: 'paid', target: 'signup', value: 280 },
+        { source: 'signup', target: 'pro', value: 210 },
+        { source: 'signup', target: 'free', value: 490 }
+      ]
+    },
+    nodeWidth: 18,
+    nodePadding: 16,
+    linkOpacity: 0.45,
+    title: 'User Acquisition Funnel',
+    ariaLabel: 'User acquisition Sankey flow diagram'
+  };
+</script>
+```
+
+## Common Pitfalls
+
+- `links` must form a **DAG** (no cycles) and every `source` / `target` must reference an existing `nodes[].id`.
+- `link.value` must be positive (`> 0`).
+
+---
+
+# `<mc-scatter-chart>` — Scatter & Bubble Chart
+
+- **Tag**: `<mc-scatter-chart>`
+- **Subpath Import**: `import 'modern-charts/scatter';`
+- **Class / Item Exports**: `MCScatterChart`, `MCScatterItem`, `computeScatterChartModel`, `registerScatterChart`
+- **Default Layers**: `['grid', 'markers', 'axes', 'trendline', 'nodes', 'labels', 'legends']`
+- **Supports Markers/Thresholds**: Yes (`y` axis threshold restyling)
+- **Supports Cartesian Scales & View Zoom**: Yes (`xScale: linear`, `yScale: linear`)
+
+## Data Schema (`ScatterSeries[]`)
+
+Array of series objects; each point has numeric `x`, `y`, optional `size` (maps via `scaleSqrt` to bubble radius), and optional `label` / `id`.
+
+```ts
+interface ScatterSeries {
+  id: string;
+  color?: string;
+  data: Array<{ x: number; y: number; size?: number; label?: string; id?: string }>;
+}
+```
+
+## Chart-Specific Config Options & Attributes
+
+| `chart.config` Key | HTML Attribute | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `minNodeSize` | `min-node-size` | `number` | `6` | Minimum circle radius in px |
+| `maxNodeSize` | `max-node-size` | `number` | `18` | Maximum circle radius in px (used when `point.size` is provided) |
+| `enableLabels` | `enable-labels` | `boolean` | `true` | Show point labels when `point.label` or `point.id` is set |
+| `enableTrendline` | `enable-trendline` | `boolean` | `false` | Overlay ordinary least-squares linear regression line |
+| `xTitle` | `x-title` | `string` | `undefined` | X-axis title |
+| `yTitle` | `y-title` | `string` | `undefined` | Y-axis title |
+
+## Minimal Working Example
+
+```html
+<mc-scatter-chart id="scatter" style="width: 100%; height: 400px;"></mc-scatter-chart>
+<script type="module">
+  import 'modern-charts/scatter';
+
+  document.getElementById('scatter').config = {
+    data: [
+      {
+        id: 'Cluster A',
+        data: [
+          { x: 18, y: 42, size: 120, label: 'Svc-1' },
+          { x: 35, y: 68, size: 240, label: 'Svc-2' },
+          { x: 52, y: 84, size: 190, label: 'Svc-3' }
+        ]
+      },
+      {
+        id: 'Cluster B',
+        data: [
+          { x: 26, y: 31, size: 90, label: 'Svc-4' },
+          { x: 64, y: 76, size: 310, label: 'Svc-5' }
+        ]
+      }
+    ],
+    enableTrendline: true,
+    minNodeSize: 6,
+    maxNodeSize: 18,
+    title: 'Latency vs Throughput',
+    xTitle: 'Throughput (kRPS)',
+    yTitle: 'P95 Latency (ms)',
+    ariaLabel: 'Latency vs throughput scatter bubble chart'
+  };
+</script>
+```
+
+## Common Pitfalls
+
+- Both `x` and `y` must be numeric (`number`).
+- To render a uniform scatter plot (fixed radii), omit `size` on points or set `minNodeSize === maxNodeSize`.
+
+---
+
+# `<mc-treemap-chart>` — Squarified Treemap Chart
+
+- **Tag**: `<mc-treemap-chart>`
+- **Subpath Import**: `import 'modern-charts/treemap';`
+- **Class / Item Exports**: `MCTreemapChart`, `MCCellItem`, `computeTreemapChartModel`, `registerTreemapChart`
+- **Default Layers**: `['tiles', 'labels', 'legends']`
+- **Supports Markers/Thresholds**: No
+- **Supports Cartesian Scales**: No (D3 squarified hierarchical tiling)
+
+## Data Schema (`HierarchyNode`)
+
+Single root tree node (same `HierarchyNode` schema as `<mc-sunburst-chart>`). Leaf nodes carry numeric `value`.
+
+```ts
+interface HierarchyNode {
+  name: string;
+  value?: number;
+  color?: string;
+  children?: HierarchyNode[];
+}
+```
+
+## Chart-Specific Config Options & Attributes
+
+| `chart.config` Key | HTML Attribute | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `tilePadding` | `tile-padding` | `number` | `4` | Inner padding in px between tiles |
+| `borderRadius` | `border-radius` | `number` | `6` | Corner radius (`rx`) of each tile |
+| `enableLabels` | `enable-labels` | `boolean` | `true` | Render Pretext-wrapped labels inside tiles (`width >= 36 && height >= 22`) |
+
+## Minimal Working Example
+
+```html
+<mc-treemap-chart id="treemap" style="width: 100%; height: 400px;"></mc-treemap-chart>
+<script type="module">
+  import 'modern-charts/treemap';
+
+  document.getElementById('treemap').config = {
+    data: {
+      name: 'Budget',
+      children: [
+        {
+          name: 'Engineering',
+          children: [
+            { name: 'Platform', value: 420 },
+            { name: 'AI Research', value: 380 },
+            { name: 'Security', value: 190 }
+          ]
+        },
+        {
+          name: 'Product',
+          children: [
+            { name: 'Design', value: 210 },
+            { name: 'Analytics', value: 160 }
+          ]
+        }
+      ]
+    },
+    tilePadding: 4,
+    borderRadius: 6,
+    enableLabels: true,
+    title: 'Department Budget Allocation',
+    ariaLabel: 'Department budget allocation treemap'
+  };
+</script>
+```
+
+## Common Pitfalls
+
+- `data` is a **single `HierarchyNode` object** (NOT an array).
+- The tile layer is named `'tiles'` in `defaultLayers`: `['tiles', 'labels', 'legends']`.
+- Put `value` on leaf nodes only.
+
+---
+
+# `<mc-gauge-chart>` — Radial KPI Gauge Chart
+
+- **Tag**: `<mc-gauge-chart>`
+- **Subpath Import**: `import 'modern-charts/gauge';`
+- **Class / Item Exports**: `MCGaugeChart`, `MCArcItem`, `computeGaugeChartModel`, `registerGaugeChart`
+- **Default Layers**: `['track', 'bands', 'valueArc', 'ticks', 'needle', 'center']`
+- **Supports Markers/Thresholds**: Uses `bands` (`GaugeBand[]`) on `GaugeDatum`
+- **Supports Cartesian Scales**: No (radial 270° arc scale)
+
+## Data Schema (`GaugeDatum`)
+
+Single KPI datum object (NOT an array).
+
+```ts
+interface GaugeBand {
+  from: number;
+  to: number;
+  color: string;
+  label?: string;
+}
+
+interface GaugeDatum {
+  value: number;
+  min?: number;
+  max?: number;
+  label?: string;
+  unit?: string;
+  target?: number;
+  bands?: GaugeBand[];
+}
+```
+
+## Chart-Specific Config Options & Attributes
+
+| `chart.config` Key | HTML Attribute | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `min` | `min` | `number` | `datum.min ?? 0` | Minimum gauge value |
+| `max` | `max` | `number` | `datum.max ?? 100` | Maximum gauge value |
+| `unit` | `unit` | `string` | `datum.unit ?? ''` | Unit suffix appended to center readout (e.g. `'%'`, `'ms'`) |
+
+## Minimal Working Example
+
+```html
+<mc-gauge-chart id="gauge" style="width: 100%; height: 340px;"></mc-gauge-chart>
+<script type="module">
+  import 'modern-charts/gauge';
+
+  document.getElementById('gauge').config = {
+    data: {
+      value: 78,
+      min: 0,
+      max: 100,
+      unit: '%',
+      label: 'Cluster Health',
+      bands: [
+        { from: 0, to: 50, color: '#ef4444', label: 'Critical' },
+        { from: 50, to: 80, color: '#f59e0b', label: 'Warning' },
+        { from: 80, to: 100, color: '#10b981', label: 'Healthy' }
+      ]
+    },
+    title: 'SLO Attainment',
+    ariaLabel: 'Cluster health radial gauge at 78%'
+  };
+</script>
+```
+
+## Common Pitfalls
+
+- `data` is a **single `GaugeDatum` object** (NOT an array).
+- `value` is automatically clamped to `[min, max]`.
+- `bands[].from` and `bands[].to` must lie within `[min, max]`.

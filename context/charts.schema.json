@@ -1,0 +1,492 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "modern-charts AI Context Catalog",
+  "description": "Machine-readable catalog of all 10 modern-charts Web Components, subpath imports, data schemas, valid layer names, attributes, and minimal working config examples.",
+  "package": "modern-charts",
+  "version": "0.1.0-alpha.1",
+  "runtimeDependencies": ["@chenglou/pretext", "d3"],
+  "sharedAttributes": [
+    "width",
+    "height",
+    "auto-size",
+    "margin",
+    "theme-mode",
+    "palette",
+    "chart-title",
+    "layers",
+    "label-mode",
+    "animate",
+    "motion-config",
+    "aria-label",
+    "is-focusable"
+  ],
+  "palettes": ["modern", "nivo", "echarts", "emerald", "sunset", "ocean", "cyber"],
+  "motionPresets": ["default", "gentle", "wobbly", "stiff", "slow", "molasses", "elastic", "bounce"],
+  "labelTargets": [
+    "all",
+    "axis-tick",
+    "axis-title",
+    "data",
+    "bar-outer",
+    "arc",
+    "arc-link",
+    "cell",
+    "radar-axis",
+    "radar-point",
+    "node",
+    "link",
+    "legend",
+    "title",
+    "center",
+    "marker",
+    "custom"
+  ],
+  "markerLabelPositions": [
+    "start",
+    "middle",
+    "end",
+    "top-left",
+    "top-center",
+    "top-right",
+    "bottom-left",
+    "bottom-center",
+    "bottom-right",
+    "outside-left",
+    "outside-right",
+    "outside-top",
+    "outside-bottom"
+  ],
+  "charts": [
+    {
+      "id": "bar",
+      "tag": "mc-bar-chart",
+      "subpath": "modern-charts/bar",
+      "className": "MCBarChart",
+      "itemTags": ["mc-bar-item"],
+      "useCases": [
+        "categorical comparison",
+        "grouped bars",
+        "stacked bars",
+        "horizontal bar ranking",
+        "budget vs threshold alerts"
+      ],
+      "defaultLayers": ["grid", "axes", "bars", "markers", "labels", "legends"],
+      "supportsMarkers": true,
+      "supportsCartesianScales": true,
+      "supportsViewZoom": true,
+      "dataType": "BarDatum[]",
+      "dataShape": "Array<{ [indexBy]: string, [seriesKey]: number }>",
+      "attributes": [
+        "keys",
+        "index-by",
+        "group-mode",
+        "layout",
+        "border-radius",
+        "enable-labels",
+        "enable-outer-labels",
+        "outer-label-scope",
+        "outer-label-position",
+        "negative-label-position",
+        "outer-label-padding",
+        "x-title",
+        "y-title"
+      ],
+      "configOptions": {
+        "indexBy": { "type": "string", "default": "category" },
+        "keys": { "type": "string[]", "default": "inferred numeric keys" },
+        "groupMode": { "enum": ["grouped", "stacked"], "default": "grouped" },
+        "layout": { "enum": ["vertical", "horizontal"], "default": "vertical" },
+        "borderRadius": { "type": "number", "default": 5 },
+        "enableLabels": { "type": "boolean", "default": true },
+        "outerLabels": {
+          "type": "boolean | BarOuterLabelConfig",
+          "default": {
+            "enabled": false,
+            "scope": "auto",
+            "position": "auto",
+            "negativePosition": "outside-bottom",
+            "padding": 8
+          }
+        },
+        "xTitle": { "type": "string" },
+        "yTitle": { "type": "string" }
+      },
+      "minimalConfig": {
+        "data": [
+          { "quarter": "Q1", "Cloud": 142, "Edge": 94 },
+          { "quarter": "Q2", "Cloud": 168, "Edge": 118 },
+          { "quarter": "Q3", "Cloud": 196, "Edge": 145 }
+        ],
+        "indexBy": "quarter",
+        "keys": ["Cloud", "Edge"],
+        "groupMode": "grouped",
+        "layout": "vertical",
+        "title": "Quarterly Spend ($K)"
+      }
+    },
+    {
+      "id": "line",
+      "tag": "mc-line-chart",
+      "subpath": "modern-charts/line",
+      "className": "MCLineChart",
+      "itemTags": ["mc-line-item", "mc-point-item"],
+      "useCases": [
+        "time series",
+        "multi-series trends",
+        "area chart",
+        "stacked area chart",
+        "threshold line gradient split"
+      ],
+      "defaultLayers": [
+        "grid",
+        "markers",
+        "axes",
+        "areas",
+        "lines",
+        "points",
+        "pointLabels",
+        "slices",
+        "legends"
+      ],
+      "supportsMarkers": true,
+      "supportsCartesianScales": true,
+      "supportsViewZoom": true,
+      "dataType": "LineSeries[]",
+      "dataShape": "Array<{ id: string, color?: string, data: Array<{ x: string | number | Date, y: number, label?: string }> }>",
+      "attributes": [
+        "curve",
+        "enable-area",
+        "area-opacity",
+        "line-width",
+        "point-size",
+        "enable-point-labels",
+        "enable-slices",
+        "x-title",
+        "y-title"
+      ],
+      "configOptions": {
+        "curve": {
+          "enum": ["monotoneX", "linear", "catmullRom", "natural", "step", "stepAfter", "stepBefore"],
+          "default": "monotoneX"
+        },
+        "enableArea": { "type": "boolean", "default": false },
+        "areaOpacity": { "type": "number", "default": 0.18 },
+        "lineWidth": { "type": "number", "default": 2.5 },
+        "pointSize": { "type": "number", "default": 8 },
+        "enablePointLabels": { "type": "boolean", "default": false },
+        "enableSlices": { "type": "boolean", "default": true },
+        "xTitle": { "type": "string" },
+        "yTitle": { "type": "string" }
+      },
+      "minimalConfig": {
+        "data": [
+          {
+            "id": "Revenue",
+            "data": [
+              { "x": "Jan", "y": 120 },
+              { "x": "Feb", "y": 145 },
+              { "x": "Mar", "y": 162 }
+            ]
+          }
+        ],
+        "curve": "monotoneX",
+        "enableArea": true,
+        "title": "Monthly Revenue"
+      }
+    },
+    {
+      "id": "pie",
+      "tag": "mc-pie-chart",
+      "subpath": "modern-charts/pie",
+      "className": "MCPieChart",
+      "itemTags": ["mc-arc-item"],
+      "useCases": ["part-to-whole proportions", "market share", "donut KPI breakdown"],
+      "defaultLayers": ["arcs", "arcLabels", "arcLinkLabels", "center", "legends"],
+      "supportsMarkers": false,
+      "supportsCartesianScales": false,
+      "supportsViewZoom": false,
+      "dataType": "PieDatum[]",
+      "dataShape": "Array<{ id: string, label?: string, value: number, color?: string }>",
+      "attributes": [
+        "inner-radius",
+        "pad-angle",
+        "corner-radius",
+        "enable-arc-labels",
+        "enable-arc-link-labels",
+        "center-label"
+      ],
+      "configOptions": {
+        "innerRadius": { "type": "number", "min": 0, "max": 0.9, "default": 0.52 },
+        "padAngle": { "type": "number", "default": 1.15 },
+        "cornerRadius": { "type": "number", "default": 5 },
+        "centerLabel": { "type": "string" }
+      },
+      "minimalConfig": {
+        "data": [
+          { "id": "Compute", "value": 420 },
+          { "id": "Storage", "value": 260 },
+          { "id": "AI", "value": 340 }
+        ],
+        "innerRadius": 0.55,
+        "title": "Cloud Cost Breakdown"
+      }
+    },
+    {
+      "id": "heatmap",
+      "tag": "mc-heatmap-chart",
+      "subpath": "modern-charts/heatmap",
+      "className": "MCHeatmapChart",
+      "itemTags": ["mc-cell-item"],
+      "useCases": ["2D matrix intensity", "correlation matrix", "day-by-hour activity density"],
+      "defaultLayers": ["axes", "cells", "labels", "legends"],
+      "supportsMarkers": false,
+      "supportsCartesianScales": true,
+      "supportsViewZoom": false,
+      "dataType": "HeatmapRow[]",
+      "dataShape": "Array<{ id: string, data: Array<{ x: string, y: number }> }>",
+      "attributes": ["cell-shape", "color-scheme", "cell-padding", "border-radius", "enable-labels"],
+      "configOptions": {
+        "colorScheme": {
+          "enum": [
+            "viridis", "plasma", "inferno", "magma", "cividis", "turbo",
+            "warm", "cool", "blues", "greens", "oranges", "purples",
+            "ylGnBu", "rdYlBu", "spectral"
+          ],
+          "default": "viridis"
+        },
+        "cellShape": { "enum": ["rect", "circle"], "default": "rect" },
+        "cellPadding": { "type": "number", "default": 0.1 },
+        "borderRadius": { "type": "number", "default": 6 },
+        "enableLabels": { "type": "boolean", "default": true }
+      },
+      "minimalConfig": {
+        "data": [
+          { "id": "Mon", "data": [{ "x": "09:00", "y": 24 }, { "x": "12:00", "y": 78 }] },
+          { "id": "Tue", "data": [{ "x": "09:00", "y": 31 }, { "x": "12:00", "y": 92 }] }
+        ],
+        "colorScheme": "viridis",
+        "title": "API Load Matrix"
+      }
+    },
+    {
+      "id": "radar",
+      "tag": "mc-radar-chart",
+      "subpath": "modern-charts/radar",
+      "className": "MCRadarChart",
+      "itemTags": ["mc-radar-item"],
+      "useCases": ["multi-metric profile comparison", "benchmark spider chart", "skill assessment"],
+      "defaultLayers": ["grid", "axes", "layers", "dots", "labels", "legends"],
+      "supportsMarkers": false,
+      "supportsCartesianScales": false,
+      "supportsViewZoom": false,
+      "dataType": "RadarDatum[]",
+      "dataShape": "Array<{ [indexBy]: string, [seriesKey]: number }>",
+      "attributes": [
+        "keys",
+        "index-by",
+        "max-value",
+        "grid-levels",
+        "grid-shape",
+        "fill-opacity",
+        "enable-dots",
+        "enable-dot-labels"
+      ],
+      "configOptions": {
+        "indexBy": { "type": "string", "default": "metric" },
+        "keys": { "type": "string[]" },
+        "gridLevels": { "type": "number", "default": 5 },
+        "gridShape": { "enum": ["circular", "linear"], "default": "circular" },
+        "fillOpacity": { "type": "number", "default": 0.24 },
+        "enableDots": { "type": "boolean", "default": true },
+        "enableDotLabels": { "type": "boolean", "default": false }
+      },
+      "minimalConfig": {
+        "data": [
+          { "metric": "Speed", "Alpha": 92, "Beta": 76 },
+          { "metric": "Quality", "Alpha": 88, "Beta": 95 },
+          { "metric": "Cost", "Alpha": 84, "Beta": 70 },
+          { "metric": "Safety", "Alpha": 90, "Beta": 89 }
+        ],
+        "indexBy": "metric",
+        "keys": ["Alpha", "Beta"],
+        "title": "Model Benchmark"
+      }
+    },
+    {
+      "id": "sunburst",
+      "tag": "mc-sunburst-chart",
+      "subpath": "modern-charts/sunburst",
+      "className": "MCSunburstChart",
+      "itemTags": ["mc-arc-item"],
+      "useCases": ["multi-level radial hierarchy", "interactive drilldown breakdown"],
+      "defaultLayers": ["arcs", "labels", "center", "legends"],
+      "supportsMarkers": false,
+      "supportsCartesianScales": false,
+      "supportsViewZoom": false,
+      "dataType": "HierarchyNode",
+      "dataShape": "{ name: string, value?: number, color?: string, children?: HierarchyNode[] }",
+      "attributes": ["corner-radius", "enable-labels", "interactive-drilldown"],
+      "configOptions": {
+        "cornerRadius": { "type": "number", "default": 3 },
+        "enableLabels": { "type": "boolean", "default": true },
+        "interactiveDrilldown": { "type": "boolean", "default": true }
+      },
+      "minimalConfig": {
+        "data": {
+          "name": "Cloud",
+          "children": [
+            { "name": "Compute", "children": [{ "name": "GPU", "value": 320 }, { "name": "CPU", "value": 180 }] },
+            { "name": "Storage", "children": [{ "name": "Object", "value": 140 }, { "name": "Block", "value": 95 }] }
+          ]
+        },
+        "title": "Cloud Hierarchy"
+      }
+    },
+    {
+      "id": "sankey",
+      "tag": "mc-sankey-chart",
+      "subpath": "modern-charts/sankey",
+      "className": "MCSankeyChart",
+      "itemTags": ["mc-sankey-node-item", "mc-sankey-link-item"],
+      "useCases": ["directed flow volume", "conversion funnel", "energy or budget allocation DAG"],
+      "defaultLayers": ["links", "nodes", "labels", "legends"],
+      "supportsMarkers": false,
+      "supportsCartesianScales": false,
+      "supportsViewZoom": false,
+      "dataType": "SankeyData",
+      "dataShape": "{ nodes: Array<{ id: string, name?: string, color?: string }>, links: Array<{ source: string, target: string, value: number, color?: string }> }",
+      "attributes": ["node-width", "node-padding", "link-opacity", "enable-labels"],
+      "configOptions": {
+        "nodeWidth": { "type": "number", "default": 18 },
+        "nodePadding": { "type": "number", "default": 16 },
+        "linkOpacity": { "type": "number", "default": 0.42 },
+        "enableLabels": { "type": "boolean", "default": true }
+      },
+      "minimalConfig": {
+        "data": {
+          "nodes": [
+            { "id": "organic", "name": "Organic" },
+            { "id": "paid", "name": "Paid" },
+            { "id": "signup", "name": "Signup" },
+            { "id": "pro", "name": "Pro" }
+          ],
+          "links": [
+            { "source": "organic", "target": "signup", "value": 420 },
+            { "source": "paid", "target": "signup", "value": 280 },
+            { "source": "signup", "target": "pro", "value": 210 }
+          ]
+        },
+        "title": "Acquisition Funnel"
+      }
+    },
+    {
+      "id": "scatter",
+      "tag": "mc-scatter-chart",
+      "subpath": "modern-charts/scatter",
+      "className": "MCScatterChart",
+      "itemTags": ["mc-scatter-item"],
+      "useCases": ["correlation plot", "cluster analysis", "bubble chart", "linear regression trendline"],
+      "defaultLayers": ["grid", "markers", "axes", "trendline", "nodes", "labels", "legends"],
+      "supportsMarkers": true,
+      "supportsCartesianScales": true,
+      "supportsViewZoom": true,
+      "dataType": "ScatterSeries[]",
+      "dataShape": "Array<{ id: string, color?: string, data: Array<{ x: number, y: number, size?: number, label?: string, id?: string }> }>",
+      "attributes": [
+        "min-node-size",
+        "max-node-size",
+        "enable-labels",
+        "enable-trendline",
+        "x-title",
+        "y-title"
+      ],
+      "configOptions": {
+        "minNodeSize": { "type": "number", "default": 6 },
+        "maxNodeSize": { "type": "number", "default": 18 },
+        "enableLabels": { "type": "boolean", "default": true },
+        "enableTrendline": { "type": "boolean", "default": false },
+        "xTitle": { "type": "string" },
+        "yTitle": { "type": "string" }
+      },
+      "minimalConfig": {
+        "data": [
+          {
+            "id": "Services",
+            "data": [
+              { "x": 18, "y": 42, "size": 120, "label": "Auth" },
+              { "x": 35, "y": 68, "size": 240, "label": "Search" },
+              { "x": 52, "y": 84, "size": 190, "label": "Billing" }
+            ]
+          }
+        ],
+        "enableTrendline": true,
+        "title": "Latency vs Throughput"
+      }
+    },
+    {
+      "id": "treemap",
+      "tag": "mc-treemap-chart",
+      "subpath": "modern-charts/treemap",
+      "className": "MCTreemapChart",
+      "itemTags": ["mc-cell-item"],
+      "useCases": ["space-filling hierarchy", "portfolio or budget allocation by area"],
+      "defaultLayers": ["tiles", "labels", "legends"],
+      "supportsMarkers": false,
+      "supportsCartesianScales": false,
+      "supportsViewZoom": false,
+      "dataType": "HierarchyNode",
+      "dataShape": "{ name: string, value?: number, color?: string, children?: HierarchyNode[] }",
+      "attributes": ["tile-padding", "border-radius", "enable-labels"],
+      "configOptions": {
+        "tilePadding": { "type": "number", "default": 4 },
+        "borderRadius": { "type": "number", "default": 6 },
+        "enableLabels": { "type": "boolean", "default": true }
+      },
+      "minimalConfig": {
+        "data": {
+          "name": "Budget",
+          "children": [
+            { "name": "Engineering", "children": [{ "name": "Platform", "value": 420 }, { "name": "AI", "value": 380 }] },
+            { "name": "Product", "children": [{ "name": "Design", "value": 210 }] }
+          ]
+        },
+        "title": "Budget Allocation"
+      }
+    },
+    {
+      "id": "gauge",
+      "tag": "mc-gauge-chart",
+      "subpath": "modern-charts/gauge",
+      "className": "MCGaugeChart",
+      "itemTags": ["mc-arc-item"],
+      "useCases": ["single KPI progress", "SLO attainment", "utilization speedometer dial"],
+      "defaultLayers": ["track", "bands", "valueArc", "ticks", "needle", "center"],
+      "supportsMarkers": false,
+      "supportsCartesianScales": false,
+      "supportsViewZoom": false,
+      "dataType": "GaugeDatum",
+      "dataShape": "{ value: number, min?: number, max?: number, label?: string, unit?: string, target?: number, bands?: Array<{ from: number, to: number, color: string, label?: string }> }",
+      "attributes": ["min", "max", "unit"],
+      "configOptions": {
+        "min": { "type": "number", "default": 0 },
+        "max": { "type": "number", "default": 100 },
+        "unit": { "type": "string", "default": "" }
+      },
+      "minimalConfig": {
+        "data": {
+          "value": 78,
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "label": "Cluster Health",
+          "bands": [
+            { "from": 0, "to": 50, "color": "#ef4444" },
+            { "from": 50, "to": 80, "color": "#f59e0b" },
+            { "from": 80, "to": 100, "color": "#10b981" }
+          ]
+        },
+        "title": "SLO Attainment"
+      }
+    }
+  ]
+}

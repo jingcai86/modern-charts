@@ -30,7 +30,7 @@ import {
   SAMPLE_SANKEY_DATA,
   SAMPLE_SCATTER_DATA,
   SAMPLE_SUNBURST_DATA
-} from '../examples/sample-data';
+} from '../apps/sample-data';
 
 describe('modern-charts architecture & dependencies', () => {
   it('exports package version matching package.json and relies only on d3 and @chenglou/pretext', () => {

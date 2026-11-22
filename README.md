@@ -154,6 +154,17 @@ import 'modern-charts/core';     // BaseChart, engines & shared layers only
 
 ---
 
+## 🤖 AI Context & LLM Integration (`context/`)
+
+`modern-charts` ships dedicated machine-friendly documentation inside [`context/`](./context/README.md) (included in the npm package and published directly on GitHub Pages) so AI coding agents and LLM applications can generate valid chart configs without hallucinating props or data shapes:
+
+- **Concise Index (`llms.txt`)**: [`context/llms.txt`](./context/llms.txt) • [Live `llms.txt`](https://jingcai86.github.io/modern-charts/llms.txt)
+- **Full Single-File Reference**: [`context/llms-full.txt`](./context/llms-full.txt) • [Live `llms-full.txt`](https://jingcai86.github.io/modern-charts/llms-full.txt)
+- **Per-Chart Specs**: [`context/charts/*.md`](./context/charts/bar.md) (all 10 charts)
+- **JSON Schema Catalog**: `import schema from 'modern-charts/context/schema'` ([`context/charts.schema.json`](./context/charts.schema.json))
+
+---
+
 ## 🧩 Universal Sub-Component Architecture
 
 Every `modern-charts` component exposes programmatic and declarative access to its underlying layers:

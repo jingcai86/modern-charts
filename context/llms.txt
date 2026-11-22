@@ -1,0 +1,49 @@
+# modern-charts
+
+> Composable, framework-agnostic Web Component charting library inspired by Nivo and Apache ECharts, powered exclusively by `d3` and `@chenglou/pretext`. Zero framework lock-in: runs natively in Vanilla HTML, React, Vue, Svelte, Angular, and Solid via standard Custom Elements (`<mc-*-chart>`).
+
+## Quick Rules for AI Code Generation
+
+1. **Prefer per-chart subpath imports** for tree-shaking (41–46% smaller bundle):
+   `import 'modern-charts/bar';` (or `line`, `pie`, `heatmap`, `radar`, `sunburst`, `sankey`, `scatter`, `treemap`, `gauge`, `core`).
+   Use `import 'modern-charts';` only when rendering multiple unknown chart types or needing the full `d3` namespace on `ctx.d3`.
+2. **Always give the host element an explicit height** (or `config.height`), e.g. `<mc-bar-chart style="width: 100%; height: 400px;"></mc-bar-chart>`.
+3. **Configure everything via a single `chart.config = { ... }` object** (data, theme, scales, view/zoom, animation, markers, labels, ARIA, layers). Never mutate nested properties in place without reassigning `chart.config` or calling `chart.render()`.
+4. **Never invent unsupported layer names** — use only the exact `defaultLayers` listed per chart (plus custom layer functions `(ctx) => SVGElement | string | void` or `{ name, render }`).
+5. **Match the exact `data` shape** for the chosen chart (see matrix below and per-chart specs in `charts/*.md`).
+6. **Progressive AI streaming**: Call `chart.streamLayers()` (or append `<mc-chart-layer name="...">` children sequentially) to animate layers onto the canvas step-by-step during LLM streaming responses.
+
+## Chart Selection Matrix (All 10 Charts)
+
+| User Intent / Data Shape | Tag | Subpath Import | Data Type | Spec |
+| :--- | :--- | :--- | :--- | :--- |
+| Categorical comparison, grouped/stacked/diverging bars | `<mc-bar-chart>` | `modern-charts/bar` | `BarDatum[]` (`{ [indexBy]: string, [key]: number }[]`) | [charts/bar.md](./charts/bar.md) |
+| Time-series, trends, multi-series curves, stacked area | `<mc-line-chart>` | `modern-charts/line` | `LineSeries[]` (`{ id, color?, data: { x, y, label? }[] }[]`) | [charts/line.md](./charts/line.md) |
+| Part-to-whole proportions, donut KPI breakdown | `<mc-pie-chart>` | `modern-charts/pie` | `PieDatum[]` (`{ id, label?, value, color? }[]`) | [charts/pie.md](./charts/pie.md) |
+| 2D matrix intensity, correlation grid, calendar/schedule density | `<mc-heatmap-chart>` | `modern-charts/heatmap` | `HeatmapRow[]` (`{ id, data: { x, y }[] }[]`) | [charts/heatmap.md](./charts/heatmap.md) |
+| Multi-dimensional profile comparison across shared metrics | `<mc-radar-chart>` | `modern-charts/radar` | `RadarDatum[]` (`{ [indexBy]: string, [key]: number }[]`) | [charts/radar.md](./charts/radar.md) |
+| Multi-level radial hierarchy with interactive drilldown | `<mc-sunburst-chart>` | `modern-charts/sunburst` | `HierarchyNode` (`{ name, value?, color?, children? }`) | [charts/sunburst.md](./charts/sunburst.md) |
+| Directed flow volume between stages/nodes (DAG) | `<mc-sankey-chart>` | `modern-charts/sankey` | `SankeyData` (`{ nodes: { id, name?, color? }[], links: { source, target, value }[] }`) | [charts/sankey.md](./charts/sankey.md) |
+| Correlation, clusters, bubble plots, linear regression trendline | `<mc-scatter-chart>` | `modern-charts/scatter` | `ScatterSeries[]` (`{ id, color?, data: { x, y, size?, label? }[] }[]`) | [charts/scatter.md](./charts/scatter.md) |
+| Space-filling nested hierarchy proportional by area | `<mc-treemap-chart>` | `modern-charts/treemap` | `HierarchyNode` (`{ name, value?, color?, children? }`) | [charts/treemap.md](./charts/treemap.md) |
+| Single KPI progress / radial dial with target & colored bands | `<mc-gauge-chart>` | `modern-charts/gauge` | `GaugeDatum` (`{ value, min?, max?, label?, unit?, target?, bands? }`) | [charts/gauge.md](./charts/gauge.md) |
+
+## Core Documentation & Schemas
+
+- [README.md](./README.md): How AI agents and apps should consume `context/`
+- [architecture.md](./architecture.md): Universal `chart.config`, sub-components, themes, scales, markers/thresholds, `<mc-label>` Pretext engine, custom layers, ARIA, and AI streaming
+- [charts.schema.json](./charts.schema.json): Machine-readable JSON schema catalog of all 10 charts, config fields, attributes, layers, and sample payloads
+- [llms-full.txt](./llms-full.txt): Single-file complete reference for one-shot system prompt injection
+
+## Per-Chart Specs
+
+- [charts/bar.md](./charts/bar.md): Bar, grouped, stacked & horizontal charts
+- [charts/line.md](./charts/line.md): Line, area, curved & slice-hover charts
+- [charts/pie.md](./charts/pie.md): Pie & donut charts with arc & link labels
+- [charts/heatmap.md](./charts/heatmap.md): Matrix heatmaps with sequential color schemes
+- [charts/radar.md](./charts/radar.md): Spider / radar multi-metric comparison charts
+- [charts/sunburst.md](./charts/sunburst.md): Radial partition hierarchy with click drilldown
+- [charts/sankey.md](./charts/sankey.md): Flow diagrams with gradient links
+- [charts/scatter.md](./charts/scatter.md): Scatter, bubble & regression trendline charts
+- [charts/treemap.md](./charts/treemap.md): Squarified hierarchical treemaps
+- [charts/gauge.md](./charts/gauge.md): Radial KPI gauge dials with bands & needle

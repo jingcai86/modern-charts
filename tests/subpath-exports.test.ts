@@ -6,7 +6,7 @@ import {
   registerBarChart
 } from '../src/entries/bar';
 import { CORE_COMPONENT_REGISTRY } from '../src/core/registry';
-import { SAMPLE_BAR_DATA } from '../examples/sample-data';
+import { SAMPLE_BAR_DATA } from '../apps/sample-data';
 
 const ALL_CHART_SUBPATHS = [
   'bar',
@@ -125,7 +125,7 @@ describe('Per-chart standalone subpath exports & scoped registration (Issue #11)
     const { existsSync, resolvePath, cwd } = await loadNodeHelpers();
     const exportsMap = pkg.exports as Record<
       string,
-      { types: string; import: string }
+      string | { types: string; import: string }
     >;
 
     expect(exportsMap['.']).toEqual({
