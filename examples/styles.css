@@ -483,12 +483,28 @@ button.btn-primary:hover {
 /* ============================================================================
    INTERACTIVE ATTRIBUTES & CONFIG PROPERTIES CUSTOMIZER
    ============================================================================ */
+@media (min-width: 1101px) {
+  .attributes-panel-card {
+    height: 0;
+    min-height: 100%;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 1100px) {
+  .attributes-panel-card {
+    max-height: 560px;
+    overflow: hidden;
+  }
+}
+
 .attributes-section-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .attributes-filter-bar {
@@ -506,6 +522,29 @@ button.btn-primary:hover {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-focus) transparent;
+}
+
+.attributes-accordion-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.attributes-accordion-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.attributes-accordion-list::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 999px;
+}
+
+.attributes-accordion-list::-webkit-scrollbar-thumb:hover {
+  background: var(--border-focus);
 }
 
 .attr-category-accordion {
@@ -513,6 +552,7 @@ button.btn-primary:hover {
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   overflow: hidden;
+  flex-shrink: 0;
   transition: border-color 150ms ease;
 }
 
