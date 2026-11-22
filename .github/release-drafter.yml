@@ -1,29 +1,32 @@
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 categories:
-  - title: '🚀 New Features & Enhancements'
+  - title: '#### 💥 Breaking Changes'
+    labels:
+      - 'breaking'
+      - 'major'
+  - title: '#### 🚀 Features'
     labels:
       - 'feature'
       - 'enhancement'
-  - title: '🐛 Bug Fixes'
+  - title: '#### 🐛 Bug Fixes'
     labels:
       - 'bug'
       - 'fix'
-  - title: '♿ Accessibility (ARIA / a11y)'
+  - title: '#### ♿ Accessibility (ARIA / a11y)'
     labels:
       - 'a11y'
       - 'accessibility'
-  - title: '🎨 Theming & Styling'
+  - title: '#### 🎨 UI, Theme & Docs'
     labels:
       - 'theme'
       - 'ui'
-  - title: '📝 Documentation & Demos'
-    labels:
       - 'documentation'
       - 'docs'
-  - title: '⚙️ Tooling & Maintenance'
+  - title: '#### ⚙️ CI, Tooling & Dependencies'
     labels:
       - 'dependencies'
+      - 'ci'
       - 'chore'
 version-resolver:
   major:
@@ -41,8 +44,24 @@ version-resolver:
       - 'patch'
   default: patch
 template: |
-  ## What's Changed
+  ## modern-charts `v$RESOLVED_VERSION`
+
+  ### 📦 Installation
+
+  ```bash
+  npm install modern-charts@$RESOLVED_VERSION
+  ```
+
+  ### 🔗 Links
+  - **npm**: https://www.npmjs.com/package/modern-charts/v/$RESOLVED_VERSION
+  - **Live Demo & Catalog**: https://jingcai86.github.io/modern-charts/
+
+  ---
+
+  ### 📋 What's Changed
 
   $CHANGES
+
+  ---
 
   **Full Changelog**: https://github.com/jingcai86/modern-charts/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION

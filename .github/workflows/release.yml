@@ -112,13 +112,21 @@ jobs:
         if: ${{ inputs.dry_run == true }}
         run: npm publish --dry-run --access public --tag "${{ steps.meta.outputs.dist_tag }}"
 
+      - name: Generate standardized release notes
+        env:
+          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+          RELEASE_TAG: ${{ steps.meta.outputs.tag }}
+          RELEASE_DIST_TAG: ${{ steps.meta.outputs.dist_tag }}
+        run: node .github/scripts/generate-release-notes.mjs release-notes.md
+
       - name: Create GitHub Release
         if: ${{ inputs.dry_run != true }}
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
-          name: "modern-charts ${{ steps.meta.outputs.tag }}"
+          name: ${{ steps.meta.outputs.tag }}
+          body_path: release-notes.md
           files: ${{ steps.pack.outputs.tarball }}
-          generate_release_notes: true
+          generate_release_notes: false
           draft: false
           prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
