@@ -21,6 +21,7 @@ let activeDetailEntry: ChartCatalogEntry | null = null;
 let activeGuideId: GuideId | null = null;
 
 // Primary Navigation Popover Dropdown
+const siteNav = document.querySelector('.site-nav') as HTMLElement | null;
 const navTrigger = document.getElementById(
   'nav-pages-trigger'
 ) as HTMLButtonElement | null;
@@ -64,7 +65,18 @@ if (navTrigger && navMenu) {
   });
 }
 
-function syncTopNavActiveState(activeKey: string): void {
+function syncTopNavActiveState(activeKey: string, showDropdown: boolean): void {
+  if (siteNav) {
+    siteNav.hidden = !showDropdown;
+  }
+  if (!showDropdown && navMenu && typeof navMenu.hidePopover === 'function') {
+    try {
+      navMenu.hidePopover();
+    } catch {
+      // ignore if already closed
+    }
+  }
+
   let activeLabel = '⊞ All Charts';
   document
     .querySelectorAll<HTMLAnchorElement>('#studio-pages-menu [data-nav-route]')
@@ -98,7 +110,7 @@ function handleRoute(): void {
     activeOverviewCharts = [];
     activeGuideId = resolvedId;
     renderGuidePage(root, resolvedId, getGlobalThemeMode());
-    syncTopNavActiveState(`guide:${resolvedId}`);
+    syncTopNavActiveState(`guide:${resolvedId}`, true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
@@ -112,7 +124,7 @@ function handleRoute(): void {
       activeOverviewCharts = [];
       activeDetailEntry = entry;
       activeDetailChart = renderChartDetailPage(root, entry);
-      syncTopNavActiveState('overview');
+      syncTopNavActiveState('overview', true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -122,7 +134,7 @@ function handleRoute(): void {
   activeDetailEntry = null;
   activeGuideId = null;
   activeOverviewCharts = renderOverviewPage(root);
-  syncTopNavActiveState('overview');
+  syncTopNavActiveState('overview', false);
 }
 
 window.addEventListener('hashchange', handleRoute);
