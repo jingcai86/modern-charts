@@ -16,9 +16,11 @@ import {
   MCTreemapChart,
   MCGaugeChart,
   MCLabelElement,
+  MCTooltipElement,
   MCAnimationLayer,
   MCAriaLayer,
-  MCMarkerLayer
+  MCMarkerLayer,
+  type TooltipPayload
 } from '../src/index';
 import {
   SAMPLE_BAR_DATA,
@@ -30,7 +32,7 @@ import {
   SAMPLE_SANKEY_DATA,
   SAMPLE_SCATTER_DATA,
   SAMPLE_SUNBURST_DATA
-} from '../apps/sample-data';
+} from '../apps/studio/sample-data';
 
 describe('modern-charts architecture & dependencies', () => {
   it('exports package version matching package.json and relies only on d3 and @chenglou/pretext', () => {
@@ -44,6 +46,7 @@ describe('modern-charts architecture & dependencies', () => {
   it('registers all chart, layer, animation, aria, marker, presentation item, and label Web Components in customElements', () => {
     const expectedTags = [
       'mc-label',
+      'mc-tooltip',
       'mc-theme-layer',
       'mc-scale-layer',
       'mc-view-layer',
@@ -861,9 +864,11 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
     underBar!.dispatchEvent(
       new MouseEvent('mouseenter', { bubbles: true, clientX: 120, clientY: 220 })
     );
-    const barTooltip = bar.shadowRoot?.querySelector('.mc-tooltip') as HTMLElement;
+    const barTooltip = bar.shadowRoot?.querySelector(
+      '.mc-tooltip'
+    ) as MCTooltipElement;
     expect(barTooltip.hidden).toBe(false);
-    expect(barTooltip.innerHTML).toContain('Under Threshold');
+    expect(barTooltip.renderedHtml).toContain('Under Threshold');
 
     // 2. Line Chart: markers layer placed above points & slices
     const line = document.createElement('mc-line-chart') as MCLineChart;
@@ -1361,6 +1366,201 @@ describe('Bar Outer & Stack-Summary Labels (Issue #21)', () => {
   });
 });
 
+describe('Unified <mc-tooltip> Web Component (Issue #30)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('mounts strictly one reusable <mc-tooltip> per chart across all 10 charts with CSS exportparts', () => {
+    const charts: Array<{ tag: string; config: any; hoverSelector: string }> = [
+      {
+        tag: 'mc-bar-chart',
+        config: { data: SAMPLE_BAR_DATA, indexBy: 'quarter', keys: ['Cloud', 'Edge'], width: 500, height: 320 },
+        hoverSelector: '.mc-bar-rect'
+      },
+      {
+        tag: 'mc-line-chart',
+        config: { data: SAMPLE_LINE_DATA, enableSlices: false, width: 500, height: 320 },
+        hoverSelector: '.mc-line-point'
+      },
+      {
+        tag: 'mc-pie-chart',
+        config: { data: SAMPLE_PIE_DATA, width: 500, height: 320 },
+        hoverSelector: '.mc-pie-arc'
+      },
+      {
+        tag: 'mc-heatmap-chart',
+        config: { data: SAMPLE_HEATMAP_DATA, width: 500, height: 320 },
+        hoverSelector: '.mc-heatmap-cell'
+      },
+      {
+        tag: 'mc-radar-chart',
+        config: { data: SAMPLE_RADAR_DATA, indexBy: 'metric', keys: ['ModelA', 'ModelB'], width: 500, height: 320 },
+        hoverSelector: '.mc-radar-dot'
+      },
+      {
+        tag: 'mc-sunburst-chart',
+        config: { data: SAMPLE_SUNBURST_DATA, width: 500, height: 320 },
+        hoverSelector: '.mc-sunburst-arc'
+      },
+      {
+        tag: 'mc-sankey-chart',
+        config: { data: SAMPLE_SANKEY_DATA, width: 500, height: 320 },
+        hoverSelector: '.mc-sankey-node'
+      },
+      {
+        tag: 'mc-scatter-chart',
+        config: { data: SAMPLE_SCATTER_DATA, width: 500, height: 320 },
+        hoverSelector: '.mc-scatter-node'
+      },
+      {
+        tag: 'mc-treemap-chart',
+        config: { data: SAMPLE_SUNBURST_DATA, width: 500, height: 320 },
+        hoverSelector: '.mc-treemap-tile'
+      },
+      {
+        tag: 'mc-gauge-chart',
+        config: { data: SAMPLE_GAUGE_DATA, width: 500, height: 320 },
+        hoverSelector: '.mc-gauge-value-arc'
+      }
+    ];
+
+    for (const c of charts) {
+      const el = document.createElement(c.tag) as any;
+      document.body.appendChild(el);
+      el.config = c.config;
+
+      // Strictly ONE <mc-tooltip> element per chart
+      const tooltipNodes = el.shadowRoot?.querySelectorAll('mc-tooltip') ?? [];
+      expect(tooltipNodes.length).toBe(1);
+
+      const tip = tooltipNodes[0] as MCTooltipElement;
+      const exportparts = tip.getAttribute('exportparts') ?? '';
+      expect(exportparts).toContain('tooltip');
+      expect(exportparts).toContain('header: tooltip-header');
+      expect(exportparts).toContain('body: tooltip-body');
+      expect(exportparts).toContain('row: tooltip-row');
+      expect(exportparts).toContain('swatch: tooltip-swatch');
+      expect(exportparts).toContain('value: tooltip-value');
+      expect(exportparts).toContain('badge: tooltip-badge');
+
+      // Hovering item populates the SAME singleton <mc-tooltip> with structured payload
+      const items = el.shadowRoot?.querySelectorAll(c.hoverSelector) ?? [];
+      expect(items.length).toBeGreaterThan(0);
+      items[0].dispatchEvent(
+        new MouseEvent('mouseenter', { bubbles: true, clientX: 180, clientY: 140 })
+      );
+      expect(tip.hidden).toBe(false);
+      expect(tip.lastPayload?.chartType).toBe(el.chartType);
+      expect(tip.lastPayload?.datum).toBeDefined();
+      expect(tip.lastPayload?.data).toBe(c.config.data);
+
+      // Hovering a second item (when present) reuses the exact same <mc-tooltip> instance
+      if (items.length > 1) {
+        items[1].dispatchEvent(
+          new MouseEvent('mouseenter', { bubbles: true, clientX: 220, clientY: 160 })
+        );
+        expect(el.shadowRoot?.querySelectorAll('mc-tooltip').length).toBe(1);
+        expect(el.getTooltipElement()).toBe(tip);
+      }
+
+      items[0].dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      expect(tip.hidden).toBe(true);
+    }
+  });
+
+  it('passes full structured data to tooltip.renderer, tooltip.formatter, declarative <mc-tooltip>, and mc-tooltip-show events', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    let receivedPayload: TooltipPayload | null = null;
+    let eventPayload: TooltipPayload | null = null;
+    bar.addEventListener('mc-tooltip-show', (e: Event) => {
+      eventPayload = (e as CustomEvent).detail;
+    });
+
+    bar.config = {
+      data: [
+        { quarter: 'Q1', Cloud: 142, Edge: 94 },
+        { quarter: 'Q2', Cloud: 168, Edge: 118 }
+      ],
+      width: 600,
+      height: 360,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      tooltip: {
+        offsetX: 20,
+        offsetY: 12,
+        renderer: (payload, defaultRender) => {
+          receivedPayload = payload;
+          const wrap = document.createElement('div');
+          wrap.className = 'custom-tip-card';
+          wrap.appendChild(defaultRender());
+          const extra = document.createElement('span');
+          extra.className = 'custom-tip-extra';
+          extra.textContent = `Custom:${payload.category}:${payload.seriesId}:${payload.value}`;
+          wrap.appendChild(extra);
+          return wrap;
+        }
+      }
+    };
+
+    const firstBar = bar.shadowRoot?.querySelector('.mc-bar-rect')!;
+    firstBar.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 150, clientY: 150 })
+    );
+
+    const tip = bar.getTooltipElement()!;
+    expect(tip.hidden).toBe(false);
+    const p = receivedPayload as TooltipPayload | null;
+    const ep = eventPayload as TooltipPayload | null;
+    expect(p?.chartType).toBe('bar');
+    expect(p?.category).toBe('Q1');
+    expect(p?.seriesId).toBe('Cloud');
+    expect(p?.value).toBe(142);
+    expect(p?.datum).toMatchObject({ quarter: 'Q1', Cloud: 142 });
+    expect(ep?.value).toBe(142);
+    expect(tip.shadowRoot?.querySelector('.custom-tip-extra')?.textContent).toBe(
+      'Custom:Q1:Cloud:142'
+    );
+
+    // tooltip: false suppresses tooltip display
+    bar.config = { ...bar.config, tooltip: false };
+    bar.shadowRoot
+      ?.querySelector('.mc-bar-rect')
+      ?.dispatchEvent(
+        new MouseEvent('mouseenter', { bubbles: true, clientX: 150, clientY: 150 })
+      );
+    expect(bar.getTooltipElement()?.hidden).toBe(true);
+
+    // Declarative <mc-tooltip> child with <template> escapes HTML safely
+    const pie = document.createElement('mc-pie-chart') as MCPieChart;
+    const declTip = document.createElement('mc-tooltip') as MCTooltipElement;
+    const tpl = document.createElement('template');
+    tpl.innerHTML = '<div>{{title}} | {{value}} | {{datum.owner}}</div>';
+    declTip.appendChild(tpl);
+    pie.appendChild(declTip);
+    document.body.appendChild(pie);
+
+    pie.config = {
+      data: [
+        { id: 'A', label: 'Alpha', value: 100, owner: '<script>xss</script>' } as any,
+        { id: 'B', label: 'Beta', value: 300, owner: 'Platform' } as any
+      ],
+      width: 500,
+      height: 320
+    };
+    const slice = pie.shadowRoot?.querySelector('.mc-pie-arc')!;
+    slice.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 160, clientY: 160 })
+    );
+    const pieTip = pie.getTooltipElement()!;
+    expect(pieTip.hidden).toBe(false);
+    expect(pieTip.renderedHtml).toContain('Alpha | 100 | &lt;script&gt;xss&lt;/script&gt;');
+    expect(pieTip.shadowRoot?.querySelector('script')).toBeNull();
+  });
+});
+
 describe('Partial / Split Threshold Styling — Option B Semantic <g> ARIA Host + Clipped Shapes (Issue #18)', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -1462,9 +1662,9 @@ describe('Partial / Split Threshold Styling — Option B Semantic <g> ARIA Host 
     q2?.dispatchEvent(
       new MouseEvent('mouseenter', { bubbles: true, clientX: 200, clientY: 160 })
     );
-    const tooltip = bar.shadowRoot?.querySelector('.mc-tooltip') as HTMLElement;
+    const tooltip = bar.shadowRoot?.querySelector('.mc-tooltip') as MCTooltipElement;
     expect(tooltip.hidden).toBe(false);
-    expect(tooltip.innerHTML).toContain('Crosses Threshold');
+    expect(tooltip.renderedHtml).toContain('Crosses Threshold');
 
     // Switching matchScope to 'item' falls back to whole-bar single <rect> restyling
     bar.config = {

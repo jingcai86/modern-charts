@@ -135,16 +135,38 @@ export function renderLineSlicesLayer(
       crosshair.setAttribute('x2', String(pt.px));
       crosshair.style.opacity = '0.75';
 
-      const rows = model.series
+      const items = model.series
         .map((s) => {
           const p = s.points[idx];
-          if (!p) return '';
-          const warn = p.threshold.isUnderThreshold ? ' ⚠' : '';
-          return `<div style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:${p.color};display:inline-block;"></span><span>${s.id}:</span><b>${p.yValue}${warn}</b></div>`;
+          if (!p) return null;
+          return {
+            id: s.id,
+            label: s.id,
+            value: p.yValue,
+            formattedValue: String(p.yValue),
+            color: p.color,
+            badge: p.threshold.isUnderThreshold ? '⚠' : undefined,
+            datum: {
+              seriesId: s.id,
+              x: p.xValue,
+              y: p.yValue,
+              isUnderThreshold: p.threshold.isUnderThreshold,
+              ...p.raw
+            }
+          };
         })
-        .join('');
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
       ctx.showTooltip(
-        `<div style="font-weight:700;margin-bottom:4px;">${pt.xValue}</div>${rows}`,
+        {
+          title: String(pt.xValue),
+          category: String(pt.xValue),
+          items,
+          datum: {
+            x: pt.xValue,
+            points: items.map((it) => it.datum)
+          }
+        },
         (e as MouseEvent).clientX,
         (e as MouseEvent).clientY
       );

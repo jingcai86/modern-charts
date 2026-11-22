@@ -179,6 +179,16 @@ interface SharedChartConfig<TData> {
   label?: Partial<LabelStyleOverride> | Partial<LabelStyleOverride>[];
   labelRenderer?: CustomLabelRenderer;
 
+  // Unified Tooltip (<mc-tooltip> — one reusable instance per chart)
+  tooltip?: boolean | {
+    enabled?: boolean;
+    offsetX?: number;
+    offsetY?: number;
+    className?: string;
+    formatter?: (payload: TooltipPayload) => string | null | undefined;
+    renderer?: (payload: TooltipPayload, defaultRender: () => HTMLElement) => HTMLElement | DocumentFragment | string | null | undefined;
+  };
+
   // W3C ARIA Accessibility (<mc-aria-layer> / <mc-aria>)
   role?: string;
   ariaLabel?: string;
@@ -315,12 +325,23 @@ chart.appendChild(layer);
 
 ---
 
-## 7. Key Methods & Events
+## 7. Unified Tooltip (`<mc-tooltip>`) & CSS `::part()` Styling
+
+Every chart owns strictly **one** `<mc-tooltip>` instance inside its Shadow DOM (reused in-place on pointer hover/move) and passes a structured `TooltipPayload` (`chartType`, `title`, `label`, `seriesId`, `category`, `value`, `formattedValue`, `color`, `percentage`, `badge`, `items[]`, `threshold`, `datum`, `data`).
+
+- **Customize via `chart.config.tooltip`**: `{ enabled, offsetX, offsetY, formatter, renderer }`.
+- **Customize declaratively**: `<mc-tooltip offset-x="16"><template>{{title}}: {{value}}</template></mc-tooltip>`.
+- **Style via CSS `::part()`**: `::part(tooltip)`, `::part(tooltip-header)`, `::part(tooltip-body)`, `::part(tooltip-row)`, `::part(tooltip-swatch)`, `::part(tooltip-label)`, `::part(tooltip-value)`, `::part(tooltip-badge)`.
+
+---
+
+## 8. Key Methods & Events
 
 - `chart.render()` — Re-renders immediately.
 - `chart.resize(width?, height?)` — Explicitly updates dimensions (especially when `autoSize: false`).
 - `chart.streamLayers(delayMs?)` — Streams layers progressively, firing `mc-layer-stream` per layer and `mc-stream-complete` on finish.
-- Events: `mc-rendered`, `mc-zoom`, `mc-aria-focus`, `mc-aria-activate`, `mc-layer-stream`, `mc-stream-complete`.
+- `chart.getTooltipElement()` — Returns the chart's singleton `<mc-tooltip>` instance.
+- Events: `mc-rendered`, `mc-zoom`, `mc-aria-focus`, `mc-aria-activate`, `mc-tooltip-show`, `mc-tooltip-hide`, `mc-layer-stream`, `mc-stream-complete`.
 
 ---
 

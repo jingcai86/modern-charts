@@ -6,7 +6,7 @@ import {
   registerBarChart
 } from '../src/entries/bar';
 import { CORE_COMPONENT_REGISTRY } from '../src/core/registry';
-import { SAMPLE_BAR_DATA } from '../apps/sample-data';
+import { SAMPLE_BAR_DATA } from '../apps/studio/sample-data';
 
 const ALL_CHART_SUBPATHS = [
   'bar',

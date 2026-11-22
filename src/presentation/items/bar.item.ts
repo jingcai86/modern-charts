@@ -245,18 +245,32 @@ export function renderBarItem(
 
   hostEl.addEventListener('mouseenter', (e) => {
     hostEl.style.filter = 'brightness(1.1)';
-    const threshBadge =
+    const badge =
       ariaThresholdCoverage === 'partial'
-        ? `<br/><span style="color:#fda4af;font-weight:600;">⚡ Crosses Threshold (${thresholdIds.join(
-            ', '
-          )})</span>`
+        ? `⚡ Crosses Threshold (${thresholdIds.join(', ')})`
         : b.threshold.isUnderThreshold
-        ? `<br/><span style="color:#fda4af;font-weight:600;">⚠ Under Threshold (${thresholdIds.join(
-            ', '
-          )})</span>`
-        : '';
+        ? `⚠ Under Threshold (${thresholdIds.join(', ')})`
+        : undefined;
     ctx.showTooltip(
-      `<strong>${b.indexValue}</strong><br/>${b.key}: <b>${b.value}</b>${threshBadge}`,
+      {
+        title: b.indexValue,
+        label: b.key,
+        seriesId: b.key,
+        category: b.indexValue,
+        value: b.value,
+        formattedValue: String(b.value),
+        color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
+        badge,
+        threshold: b.threshold,
+        datum: {
+          key: b.key,
+          indexValue: b.indexValue,
+          value: b.value,
+          thresholdCoverage: ariaThresholdCoverage,
+          matchedMarkerIds: thresholdIds,
+          ...b.datum
+        }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );

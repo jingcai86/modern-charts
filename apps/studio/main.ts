@@ -6,7 +6,7 @@ import {
   type MarkerLabelPosition,
   type MarkerMatchScope,
   type ThemeModePreference
-} from '../src/index';
+} from '../../src/index';
 import {
   CHART_CATALOG,
   COMMON_ATTRIBUTES,

@@ -8,7 +8,7 @@ import type {
   RadarDatum,
   SankeyData,
   ScatterSeries
-} from '../src/index';
+} from '../../src/index';
 
 export const SAMPLE_LINE_DATA: LineSeries[] = [
   {

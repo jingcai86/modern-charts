@@ -543,6 +543,71 @@ export interface BarOuterLabelConfig {
   renderer?: CustomLabelRenderer;
 }
 
+export interface TooltipItemEntry {
+  id?: string;
+  label: string;
+  value: number | string;
+  formattedValue?: string;
+  color?: string;
+  percentage?: number;
+  badge?: string;
+  datum?: Record<string, any>;
+}
+
+/**
+ * Unified structured payload passed to `<mc-tooltip>` and client
+ * `tooltip.formatter` / `tooltip.renderer` callbacks across all 10 charts.
+ */
+export interface TooltipPayload<TDatum = any> {
+  chartType: string;
+  title?: string;
+  label?: string;
+  seriesId?: string;
+  category?: string;
+  value?: number | string;
+  formattedValue?: string;
+  color?: string;
+  percentage?: number;
+  badge?: string;
+  items?: TooltipItemEntry[];
+  datum?: TDatum;
+  data?: unknown;
+  threshold?: ThresholdEvaluationResult;
+  clientX: number;
+  clientY: number;
+  defaultHtml?: string;
+}
+
+export type TooltipInput<TDatum = any> =
+  | string
+  | Omit<TooltipPayload<TDatum>, 'chartType' | 'clientX' | 'clientY' | 'data'>;
+
+export type TooltipRenderer<TDatum = any> = (
+  payload: TooltipPayload<TDatum>,
+  defaultRender: () => HTMLElement
+) => HTMLElement | DocumentFragment | string | null | undefined;
+
+export interface TooltipConfig<TDatum = any> {
+  /** Enable or disable the unified chart tooltip. Default `true`. */
+  enabled?: boolean;
+  /** Horizontal pixel offset from pointer. Default `14`. */
+  offsetX?: number;
+  /** Vertical pixel offset from pointer. Default `14`. */
+  offsetY?: number;
+  /** Optional custom CSS class added to `<mc-tooltip>`. */
+  className?: string;
+  /** Custom formatter returning an HTML/text string (or null to hide). */
+  formatter?: (payload: TooltipPayload<TDatum>) => string | null | undefined;
+  /**
+   * Full custom renderer returning an `HTMLElement`, `DocumentFragment`,
+   * HTML string, or `null` (to suppress). Receives `defaultRender()` to
+   * wrap or extend the default structured tooltip DOM.
+   */
+  renderer?: TooltipRenderer<TDatum>;
+  /** Optional declarative HTML template string (populated from `<mc-tooltip><template>...</template></mc-tooltip>`). */
+  templateHtml?: string;
+}
+
 /**
  * Single unified Nivo-style chart configuration object (`chart.config = { ... }`).
  * Underneath, the chart maps this single config onto its composable sub-components:
@@ -588,6 +653,9 @@ export interface ChartConfig<TData = any> {
   labelMode?: LabelRenderMode;
   labelRenderer?: CustomLabelRenderer;
   enableLabels?: boolean;
+
+  // Unified <mc-tooltip> config (one singleton <mc-tooltip> per chart)
+  tooltip?: boolean | TooltipConfig<any>;
 
   // Universal <mc-aria-layer> config + Nivo-style ARIA shorthands
   role?: string;
@@ -690,7 +758,11 @@ export interface ChartRenderContext<TData = unknown> {
     axis?: 'x' | 'y',
     defaultColor?: string
   ) => ThresholdEvaluationResult;
-  showTooltip: (html: string, clientX: number, clientY: number) => void;
+  showTooltip: (
+    content: TooltipInput,
+    clientX: number,
+    clientY: number
+  ) => void;
   hideTooltip: () => void;
   state: Record<string, any>;
 }

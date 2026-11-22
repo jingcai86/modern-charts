@@ -70,7 +70,22 @@ export function renderHeatmapCellItem(
   node.addEventListener('mouseenter', (e) => {
     node.style.filter = 'brightness(1.12)';
     ctx.showTooltip(
-      `<strong>${cell.rowId} × ${cell.colId}</strong><br/>Value: <b>${cell.value}</b>`,
+      {
+        title: `${cell.rowId} × ${cell.colId}`,
+        label: 'Value',
+        seriesId: cell.rowId,
+        category: cell.colId,
+        value: cell.value,
+        formattedValue: String(cell.value),
+        color: cell.color,
+        datum: {
+          rowId: cell.rowId,
+          colId: cell.colId,
+          x: cell.colId,
+          y: cell.value,
+          value: cell.value
+        }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );
@@ -130,9 +145,19 @@ export function renderTreemapTileItem(
   rect.addEventListener('mouseenter', (e) => {
     rect.style.filter = 'brightness(1.1)';
     ctx.showTooltip(
-      `<strong>${leaf.category} › ${leaf.name}</strong><br/>Value: <b>${format(
-        ','
-      )(leaf.value)}</b>`,
+      {
+        title: `${leaf.category} › ${leaf.name}`,
+        label: 'Value',
+        category: leaf.category,
+        value: leaf.value,
+        formattedValue: format(',')(leaf.value),
+        color: leaf.color,
+        datum: {
+          name: leaf.name,
+          category: leaf.category,
+          value: leaf.value
+        }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );

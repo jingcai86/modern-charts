@@ -15,6 +15,7 @@ export * from '../core/base-chart';
 
 // Capability Layer Web Components
 export * from '../components/mc-label';
+export * from '../components/mc-tooltip';
 export * from '../components/mc-animation';
 export * from '../components/mc-aria';
 export * from '../components/mc-marker';
