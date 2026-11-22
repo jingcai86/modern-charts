@@ -1,4 +1,4 @@
-name: Bump Version (Manual)
+name: Bump Version & Prepare Release PR
 
 on:
   workflow_dispatch:
@@ -109,7 +109,7 @@ jobs:
           git push -u origin "${BRANCH}" --force
 
           EXISTING_PR=$(gh pr list --head "${BRANCH}" --base main --state open --json number --jq '.[0].number')
-          PR_BODY=$(printf "Bumps \`modern-charts\` from \`%s\` to \`%s\` (npm dist-tag: \`%s\`).\n\nMerging this PR into \`main\` automatically runs **Publish to npm & Pages (Auto)**, creates tag \`%s\`, publishes to npm via OIDC, creates the GitHub Release, and deploys GitHub Pages.\n\n---\n\n%s" \
+          PR_BODY=$(printf "Bumps \`modern-charts\` from \`%s\` to \`%s\` (npm dist-tag: \`%s\`).\n\nMerging this PR into \`main\` automatically runs **Publish to npm & Pages (follows package.json)**, creates tag \`%s\`, publishes to npm via OIDC, creates the GitHub Release, and deploys GitHub Pages.\n\n---\n\n%s" \
             "${{ steps.ver.outputs.current_version }}" \
             "${VERSION}" \
             "${{ steps.ver.outputs.dist_tag }}" \
