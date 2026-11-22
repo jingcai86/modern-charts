@@ -1547,7 +1547,7 @@ chart.config = {
       indexBy: 'dept',
       keys: ['Spend'],
       borderRadius: 6,
-      margin: { top: 44, right: 24, bottom: 72, left: 50 },
+      margin: { top: 44, right: 24, bottom: 88, left: 50 },
       label: {
         target: 'axis-tick',
         maxWidth: tickMaxWidth,
