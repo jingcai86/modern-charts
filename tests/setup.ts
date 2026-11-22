@@ -32,7 +32,7 @@ function createMockCanvasContext() {
 
 if (typeof HTMLCanvasElement !== 'undefined') {
   const origGetContext = HTMLCanvasElement.prototype.getContext;
-  HTMLCanvasElement.prototype.getContext = function (contextId: string, ...args: any[]) {
+  HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, contextId: string, ...args: any[]) {
     if (contextId === '2d') {
       return createMockCanvasContext() as any;
     }
