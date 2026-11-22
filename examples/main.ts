@@ -295,15 +295,54 @@ function extractChartConfigJson(markup: string): string | null {
 
 function extractTagAttributes(markup: string, tagName: string): Record<string, string> {
   const attrs: Record<string, string> = {};
-  try {
-    const doc = new DOMParser().parseFromString(markup, 'text/html');
-    const el = doc.querySelector(tagName);
-    if (!el) return attrs;
-    for (const attr of Array.from(el.attributes)) {
-      attrs[attr.name.toLowerCase()] = attr.value;
+  const lower = markup.toLowerCase();
+  const openToken = `<${tagName.toLowerCase()}`;
+  let idx = lower.indexOf(openToken);
+  while (idx !== -1) {
+    const nextCh = lower[idx + openToken.length];
+    if (!nextCh || /\s|>|\//.test(nextCh)) {
+      break;
     }
-  } catch {
-    // Ignore incomplete HTML while typing
+    idx = lower.indexOf(openToken, idx + openToken.length);
+  }
+  if (idx === -1) return attrs;
+
+  let i = idx + openToken.length;
+  const len = markup.length;
+  while (i < len) {
+    while (i < len && /\s/.test(markup[i])) i++;
+    if (i >= len || markup[i] === '>' || markup[i] === '/') break;
+
+    const nameStart = i;
+    while (i < len && !/[\s=/>]/.test(markup[i])) i++;
+    const name = markup.slice(nameStart, i).toLowerCase();
+    if (!name) break;
+
+    while (i < len && /\s/.test(markup[i])) i++;
+    if (markup[i] !== '=') {
+      if (!isUnsafePathKey(name)) attrs[name] = 'true';
+      continue;
+    }
+    i++;
+    while (i < len && /\s/.test(markup[i])) i++;
+
+    let val = '';
+    const quote = markup[i];
+    if (quote === '"' || quote === "'") {
+      i++;
+      const valStart = i;
+      while (i < len && markup[i] !== quote) i++;
+      val = markup.slice(valStart, i);
+      if (i < len) i++;
+    } else {
+      const valStart = i;
+      while (i < len && !/[\s>]/.test(markup[i])) i++;
+      val = markup.slice(valStart, i);
+    }
+
+    if (!isUnsafePathKey(name)) {
+      attrs[name] = val;
+    }
   }
   return attrs;
 }
