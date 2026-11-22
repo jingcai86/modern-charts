@@ -279,6 +279,10 @@ export class MarkerEngine {
     const markers = ctx.markers ?? [];
     if (markers.length === 0) return;
 
+    // Ensure the markers layer never intercepts hover/pointer events meant for underlying chart items
+    ctx.layerGroup.setAttribute('pointer-events', 'none');
+    ctx.layerGroup.style.pointerEvents = 'none';
+
     markers.forEach((marker) => {
       const itemG = document.createElementNS(SVG_NS, 'g');
       itemG.setAttribute(
@@ -287,6 +291,8 @@ export class MarkerEngine {
       );
       itemG.setAttribute('data-marker-id', marker.id);
       itemG.setAttribute('data-marker-type', marker.type);
+      itemG.setAttribute('pointer-events', 'none');
+      itemG.style.pointerEvents = 'none';
 
       if (marker.type === 'area') {
         const p0 = marker.pixelFrom ?? 0;
@@ -296,6 +302,8 @@ export class MarkerEngine {
 
         const rect = document.createElementNS(SVG_NS, 'rect');
         rect.setAttribute('class', 'mc-marker-area');
+        rect.setAttribute('pointer-events', 'none');
+        rect.style.pointerEvents = 'none';
         if (marker.axis === 'x') {
           rect.setAttribute('x', String(minP));
           rect.setAttribute('y', '0');
@@ -338,7 +346,7 @@ export class MarkerEngine {
               ? 16 + (marker.labelOffsetY ?? 0)
               : minP + 14 + (marker.labelOffsetY ?? 0);
 
-          ctx.renderLabel(itemG, {
+        const areaLabel = ctx.renderLabel(itemG, {
             id: `marker-label-${marker.id}`,
             text: marker.label,
             x: lx,
@@ -358,11 +366,17 @@ export class MarkerEngine {
             icon: marker.icon,
             datum: marker
           });
+          if (areaLabel) {
+            areaLabel.setAttribute('pointer-events', 'none');
+            areaLabel.style.pointerEvents = 'none';
+          }
         }
       } else {
         const posPx = marker.pixelPos ?? 0;
         const line = document.createElementNS(SVG_NS, 'line');
         line.setAttribute('class', 'mc-marker-line');
+        line.setAttribute('pointer-events', 'none');
+        line.style.pointerEvents = 'none';
 
         if (marker.axis === 'x') {
           line.setAttribute('x1', String(posPx));
@@ -400,7 +414,7 @@ export class MarkerEngine {
               ? 16 + (marker.labelOffsetY ?? 0)
               : posPx - 12 + (marker.labelOffsetY ?? 0);
 
-          ctx.renderLabel(itemG, {
+          const lineLabel = ctx.renderLabel(itemG, {
             id: `marker-label-${marker.id}`,
             text: marker.label,
             x: lx,
@@ -421,6 +435,10 @@ export class MarkerEngine {
             icon: marker.icon,
             datum: marker
           });
+          if (lineLabel) {
+            lineLabel.setAttribute('pointer-events', 'none');
+            lineLabel.style.pointerEvents = 'none';
+          }
         }
       }
 
