@@ -638,6 +638,13 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
       layout: 'vertical',
       borderRadius: 5,
       enableLabels: true,
+      outerLabels: {
+        enabled: true,
+        scope: 'auto',
+        position: 'auto',
+        negativePosition: 'outside-bottom',
+        padding: 8
+      },
       xTitle: 'Quarter',
       yTitle: 'Spend ($K)',
       themeMode,
@@ -721,8 +728,67 @@ export const CHART_CATALOG: ChartCatalogEntry[] = [
         category: 'Chart-Specific',
         control: 'boolean',
         description:
-          'Renders Pretext-measured value labels inside or above each bar.',
+          'Renders Pretext-measured value labels centered inside each bar (coexists with Outer / Summary Labels).',
         defaultValue: true
+      },
+      {
+        configPath: 'outerLabels.enabled',
+        attrName: 'enable-outer-labels',
+        category: 'Chart-Specific',
+        control: 'boolean',
+        description:
+          'Renders outer labels above positive bars/stacks (e.g. stacked totals) and below negative bars.',
+        defaultValue: true
+      },
+      {
+        configPath: 'outerLabels.scope',
+        attrName: 'outer-label-scope',
+        category: 'Chart-Specific',
+        control: 'select',
+        options: [
+          { label: 'auto (stack totals when stacked, per-bar when grouped)', value: 'auto' },
+          { label: 'stack (one summary label per category stack)', value: 'stack' },
+          { label: 'bar (one outer label per individual bar)', value: 'bar' }
+        ],
+        description: 'Granularity of outer bar labels.',
+        defaultValue: 'auto'
+      },
+      {
+        configPath: 'outerLabels.position',
+        attrName: 'outer-label-position',
+        category: 'Chart-Specific',
+        control: 'select',
+        options: [
+          { label: 'auto (top for positive, negativePosition for negative)', value: 'auto' },
+          { label: 'top (above bar / right in horizontal)', value: 'top' },
+          { label: 'bottom (below bar / left in horizontal)', value: 'bottom' }
+        ],
+        description: 'Placement for positive bar/stack outer labels.',
+        defaultValue: 'auto'
+      },
+      {
+        configPath: 'outerLabels.negativePosition',
+        attrName: 'negative-label-position',
+        category: 'Chart-Specific',
+        control: 'select',
+        options: [
+          { label: 'outside-bottom (just below negative bar)', value: 'outside-bottom' },
+          { label: 'chart-bottom (aligned along bottom of chart)', value: 'chart-bottom' },
+          { label: 'above-zero (just above zero baseline)', value: 'above-zero' }
+        ],
+        description: 'Placement for negative bar/stack outer labels.',
+        defaultValue: 'outside-bottom'
+      },
+      {
+        configPath: 'outerLabels.padding',
+        attrName: 'outer-label-padding',
+        category: 'Chart-Specific',
+        control: 'range',
+        min: 0,
+        max: 32,
+        step: 1,
+        description: 'Pixel padding away from the bar edge (or chart bottom).',
+        defaultValue: 8
       },
       {
         configPath: 'xScale.padding',

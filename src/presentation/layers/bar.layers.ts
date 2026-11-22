@@ -1,7 +1,17 @@
 import { renderLegendLayer } from '../../core/scale-manager';
-import type { BarDatum, ChartRenderContext } from '../../core/types';
+import type {
+  BarDatum,
+  BarOuterLabelDatum,
+  ChartRenderContext
+} from '../../core/types';
 import type { BarChartModel } from '../../models/bar.model';
 import { renderBarItem } from '../items/bar.item';
+
+function formatNumericValue(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  if (Number.isInteger(value)) return String(value);
+  return String(Math.round(value * 100) / 100);
+}
 
 /**
  * Dumb Presentation Layer for Bar Items (`bars` layer).
@@ -17,50 +27,211 @@ export function renderBarsLayer(
 }
 
 /**
- * Dumb Presentation Layer for Bar Data Labels (`labels` layer).
+ * Dumb Presentation Layer for Outer / Stack-Summary Bar Labels (`type: 'bar-outer'`).
+ * Renders labels above positive bars/stacks and below negative bars/stacks
+ * (or aligned at `chart-bottom` / `above-zero`), coexisting seamlessly with
+ * inner centered bar labels (`type: 'data'`) and supporting full `<mc-label>`
+ * customization, padding, formatting, icons, `<foreignObject>`, and custom renderers.
  */
-export function renderBarLabelsLayer(
+export function renderBarOuterLabelsLayer(
   model: BarChartModel,
   ctx: ChartRenderContext<BarDatum[]>
 ): void {
-  if (!model.enableLabels) return;
+  const cfg = model.outerLabels;
+  if (!cfg.enabled) return;
 
-  model.bars.forEach((b, idx) => {
-    const text = String(b.value);
+  const fontSize = cfg.fontSize ?? Math.max(11, ctx.theme.fontSize);
+  const fontWeight = cfg.fontWeight ?? 700;
+  const pad = cfg.padding;
+
+  model.outerLabelItems.forEach((item) => {
+    const outerDatum: BarOuterLabelDatum = {
+      scope: item.scope,
+      sign: item.sign,
+      category: item.category,
+      key: item.key,
+      keys: item.keys,
+      value: item.value,
+      positiveTotal: item.positiveTotal,
+      negativeTotal: item.negativeTotal,
+      netTotal: item.netTotal,
+      barCount: item.barCount,
+      row: item.row
+    };
+
+    const text = cfg.formatter
+      ? cfg.formatter(outerDatum)
+      : formatNumericValue(item.value);
+
+    const maxWidth =
+      cfg.maxWidth ??
+      (item.isHorizontal ? undefined : Math.max(48, item.width + 24));
+
     const measured = ctx.measureText(text, {
-      fontSize: Math.max(10, ctx.theme.fontSize - 1),
-      icon: b.threshold.style.icon
+      type: 'bar-outer',
+      fontSize,
+      fontWeight,
+      fontFamily: cfg.fontFamily,
+      background: cfg.background,
+      padding: cfg.boxPadding,
+      maxWidth,
+      icon: cfg.icon,
+      iconPosition: cfg.iconPosition,
+      iconSize: cfg.iconSize,
+      iconGap: cfg.iconGap,
+      templateHtml: cfg.templateHtml
     });
 
-    const fitsInside =
-      b.height >= measured.boxHeight + 6 && b.width >= measured.boxWidth + 6;
-    const labelX = b.x + b.width / 2;
-    const labelY = fitsInside ? b.y + b.height / 2 : Math.max(10, b.y - 10);
+    let labelX = 0;
+    let labelY = 0;
+    let placement = 'top';
 
-    ctx.renderLabel(ctx.layerGroup, {
-      id: `bar-label-${idx}`,
+    if (item.isHorizontal) {
+      labelY = item.y + item.height / 2;
+      if (item.sign === 'positive') {
+        if (cfg.position === 'bottom') {
+          labelX = item.x - pad - measured.boxWidth / 2;
+          placement = 'bottom';
+        } else {
+          labelX = item.x + item.width + pad + measured.boxWidth / 2;
+          placement = 'top';
+        }
+      } else if (cfg.negativePosition === 'chart-bottom') {
+        labelX = pad + measured.boxWidth / 2;
+        placement = 'chart-bottom';
+      } else if (cfg.negativePosition === 'above-zero') {
+        labelX = model.zeroPos + pad + measured.boxWidth / 2;
+        placement = 'above-zero';
+      } else {
+        labelX = item.x - pad - measured.boxWidth / 2;
+        placement = 'outside-bottom';
+      }
+    } else {
+      labelX = item.x + item.width / 2;
+      if (item.sign === 'positive') {
+        if (cfg.position === 'bottom') {
+          labelY = item.y + item.height + pad + measured.boxHeight / 2;
+          placement = 'bottom';
+        } else {
+          labelY = item.y - pad - measured.boxHeight / 2;
+          placement = 'top';
+        }
+      } else if (cfg.negativePosition === 'chart-bottom') {
+        labelY = model.innerHeight - pad - measured.boxHeight / 2;
+        placement = 'chart-bottom';
+      } else if (cfg.negativePosition === 'above-zero') {
+        labelY = model.zeroPos - pad - measured.boxHeight / 2;
+        placement = 'above-zero';
+      } else {
+        labelY = item.y + item.height + pad + measured.boxHeight / 2;
+        placement = 'outside-bottom';
+      }
+    }
+
+    const rendered = ctx.renderLabel(ctx.layerGroup, {
+      id: item.id,
       text,
       x: labelX,
       y: labelY,
-      type: 'data',
+      type: 'bar-outer',
+      className: 'mc-bar-outer-label',
       anchor: 'middle',
       baseline: 'middle',
-      maxWidth: Math.max(36, b.width + 12),
-      fontSize: Math.max(10, ctx.theme.fontSize - 1),
-      fontWeight: 600,
-      color:
-        b.threshold.style.labelColor ??
-        (fitsInside ? '#ffffff' : ctx.theme.textColor),
-      icon: b.threshold.style.icon,
-      datum: {
-        id: b.key,
-        category: b.indexValue,
-        value: b.value,
-        isUnderThreshold: b.threshold.isUnderThreshold,
-        ...b.datum
+      maxWidth,
+      fontSize,
+      fontWeight,
+      fontFamily: cfg.fontFamily,
+      color: cfg.color ?? ctx.theme.textColor,
+      background: cfg.background,
+      borderColor: cfg.borderColor,
+      borderRadius: cfg.borderRadius,
+      padding: cfg.boxPadding,
+      renderMode: cfg.renderMode,
+      templateHtml: cfg.templateHtml,
+      icon: cfg.icon,
+      iconPosition: cfg.iconPosition,
+      iconSize: cfg.iconSize,
+      iconGap: cfg.iconGap,
+      renderer: cfg.renderer,
+      datum: outerDatum,
+      meta: {
+        scope: item.scope,
+        sign: item.sign,
+        placement,
+        padding: pad
       }
     });
+
+    if (rendered) {
+      rendered.setAttribute('data-bar-outer-scope', item.scope);
+      rendered.setAttribute('data-bar-outer-sign', item.sign);
+      rendered.setAttribute('data-bar-outer-placement', placement);
+      rendered.setAttribute('data-bar-outer-category', item.category);
+    }
   });
+}
+
+/**
+ * Dumb Presentation Layer for Bar Data Labels (`labels` layer).
+ * Supports inner centered bar labels (`enableLabels`) AND outer/summary labels
+ * (`outerLabels`) independently or simultaneously.
+ */
+export function renderBarLabelsLayer(
+  model: BarChartModel,
+  ctx: ChartRenderContext<BarDatum[]>,
+  options: { includeOuterLabels?: boolean } = {}
+): void {
+  const includeOuter = options.includeOuterLabels ?? true;
+
+  if (model.enableLabels) {
+    model.bars.forEach((b, idx) => {
+      const text = String(b.value);
+      const measured = ctx.measureText(text, {
+        fontSize: Math.max(10, ctx.theme.fontSize - 1),
+        icon: b.threshold.style.icon
+      });
+
+      const fitsInside =
+        b.height >= measured.boxHeight + 6 && b.width >= measured.boxWidth + 6;
+
+      // When outer labels are simultaneously enabled, keep inner labels strictly
+      // inside fitting bars so tiny bars do not collide with the outer label above/below.
+      if (model.outerLabels.enabled && !fitsInside) {
+        return;
+      }
+
+      const labelX = b.x + b.width / 2;
+      const labelY = fitsInside ? b.y + b.height / 2 : Math.max(10, b.y - 10);
+
+      ctx.renderLabel(ctx.layerGroup, {
+        id: `bar-label-${idx}`,
+        text,
+        x: labelX,
+        y: labelY,
+        type: 'data',
+        anchor: 'middle',
+        baseline: 'middle',
+        maxWidth: Math.max(36, b.width + 12),
+        fontSize: Math.max(10, ctx.theme.fontSize - 1),
+        fontWeight: 600,
+        color:
+          b.threshold.style.labelColor ??
+          (fitsInside ? '#ffffff' : ctx.theme.textColor),
+        icon: b.threshold.style.icon,
+        datum: {
+          id: b.key,
+          category: b.indexValue,
+          value: b.value,
+          isUnderThreshold: b.threshold.isUnderThreshold,
+          ...b.datum
+        }
+      });
+    });
+  }
+
+  if (includeOuter && model.outerLabels.enabled) {
+    renderBarOuterLabelsLayer(model, ctx);
+  }
 }
 
 /**

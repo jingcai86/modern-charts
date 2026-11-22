@@ -1079,3 +1079,284 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
     expect(parsed.labelEdgePadding).toBe(20);
   });
 });
+
+describe('Bar Outer & Stack-Summary Labels (Issue #21)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  const parseTranslate = (el: Element | null): { x: number; y: number } => {
+    const t = el?.getAttribute('transform') ?? '';
+    const m = t.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/);
+    return { x: Number(m?.[1] ?? NaN), y: Number(m?.[2] ?? NaN) };
+  };
+
+  it('supports coexisting centered inner bar labels and above-bar stacked total outer labels simultaneously, as well as either independently', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    // 1. Both inner labels AND stacked outer totals enabled simultaneously
+    bar.config = {
+      data: [
+        { quarter: 'Q1', Cloud: 120, Edge: 80 },
+        { quarter: 'Q2', Cloud: 150, Edge: 100 }
+      ],
+      width: 640,
+      height: 400,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      groupMode: 'stacked',
+      enableLabels: true,
+      outerLabels: {
+        enabled: true,
+        padding: 10
+      }
+    };
+
+    const innerLabels = bar.shadowRoot?.querySelectorAll(
+      '.mc-label--data'
+    ) as NodeListOf<SVGGElement>;
+    const outerLabels = bar.shadowRoot?.querySelectorAll(
+      '.mc-label--bar-outer'
+    ) as NodeListOf<SVGGElement>;
+
+    // 4 stacked segments have inner labels AND 2 categories have stack-total outer labels
+    expect(innerLabels.length).toBe(4);
+    expect(outerLabels.length).toBe(2);
+    expect(outerLabels[0].textContent?.trim()).toBe('200');
+    expect(outerLabels[1].textContent?.trim()).toBe('250');
+
+    // Outer stack label sits strictly above the highest bar rect in that stack
+    const q1Rects = Array.from(
+      bar.shadowRoot?.querySelectorAll('.mc-bar-rect[data-index="Q1"]') ?? []
+    );
+    expect(q1Rects.length).toBe(2);
+    const q1TopY = Math.min(
+      ...q1Rects.map((r) => Number(r.getAttribute('y')))
+    );
+    const q1OuterPos = parseTranslate(outerLabels[0]);
+    expect(q1OuterPos.y).toBeLessThan(q1TopY);
+
+    // 2. Outer labels only (enableLabels: false)
+    bar.config = {
+      ...bar.config,
+      enableLabels: false,
+      outerLabels: { enabled: true, padding: 10 }
+    };
+    expect(bar.shadowRoot?.querySelectorAll('.mc-label--data').length).toBe(0);
+    expect(bar.shadowRoot?.querySelectorAll('.mc-label--bar-outer').length).toBe(
+      2
+    );
+
+    // 3. Inner labels only (outerLabels disabled)
+    bar.config = {
+      ...bar.config,
+      enableLabels: true,
+      outerLabels: false
+    };
+    expect(bar.shadowRoot?.querySelectorAll('.mc-label--data').length).toBe(4);
+    expect(bar.shadowRoot?.querySelectorAll('.mc-label--bar-outer').length).toBe(
+      0
+    );
+  });
+
+  it('positions negative bar/stack outer labels with outside-bottom, chart-bottom, above-zero, and custom padding', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    const mixedData = [
+      { quarter: 'Q1', Revenue: 120, Cost: -40 },
+      { quarter: 'Q2', Revenue: 80, Cost: -110 }
+    ];
+
+    // 1. Diverging stacked bars with outside-bottom and padding = 8
+    bar.config = {
+      data: mixedData,
+      width: 640,
+      height: 420,
+      indexBy: 'quarter',
+      keys: ['Revenue', 'Cost'],
+      groupMode: 'stacked',
+      enableLabels: true,
+      outerLabels: {
+        enabled: true,
+        negativePosition: 'outside-bottom',
+        padding: 8
+      }
+    };
+
+    const q1PosOuter8 = bar.shadowRoot?.querySelector(
+      '[data-label-id="bar-outer-stack-pos-Q1"]'
+    );
+    const q1NegOuter8 = bar.shadowRoot?.querySelector(
+      '[data-label-id="bar-outer-stack-neg-Q1"]'
+    );
+    const q2NegOuter8 = bar.shadowRoot?.querySelector(
+      '[data-label-id="bar-outer-stack-neg-Q2"]'
+    );
+    expect(q1PosOuter8?.textContent?.trim()).toBe('120');
+    expect(q1NegOuter8?.textContent?.trim()).toBe('-40');
+    expect(q2NegOuter8?.textContent?.trim()).toBe('-110');
+
+    const getBarEdge = (cat: string, seriesKey: string) => {
+      const rect = bar.shadowRoot?.querySelector(
+        `.mc-bar-rect[data-index="${cat}"][data-key="${seriesKey}"]`
+      );
+      expect(rect).not.toBeNull();
+      const y = Number(rect?.getAttribute('y'));
+      const h = Number(rect?.getAttribute('height'));
+      return { top: y, bottom: y + h };
+    };
+
+    const pos8 = parseTranslate(q1PosOuter8!);
+    const negQ1Out8 = parseTranslate(q1NegOuter8!);
+    const negQ2Out8 = parseTranslate(q2NegOuter8!);
+    const q1PosEdge8 = getBarEdge('Q1', 'Revenue');
+    const q1NegEdge8 = getBarEdge('Q1', 'Cost');
+    const posGap8 = q1PosEdge8.top - pos8.y;
+    const negGap8 = negQ1Out8.y - q1NegEdge8.bottom;
+
+    // In outside-bottom mode, Q2 (-110) extends further down than Q1 (-40)
+    expect(negQ2Out8.y).toBeGreaterThan(negQ1Out8.y);
+
+    // Increasing padding from 8 -> 20 increases distance away from bar edges by 12px
+    // AND automatically expands top margin to prevent clipping
+    const topMargin8 = bar.resolveDimensions().margin.top;
+    bar.config = {
+      ...bar.config,
+      outerLabels: {
+        enabled: true,
+        negativePosition: 'outside-bottom',
+        padding: 20
+      }
+    };
+    const pos20 = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="bar-outer-stack-pos-Q1"]')!
+    );
+    const neg20 = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="bar-outer-stack-neg-Q1"]')!
+    );
+    const q1PosEdge20 = getBarEdge('Q1', 'Revenue');
+    const q1NegEdge20 = getBarEdge('Q1', 'Cost');
+    const posGap20 = q1PosEdge20.top - pos20.y;
+    const negGap20 = neg20.y - q1NegEdge20.bottom;
+    expect(posGap20 - posGap8).toBeCloseTo(12, 1);
+    expect(negGap20 - negGap8).toBeCloseTo(12, 1);
+    expect(bar.resolveDimensions().margin.top).toBeGreaterThan(topMargin8);
+
+    // 2. negativePosition: 'chart-bottom' aligns both Q1 and Q2 negative labels on the same horizontal row
+    bar.config = {
+      ...bar.config,
+      outerLabels: {
+        enabled: true,
+        negativePosition: 'chart-bottom',
+        padding: 8
+      }
+    };
+    const q1ChartBottom = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="bar-outer-stack-neg-Q1"]')!
+    );
+    const q2ChartBottom = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="bar-outer-stack-neg-Q2"]')!
+    );
+    expect(q1ChartBottom.y).toBeCloseTo(q2ChartBottom.y, 1);
+
+    // 3. negativePosition: 'above-zero' places negative label above the zero baseline
+    bar.config = {
+      data: [
+        { quarter: 'Q1', Loss: -45 },
+        { quarter: 'Q2', Loss: -95 }
+      ],
+      width: 640,
+      height: 380,
+      indexBy: 'quarter',
+      keys: ['Loss'],
+      groupMode: 'grouped',
+      outerLabels: {
+        enabled: true,
+        negativePosition: 'above-zero',
+        padding: 8
+      }
+    };
+    const lossBarRect = bar.shadowRoot?.querySelector(
+      '.mc-bar-rect[data-index="Q1"]'
+    );
+    expect(lossBarRect).not.toBeNull();
+    const lossBarTopY = Number(lossBarRect?.getAttribute('y'));
+    const aboveZeroPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="bar-outer-Loss-Q1"]')!
+    );
+    expect(aboveZeroPos.y).toBeLessThan(lossBarTopY);
+  });
+
+  it('supports custom formatting, <mc-label for="bar-outer"> overrides, foreignObject icons, custom renderer, horizontal layout, and HTML attributes', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    const outerLabelOverride = document.createElement('mc-label') as MCLabelElement;
+    outerLabelOverride.setAttribute('for', 'bar-outer');
+    outerLabelOverride.setAttribute('mode', 'foreignObject');
+    outerLabelOverride.setAttribute('bg-color', '#0f172a');
+    outerLabelOverride.setAttribute('color', '#f8fafc');
+    outerLabelOverride.setAttribute('icon', '⭐');
+    bar.appendChild(outerLabelOverride);
+    document.body.appendChild(bar);
+
+    bar.config = {
+      data: [
+        { quarter: 'Q1', Cloud: 100, Edge: 50 },
+        { quarter: 'Q2', Cloud: 140, Edge: 60 }
+      ],
+      width: 640,
+      height: 360,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      groupMode: 'stacked',
+      enableLabels: true,
+      outerLabels: {
+        enabled: true,
+        padding: 10,
+        formatter: (d) => `Σ $${d.positiveTotal}K`
+      }
+    };
+
+    const outerFo = bar.shadowRoot?.querySelectorAll(
+      '.mc-label--bar-outer foreignObject'
+    );
+    expect(outerFo?.length).toBe(2);
+    expect(outerFo?.[0].textContent).toContain('Σ $150K');
+    expect(outerFo?.[0].textContent).toContain('⭐');
+    // Inner labels remain SVG and unaffected by <mc-label for="bar-outer">
+    const innerSvgLabels = bar.shadowRoot?.querySelectorAll(
+      '.mc-label--data text'
+    );
+    expect(innerSvgLabels?.length).toBe(4);
+
+    // Custom renderer on outerLabels
+    bar.removeChild(outerLabelOverride);
+    bar.config = {
+      ...bar.config,
+      layout: 'horizontal',
+      outerLabels: {
+        enabled: true,
+        padding: 12,
+        renderer: (desc) => `<text class="custom-outer-sum">${desc.text}!</text>`
+      }
+    };
+    const customNodes = bar.shadowRoot?.querySelectorAll('.custom-outer-sum');
+    expect(customNodes?.length).toBe(2);
+    expect(customNodes?.[0].textContent).toBe('150!');
+
+    // Declarative HTML attributes on <mc-bar-chart>
+    const declBar = document.createElement('mc-bar-chart') as MCBarChart;
+    declBar.setAttribute('enable-outer-labels', 'true');
+    declBar.setAttribute('outer-label-scope', 'stack');
+    declBar.setAttribute('outer-label-position', 'top');
+    declBar.setAttribute('negative-label-position', 'chart-bottom');
+    declBar.setAttribute('outer-label-padding', '14');
+    const resolved = declBar.resolveOuterLabelsConfig();
+    expect(resolved.enabled).toBe(true);
+    expect(resolved.scope).toBe('stack');
+    expect(resolved.position).toBe('top');
+    expect(resolved.negativePosition).toBe('chart-bottom');
+    expect(resolved.padding).toBe(14);
+  });
+});

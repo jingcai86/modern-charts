@@ -339,6 +339,7 @@ export type LabelTargetType =
   | 'axis-tick'
   | 'axis-title'
   | 'data'
+  | 'bar-outer'
   | 'arc'
   | 'arc-link'
   | 'cell'
@@ -389,6 +390,7 @@ export interface LabelDescriptor {
   iconSize?: number;
   iconGap?: number;
   className?: string;
+  renderer?: CustomLabelRenderer;
   datum?: unknown;
   meta?: Record<string, unknown>;
 }
@@ -463,6 +465,76 @@ export interface ItemAnimationSpec {
   targetRadius?: number;
 }
 
+export type BarOuterLabelScope = 'auto' | 'bar' | 'stack';
+export type BarOuterLabelPosition = 'auto' | 'top' | 'bottom';
+export type BarNegativeLabelPosition =
+  | 'outside-bottom'
+  | 'chart-bottom'
+  | 'above-zero';
+
+export interface BarOuterLabelDatum {
+  scope: 'bar' | 'stack';
+  sign: 'positive' | 'negative';
+  category: string;
+  key?: string;
+  keys: string[];
+  value: number;
+  positiveTotal: number;
+  negativeTotal: number;
+  netTotal: number;
+  barCount: number;
+  row: BarDatum;
+}
+
+/**
+ * Configuration for outer bar labels (e.g. stack totals above positive bars
+ * and/or below negative bars, or per-bar outer labels in grouped mode).
+ * Coexists independently with centered inside bar labels (`enableLabels`).
+ */
+export interface BarOuterLabelConfig {
+  /** Enable outer / summary labels. Default `false`. */
+  enabled?: boolean;
+  /**
+   * Granularity of outer labels:
+   * - `'auto'` (default): stack totals in stacked mode, per-bar labels in grouped mode.
+   * - `'stack'`: one summary label per category stack (positive and/or negative).
+   * - `'bar'`: one outer label per individual bar item.
+   */
+  scope?: BarOuterLabelScope;
+  /**
+   * Placement for positive bars/stacks (default `'auto'` -> `'top'` for positive,
+   * follows `negativePosition` for negative).
+   */
+  position?: BarOuterLabelPosition;
+  /**
+   * Placement for negative bars/stacks (default `'outside-bottom'`):
+   * - `'outside-bottom'`: just outside the negative end of the bar.
+   * - `'chart-bottom'`: aligned along the bottom of the plot area (or left edge in horizontal layout).
+   * - `'above-zero'`: placed just above the zero baseline (or right of zero in horizontal layout).
+   */
+  negativePosition?: BarNegativeLabelPosition;
+  /** Pixel padding away from the bar edge (or plot edge for `'chart-bottom'`). Default `8`. */
+  padding?: number;
+  /** Optional custom formatter receiving the outer label datum (stack totals or bar value). */
+  formatter?: (datum: BarOuterLabelDatum) => string;
+  renderMode?: LabelRenderMode;
+  fontSize?: number;
+  fontWeight?: string | number;
+  fontFamily?: string;
+  color?: string;
+  background?: string;
+  borderColor?: string;
+  borderRadius?: number;
+  boxPadding?: LabelPadding;
+  maxWidth?: number;
+  icon?: string | SVGElement | HTMLElement;
+  iconPosition?: 'start' | 'end';
+  iconSize?: number;
+  iconGap?: number;
+  templateHtml?: string;
+  renderer?: CustomLabelRenderer;
+}
+
 /**
  * Single unified Nivo-style chart configuration object (`chart.config = { ... }`).
  * Underneath, the chart maps this single config onto its composable sub-components:
@@ -528,6 +600,7 @@ export interface ChartConfig<TData = any> {
   indexBy?: string;
   groupMode?: 'grouped' | 'stacked';
   layout?: 'vertical' | 'horizontal';
+  outerLabels?: boolean | BarOuterLabelConfig;
   curve?: string;
   enableArea?: boolean;
   areaOpacity?: number;
