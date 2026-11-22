@@ -55,12 +55,11 @@
       "types": "./dist/entries/gauge.d.ts",
       "import": "./dist/gauge.js"
     },
-    "./context/schema": "./context/charts.schema.json",
-    "./context/*": "./context/*"
+    "./context/schema": "./dist/context/charts.schema.json",
+    "./context/*": "./dist/context/*"
   },
   "files": [
     "dist",
-    "context",
     "README.md",
     "LICENSE"
   ],

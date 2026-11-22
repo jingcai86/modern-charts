@@ -1,7 +1,20 @@
 import { defineConfig } from 'vite';
+import { cpSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 export default defineConfig({
+  plugins: [
+    {
+      name: 'copy-ai-context-to-dist',
+      closeBundle() {
+        cpSync(
+          resolve(import.meta.dirname, 'apps/context'),
+          resolve(import.meta.dirname, 'dist/context'),
+          { recursive: true }
+        );
+      }
+    }
+  ],
   build: {
     lib: {
       entry: {

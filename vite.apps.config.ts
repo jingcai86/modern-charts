@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 export default defineConfig({
   base: './',
   root: resolve(import.meta.dirname, 'apps/studio'),
-  publicDir: resolve(import.meta.dirname, 'context'),
+  publicDir: resolve(import.meta.dirname, 'apps/context'),
   resolve: {
     alias: {
       'modern-charts': resolve(import.meta.dirname, 'src/index.ts')
