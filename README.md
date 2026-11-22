@@ -1,12 +1,13 @@
 <div align="center">
 
-<img src="./assets/banner.svg" alt="modern-charts banner" width="100%" />
+<img src="https://raw.githubusercontent.com/jingcai86/modern-charts/main/assets/banner.svg" alt="modern-charts banner" width="100%" />
 
 # 📊 modern-charts (`v0.1.0-alpha.0`)
 
 **Composable, Accessible Web Component Charting Library powered exclusively by D3 &amp; Pretext**
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/modern-charts"><img src="https://img.shields.io/npm/v/modern-charts/alpha?label=npm&color=cb3837" alt="npm version" /></a>
   <a href="https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml/badge.svg" alt="CI Pipeline" /></a>
   <a href="https://github.com/jingcai86/modern-charts/actions/workflows/deploy-pages.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/deploy-pages.yml/badge.svg" alt="Deploy Demo to GitHub Pages" /></a>
   <a href="https://github.com/jingcai86/modern-charts/actions/workflows/codeql.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/codeql.yml/badge.svg" alt="CodeQL Analysis" /></a>
@@ -14,7 +15,7 @@
   <a href="https://github.com/jingcai86/modern-charts"><img src="https://img.shields.io/badge/dependabot-enabled-blue.svg?logo=dependabot" alt="Dependabot Enabled" /></a>
   <a href="https://github.com/jingcai86/modern-charts"><img src="https://img.shields.io/badge/tests-23%20passed-brightgreen.svg" alt="Tests" /></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
-  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7-blue.svg" alt="TypeScript" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-7.0-blue.svg" alt="TypeScript" /></a>
 </p>
 
 ### 🚀 [Explore Live Interactive Demo &amp; Catalog](https://jingcai86.github.io/modern-charts/)
@@ -35,7 +36,7 @@
 <br />
 
 <div align="center">
-  <img src="./assets/studio-playground.png" alt="modern-charts Live Studio Playground" width="92%" style="border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,0.35);" />
+  <img src="https://raw.githubusercontent.com/jingcai86/modern-charts/main/assets/studio-playground.png" alt="modern-charts Live Studio Playground" width="92%" style="border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,0.35);" />
   <p><em>The modern-charts Studio Playground — Live minimizable attribute controls, Web Component markup generation, and accessible ARIA inspection.</em></p>
 </div>
 
@@ -157,7 +158,7 @@ const { themeLayer, scaleLayer, ariaLayer, animationLayer } = chart.getSubCompon
 ## 🖼️ Gallery Overview
 
 <div align="center">
-  <img src="./assets/hero-gallery.png" alt="modern-charts Overview Gallery" width="92%" style="border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,0.35);" />
+  <img src="https://raw.githubusercontent.com/jingcai86/modern-charts/main/assets/hero-gallery.png" alt="modern-charts Overview Gallery" width="92%" style="border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,0.35);" />
   <p><em>The full interactive chart gallery with direct live playground links for all 10 chart components.</em></p>
 </div>
 

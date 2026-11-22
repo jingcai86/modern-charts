@@ -17,11 +17,27 @@
     "README.md",
     "LICENSE"
   ],
+  "sideEffects": true,
+  "homepage": "https://jingcai86.github.io/modern-charts/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jingcai86/modern-charts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jingcai86/modern-charts/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite --config vite.examples.config.ts",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && tsc -p tsconfig.build.json",
     "build:examples": "vite build --config vite.examples.config.ts",
     "preview:examples": "vite preview --config vite.examples.config.ts",
+    "prepublishOnly": "npm test && npm run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
@@ -42,7 +58,7 @@
     "svg",
     "ai-streaming"
   ],
-  "author": "yoyo",
+  "author": "Jing Cai",
   "license": "MIT",
   "dependencies": {
     "@chenglou/pretext": "^1.0.0",

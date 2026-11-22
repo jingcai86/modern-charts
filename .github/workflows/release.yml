@@ -1,10 +1,26 @@
-name: Release & Publish
+name: Release & Publish to npm
 
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      dist_tag:
+        description: 'npm dist-tag (auto detects alpha/beta/rc or latest)'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - latest
+          - alpha
+          - beta
+      dry_run:
+        description: 'Dry run (pack & verify without publishing to npm)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -12,8 +28,8 @@ permissions:
   id-token: write
 
 jobs:
-  release:
-    name: Build, Package, and Release
+  publish:
+    name: Build, Verify & Publish to npm
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,7 +42,43 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
+
+      - name: Ensure npm >= 11.5.1 for Trusted Publishing (OIDC)
+        run: npm install -g npm@latest
+
+      - name: Resolve version & dist-tag
+        id: meta
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_NAME="v${PKG_VERSION}"
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "${TAG_NAME}" ]]; then
+            echo "::error::Git tag (${GITHUB_REF_NAME}) does not match package.json version (${TAG_NAME})."
+            exit 1
+          fi
+
+          INPUT_DIST_TAG="${{ inputs.dist_tag || 'auto' }}"
+          if [[ "$INPUT_DIST_TAG" != "auto" ]]; then
+            DIST_TAG="$INPUT_DIST_TAG"
+          elif [[ "$PKG_VERSION" == *"-alpha"* ]]; then
+            DIST_TAG="alpha"
+          elif [[ "$PKG_VERSION" == *"-beta"* ]]; then
+            DIST_TAG="beta"
+          elif [[ "$PKG_VERSION" == *"-rc"* ]]; then
+            DIST_TAG="next"
+          else
+            DIST_TAG="latest"
+          fi
+
+          IS_PRERELEASE="false"
+          if [[ "$PKG_VERSION" == *"-"* ]]; then
+            IS_PRERELEASE="true"
+          fi
+
+          echo "version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=${DIST_TAG}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: npm ci
@@ -34,32 +86,39 @@ jobs:
       - name: Run test suite
         run: npm test
 
-      - name: Build production bundle
+      - name: Build production bundle & TypeScript declarations
         run: npm run build
+
+      - name: Verify build artifacts & bundle size
+        run: |
+          test -f dist/index.js
+          test -f dist/index.d.ts
+          test -f LICENSE
+          npm run size
 
       - name: Pack distribution tarball
         id: pack
         run: |
           TARBALL=$(npm pack)
-          echo "tarball=$TARBALL" >> $GITHUB_OUTPUT
+          echo "tarball=${TARBALL}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to npm registry (OIDC Trusted Publishing)
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          echo "Publishing modern-charts@${{ steps.meta.outputs.version }} with dist-tag '${{ steps.meta.outputs.dist_tag }}'..."
+          npm publish --access public --provenance --tag "${{ steps.meta.outputs.dist_tag }}"
+
+      - name: Dry-run npm publish check
+        if: ${{ inputs.dry_run == true }}
+        run: npm publish --dry-run --access public --tag "${{ steps.meta.outputs.dist_tag }}"
 
       - name: Create GitHub Release
+        if: ${{ inputs.dry_run != true }}
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: "modern-charts ${{ steps.meta.outputs.tag }}"
           files: ${{ steps.pack.outputs.tarball }}
           generate_release_notes: true
           draft: false
-          prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
-
-      - name: Publish to npm registry
-        run: |
-          if [[ "${{ github.ref }}" == *"-alpha"* ]]; then
-            npm publish --access public --tag alpha
-          elif [[ "${{ github.ref }}" == *"-beta"* ]]; then
-            npm publish --access public --tag beta
-          else
-            npm publish --access public
-          fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: env.NODE_AUTH_TOKEN != ''
+          prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
