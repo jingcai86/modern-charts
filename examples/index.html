@@ -33,29 +33,8 @@
             <option value="light">Light Mode</option>
           </select>
         </div>
-
-        <button type="button" id="btn-toggle-tests" class="btn-secondary">
-          ✓ Verification Suite
-        </button>
       </div>
     </header>
-
-    <!-- Collapsible Live Verification Suite Drawer -->
-    <section class="verification-drawer" id="verification-drawer" hidden>
-      <div class="panel-card">
-        <div class="panel-header">
-          <h2 class="panel-title">
-            Live Component &amp; Layer Verification Suite
-          </h2>
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span id="test-summary-badge" class="comp-pill">Running checks...</span>
-            <button type="button" id="btn-rerun-tests" class="btn-primary">↻ Re-run Checks</button>
-            <button type="button" id="btn-close-tests">✕ Close</button>
-          </div>
-        </div>
-        <div class="test-log-list" id="test-log-container"></div>
-      </div>
-    </section>
 
     <!-- Dynamic Router View: Overview Gallery (#/) or Dedicated Chart Playground (#/chart/:id) -->
     <main class="main-content" id="app-root"></main>
