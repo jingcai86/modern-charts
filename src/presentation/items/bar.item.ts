@@ -1,18 +1,60 @@
-import type { ChartRenderContext } from '../../core/types';
+import {
+  computePartialClipPlan,
+  createAxisClipPath
+} from '../../core/threshold-clip';
+import type { ChartRenderContext, MarkerMatchStyle } from '../../core/types';
 import type { ComputedBarItemModel } from '../../models/bar.model';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+function applyBarGeometry(rect: SVGRectElement, b: ComputedBarItemModel): void {
+  rect.setAttribute('x', String(b.x));
+  rect.setAttribute('y', String(b.y));
+  rect.setAttribute('width', String(b.width));
+  rect.setAttribute('height', String(b.height));
+  rect.setAttribute('rx', String(b.rx));
+}
+
+function applyMatchStyleToRect(
+  rect: SVGRectElement,
+  style: MarkerMatchStyle,
+  fallbackColor: string
+): void {
+  rect.setAttribute('fill', style.fill || style.color || fallbackColor);
+  if (style.stroke) {
+    rect.setAttribute('stroke', style.stroke);
+    rect.setAttribute('stroke-width', String(style.strokeWidth ?? 1.8));
+  }
+  if (style.strokeDasharray) {
+    rect.setAttribute('stroke-dasharray', style.strokeDasharray);
+  }
+  if (style.opacity !== undefined) {
+    rect.setAttribute('fill-opacity', String(style.opacity));
+  }
+}
+
 /**
  * Dumb Presentation Renderer for a single Bar Item.
  * Receives pre-computed geometry and threshold styles from `BarChartModel`
- * and only performs SVG DOM presentation, ARIA decoration, and animation.
+ * and performs SVG DOM presentation, partial threshold `<clipPath>` splitting
+ * (Option B: single semantic `<g>` ARIA host + `aria-hidden="true"` clipped
+ * visual segments), ARIA decoration, and animation.
  */
 export function renderBarItem(
   b: ComputedBarItemModel,
   ctx: ChartRenderContext<any>
-): SVGRectElement {
-  const rect = document.createElementNS(SVG_NS, 'rect');
+): SVGElement {
+  const axis: 'x' | 'y' = b.isHorizontal ? 'x' : 'y';
+  const itemStart = b.isHorizontal ? b.x : b.y;
+  const itemEnd = b.isHorizontal ? b.x + b.width : b.y + b.height;
+  const defs = ctx.svg.querySelector('.mc-chart-defs');
+  const plan = computePartialClipPlan(axis, itemStart, itemEnd, ctx);
+
+  // Determine whether any matched marker uses whole-item scope ('item' or predicate fn)
+  const hasItemScopeMatch = b.threshold.matchedMarkers.some(
+    (m) => m.matchScope === 'item' || typeof m.condition === 'function'
+  );
+
   const customCls = b.threshold.style.className
     ? ` ${b.threshold.style.className}`
     : '';
@@ -22,46 +64,140 @@ export function renderBarItem(
       }`
     : '';
 
-  rect.setAttribute('class', `mc-bar-rect${threshCls}${customCls}`);
-  rect.setAttribute('data-item-component', 'mc-bar-item');
-  rect.setAttribute('data-key', b.key);
-  rect.setAttribute('data-index', b.indexValue);
-  rect.setAttribute('x', String(b.x));
-  rect.setAttribute('y', String(b.y));
-  rect.setAttribute('width', String(b.width));
-  rect.setAttribute('height', String(b.height));
-  rect.setAttribute('rx', String(b.rx));
-  rect.setAttribute('fill', b.color);
+  let hostEl: SVGElement;
+  let ariaThresholdCoverage: 'none' | 'partial' | 'full' = 'none';
 
-  if (b.threshold.matched) {
-    rect.setAttribute('data-threshold-matched', 'true');
-    rect.setAttribute(
-      'data-under-threshold',
-      String(b.threshold.isUnderThreshold)
+  if (plan.isPartial && defs && !hasItemScopeMatch) {
+    // Option B: Single semantic <g> ARIA / event / animation host containing
+    // decorative aria-hidden="true" clipped <rect> shapes so screen readers
+    // and keyboard roving always see ONE logical bar item while preserving
+    // rounded corners and supporting partial fill, stroke, dasharray & patterns.
+    ariaThresholdCoverage = 'partial';
+    const group = document.createElementNS(SVG_NS, 'g');
+    const overlayCustomClasses = plan.overlays
+      .map((ov) => ov.style.className)
+      .filter(Boolean)
+      .join(' ');
+    const extraCls = overlayCustomClasses
+      ? ` ${overlayCustomClasses}`
+      : customCls;
+
+    group.setAttribute(
+      'class',
+      `mc-bar-rect mc-bar-group mc-bar-rect--partial-threshold${threshCls}${extraCls}`
     );
-    rect.setAttribute(
+    group.setAttribute('data-item-component', 'mc-bar-item');
+    group.setAttribute('data-key', b.key);
+    group.setAttribute('data-index', b.indexValue);
+    group.setAttribute('data-threshold-matched', 'true');
+    group.setAttribute('data-threshold-split', 'partial');
+    group.setAttribute(
       'data-threshold-ids',
-      b.threshold.matchedMarkerIds.join(',')
+      plan.matchedMarkerIds.join(',')
     );
-    if (b.threshold.style.stroke) {
-      rect.setAttribute('stroke', b.threshold.style.stroke);
-      rect.setAttribute(
-        'stroke-width',
-        String(b.threshold.style.strokeWidth ?? 1.8)
+    if (b.threshold.isUnderThreshold) {
+      group.setAttribute('data-under-threshold', 'true');
+    }
+
+    const bounds = { x: b.x, y: b.y, width: b.width, height: b.height };
+
+    // 1. Base (unmatched portion) <rect> clipped to complement intervals
+    if (plan.baseIntervals.length > 0) {
+      const baseClipId = createAxisClipPath(
+        defs,
+        axis,
+        plan.baseIntervals,
+        bounds
       );
+      const baseRect = document.createElementNS(SVG_NS, 'rect');
+      baseRect.setAttribute('class', 'mc-bar-segment mc-bar-segment--base');
+      baseRect.setAttribute('aria-hidden', 'true');
+      baseRect.setAttribute('role', 'presentation');
+      applyBarGeometry(baseRect, b);
+      baseRect.setAttribute('fill', b.originalColor);
+      baseRect.setAttribute('clip-path', `url(#${baseClipId})`);
+      group.appendChild(baseRect);
     }
-    if (b.threshold.style.strokeDasharray) {
-      rect.setAttribute('stroke-dasharray', b.threshold.style.strokeDasharray);
+
+    // 2. Clipped threshold overlay <rect>(s) for each intersecting marker region
+    for (const overlay of plan.overlays) {
+      const overlayClipId = createAxisClipPath(
+        defs,
+        axis,
+        overlay.intervals,
+        bounds
+      );
+      const ovRect = document.createElementNS(SVG_NS, 'rect');
+      const ovCls = overlay.style.className ? ` ${overlay.style.className}` : '';
+      ovRect.setAttribute(
+        'class',
+        `mc-bar-segment mc-bar-segment--threshold${ovCls}`
+      );
+      ovRect.setAttribute('aria-hidden', 'true');
+      ovRect.setAttribute('role', 'presentation');
+      ovRect.setAttribute('data-threshold-marker-id', overlay.marker.id);
+      applyBarGeometry(ovRect, b);
+      applyMatchStyleToRect(ovRect, overlay.style, b.color);
+      ovRect.setAttribute('clip-path', `url(#${overlayClipId})`);
+      group.appendChild(ovRect);
     }
-    if (b.threshold.style.opacity !== undefined) {
-      rect.setAttribute('fill-opacity', String(b.threshold.style.opacity));
+
+    hostEl = group;
+  } else {
+    // Single <rect> item (no overlap, 100% full overlap, or explicit matchScope: 'item')
+    const rect = document.createElementNS(SVG_NS, 'rect');
+    const applyFullMatch =
+      plan.isFullMatch || (b.threshold.matched && hasItemScopeMatch);
+
+    if (applyFullMatch) {
+      ariaThresholdCoverage = 'full';
     }
+
+    const effectiveFullStyle: MarkerMatchStyle = plan.isFullMatch
+      ? plan.overlays[plan.overlays.length - 1]?.style ?? b.threshold.style
+      : b.threshold.style;
+
+    rect.setAttribute(
+      'class',
+      `mc-bar-rect${applyFullMatch ? threshCls + customCls : ''}`
+    );
+    rect.setAttribute('data-item-component', 'mc-bar-item');
+    rect.setAttribute('data-key', b.key);
+    rect.setAttribute('data-index', b.indexValue);
+    applyBarGeometry(rect, b);
+
+    if (applyFullMatch) {
+      applyMatchStyleToRect(rect, effectiveFullStyle, b.color);
+      rect.setAttribute('data-threshold-matched', 'true');
+      rect.setAttribute(
+        'data-threshold-split',
+        hasItemScopeMatch ? 'item' : 'full'
+      );
+      rect.setAttribute(
+        'data-under-threshold',
+        String(b.threshold.isUnderThreshold)
+      );
+      const ids =
+        plan.matchedMarkerIds.length > 0
+          ? plan.matchedMarkerIds
+          : b.threshold.matchedMarkerIds;
+      rect.setAttribute('data-threshold-ids', ids.join(','));
+    } else {
+      rect.setAttribute('fill', b.originalColor);
+    }
+
+    hostEl = rect;
   }
 
-  rect.style.cursor = 'pointer';
-  rect.style.transition = 'filter 140ms ease, opacity 140ms ease';
+  hostEl.style.cursor = 'pointer';
+  hostEl.style.transition = 'filter 140ms ease, opacity 140ms ease';
 
-  ctx.decorateAriaItem(rect, {
+  const thresholdIds =
+    plan.matchedMarkerIds.length > 0
+      ? plan.matchedMarkerIds
+      : b.threshold.matchedMarkerIds;
+
+  ctx.decorateAriaItem(hostEl, {
     type: 'bar',
     index: b.index,
     total: b.total,
@@ -71,7 +207,7 @@ export function renderBarItem(
     category: b.indexValue,
     value: b.value,
     formattedValue: String(b.value),
-    color: b.color,
+    color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
     datum: {
       id: b.key,
       key: b.key,
@@ -80,37 +216,57 @@ export function renderBarItem(
       value: b.value,
       formattedValue: String(b.value),
       isUnderThreshold: b.threshold.isUnderThreshold,
-      thresholdMatched: b.threshold.matched,
+      thresholdMatched: ariaThresholdCoverage !== 'none',
+      thresholdCoverage: ariaThresholdCoverage,
+      matchedMarkerIds: thresholdIds,
       ...b.datum
     }
   });
 
-  ctx.animateItem(rect, {
+  if (
+    ariaThresholdCoverage === 'partial' &&
+    !hostEl.hasAttribute('aria-description')
+  ) {
+    const markerNames = plan.overlays
+      .map((ov) => ov.marker.label || ov.marker.id)
+      .join(', ');
+    hostEl.setAttribute(
+      'aria-description',
+      `Partially crosses threshold (${markerNames})`
+    );
+  }
+
+  ctx.animateItem(hostEl, {
     type: b.isHorizontal ? 'bar-horizontal' : 'bar-vertical',
     index: b.index,
     originX: b.isHorizontal ? b.x : b.x + b.width / 2,
     originY: b.isHorizontal ? b.y + b.height / 2 : b.y + b.height
   });
 
-  rect.addEventListener('mouseenter', (e) => {
-    rect.style.filter = 'brightness(1.1)';
-    const threshBadge = b.threshold.isUnderThreshold
-      ? `<br/><span style="color:#fda4af;font-weight:600;">⚠ Under Threshold (${b.threshold.matchedMarkerIds.join(
-          ', '
-        )})</span>`
-      : '';
+  hostEl.addEventListener('mouseenter', (e) => {
+    hostEl.style.filter = 'brightness(1.1)';
+    const threshBadge =
+      ariaThresholdCoverage === 'partial'
+        ? `<br/><span style="color:#fda4af;font-weight:600;">⚡ Crosses Threshold (${thresholdIds.join(
+            ', '
+          )})</span>`
+        : b.threshold.isUnderThreshold
+        ? `<br/><span style="color:#fda4af;font-weight:600;">⚠ Under Threshold (${thresholdIds.join(
+            ', '
+          )})</span>`
+        : '';
     ctx.showTooltip(
       `<strong>${b.indexValue}</strong><br/>${b.key}: <b>${b.value}</b>${threshBadge}`,
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );
   });
-  rect.addEventListener('mouseleave', () => {
-    rect.style.filter = 'none';
+  hostEl.addEventListener('mouseleave', () => {
+    hostEl.style.filter = 'none';
     ctx.hideTooltip();
   });
 
-  return rect;
+  return hostEl;
 }
 
 /**
@@ -131,7 +287,7 @@ export class MCBarItem extends HTMLElement {
     this.#model = val;
   }
 
-  public renderSvg(ctx: ChartRenderContext<any>): SVGRectElement | null {
+  public renderSvg(ctx: ChartRenderContext<any>): SVGElement | null {
     if (!this.#model) return null;
     return renderBarItem(this.#model, ctx);
   }
