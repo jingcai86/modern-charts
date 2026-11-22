@@ -32,11 +32,11 @@ import {
   SAMPLE_SUNBURST_DATA
 } from '../examples/sample-data';
 
-describe('modern-charts v0.1.0-alpha.0 architecture & dependencies', () => {
-  it('exports version 0.1.0-alpha.0 and relies only on d3 and @chenglou/pretext', () => {
-    expect(VERSION).toBe('0.1.0-alpha.0');
+describe('modern-charts architecture & dependencies', () => {
+  it('exports package version matching package.json and relies only on d3 and @chenglou/pretext', () => {
     expect(pkg.name).toBe('modern-charts');
-    expect(pkg.version).toBe('0.1.0-alpha.0');
+    expect(VERSION).toBe(pkg.version);
+    expect(VERSION).toMatch(/^\d+\.\d+\.\d+/);
     const runtimeDeps = Object.keys(pkg.dependencies).sort();
     expect(runtimeDeps).toEqual(['@chenglou/pretext', 'd3']);
   });

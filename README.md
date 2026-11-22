@@ -2,7 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/jingcai86/modern-charts/main/assets/banner.svg" alt="modern-charts banner" width="100%" />
 
-# 📊 modern-charts (`v0.1.0-alpha.0`)
+# 📊 modern-charts (`v0.1.0-alpha.1`)
 
 **Composable, Accessible Web Component Charting Library powered exclusively by D3 &amp; Pretext**
 
