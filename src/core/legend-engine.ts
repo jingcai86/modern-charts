@@ -500,6 +500,7 @@ export function renderUnifiedLegendLayer(
       anchor: 'start',
       baseline: 'middle',
       maxWidth: cfg.maxItemWidth,
+      enableTooltip: cfg.enableTooltip ? false : undefined,
       fontSize: layout.fontSize,
       color: ctx.theme.textColor,
       datum: item

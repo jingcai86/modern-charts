@@ -19,8 +19,11 @@ import {
   MCTreemapChart,
   MCGaugeChart,
   MCLabelElement,
+  MCTruncateElement,
   MCLegendElement,
   MCTooltipElement,
+  truncateTextWithPretext,
+  splitGraphemes,
   computeLegendLayout,
   createDefaultLegendConfig,
   MCAnimationLayer,
@@ -466,12 +469,22 @@ describe('Universal <mc-label> & @chenglou/pretext LabelEngine (Including <forei
 
     const multi = engine.measure(
       'Quarterly Infrastructure Throughput Growth Analysis',
-      { maxWidth: 95 },
+      { maxWidth: 95, overflow: 'wrap' },
       theme
     );
     expect(multi.lineCount).toBeGreaterThan(1);
     expect(multi.lines.length).toBe(multi.lineCount);
     expect(multi.boxHeight).toBeGreaterThan(single.boxHeight);
+
+    const truncDefault = engine.measure(
+      'Quarterly Infrastructure Throughput Growth Analysis',
+      { maxWidth: 95 },
+      theme
+    );
+    expect(truncDefault.truncated).toBe(true);
+    expect(truncDefault.lineCount).toBe(1);
+    expect(truncDefault.displayText.endsWith('…')).toBe(true);
+    expect(truncDefault.width).toBeLessThanOrEqual(95);
   });
 
   it('renders <foreignObject> containing inline SVG icons and accounts for icon dimensions via @chenglou/pretext', () => {
@@ -2734,5 +2747,356 @@ describe('Lightweight Core Primitives & Native Pan/Zoom Controller', () => {
     resetBtn.click();
     expect(events[events.length - 1]).toEqual({ k: 1, x: 0, y: 0 });
     expect(viewport?.getAttribute('transform')).toBe('translate(0, 0) scale(1)');
+  });
+});
+
+describe('Shared Pretext Label Truncation, Rotation & Tooltips (<mc-truncate> — Issue #14)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('truncates by maxWidth and/or maxChars (grapheme-safe) via @chenglou/pretext and defaults to truncate strategy', () => {
+    const byWidth = truncateTextWithPretext(
+      'Global Enterprise Cloud Infrastructure Throughput',
+      { maxWidth: 96 }
+    );
+    expect(byWidth.appliedStrategy).toBe('truncate');
+    expect(byWidth.overflowTriggered).toBe(true);
+    expect(byWidth.truncated).toBe(true);
+    expect(byWidth.text.endsWith('…')).toBe(true);
+    expect(byWidth.width).toBeLessThanOrEqual(96);
+    expect(byWidth.appliedRotation).toBe(0);
+
+    const byChars = truncateTextWithPretext('🚀🔥✨ Analytics Platform Metrics', {
+      maxChars: 10,
+      ellipsis: '...'
+    });
+    expect(byChars.truncated).toBe(true);
+    expect(byChars.text.endsWith('...')).toBe(true);
+    expect(splitGraphemes(byChars.text).length).toBeLessThanOrEqual(10);
+    expect(byChars.text.startsWith('🚀🔥✨')).toBe(true);
+
+    const fits = truncateTextWithPretext('Short', {
+      maxWidth: 120,
+      maxChars: 10
+    });
+    expect(fits.truncated).toBe(false);
+    expect(fits.overflowTriggered).toBe(false);
+    expect(fits.text).toBe('Short');
+  });
+
+  it('supports rotate (45° default, customizable including -45°), both, wrap, and none strategies', () => {
+    const longText = 'Quarterly Cloud Infrastructure Growth Analysis';
+
+    // Default rotate = 45°, keeps full untruncated text
+    const rotDefault = truncateTextWithPretext(longText, {
+      maxWidth: 72,
+      strategy: 'rotate'
+    });
+    expect(rotDefault.overflowTriggered).toBe(true);
+    expect(rotDefault.truncated).toBe(false);
+    expect(rotDefault.text).toBe(longText);
+    expect(rotDefault.appliedRotation).toBe(45);
+
+    // Custom negative rotation (-45°)
+    const rotNeg = truncateTextWithPretext(longText, {
+      maxChars: 14,
+      strategy: 'rotate',
+      maxRotation: -45
+    });
+    expect(rotNeg.overflowTriggered).toBe(true);
+    expect(rotNeg.truncated).toBe(false);
+    expect(rotNeg.appliedRotation).toBe(-45);
+
+    // Non-overflowing text does NOT auto-rotate
+    const rotFits = truncateTextWithPretext('Q1', {
+      maxWidth: 90,
+      maxChars: 10,
+      strategy: 'rotate',
+      maxRotation: -45
+    });
+    expect(rotFits.overflowTriggered).toBe(false);
+    expect(rotFits.appliedRotation).toBe(0);
+
+    // Strategy 'both' rotates AND truncates
+    const bothRes = truncateTextWithPretext(longText, {
+      maxWidth: 80,
+      maxChars: 14,
+      strategy: 'both',
+      maxRotation: -35
+    });
+    expect(bothRes.overflowTriggered).toBe(true);
+    expect(bothRes.truncated).toBe(true);
+    expect(bothRes.appliedRotation).toBe(-35);
+    expect(bothRes.text.endsWith('…')).toBe(true);
+    expect(bothRes.width).toBeLessThanOrEqual(80);
+    expect(splitGraphemes(bothRes.text).length).toBeLessThanOrEqual(14);
+
+    // Strategy 'none' leaves text and rotation unchanged
+    const noneRes = truncateTextWithPretext(longText, {
+      maxWidth: 50,
+      maxChars: 8,
+      strategy: 'none'
+    });
+    expect(noneRes.truncated).toBe(false);
+    expect(noneRes.text).toBe(longText);
+    expect(noneRes.appliedRotation).toBe(0);
+  });
+
+  it('renders standalone <mc-truncate> with default hover/keyboard tooltip, custom formatter, and explicit disable', () => {
+    expect(customElements.get('mc-truncate')).toBe(MCTruncateElement);
+
+    const el = document.createElement('mc-truncate') as MCTruncateElement;
+    el.setAttribute('text', 'Distributed Edge Observability Pipeline');
+    el.setAttribute('max-chars', '16');
+    document.body.appendChild(el);
+
+    const textEl = el.shadowRoot?.querySelector(
+      '.mc-truncate-text'
+    ) as HTMLSpanElement;
+    const tip = el.getTooltipElement() as MCTooltipElement;
+
+    expect(el.lastResult?.truncated).toBe(true);
+    expect(textEl.textContent?.endsWith('…')).toBe(true);
+    expect(textEl.getAttribute('aria-label')).toBe(
+      'Distributed Edge Observability Pipeline'
+    );
+    expect(textEl.getAttribute('tabindex')).toBe('0');
+    expect(tip.hidden).toBe(true);
+
+    // Hover opens tooltip with full untruncated text by default
+    textEl.dispatchEvent(
+      new MouseEvent('mouseenter', { clientX: 60, clientY: 40 })
+    );
+    expect(tip.hidden).toBe(false);
+    expect(tip.shadowRoot?.textContent).toContain(
+      'Distributed Edge Observability Pipeline'
+    );
+
+    textEl.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(tip.hidden).toBe(true);
+
+    // Keyboard focus opens tooltip and Escape hides it
+    textEl.dispatchEvent(new FocusEvent('focus'));
+    expect(tip.hidden).toBe(false);
+    textEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(tip.hidden).toBe(true);
+
+    // Custom tooltip formatter
+    el.tooltip = {
+      formatter: (payload) => `<strong>FULL:</strong> ${payload.title}`
+    };
+    textEl.dispatchEvent(
+      new MouseEvent('mouseenter', { clientX: 60, clientY: 40 })
+    );
+    expect(tip.hidden).toBe(false);
+    expect(tip.shadowRoot?.textContent).toContain(
+      'FULL: Distributed Edge Observability Pipeline'
+    );
+    textEl.dispatchEvent(new MouseEvent('mouseleave'));
+
+    // Explicitly disabling tooltip via enable-tooltip="false"
+    el.tooltip = undefined;
+    el.setAttribute('enable-tooltip', 'false');
+    expect(textEl.hasAttribute('tabindex')).toBe(false);
+    textEl.dispatchEvent(
+      new MouseEvent('mouseenter', { clientX: 60, clientY: 40 })
+    );
+    expect(tip.hidden).toBe(true);
+  });
+
+  it('applies truncation, rotation, and customizable/disableable tooltips across chart <mc-label> targets', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    const longCategories = [
+      { dept: 'Cloud Infrastructure & Platform Engineering', Spend: 210 },
+      { dept: 'Applied Machine Learning Research Lab', Spend: 175 },
+      { dept: 'Enterprise Security & Compliance Ops', Spend: 140 }
+    ];
+
+    // 1. Default truncation on axis ticks & title + default hover/focus tooltip (isolated from chart item formatter)
+    bar.config = {
+      data: longCategories,
+      width: 420,
+      height: 320,
+      title:
+        'Annual Departmental Cloud Infrastructure Investment & Operating Expenditure Overview',
+      indexBy: 'dept',
+      keys: ['Spend'],
+      tooltip: {
+        formatter: (p) => `BAR ITEM ONLY: ${p.seriesId}`
+      },
+      labelOverflow: {
+        maxChars: 14
+      }
+    };
+
+    const xTick0 = bar.shadowRoot?.querySelector(
+      '[data-label-id="x-tick-0"]'
+    ) as SVGGElement;
+    const titleLabel = bar.shadowRoot?.querySelector(
+      '[data-label-id="chart-title"]'
+    ) as SVGGElement;
+    const tooltip = bar.getTooltipElement() as MCTooltipElement;
+
+    expect(xTick0).not.toBeNull();
+    expect(xTick0.getAttribute('data-truncated')).toBe('true');
+    expect(xTick0.getAttribute('data-full-text')).toBe(
+      'Cloud Infrastructure & Platform Engineering'
+    );
+    expect(xTick0.textContent?.endsWith('…')).toBe(true);
+    expect(xTick0.classList.contains('mc-label--interactive')).toBe(true);
+    expect(xTick0.getAttribute('tabindex')).toBe('0');
+
+    expect(titleLabel).not.toBeNull();
+    expect(titleLabel.getAttribute('data-truncated')).toBe('true');
+
+    // Hover truncated axis tick -> shows full label text (NOT the chart's bar-item formatter!)
+    xTick0.dispatchEvent(
+      new MouseEvent('mouseenter', { clientX: 90, clientY: 260 })
+    );
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.shadowRoot?.textContent).toContain(
+      'Cloud Infrastructure & Platform Engineering'
+    );
+    expect(tooltip.shadowRoot?.textContent).not.toContain('BAR ITEM ONLY');
+
+    xTick0.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(tooltip.hidden).toBe(true);
+
+    // Keyboard focus on truncated axis tick -> shows tooltip; Escape hides it
+    xTick0.dispatchEvent(new FocusEvent('focus'));
+    expect(tooltip.hidden).toBe(false);
+    xTick0.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(tooltip.hidden).toBe(true);
+
+    // 2. Strategy 'both' with negative maxRotation (-45°) and custom label tooltip formatter
+    bar.config = {
+      ...bar.config,
+      labelOverflow: {
+        strategy: 'both',
+        maxChars: 12,
+        maxRotation: -45,
+        tooltip: {
+          formatter: (p) => `Full Category: ${p.title}`
+        }
+      }
+    };
+
+    const rotTick0 = bar.shadowRoot?.querySelector(
+      '[data-label-id="x-tick-0"]'
+    ) as SVGGElement;
+    expect(rotTick0.getAttribute('data-truncated')).toBe('true');
+    expect(rotTick0.getAttribute('data-overflow-strategy')).toBe('both');
+    expect(rotTick0.getAttribute('data-applied-rotation')).toBe('-45');
+    expect(rotTick0.getAttribute('transform')).toContain('rotate(-45)');
+    // Hanging X-axis tick auto-adjusts anchor to 'end' for negative rotation
+    expect(
+      rotTick0.querySelector('text')?.getAttribute('text-anchor')
+    ).toBe('end');
+
+    rotTick0.dispatchEvent(
+      new MouseEvent('mouseenter', { clientX: 90, clientY: 260 })
+    );
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.shadowRoot?.textContent).toContain(
+      'Full Category: Cloud Infrastructure & Platform Engineering'
+    );
+    rotTick0.dispatchEvent(new MouseEvent('mouseleave'));
+
+    // 3. Explicitly disable truncated-label tooltip via enableTooltip: false
+    bar.config = {
+      ...bar.config,
+      labelOverflow: {
+        strategy: 'truncate',
+        maxChars: 12,
+        enableTooltip: false
+      }
+    };
+
+    const quietTick = bar.shadowRoot?.querySelector(
+      '[data-label-id="x-tick-0"]'
+    ) as SVGGElement;
+    expect(quietTick.getAttribute('data-truncated')).toBe('true');
+    expect(quietTick.classList.contains('mc-label--interactive')).toBe(false);
+    expect(quietTick.hasAttribute('tabindex')).toBe(false);
+    quietTick.dispatchEvent(
+      new MouseEvent('mouseenter', { clientX: 90, clientY: 260 })
+    );
+    expect(tooltip.hidden).toBe(true);
+  });
+
+  it('supports declarative <mc-truncate> children inside charts, standalone <mc-label>, and applies across pie, sankey, treemap, and radar charts', () => {
+    // Declarative <mc-truncate> targeting pie arc-link labels
+    const pie = document.createElement('mc-pie-chart') as MCPieChart;
+    pie.innerHTML = `<mc-truncate for="arc-link" max-chars="10" strategy="truncate"></mc-truncate>`;
+    document.body.appendChild(pie);
+
+    pie.config = {
+      width: 480,
+      height: 320,
+      data: [
+        { id: 'Very Long Infrastructure Segment', value: 45 },
+        { id: 'Another Super Long Segment Name', value: 55 }
+      ]
+    };
+
+    const pieLink0 = pie.shadowRoot?.querySelector(
+      '[data-label-id="arc-link-label-0"]'
+    ) as SVGGElement;
+    expect(pieLink0).not.toBeNull();
+    expect(pieLink0.getAttribute('data-truncated')).toBe('true');
+    expect(pieLink0.textContent?.endsWith('…')).toBe(true);
+    expect(pieLink0.classList.contains('mc-label--interactive')).toBe(true);
+
+    // Radar chart with declarative <mc-truncate> using rotate strategy (default 45°)
+    const radar = document.createElement('mc-radar-chart') as MCRadarChart;
+    radar.innerHTML = `<mc-truncate for="radar-axis" max-chars="10" strategy="rotate"></mc-truncate>`;
+    document.body.appendChild(radar);
+
+    radar.config = {
+      width: 420,
+      height: 340,
+      indexBy: 'metric',
+      keys: ['Score'],
+      data: [
+        { metric: 'Operational Reliability', Score: 92 },
+        { metric: 'Developer Productivity', Score: 84 },
+        { metric: 'Security Posture', Score: 88 }
+      ]
+    };
+
+    const radarAxis0 = radar.shadowRoot?.querySelector(
+      '[data-label-id="radar-axis-0"]'
+    ) as SVGGElement;
+    expect(radarAxis0).not.toBeNull();
+    expect(radarAxis0.getAttribute('data-truncated')).toBe('false');
+    expect(radarAxis0.getAttribute('data-applied-rotation')).toBe('45');
+    expect(radarAxis0.getAttribute('transform')).toContain('rotate(45)');
+
+    // Standalone <mc-label> with max-chars & automatic hover tooltip
+    const standaloneLbl = document.createElement('mc-label') as MCLabelElement;
+    standaloneLbl.setAttribute('text', 'Standalone Pretext Truncated Label');
+    standaloneLbl.setAttribute('max-chars', '14');
+    document.body.appendChild(standaloneLbl);
+
+    expect(standaloneLbl.lastMeasured?.truncated).toBe(true);
+    const lblG = standaloneLbl.shadowRoot?.querySelector(
+      'g.mc-label'
+    ) as SVGGElement;
+    const lblTip = standaloneLbl.getTooltipElement() as MCTooltipElement;
+    expect(lblG.getAttribute('data-truncated')).toBe('true');
+    expect(lblG.classList.contains('mc-label--interactive')).toBe(true);
+
+    lblG.dispatchEvent(
+      new MouseEvent('mouseenter', { clientX: 40, clientY: 20 })
+    );
+    expect(lblTip.hidden).toBe(false);
+    expect(lblTip.shadowRoot?.textContent).toContain(
+      'Standalone Pretext Truncated Label'
+    );
+    lblG.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(lblTip.hidden).toBe(true);
   });
 });

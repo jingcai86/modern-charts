@@ -78,10 +78,19 @@ function getTooltipStyleSheet(): CSSStyleSheet | null {
         display: none;
       }
 
+      .mc-tooltip-header.mc-tooltip-header--solo {
+        margin-bottom: 0;
+        font-weight: 600;
+      }
+
       .mc-tooltip-body {
         display: flex;
         flex-direction: column;
         gap: 3px;
+      }
+
+      .mc-tooltip-body[hidden] {
+        display: none;
       }
 
       .mc-tooltip-row {
@@ -202,6 +211,7 @@ export class MCTooltipElement extends HTMLElement {
   #activePositionMode: TooltipPositionMode = 'follow';
   #activeSource: 'pointer' | 'keyboard' = 'pointer';
   #activeConfig: TooltipConfig = {};
+  #appliedExtraClasses: string[] = [];
 
   constructor() {
     super();
@@ -490,13 +500,16 @@ export class MCTooltipElement extends HTMLElement {
     this.setAttribute('data-position-mode', resolvedMode);
     this.setAttribute('data-trigger-source', source);
 
-    const baseClass = this.classList.contains('mc-legend-tooltip')
-      ? 'mc-legend-tooltip'
-      : 'mc-tooltip';
+    if (this.#appliedExtraClasses.length > 0) {
+      this.classList.remove(...this.#appliedExtraClasses);
+      this.#appliedExtraClasses = [];
+    }
     if (config.className) {
-      this.className = `${baseClass} ${config.className}`;
-    } else {
-      this.className = baseClass;
+      const nextClasses = config.className.split(/\s+/).filter(Boolean);
+      if (nextClasses.length > 0) {
+        this.classList.add(...nextClasses);
+        this.#appliedExtraClasses = nextClasses;
+      }
     }
 
     // Apply active chart theme via internal CSS custom properties so client ::part() rules still win cleanly
@@ -529,6 +542,7 @@ export class MCTooltipElement extends HTMLElement {
       }
       headerEl.hidden = true;
       headerEl.textContent = '';
+      bodyEl.hidden = false;
       bodyEl.innerHTML = '';
       if (customOut === undefined) {
         this.#renderStructured(payload, headerEl, bodyEl);
@@ -545,6 +559,7 @@ export class MCTooltipElement extends HTMLElement {
       }
       headerEl.hidden = true;
       headerEl.textContent = '';
+      bodyEl.hidden = false;
       if (formatted === undefined) {
         this.#renderStructured(payload, headerEl, bodyEl);
       } else {
@@ -553,6 +568,7 @@ export class MCTooltipElement extends HTMLElement {
     } else if (config.templateHtml) {
       headerEl.hidden = true;
       headerEl.textContent = '';
+      bodyEl.hidden = false;
       bodyEl.innerHTML = interpolateTooltipTemplate(config.templateHtml, payload);
     } else {
       this.#renderStructured(payload, headerEl, bodyEl);
@@ -718,6 +734,18 @@ export class MCTooltipElement extends HTMLElement {
     headerEl: HTMLElement,
     bodyEl: HTMLElement
   ): void {
+    const isSoloTitleText =
+      Boolean(payload.title) &&
+      !payload.label &&
+      !payload.color &&
+      !payload.badge &&
+      !payload.defaultHtml &&
+      (!payload.items || payload.items.length === 0) &&
+      (payload.value === undefined ||
+        String(payload.formattedValue ?? payload.value) === payload.title);
+
+    headerEl.classList.toggle('mc-tooltip-header--solo', isSoloTitleText);
+
     if (payload.title) {
       headerEl.hidden = false;
       headerEl.textContent = payload.title;
@@ -725,8 +753,14 @@ export class MCTooltipElement extends HTMLElement {
       headerEl.hidden = true;
       headerEl.textContent = '';
     }
+
     bodyEl.innerHTML = '';
-    bodyEl.appendChild(this.buildDefaultContent(payload));
+    if (isSoloTitleText) {
+      bodyEl.hidden = true;
+    } else {
+      bodyEl.hidden = false;
+      bodyEl.appendChild(this.buildDefaultContent(payload));
+    }
   }
 
   #notifyParentChart(): void {
