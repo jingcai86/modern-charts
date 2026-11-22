@@ -12,8 +12,8 @@ This directory contains structured, token-efficient, machine-readable documentat
 
 ## Available Endpoints
 
-- **Repository**: `context/`
-- **npm package**: `node_modules/modern-charts/context/` (and `modern-charts/context/schema`)
+- **Repository**: `apps/context/`
+- **npm package**: `node_modules/modern-charts/dist/context/` (and `modern-charts/context/schema`, `modern-charts/context/*`)
 - **Live Demo / GitHub Pages**:
   - `https://jingcai86.github.io/modern-charts/llms.txt`
   - `https://jingcai86.github.io/modern-charts/llms-full.txt`

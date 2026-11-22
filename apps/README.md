@@ -4,6 +4,8 @@ This directory hosts standalone web applications built on top of `modern-charts`
 
 ```
 apps/
+├── context/                      # Structured AI Context (llms.txt, llms-full.txt, charts/*.md, charts.schema.json)
+│                                 # Copied into dist/context/ during `npm run build` and served by Studio via Vite publicDir
 └── studio/                       # Interactive Studio Playground & Documentation Site (published to GitHub Pages)
     ├── index.html                # App shell & top navigation (Gallery + Guides + AI Context)
     ├── main.ts                   # Slim entry point: registers charts, hash router & global theme switcher
@@ -45,7 +47,6 @@ apps/
 ## Related Top-Level Directories
 
 - [`src/`](../src/) — Core `modern-charts` library & Web Components (published to npm under `dist/`).
-- [`context/`](../context/) — Structured AI Context (`llms.txt`, `llms-full.txt`, `charts/*.md`, `charts.schema.json`). Kept at the repo root because it is shipped directly inside the published `modern-charts` npm package and served into the Studio build via Vite's `publicDir`.
 - [`tests/`](../tests/) — Unit, integration, subpath tree-shaking, and AI schema validation suites.
 
 ## Scripts
