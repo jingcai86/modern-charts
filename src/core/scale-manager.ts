@@ -359,7 +359,47 @@ export function renderLegendLayer(
   legendG.setAttribute('class', 'mc-legend-layer');
   legendG.setAttribute('part', 'legend');
 
-  if (position === 'bottom') {
+  if (position === 'right') {
+    const itemFontSize = Math.max(10, ctx.theme.fontSize - 1);
+    const rowHeight = 22;
+    const totalHeight = items.length * rowHeight;
+    const startX = ctx.innerWidth + 14;
+    const startY = Math.max(8, (ctx.innerHeight - totalHeight) / 2 + rowHeight / 2);
+
+    items.forEach((item, idx) => {
+      const itemG = document.createElementNS(SVG_NS, 'g');
+      itemG.setAttribute('class', 'mc-legend-item');
+      itemG.setAttribute(
+        'transform',
+        `translate(${startX}, ${startY + idx * rowHeight})`
+      );
+
+      const swatch = document.createElementNS(SVG_NS, 'rect');
+      swatch.setAttribute('x', '0');
+      swatch.setAttribute('y', '-5');
+      swatch.setAttribute('width', '9');
+      swatch.setAttribute('height', '9');
+      swatch.setAttribute('rx', '2');
+      swatch.setAttribute('fill', item.color);
+      itemG.appendChild(swatch);
+
+      ctx.renderLabel(itemG, {
+        id: `legend-${idx}`,
+        text: item.label,
+        x: 13,
+        y: 0,
+        type: 'legend',
+        anchor: 'start',
+        baseline: 'middle',
+        maxWidth: Math.max(56, ctx.margin.right - 22),
+        fontSize: itemFontSize,
+        color: ctx.theme.textColor,
+        datum: item
+      });
+
+      legendG.appendChild(itemG);
+    });
+  } else if (position === 'bottom') {
     let cursorX = 0;
     const itemFontSize = Math.max(10, ctx.theme.fontSize - 1);
 

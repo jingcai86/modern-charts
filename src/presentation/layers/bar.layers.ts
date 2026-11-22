@@ -76,6 +76,7 @@ export function renderBarLegendsLayer(
       id: k,
       label: k,
       color: ctx.colorScale(k)
-    }))
+    })),
+    'right'
   );
 }

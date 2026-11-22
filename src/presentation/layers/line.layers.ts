@@ -168,6 +168,7 @@ export function renderLineLegendsLayer(
 ): void {
   renderLegendLayer(
     ctx,
-    model.series.map((s) => ({ id: s.id, label: s.id, color: s.color }))
+    model.series.map((s) => ({ id: s.id, label: s.id, color: s.color })),
+    'right'
   );
 }

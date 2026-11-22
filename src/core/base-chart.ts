@@ -329,7 +329,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   >;
 
   protected getDefaultMargin(): ChartMargin {
-    return { top: 32, right: 28, bottom: 48, left: 56 };
+    return { top: 32, right: 98, bottom: 48, left: 56 };
   }
 
   protected getDefaultScaleConfig(): ScaleConfig {

@@ -101,10 +101,10 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     category: 'Sizing & Layout',
     control: 'range',
     min: 12,
-    max: 110,
+    max: 140,
     step: 2,
     description: 'Right inner margin in pixels.',
-    defaultValue: 32
+    defaultValue: 98
   },
   {
     configPath: 'margin.bottom',
