@@ -932,4 +932,150 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
     const scatterTooltip = scatter.shadowRoot?.querySelector('.mc-tooltip') as HTMLElement;
     expect(scatterTooltip.hidden).toBe(false);
   });
+
+  it('supports inside (top/bottom x left/center/right) and outside (left/right/top/bottom) marker label positions with labelPadding and auto-expanded margins', () => {
+    const parseTranslate = (el: Element | null): { x: number; y: number } => {
+      const t = el?.getAttribute('transform') ?? '';
+      const m = /translate\(\s*([-0-9.]+)\s*,\s*([-0-9.]+)\s*\)/.exec(t);
+      return { x: Number(m?.[1] ?? NaN), y: Number(m?.[2] ?? NaN) };
+    };
+
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+    bar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 640,
+      height: 360,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge', 'OnPrem'],
+      margin: { top: 36, right: 24, bottom: 56, left: 52 },
+      markers: [
+        {
+          id: 'tl',
+          type: 'line',
+          axis: 'y',
+          value: 100,
+          label: 'Top Left',
+          labelPosition: 'top-left',
+          labelPadding: 14,
+          labelEdgePadding: 16
+        },
+        {
+          id: 'br',
+          type: 'line',
+          axis: 'y',
+          value: 100,
+          label: 'Bottom Right',
+          labelPosition: 'bottom-right',
+          labelPadding: 18,
+          labelEdgePadding: 12
+        },
+        {
+          id: 'out-r',
+          type: 'line',
+          axis: 'y',
+          value: 100,
+          label: 'Outside Right',
+          labelPosition: 'outside-right',
+          labelPadding: 12
+        },
+        {
+          id: 'out-l',
+          type: 'line',
+          axis: 'y',
+          value: 100,
+          label: 'Outside Left',
+          labelPosition: 'outside-left',
+          labelPadding: 15
+        },
+        {
+          id: 'out-top',
+          type: 'line',
+          axis: 'x',
+          value: 'Q2',
+          label: 'Outside Top',
+          labelPosition: 'outside-top',
+          labelPadding: 10
+        },
+        {
+          id: 'out-bot',
+          type: 'line',
+          axis: 'x',
+          value: 'Q3',
+          label: 'Outside Bottom',
+          labelPosition: 'outside-bottom',
+          labelPadding: 14
+        }
+      ]
+    };
+
+    const lineEl = bar.shadowRoot?.querySelector(
+      '.mc-marker[data-marker-id="tl"] .mc-marker-line'
+    );
+    const lineY = Number(lineEl?.getAttribute('y1'));
+    const innerWidth = Number(lineEl?.getAttribute('x2'));
+    const xLineEl = bar.shadowRoot?.querySelector(
+      '.mc-marker[data-marker-id="out-top"] .mc-marker-line'
+    );
+    const innerHeight = Number(xLineEl?.getAttribute('y2'));
+
+    const tlPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="marker-label-tl"]') ?? null
+    );
+    const brPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="marker-label-br"]') ?? null
+    );
+    const outRPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="marker-label-out-r"]') ?? null
+    );
+    const outLPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="marker-label-out-l"]') ?? null
+    );
+    const outTopPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="marker-label-out-top"]') ?? null
+    );
+    const outBotPos = parseTranslate(
+      bar.shadowRoot?.querySelector('[data-label-id="marker-label-out-bot"]') ?? null
+    );
+
+    // Inside top-left sits above the line by labelPadding (14) and inset from left by labelEdgePadding (16)
+    expect(tlPos.x).toBe(16);
+    expect(tlPos.y).toBeCloseTo(lineY - 14, 1);
+
+    // Inside bottom-right sits below the line by labelPadding (18) and inset from right by labelEdgePadding (12)
+    expect(brPos.x).toBeCloseTo(innerWidth - 12, 1);
+    expect(brPos.y).toBeCloseTo(lineY + 18, 1);
+
+    // Outside right sits to the right of innerWidth by labelPadding (12)
+    expect(outRPos.x).toBeCloseTo(innerWidth + 12, 1);
+    expect(outRPos.y).toBeCloseTo(lineY, 1);
+
+    // Outside left sits to the left of the Y-axis by labelPadding (15)
+    expect(outLPos.x).toBe(-15);
+    expect(outLPos.y).toBeCloseTo(lineY, 1);
+
+    // Outside top sits above top edge by labelPadding (10)
+    expect(outTopPos.y).toBe(-10);
+
+    // Outside bottom sits below bottom X-axis by labelPadding (14)
+    expect(outBotPos.y).toBeCloseTo(innerHeight + 14, 1);
+
+    // Margins automatically expanded to fit outside-left and outside-right labels
+    const resolvedDims = bar.resolveDimensions();
+    expect(resolvedDims.margin.right).toBeGreaterThan(24);
+    expect(resolvedDims.margin.left).toBeGreaterThan(52);
+
+    // Declarative <mc-marker> attributes forward label-position & label-padding cleanly
+    const declMarker = document.createElement('mc-marker') as any;
+    declMarker.setAttribute('axis', 'y');
+    declMarker.setAttribute('value', '100');
+    declMarker.setAttribute('label', 'Goal');
+    declMarker.setAttribute('label-position', 'bottom-left');
+    declMarker.setAttribute('label-padding', '16');
+    declMarker.setAttribute('label-edge-padding', '20');
+    const parsed = declMarker.toMarkerConfig();
+    expect(parsed.labelPosition).toBe('bottom-left');
+    expect(parsed.labelPadding).toBe(16);
+    expect(parsed.labelEdgePadding).toBe(20);
+  });
 });

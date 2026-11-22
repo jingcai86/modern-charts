@@ -870,11 +870,64 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     width = Math.max(160, Math.round(width));
     height = Math.max(140, Math.round(height));
 
-    const margin = this.resolveMargin();
+    const margin = { ...this.resolveMargin() };
+    this.expandMarginForOutsideMarkers(margin);
     const innerWidth = Math.max(40, width - margin.left - margin.right);
     const innerHeight = Math.max(40, height - margin.top - margin.bottom);
 
     return { width, height, innerWidth, innerHeight, margin };
+  }
+
+  /**
+   * Automatically reserves enough margin space when any active marker uses an
+   * `'outside-left'`, `'outside-right'`, `'outside-top'`, or `'outside-bottom'`
+   * label position so outside marker badges never clip against the SVG viewport.
+   */
+  private expandMarginForOutsideMarkers(margin: ChartMargin): void {
+    const markers = this.resolveMarkersConfig();
+    if (markers.length === 0) return;
+
+    let theme: ChartTheme | null = null;
+    for (const m of markers) {
+      if (!m.label || !m.labelPosition || !m.labelPosition.startsWith('outside-')) {
+        continue;
+      }
+      if (!theme) theme = this.resolveTheme();
+      const pad = m.labelPadding ?? 8;
+      const measured = this.labelEngine.measure(
+        m.label,
+        {
+          type: 'marker',
+          fontSize: Math.max(10, theme.fontSize - 1),
+          fontWeight: 600,
+          background: 'rgba(0,0,0,0.8)',
+          icon: m.icon
+        },
+        theme
+      );
+
+      if (m.labelPosition === 'outside-left') {
+        margin.left = Math.max(
+          margin.left,
+          Math.ceil(measured.boxWidth + pad + 14)
+        );
+      } else if (m.labelPosition === 'outside-right') {
+        margin.right = Math.max(
+          margin.right,
+          Math.ceil(measured.boxWidth + pad + 14)
+        );
+      } else if (m.labelPosition === 'outside-top') {
+        margin.top = Math.max(
+          margin.top,
+          Math.ceil(measured.boxHeight + pad + 14)
+        );
+      } else if (m.labelPosition === 'outside-bottom') {
+        margin.bottom = Math.max(
+          margin.bottom,
+          Math.ceil(measured.boxHeight + pad + 14)
+        );
+      }
+    }
   }
 
   public resolveMargin(): ChartMargin {

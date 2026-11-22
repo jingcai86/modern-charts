@@ -216,6 +216,21 @@ export interface MarkerMatchStyle {
   labelColor?: string;
 }
 
+export type MarkerLabelPosition =
+  | 'start'
+  | 'middle'
+  | 'end'
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right'
+  | 'outside-left'
+  | 'outside-right'
+  | 'outside-top'
+  | 'outside-bottom';
+
 export interface MarkerConfig {
   id?: string;
   type?: MarkerType;
@@ -227,7 +242,26 @@ export interface MarkerConfig {
   /** Upper bound for a marker area (`type: 'area'`) or range threshold */
   to?: number | string;
   label?: string;
-  labelPosition?: 'start' | 'middle' | 'end';
+  /**
+   * Marker label placement:
+   * - Inside relative to the marker line/area:
+   *   `'top-left'`, `'top-center'`, `'top-right'`,
+   *   `'bottom-left'`, `'bottom-center'`, `'bottom-right'`
+   *   (plus shorthands `'start'`, `'middle'`, `'end'`)
+   * - Outside the plot area adjacent to an axis:
+   *   `'outside-left'`, `'outside-right'`, `'outside-top'`, `'outside-bottom'`
+   */
+  labelPosition?: MarkerLabelPosition;
+  /**
+   * Padding (in px) away from the marker line/edge (for inside placements)
+   * or away from the chart axis (for `'outside-*'` placements).
+   */
+  labelPadding?: number;
+  /**
+   * Inset padding (in px) away from the left/right or top/bottom plot boundary
+   * for inside placements (`'top-left'`, `'bottom-right'`, etc.).
+   */
+  labelEdgePadding?: number;
   labelOffsetX?: number;
   labelOffsetY?: number;
   icon?: string;

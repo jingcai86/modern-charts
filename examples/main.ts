@@ -3,6 +3,7 @@ import {
   MCBaseChart,
   resolveEffectiveThemeMode,
   type ChartConfig,
+  type MarkerLabelPosition,
   type ThemeModePreference
 } from '../src/index';
 import {
@@ -58,6 +59,9 @@ const chartVirtualState = new Map<
     __markerThresholdValue: number;
     __markerCondition: 'below' | 'above' | 'between';
     __markerMatchColor: string;
+    __markerLabelPosition: MarkerLabelPosition;
+    __markerLabelPadding: number;
+    __markerLabelEdgePadding: number;
     __labelIconPreset: string;
   }
 >();
@@ -75,6 +79,9 @@ function getOrInitChartConfig(entry: ChartCatalogEntry): ChartConfig<any> {
       __markerCondition:
         (lineMarker?.condition as 'below' | 'above' | 'between') ?? 'below',
       __markerMatchColor: lineMarker?.matchStyle?.color ?? '#ef4444',
+      __markerLabelPosition: lineMarker?.labelPosition ?? 'top-right',
+      __markerLabelPadding: lineMarker?.labelPadding ?? 10,
+      __markerLabelEdgePadding: lineMarker?.labelEdgePadding ?? 10,
       __labelIconPreset: 'none'
     });
   }
@@ -135,6 +142,9 @@ function buildMarkersForVirtualState(
     __markerThresholdValue: number;
     __markerCondition: 'below' | 'above' | 'between';
     __markerMatchColor: string;
+    __markerLabelPosition: MarkerLabelPosition;
+    __markerLabelPadding: number;
+    __markerLabelEdgePadding: number;
   }
 ) {
   if (!entry.supportsMarkers || !vState.__markerEnabled) {
@@ -143,6 +153,9 @@ function buildMarkersForVirtualState(
   const val = Number(vState.__markerThresholdValue) || 130;
   const color = vState.__markerMatchColor || '#ef4444';
   const cond = vState.__markerCondition || 'below';
+  const labelPosition = vState.__markerLabelPosition || 'top-right';
+  const labelPadding = Number(vState.__markerLabelPadding ?? 10);
+  const labelEdgePadding = Number(vState.__markerLabelEdgePadding ?? 10);
 
   return [
     {
@@ -162,6 +175,9 @@ function buildMarkersForVirtualState(
       from: cond === 'between' ? 0 : undefined,
       to: cond === 'between' ? val : undefined,
       label: `Threshold (${cond} ${val})`,
+      labelPosition,
+      labelPadding,
+      labelEdgePadding,
       icon: SVG_ICON_PRESETS.warn,
       stroke: color,
       strokeWidth: 2,
