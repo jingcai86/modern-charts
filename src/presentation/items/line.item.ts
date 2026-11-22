@@ -220,13 +220,26 @@ export function renderLinePointItem(
   circle.addEventListener('mouseenter', (e) => {
     circle.setAttribute('r', String(radius + 2));
     circle.setAttribute('fill', pt.color);
-    const threshNote = pt.threshold.isUnderThreshold
-      ? `<br/><span style="color:#fda4af;font-weight:600;">⚠ Under Threshold (${pt.threshold.matchedMarkerIds.join(
-          ', '
-        )})</span>`
-      : '';
     ctx.showTooltip(
-      `<strong>${pt.seriesId}</strong><br/>${pt.xValue}: <b>${pt.yValue}</b>${threshNote}`,
+      {
+        title: pt.seriesId,
+        label: String(pt.xValue),
+        seriesId: pt.seriesId,
+        category: String(pt.xValue),
+        value: pt.yValue,
+        formattedValue: String(pt.yValue),
+        color: pt.color,
+        badge: pt.threshold.isUnderThreshold
+          ? `⚠ Under Threshold (${pt.threshold.matchedMarkerIds.join(', ')})`
+          : undefined,
+        threshold: pt.threshold,
+        datum: {
+          seriesId: pt.seriesId,
+          x: pt.xValue,
+          y: pt.yValue,
+          ...pt.raw
+        }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );

@@ -63,12 +63,31 @@ export function renderScatterNodeItem(
 
   circle.addEventListener('mouseenter', (e) => {
     circle.setAttribute('fill-opacity', '0.96');
+    const items = [
+      { label: 'X', value: node.xValue, color: node.color },
+      { label: 'Y', value: node.yValue, color: node.color }
+    ];
+    if (node.sizeValue !== 1) {
+      items.push({ label: 'Size', value: node.sizeValue, color: node.color });
+    }
     ctx.showTooltip(
-      `<strong>${node.label || node.seriesId}</strong><br/>X: <b>${
-        node.xValue
-      }</b>, Y: <b>${node.yValue}</b>${
-        node.sizeValue !== 1 ? `<br/>Size: <b>${node.sizeValue}</b>` : ''
-      }`,
+      {
+        title: node.label || node.seriesId,
+        seriesId: node.seriesId,
+        value: node.yValue,
+        formattedValue: `(${node.xValue}, ${node.yValue})`,
+        color: node.color,
+        items,
+        threshold: node.threshold,
+        datum: {
+          seriesId: node.seriesId,
+          label: node.label,
+          x: node.xValue,
+          y: node.yValue,
+          size: node.sizeValue,
+          isUnderThreshold: node.threshold.isUnderThreshold
+        }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );

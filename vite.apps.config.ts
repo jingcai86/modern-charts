@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 export default defineConfig({
   base: './',
-  root: resolve(import.meta.dirname, 'apps'),
+  root: resolve(import.meta.dirname, 'apps/studio'),
   publicDir: resolve(import.meta.dirname, 'context'),
   resolve: {
     alias: {

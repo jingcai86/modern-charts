@@ -50,9 +50,16 @@ export function renderPieArcItem(
     path.setAttribute('d', arc.hoverPathD);
     path.style.filter = 'brightness(1.08)';
     ctx.showTooltip(
-      `<strong>${arc.data.label || arc.data.id}</strong><br/>Value: <b>${
-        arc.value
-      }</b> (${arc.percentage.toFixed(1)}%)`,
+      {
+        title: arc.data.label || arc.data.id,
+        label: 'Value',
+        seriesId: arc.data.id,
+        value: arc.value,
+        formattedValue: `${arc.value} (${arc.percentage.toFixed(1)}%)`,
+        color: arc.color,
+        percentage: arc.percentage,
+        datum: { ...arc.data, percentage: arc.percentage }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );
@@ -115,9 +122,23 @@ export function renderSunburstArcItem(
   path.addEventListener('mouseenter', (e) => {
     path.style.filter = 'brightness(1.12)';
     ctx.showTooltip(
-      `<strong>${arc.breadcrumb}</strong><br/>Value: <b>${
-        arc.value
-      }</b> (${arc.percentage.toFixed(1)}%)`,
+      {
+        title: arc.breadcrumb,
+        label: arc.name,
+        category: arc.pathNames[0] || arc.name,
+        value: arc.value,
+        formattedValue: `${arc.value} (${arc.percentage.toFixed(1)}%)`,
+        color: arc.color,
+        percentage: arc.percentage,
+        datum: {
+          name: arc.name,
+          breadcrumb: arc.breadcrumb,
+          pathNames: arc.pathNames,
+          depth: arc.depth,
+          value: arc.value,
+          percentage: arc.percentage
+        }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );
@@ -173,6 +194,34 @@ export function renderGaugeValueArcItem(
     index: 0,
     originX: 0,
     originY: 0
+  });
+
+  path.style.cursor = 'pointer';
+  path.addEventListener('mouseenter', (e) => {
+    path.style.filter = 'brightness(1.08)';
+    ctx.showTooltip(
+      {
+        title: model.label || 'Gauge Metric',
+        label: 'Value',
+        value: model.value,
+        formattedValue: `${model.value}${model.unit}`,
+        color: ctx.theme.colors[0],
+        datum: {
+          ...model.datum,
+          value: model.value,
+          min: model.min,
+          max: model.max,
+          unit: model.unit,
+          label: model.label
+        }
+      },
+      (e as MouseEvent).clientX,
+      (e as MouseEvent).clientY
+    );
+  });
+  path.addEventListener('mouseleave', () => {
+    path.style.filter = 'none';
+    ctx.hideTooltip();
   });
 
   return path;

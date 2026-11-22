@@ -79,7 +79,20 @@ export function renderRadarDotItem(
   dot.addEventListener('mouseenter', (e) => {
     dot.setAttribute('r', '6');
     ctx.showTooltip(
-      `<strong>${pt.axis}</strong><br/>${pt.seriesKey}: <b>${pt.value}</b>`,
+      {
+        title: pt.axis,
+        label: pt.seriesKey,
+        seriesId: pt.seriesKey,
+        category: pt.axis,
+        value: pt.value,
+        formattedValue: String(pt.value),
+        color: pt.color,
+        datum: {
+          key: pt.seriesKey,
+          axis: pt.axis,
+          value: pt.value
+        }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );

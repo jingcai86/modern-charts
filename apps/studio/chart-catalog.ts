@@ -1,4 +1,4 @@
-import type { ChartConfig, ThemeModePreference } from '../src/index';
+import type { ChartConfig, ThemeModePreference } from '../../src/index';
 import {
   SAMPLE_BAR_DATA,
   SAMPLE_GAUGE_DATA,

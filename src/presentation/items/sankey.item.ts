@@ -81,9 +81,20 @@ export function renderSankeyLinkItem(
       String(Math.min(0.9, link.opacity + 0.35))
     );
     ctx.showTooltip(
-      `<strong>${link.source.name} → ${
-        link.target.name
-      }</strong><br/>Flow: <b>${format(',')(link.value)}</b>`,
+      {
+        title: `${link.source.name} → ${link.target.name}`,
+        label: 'Flow',
+        value: link.value,
+        formattedValue: format(',')(link.value),
+        color: link.source.color,
+        datum: {
+          source: link.source.id,
+          sourceName: link.source.name,
+          target: link.target.id,
+          targetName: link.target.name,
+          value: link.value
+        }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );
@@ -141,9 +152,19 @@ export function renderSankeyNodeItem(
 
   rect.addEventListener('mouseenter', (e) => {
     ctx.showTooltip(
-      `<strong>${node.name}</strong><br/>Total Flow: <b>${format(',')(
-        node.value
-      )}</b>`,
+      {
+        title: node.name,
+        label: 'Total Flow',
+        value: node.value,
+        formattedValue: format(',')(node.value),
+        color: node.color,
+        datum: {
+          id: node.id,
+          name: node.name,
+          column: node.column,
+          value: node.value
+        }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );

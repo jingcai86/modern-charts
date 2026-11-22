@@ -94,13 +94,26 @@ export function renderBarItem(
 
   rect.addEventListener('mouseenter', (e) => {
     rect.style.filter = 'brightness(1.1)';
-    const threshBadge = b.threshold.isUnderThreshold
-      ? `<br/><span style="color:#fda4af;font-weight:600;">⚠ Under Threshold (${b.threshold.matchedMarkerIds.join(
-          ', '
-        )})</span>`
-      : '';
     ctx.showTooltip(
-      `<strong>${b.indexValue}</strong><br/>${b.key}: <b>${b.value}</b>${threshBadge}`,
+      {
+        title: b.indexValue,
+        label: b.key,
+        seriesId: b.key,
+        category: b.indexValue,
+        value: b.value,
+        formattedValue: String(b.value),
+        color: b.color,
+        badge: b.threshold.isUnderThreshold
+          ? `⚠ Under Threshold (${b.threshold.matchedMarkerIds.join(', ')})`
+          : undefined,
+        threshold: b.threshold,
+        datum: {
+          key: b.key,
+          indexValue: b.indexValue,
+          value: b.value,
+          ...b.datum
+        }
+      },
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );

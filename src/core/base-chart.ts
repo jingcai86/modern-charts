@@ -30,6 +30,9 @@ import type {
   ScaleConfig,
   ThresholdEvaluationResult,
   ThresholdMatchedItem,
+  TooltipConfig,
+  TooltipInput,
+  TooltipPayload,
   ViewConfig
 } from './types';
 import {
@@ -42,6 +45,7 @@ import {
   MCViewLayer
 } from '../components/layers/mc-layers';
 import { MCLabelElement } from '../components/mc-label';
+import { MCTooltipElement } from '../components/mc-tooltip';
 import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -62,7 +66,12 @@ baseChartTemplate.innerHTML = `
       <button type="button" class="mc-view-btn" data-zoom="out" aria-label="Zoom out">−</button>
       <button type="button" class="mc-view-btn" data-zoom="reset" aria-label="Reset zoom">Reset</button>
     </div>
-    <div class="mc-tooltip" part="tooltip" hidden></div>
+    <mc-tooltip
+      class="mc-tooltip"
+      part="tooltip-host"
+      exportparts="tooltip, container: tooltip-container, header: tooltip-header, body: tooltip-body, row: tooltip-row, swatch: tooltip-swatch, label: tooltip-label, value: tooltip-value, badge: tooltip-badge"
+      hidden
+    ></mc-tooltip>
     <div class="mc-aria-live visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="mc-aria-table-container visually-hidden"></div>
     <div class="mc-internal-subcomponents" hidden>
@@ -239,14 +248,7 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
           left: 0;
           pointer-events: none;
           z-index: 20;
-          padding: 8px 11px;
-          border-radius: 8px;
-          font-size: 12px;
-          line-height: 1.4;
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 4px 10px -4px rgba(0, 0, 0, 0.12);
-          border: 1px solid rgba(148, 163, 184, 0.28);
           transition: opacity 120ms ease, transform 90ms ease;
-          white-space: nowrap;
         }
 
         .mc-tooltip[hidden] {
@@ -1562,8 +1564,11 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       animateItem: (element: SVGElement, spec: ItemAnimationSpec) =>
         this.animationEngine.animateItem(element, spec, animationConfig),
       evaluateThresholds: initialThresholdCtrl.evaluate,
-      showTooltip: (html: string, clientX: number, clientY: number) =>
-        this.showTooltip(html, clientX, clientY, theme),
+      showTooltip: (
+        content: TooltipInput,
+        clientX: number,
+        clientY: number
+      ) => this.showTooltip(content, clientX, clientY, theme),
       hideTooltip: () => this.hideTooltip(),
       state: this._chartState
     };
@@ -1706,49 +1711,110 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     allItems[nextIdx]?.focus();
   }
 
+  /**
+   * Resolves active unified tooltip configuration by merging `chart.config.tooltip`
+   * with any declarative `<mc-tooltip>` child placed inside the chart.
+   */
+  public resolveTooltipConfig(): TooltipConfig {
+    const raw = this._config.tooltip;
+    let base: TooltipConfig =
+      typeof raw === 'boolean' ? { enabled: raw } : { ...(raw ?? {}) };
+
+    const declTooltip = this.querySelector(
+      ':scope > mc-tooltip'
+    ) as MCTooltipElement | null;
+    if (declTooltip && typeof declTooltip.toTooltipConfig === 'function') {
+      base = {
+        ...base,
+        ...declTooltip.toTooltipConfig()
+      };
+    }
+    if (base.enabled === undefined) {
+      base.enabled = true;
+    }
+    return base;
+  }
+
+  /**
+   * Returns the single internal `<mc-tooltip>` Web Component instance owned by
+   * this chart (one per chart for performance).
+   */
+  public getTooltipElement(): MCTooltipElement | null {
+    return (
+      (this.shadowRoot?.querySelector('.mc-tooltip') as MCTooltipElement | null) ??
+      null
+    );
+  }
+
   public showTooltip(
-    html: string,
+    content: TooltipInput,
     clientX: number,
     clientY: number,
     theme?: ChartTheme
   ): void {
-    const tooltip = this.shadowRoot?.querySelector(
-      '.mc-tooltip'
-    ) as HTMLDivElement | null;
+    const tooltip = this.getTooltipElement();
     const container = this.shadowRoot?.querySelector(
       '.mc-chart-container'
     ) as HTMLDivElement | null;
     if (!tooltip || !container) return;
 
+    const tooltipConfig = this.resolveTooltipConfig();
+    if (tooltipConfig.enabled === false) {
+      this.hideTooltip();
+      return;
+    }
+
+    const payload: TooltipPayload =
+      typeof content === 'string'
+        ? {
+            chartType: this.chartType,
+            defaultHtml: content,
+            data: this._data,
+            clientX,
+            clientY
+          }
+        : {
+            ...content,
+            chartType: this.chartType,
+            data: this._data,
+            clientX,
+            clientY
+          };
+
     const activeTheme = theme ?? this.resolveTheme();
-    tooltip.style.background = activeTheme.tooltipBackground;
-    tooltip.style.color = activeTheme.tooltipTextColor;
-    tooltip.style.borderColor = activeTheme.tooltipBorderColor;
-    tooltip.innerHTML = html;
-    tooltip.hidden = false;
-
     const rect = container.getBoundingClientRect();
-    let relX = clientX - rect.left + 14;
-    let relY = clientY - rect.top - 12;
 
-    if (relX + 160 > rect.width) {
-      relX = Math.max(8, clientX - rect.left - 150);
+    if (typeof tooltip.show === 'function') {
+      const shown = tooltip.show(payload, activeTheme, rect, tooltipConfig);
+      if (shown) {
+        this.dispatchEvent(
+          new CustomEvent('mc-tooltip-show', {
+            bubbles: true,
+            composed: true,
+            detail: payload
+          })
+        );
+      }
     }
-    if (relY < 8) {
-      relY = 8;
-    }
-
-    tooltip.style.transform = `translate(${Math.round(relX)}px, ${Math.round(
-      relY
-    )}px)`;
   }
 
   public hideTooltip(): void {
-    const tooltip = this.shadowRoot?.querySelector(
-      '.mc-tooltip'
-    ) as HTMLDivElement | null;
+    const tooltip = this.getTooltipElement();
     if (tooltip) {
-      tooltip.hidden = true;
+      const wasVisible = !tooltip.hidden;
+      if (typeof tooltip.hide === 'function') {
+        tooltip.hide();
+      } else {
+        tooltip.hidden = true;
+      }
+      if (wasVisible) {
+        this.dispatchEvent(
+          new CustomEvent('mc-tooltip-hide', {
+            bubbles: true,
+            composed: true
+          })
+        );
+      }
     }
   }
 
