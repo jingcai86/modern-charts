@@ -12,7 +12,7 @@ import type {
 
 export const SAMPLE_LINE_DATA: LineSeries[] = [
   {
-    id: 'AI Inference Cluster',
+    id: 'Inference',
     color: '#6366f1',
     data: [
       { x: 'Jan', y: 120 },
@@ -25,7 +25,7 @@ export const SAMPLE_LINE_DATA: LineSeries[] = [
     ]
   },
   {
-    id: 'Edge Web Components',
+    id: 'Edge',
     color: '#06b6d4',
     data: [
       { x: 'Jan', y: 82 },
@@ -38,7 +38,7 @@ export const SAMPLE_LINE_DATA: LineSeries[] = [
     ]
   },
   {
-    id: 'Legacy Bundle',
+    id: 'Legacy',
     color: '#f59e0b',
     data: [
       { x: 'Jan', y: 150 },
@@ -169,13 +169,13 @@ export const SAMPLE_SUNBURST_DATA: HierarchyNode = {
 
 export const SAMPLE_SANKEY_DATA: SankeyData = {
   nodes: [
-    { id: 'AI Prompt', name: 'AI Stream Prompt' },
-    { id: 'DOM Stream', name: 'DOM Layer Stream' },
-    { id: 'JS API', name: 'Client Layer API' },
-    { id: 'Pretext', name: 'Pretext Text Layout' },
-    { id: 'D3 Engine', name: 'D3 Scale & Path' },
-    { id: 'SVG Output', name: 'SVG <text> Canvas' },
-    { id: 'FO Output', name: 'SVG <foreignObject>' }
+    { id: 'AI Prompt', name: 'Prompt' },
+    { id: 'DOM Stream', name: 'Stream' },
+    { id: 'JS API', name: 'JS API' },
+    { id: 'Pretext', name: 'Pretext' },
+    { id: 'D3 Engine', name: 'D3' },
+    { id: 'SVG Output', name: 'SVG' },
+    { id: 'FO Output', name: 'HTML' }
   ],
   links: [
     { source: 'AI Prompt', target: 'DOM Stream', value: 460 },
@@ -191,7 +191,7 @@ export const SAMPLE_SANKEY_DATA: SankeyData = {
 
 export const SAMPLE_SCATTER_DATA: ScatterSeries[] = [
   {
-    id: 'Web Components',
+    id: 'Modern',
     data: [
       { x: 12, y: 88, size: 22, label: 'mc-line' },
       { x: 24, y: 92, size: 28, label: 'mc-sunburst' },
@@ -200,7 +200,7 @@ export const SAMPLE_SCATTER_DATA: ScatterSeries[] = [
     ]
   },
   {
-    id: 'Framework Wrappers',
+    id: 'Legacy',
     data: [
       { x: 18, y: 64, size: 18, label: 'V1 Chart' },
       { x: 32, y: 71, size: 24, label: 'V2 Chart' },

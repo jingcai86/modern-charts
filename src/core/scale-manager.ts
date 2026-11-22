@@ -361,7 +361,7 @@ export function renderLegendLayer(
 
   if (position === 'bottom') {
     let cursorX = 0;
-    const itemGroups: { g: SVGGElement; width: number }[] = [];
+    const itemFontSize = Math.max(10, ctx.theme.fontSize - 1);
 
     items.forEach((item, idx) => {
       const itemG = document.createElementNS(SVG_NS, 'g');
@@ -371,32 +371,31 @@ export function renderLegendLayer(
       const swatch = document.createElementNS(SVG_NS, 'rect');
       swatch.setAttribute('x', '0');
       swatch.setAttribute('y', '-5');
-      swatch.setAttribute('width', '10');
-      swatch.setAttribute('height', '10');
-      swatch.setAttribute('rx', '3');
+      swatch.setAttribute('width', '9');
+      swatch.setAttribute('height', '9');
+      swatch.setAttribute('rx', '2');
       swatch.setAttribute('fill', item.color);
       itemG.appendChild(swatch);
 
       const measured = ctx.measureText(item.label, {
-        fontSize: Math.max(11, ctx.theme.fontSize - 1)
+        fontSize: itemFontSize
       });
 
       ctx.renderLabel(itemG, {
         id: `legend-${idx}`,
         text: item.label,
-        x: 16,
+        x: 13,
         y: 0,
         type: 'legend',
         anchor: 'start',
         baseline: 'middle',
-        fontSize: Math.max(11, ctx.theme.fontSize - 1),
+        fontSize: itemFontSize,
         color: ctx.theme.textColor,
         datum: item
       });
 
-      const itemW = 16 + measured.boxWidth + 18;
+      const itemW = 13 + measured.boxWidth + 12;
       cursorX += itemW;
-      itemGroups.push({ g: itemG, width: itemW });
       legendG.appendChild(itemG);
     });
 
@@ -406,38 +405,39 @@ export function renderLegendLayer(
       `translate(${startX}, ${ctx.innerHeight + Math.min(36, ctx.margin.bottom - 12)})`
     );
   } else {
-    // Default top-right horizontal or stacked legend
+    // Default top-right horizontal legend
     let cursorX = ctx.innerWidth;
+    const itemFontSize = Math.max(10, ctx.theme.fontSize - 1);
     for (let i = items.length - 1; i >= 0; i--) {
       const item = items[i];
       const measured = ctx.measureText(item.label, {
-        fontSize: Math.max(11, ctx.theme.fontSize - 1)
+        fontSize: itemFontSize
       });
-      const itemW = 16 + measured.boxWidth + 14;
+      const itemW = 13 + measured.boxWidth + 10;
       cursorX -= itemW;
 
       const itemG = document.createElementNS(SVG_NS, 'g');
       itemG.setAttribute('class', 'mc-legend-item');
-      itemG.setAttribute('transform', `translate(${cursorX}, -16)`);
+      itemG.setAttribute('transform', `translate(${cursorX}, -18)`);
 
       const swatch = document.createElementNS(SVG_NS, 'rect');
       swatch.setAttribute('x', '0');
       swatch.setAttribute('y', '-5');
-      swatch.setAttribute('width', '10');
-      swatch.setAttribute('height', '10');
-      swatch.setAttribute('rx', '3');
+      swatch.setAttribute('width', '9');
+      swatch.setAttribute('height', '9');
+      swatch.setAttribute('rx', '2');
       swatch.setAttribute('fill', item.color);
       itemG.appendChild(swatch);
 
       ctx.renderLabel(itemG, {
         id: `legend-${i}`,
         text: item.label,
-        x: 15,
+        x: 13,
         y: 0,
         type: 'legend',
         anchor: 'start',
         baseline: 'middle',
-        fontSize: Math.max(11, ctx.theme.fontSize - 1),
+        fontSize: itemFontSize,
         color: ctx.theme.textColor,
         datum: item
       });
