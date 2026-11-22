@@ -656,14 +656,20 @@ export class MarkerEngine {
     annG.setAttribute('data-marker-id', marker.id);
     annG.setAttribute('data-annotation-position', ann.position);
     annG.setAttribute('role', 'note');
-    annG.setAttribute('tabindex', '0');
+    if (ann.enableTooltip) {
+      annG.setAttribute('tabindex', '0');
+      annG.setAttribute('pointer-events', 'auto');
+      annG.style.pointerEvents = 'auto';
+      annG.style.cursor = 'pointer';
+    } else {
+      annG.setAttribute('pointer-events', 'none');
+      annG.style.pointerEvents = 'none';
+      annG.style.cursor = 'default';
+    }
     annG.setAttribute(
       'aria-label',
       ann.text || marker.label || `Marker annotation: ${marker.id}`
     );
-    annG.setAttribute('pointer-events', 'auto');
-    annG.style.pointerEvents = 'auto';
-    annG.style.cursor = ann.enableTooltip ? 'pointer' : 'default';
     annG.style.outline = 'none';
 
     const annFontSize = ann.fontSize ?? Math.max(10, ctx.theme.fontSize - 1);

@@ -1206,14 +1206,28 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
     areaAnn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(itemTip.hidden).toBe(true);
 
-    // Annotation with enableTooltip: false does not open tooltip
+    // Annotation with enableTooltip: false does not open tooltip and disables pointer-events
     const silentAnn = line.shadowRoot?.querySelector(
       '.mc-marker-annotation[data-marker-id="no-tip-ann"]'
     ) as SVGGElement;
+    expect(silentAnn.getAttribute('pointer-events')).toBe('none');
     silentAnn.dispatchEvent(
       new MouseEvent('mouseenter', { bubbles: true, clientX: 250, clientY: 20 })
     );
     expect(itemTip.hidden).toBe(true);
+
+    // Line slice hit bands must stay strictly within [0, innerWidth] so they never overlap right-side outside annotations
+    const lineDims = line.resolveDimensions();
+    const sliceRects = Array.from(
+      line.shadowRoot?.querySelectorAll('.mc-slice-hit') ?? []
+    );
+    expect(sliceRects.length).toBeGreaterThan(0);
+    for (const sr of sliceRects) {
+      const sx = Number(sr.getAttribute('x'));
+      const sw = Number(sr.getAttribute('width'));
+      expect(sx).toBeGreaterThanOrEqual(0);
+      expect(sx + sw).toBeLessThanOrEqual(lineDims.innerWidth + 0.01);
+    }
 
     // 3. Both line and area markers appear in the unified legend with distinct swatches + legend tooltips
     const markerLegendItems = line.shadowRoot?.querySelectorAll(

@@ -121,11 +121,14 @@ export function renderLineSlicesLayer(
   ctx.layerGroup.appendChild(crosshair);
 
   firstPoints.forEach((pt, idx) => {
+    const sliceLeft = Math.max(0, pt.px - stepW / 2);
+    const sliceRight = Math.min(ctx.innerWidth, pt.px + stepW / 2);
+    const sliceWidth = Math.max(1, sliceRight - sliceLeft);
     const sliceRect = document.createElementNS(SVG_NS, 'rect');
     sliceRect.setAttribute('class', 'mc-slice-hit');
-    sliceRect.setAttribute('x', String(Math.max(0, pt.px - stepW / 2)));
+    sliceRect.setAttribute('x', String(sliceLeft));
     sliceRect.setAttribute('y', '0');
-    sliceRect.setAttribute('width', String(stepW));
+    sliceRect.setAttribute('width', String(sliceWidth));
     sliceRect.setAttribute('height', String(ctx.innerHeight));
     sliceRect.setAttribute('fill', 'transparent');
     sliceRect.style.cursor = 'crosshair';
