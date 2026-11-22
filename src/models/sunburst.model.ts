@@ -1,4 +1,10 @@
-import * as d3 from 'd3';
+import {
+  arc,
+  color as d3Color,
+  hierarchy as d3Hierarchy,
+  partition as d3Partition,
+  type HierarchyRectangularNode
+} from 'd3';
 import { createOrdinalColorScale } from '../core/theme';
 import type { ChartRenderContext, HierarchyNode } from '../core/types';
 
@@ -74,8 +80,7 @@ export function computeSunburstChartModel(
   const cx = ctx.innerWidth / 2;
   const cy = ctx.innerHeight / 2;
 
-  const hierarchy = d3
-    .hierarchy<HierarchyNode>(activeRootData)
+  const hierarchy = d3Hierarchy<HierarchyNode>(activeRootData)
     .sum((d) =>
       d.children && d.children.length > 0
         ? 0
@@ -83,7 +88,7 @@ export function computeSunburstChartModel(
     )
     .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
-  const partition = d3.partition<HierarchyNode>().size([2 * Math.PI, radius]);
+  const partition = d3Partition<HierarchyNode>().size([2 * Math.PI, radius]);
   const root = partition(hierarchy);
   const total = root.value || 1;
   const topCategoriesNames = (root.children ?? []).map((c) => c.data.name);
@@ -93,8 +98,7 @@ export function computeSunburstChartModel(
   const scaleY = (y: number) =>
     innerHole + (y / Math.max(1, radius)) * (radius - innerHole);
 
-  const arcGen = d3
-    .arc<d3.HierarchyRectangularNode<HierarchyNode>>()
+  const arcGen = arc<HierarchyRectangularNode<HierarchyNode>>()
     .startAngle((d) => d.x0)
     .endAngle((d) => d.x1)
     .padAngle((d) => Math.min((d.x1 - d.x0) / 2, 0.008))
@@ -113,7 +117,7 @@ export function computeSunburstChartModel(
       d.data.color ||
       topAncestor.data.color ||
       ctx.colorScale(topAncestor.data.name);
-    const colorObj = d3.color(baseColor);
+    const colorObj = d3Color(baseColor);
     const shade =
       d.depth > 1 && colorObj
         ? colorObj.brighter((d.depth - 1) * 0.28).formatHex()

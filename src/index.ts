@@ -1,14 +1,9 @@
-import { MCLabelElement } from './components/mc-label';
-import { MCAnimationLayer } from './components/mc-animation';
-import { MCAriaLayer } from './components/mc-aria';
-import { MCMarkerElement, MCMarkerLayer } from './components/mc-marker';
+import * as d3 from 'd3';
+import { registerChartD3 } from './core/d3-context';
 import {
-  MCChartLayer,
-  MCCustomLayer,
-  MCScaleLayer,
-  MCThemeLayer,
-  MCViewLayer
-} from './components/layers/mc-layers';
+  CORE_COMPONENT_REGISTRY,
+  defineCustomElement
+} from './core/registry';
 import { MCBarItem } from './presentation/items/bar.item';
 import { MCLineItem, MCPointItem } from './presentation/items/line.item';
 import { MCArcItem } from './presentation/items/arc.item';
@@ -30,6 +25,9 @@ import { MCScatterChart } from './charts/mc-scatter-chart';
 import { MCTreemapChart } from './charts/mc-treemap-chart';
 import { MCGaugeChart } from './charts/mc-gauge-chart';
 
+// Supply the full D3 namespace to `ctx.d3` when importing the full library bundle
+registerChartD3(d3);
+
 // Core Engine
 export * from './core/types';
 export * from './core/theme';
@@ -38,6 +36,8 @@ export * from './core/animation-engine';
 export * from './core/aria-engine';
 export * from './core/marker-engine';
 export * from './core/scale-manager';
+export * from './core/d3-context';
+export * from './core/registry';
 export * from './core/base-chart';
 
 // Model Layer (Pure Data, Scale & Geometry Computation)
@@ -92,23 +92,9 @@ export * from './charts/mc-scatter-chart';
 export * from './charts/mc-treemap-chart';
 export * from './charts/mc-gauge-chart';
 
-export class MCAnimationElement extends MCAnimationLayer {}
-export class MCAriaElement extends MCAriaLayer {}
-
 export const COMPONENT_REGISTRY: Record<string, CustomElementConstructor> = {
   // Capability & Layer Components
-  'mc-label': MCLabelElement,
-  'mc-theme-layer': MCThemeLayer,
-  'mc-scale-layer': MCScaleLayer,
-  'mc-view-layer': MCViewLayer,
-  'mc-animation-layer': MCAnimationLayer,
-  'mc-animation': MCAnimationElement,
-  'mc-aria-layer': MCAriaLayer,
-  'mc-aria': MCAriaElement,
-  'mc-marker-layer': MCMarkerLayer,
-  'mc-marker': MCMarkerElement,
-  'mc-chart-layer': MCChartLayer,
-  'mc-custom-layer': MCCustomLayer,
+  ...CORE_COMPONENT_REGISTRY,
 
   // Dumb Presentation Item Components
   'mc-bar-item': MCBarItem,
@@ -138,11 +124,8 @@ export const COMPONENT_REGISTRY: Record<string, CustomElementConstructor> = {
  * Registers all `modern-charts` custom elements idempotently.
  */
 export function registerModernCharts(): void {
-  if (typeof customElements === 'undefined') return;
   for (const [tag, ctor] of Object.entries(COMPONENT_REGISTRY)) {
-    if (!customElements.get(tag)) {
-      customElements.define(tag, ctor);
-    }
+    defineCustomElement(tag, ctor);
   }
 }
 

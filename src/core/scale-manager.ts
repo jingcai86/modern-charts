@@ -1,4 +1,16 @@
-import * as d3 from 'd3';
+import {
+  extent,
+  format,
+  scaleBand,
+  scaleLinear,
+  scaleLog,
+  scalePoint,
+  scaleSqrt,
+  scaleSymlog,
+  scaleTime,
+  timeFormat,
+  type ScaleContinuousNumeric
+} from 'd3';
 import type {
   ChartRenderContext,
   ScaleAxisConfig,
@@ -40,8 +52,7 @@ export function buildAxisScale(
 
   if (config.type === 'point') {
     const unique = Array.from(new Set(domainValues.map((v) => String(v))));
-    return d3
-      .scalePoint<string>()
+    return scalePoint<string>()
       .domain(unique)
       .range(effectiveRange)
       .padding(config.padding ?? 0.5);
@@ -49,8 +60,7 @@ export function buildAxisScale(
 
   if (config.type === 'band') {
     const unique = Array.from(new Set(domainValues.map((v) => String(v))));
-    return d3
-      .scaleBand<string>()
+    return scaleBand<string>()
       .domain(unique)
       .range(effectiveRange)
       .paddingInner(config.innerPadding ?? config.padding ?? 0.25)
@@ -59,10 +69,11 @@ export function buildAxisScale(
 
   if (config.type === 'time') {
     const dates = domainValues.map((d) => (d instanceof Date ? d : new Date(d)));
-    const extent = d3.extent(dates) as [Date, Date];
-    const scale = d3
-      .scaleTime()
-      .domain(extent[0] && extent[1] ? extent : [new Date(0), new Date()])
+    const dateExtent = extent(dates) as [Date, Date];
+    const scale = scaleTime()
+      .domain(
+        dateExtent[0] && dateExtent[1] ? dateExtent : [new Date(0), new Date()]
+      )
       .range(effectiveRange);
     if (config.nice !== false) scale.nice();
     return scale;
@@ -85,25 +96,23 @@ export function buildAxisScale(
       ? minVal + 10
       : rawMax;
 
-  let scale: d3.ScaleContinuousNumeric<number, number>;
+  let scale: ScaleContinuousNumeric<number, number>;
   if (config.type === 'log') {
     const safeMin = minVal <= 0 ? 1 : minVal;
     const safeMax = maxVal <= safeMin ? safeMin * 10 : maxVal;
-    scale = d3
-      .scaleLog()
+    scale = scaleLog()
       .base(config.base ?? 10)
       .domain([safeMin, safeMax])
       .range(effectiveRange);
   } else if (config.type === 'symlog') {
-    scale = d3
-      .scaleSymlog()
+    scale = scaleSymlog()
       .constant(config.constant ?? 1)
       .domain([minVal, maxVal])
       .range(effectiveRange);
   } else if (config.type === 'sqrt') {
-    scale = d3.scaleSqrt().domain([minVal, maxVal]).range(effectiveRange);
+    scale = scaleSqrt().domain([minVal, maxVal]).range(effectiveRange);
   } else {
-    scale = d3.scaleLinear().domain([minVal, maxVal]).range(effectiveRange);
+    scale = scaleLinear().domain([minVal, maxVal]).range(effectiveRange);
   }
 
   if (config.nice !== false && typeof scale.nice === 'function') {
@@ -202,13 +211,13 @@ export function renderCartesianAxes(
   const enableY = options.enableYAxis ?? true;
   const formatVal = (v: any, fmt?: (val: any) => string): string => {
     if (fmt) return fmt(v);
-    if (v instanceof Date) return d3.timeFormat('%b %d')(v);
+    if (v instanceof Date) return timeFormat('%b %d')(v);
     if (typeof v === 'number') {
       return Math.abs(v) >= 1000 && v % 1000 === 0
-        ? d3.format('~s')(v)
+        ? format('~s')(v)
         : Number.isInteger(v)
         ? String(v)
-        : d3.format('.2~f')(v);
+        : format('.2~f')(v);
     }
     return String(v);
   };

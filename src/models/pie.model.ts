@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+import { arc, pie, type PieArcDatum } from 'd3';
 import { createOrdinalColorScale } from '../core/theme';
 import type { ChartRenderContext, PieDatum } from '../core/types';
 
@@ -67,31 +67,26 @@ export function computePieChartModel(
     items.map((d) => d.id)
   );
 
-  const pieGen = d3
-    .pie<PieDatum>()
+  const pieGen = pie<PieDatum>()
     .value((d) => Math.max(0, Number(d.value ?? 0)))
     .padAngle(padAngle)
     .sort(null);
 
-  const arcGen = d3
-    .arc<d3.PieArcDatum<PieDatum>>()
+  const arcGen = arc<PieArcDatum<PieDatum>>()
     .innerRadius(innerRadius)
     .outerRadius(outerRadius)
     .cornerRadius(input.cornerRadius);
 
-  const hoverArcGen = d3
-    .arc<d3.PieArcDatum<PieDatum>>()
+  const hoverArcGen = arc<PieArcDatum<PieDatum>>()
     .innerRadius(innerRadius)
     .outerRadius(outerRadius + 7)
     .cornerRadius(input.cornerRadius);
 
-  const linkStartArc = d3
-    .arc<d3.PieArcDatum<PieDatum>>()
+  const linkStartArc = arc<PieArcDatum<PieDatum>>()
     .innerRadius(outerRadius)
     .outerRadius(outerRadius);
 
-  const linkMidArc = d3
-    .arc<d3.PieArcDatum<PieDatum>>()
+  const linkMidArc = arc<PieArcDatum<PieDatum>>()
     .innerRadius(outerRadius + 14)
     .outerRadius(outerRadius + 14);
 

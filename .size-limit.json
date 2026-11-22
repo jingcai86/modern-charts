@@ -1,6 +1,17 @@
 [
   {
+    "name": "Full library (modern-charts)",
     "path": "dist/index.js",
     "limit": "160 kB"
+  },
+  {
+    "name": "Standalone Bar chart (modern-charts/bar)",
+    "path": "dist/bar.js",
+    "limit": "95 kB"
+  },
+  {
+    "name": "Standalone Pie chart (modern-charts/pie)",
+    "path": "dist/pie.js",
+    "limit": "95 kB"
   }
 ]

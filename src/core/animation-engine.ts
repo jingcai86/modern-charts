@@ -1,4 +1,11 @@
-import * as d3 from 'd3';
+import {
+  easeBackOut,
+  easeBounceOut,
+  easeCubicOut,
+  easeElasticOut,
+  easeLinear,
+  easeQuadOut
+} from 'd3';
 import type {
   AnimationConfig,
   AnimationEasingName,
@@ -139,18 +146,18 @@ export class AnimationEngine {
   public getD3Easing(easing: AnimationEasingName): (normalizedTime: number) => number {
     switch (easing) {
       case 'linear':
-        return d3.easeLinear;
+        return easeLinear;
       case 'quad-out':
-        return d3.easeQuadOut;
+        return easeQuadOut;
       case 'back-out':
-        return d3.easeBackOut;
+        return easeBackOut;
       case 'elastic-out':
-        return d3.easeElasticOut;
+        return easeElasticOut;
       case 'bounce-out':
-        return d3.easeBounceOut;
+        return easeBounceOut;
       case 'cubic-out':
       default:
-        return d3.easeCubicOut;
+        return easeCubicOut;
     }
   }
 

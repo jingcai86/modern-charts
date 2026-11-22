@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+import { extent, scaleSqrt } from 'd3';
 import { buildAxisScale, getScalePosition } from '../core/scale-manager';
 import { createOrdinalColorScale } from '../core/theme';
 import type {
@@ -94,11 +94,10 @@ export function computeScatterChartModel(
 
   input.setupThresholds(ctx);
 
-  const sExtent = d3.extent(allS) as [number, number];
+  const sExtent = extent(allS) as [number, number];
   const rScale =
     allS.length > 0 && sExtent[0] !== undefined
-      ? d3
-          .scaleSqrt()
+      ? scaleSqrt()
           .domain(
             sExtent[0] === sExtent[1]
               ? [0, sExtent[1] || 10]

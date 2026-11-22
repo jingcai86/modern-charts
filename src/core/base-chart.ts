@@ -1,4 +1,5 @@
-import * as d3 from 'd3';
+import { select, zoom as d3Zoom, zoomIdentity, type ZoomBehavior } from 'd3';
+import { getChartD3 } from './d3-context';
 import {
   AnimationEngine,
   createDefaultAnimationConfig,
@@ -279,7 +280,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   #internals: ElementInternals | null = null;
   #resizeObserver: ResizeObserver | null = null;
   #mutationObserver: MutationObserver | null = null;
-  #zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null;
+  #zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> | null = null;
   #streamTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected labelEngine = new LabelEngine();
@@ -1530,7 +1531,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       svg,
       rootGroup,
       layerGroup: rootGroup,
-      d3,
+      d3: getChartD3(),
       renderLabel: (parent: SVGElement, descriptor: LabelDescriptor) =>
         this.labelEngine.renderLabel(parent, descriptor, theme),
       measureText: (text: string, options?: Partial<LabelDescriptor>) =>
@@ -1755,7 +1756,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     viewConfig: ViewConfig,
     dims: ChartDimensions
   ): void {
-    const d3Svg = d3.select(svg);
+    const d3Svg = select(svg);
     if (!viewConfig.enabled) {
       d3Svg.on('.zoom', null);
       viewportGroup.removeAttribute('transform');
@@ -1763,8 +1764,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       return;
     }
 
-    const zoom = d3
-      .zoom<SVGSVGElement, unknown>()
+    const zoom = d3Zoom<SVGSVGElement, unknown>()
       .scaleExtent(
         viewConfig.zoomable ? [viewConfig.minZoom, viewConfig.maxZoom] : [1, 1]
       )
@@ -1798,7 +1798,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       viewConfig.initialPanX !== 0 ||
       viewConfig.initialPanY !== 0
     ) {
-      const initialTransform = d3.zoomIdentity
+      const initialTransform = zoomIdentity
         .translate(viewConfig.initialPanX, viewConfig.initialPanY)
         .scale(viewConfig.initialZoom);
       d3Svg.call(zoom.transform, initialTransform);
@@ -1821,13 +1821,13 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       if (!svg) return;
 
       const action = btn.getAttribute('data-zoom');
-      const d3Svg = d3.select(svg);
+      const d3Svg = select(svg);
       if (action === 'in') {
         this.#zoomBehavior.scaleBy(d3Svg, 1.25);
       } else if (action === 'out') {
         this.#zoomBehavior.scaleBy(d3Svg, 0.8);
       } else if (action === 'reset') {
-        this.#zoomBehavior.transform(d3Svg, d3.zoomIdentity);
+        this.#zoomBehavior.transform(d3Svg, zoomIdentity);
       }
     });
   }

@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+import { arc, scaleLinear } from 'd3';
 import type { ChartRenderContext, GaugeBand, GaugeDatum } from '../core/types';
 
 export interface ComputedGaugeBandModel {
@@ -53,8 +53,7 @@ export function computeGaugeChartModel(
 
   const startAngle = -Math.PI * 0.75;
   const endAngle = Math.PI * 0.75;
-  const angleScale = d3
-    .scaleLinear()
+  const angleScale = scaleLinear()
     .domain([min, max])
     .range([startAngle, endAngle])
     .clamp(true);
@@ -67,16 +66,14 @@ export function computeGaugeChartModel(
   );
   const innerRadius = outerRadius * 0.76;
 
-  const trackArcGen = d3
-    .arc()
+  const trackArcGen = arc()
     .innerRadius(innerRadius)
     .outerRadius(outerRadius)
     .startAngle(startAngle)
     .endAngle(endAngle)
     .cornerRadius(8);
 
-  const valueArcGen = d3
-    .arc()
+  const valueArcGen = arc()
     .innerRadius(innerRadius)
     .outerRadius(outerRadius)
     .startAngle(startAngle)
@@ -84,8 +81,7 @@ export function computeGaugeChartModel(
     .cornerRadius(8);
 
   const bands: ComputedGaugeBandModel[] = (datum.bands ?? []).map((band) => {
-    const bandArcGen = d3
-      .arc()
+    const bandArcGen = arc()
       .innerRadius(outerRadius + 3)
       .outerRadius(outerRadius + 8)
       .startAngle(angleScale(band.from))
