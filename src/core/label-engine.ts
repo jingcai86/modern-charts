@@ -401,7 +401,8 @@ export class LabelEngine {
       return this.renderSvgTextLabel(descriptor, measured, theme);
     };
 
-    const activeCustomRenderer = override?.renderer ?? this.customRenderer;
+    const activeCustomRenderer =
+      override?.renderer ?? descriptor.renderer ?? this.customRenderer;
     if (activeCustomRenderer) {
       const customNode = activeCustomRenderer(
         descriptor,

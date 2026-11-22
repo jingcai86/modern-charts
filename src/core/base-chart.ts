@@ -161,6 +161,8 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
         .mc-marker *,
         .mc-layer--labels,
         .mc-layer--labels *,
+        .mc-layer--outerLabels,
+        .mc-layer--outerLabels *,
         .mc-layer--pointLabels,
         .mc-layer--pointLabels *,
         .mc-layer--grid,

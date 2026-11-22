@@ -4,18 +4,34 @@ import {
   renderCartesianAxes,
   renderCartesianGrid
 } from '../core/scale-manager';
-import type { BarDatum, ChartRenderContext, ScaleConfig } from '../core/types';
-import { computeBarChartModel, type BarChartModel } from '../models/bar.model';
+import type {
+  BarDatum,
+  BarNegativeLabelPosition,
+  BarOuterLabelConfig,
+  BarOuterLabelPosition,
+  BarOuterLabelScope,
+  ChartMargin,
+  ChartRenderContext,
+  ScaleConfig
+} from '../core/types';
+import {
+  computeBarChartModel,
+  createDefaultBarOuterLabelConfig,
+  type BarChartModel,
+  type ResolvedBarOuterLabelConfig
+} from '../models/bar.model';
 import {
   renderBarLabelsLayer,
   renderBarLegendsLayer,
+  renderBarOuterLabelsLayer,
   renderBarsLayer
 } from '../presentation/layers/bar.layers';
 
 /**
  * `<mc-bar-chart>` Orchestrator Web Component.
  * Wires the pure `computeBarChartModel` Model Layer with the dumb presentation layers
- * (`renderBarsLayer`, `renderBarLabelsLayer`, `renderBarLegendsLayer`, `renderCartesianGrid`, `renderCartesianAxes`).
+ * (`renderBarsLayer`, `renderBarLabelsLayer`, `renderBarOuterLabelsLayer`,
+ * `renderBarLegendsLayer`, `renderCartesianGrid`, `renderCartesianAxes`).
  */
 export class MCBarChart extends MCBaseChart<BarDatum[]> {
   static observedAttributes = [
@@ -26,6 +42,11 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
     'layout',
     'border-radius',
     'enable-labels',
+    'enable-outer-labels',
+    'outer-label-scope',
+    'outer-label-position',
+    'negative-label-position',
+    'outer-label-padding',
     'x-title',
     'y-title'
   ];
@@ -98,7 +119,89 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
     this.setAttribute('layout', val);
   }
 
+  public resolveOuterLabelsConfig(): ResolvedBarOuterLabelConfig {
+    const raw = this._config.outerLabels;
+    const base = createDefaultBarOuterLabelConfig(raw);
+
+    const enabledAttr = this.getAttribute('enable-outer-labels');
+    if (raw === undefined && enabledAttr !== null) {
+      base.enabled = enabledAttr !== 'false';
+    } else if (
+      typeof raw === 'object' &&
+      raw !== null &&
+      raw.enabled === undefined &&
+      enabledAttr !== null
+    ) {
+      base.enabled = enabledAttr !== 'false';
+    }
+
+    const scopeAttr = this.getAttribute(
+      'outer-label-scope'
+    ) as BarOuterLabelScope | null;
+    if (
+      (typeof raw !== 'object' || raw?.scope === undefined) &&
+      (scopeAttr === 'auto' || scopeAttr === 'bar' || scopeAttr === 'stack')
+    ) {
+      base.scope = scopeAttr;
+    }
+
+    const posAttr = this.getAttribute(
+      'outer-label-position'
+    ) as BarOuterLabelPosition | null;
+    if (
+      (typeof raw !== 'object' || raw?.position === undefined) &&
+      (posAttr === 'auto' || posAttr === 'top' || posAttr === 'bottom')
+    ) {
+      base.position = posAttr;
+    }
+
+    const negPosAttr = this.getAttribute(
+      'negative-label-position'
+    ) as BarNegativeLabelPosition | null;
+    if (
+      (typeof raw !== 'object' || raw?.negativePosition === undefined) &&
+      (negPosAttr === 'outside-bottom' ||
+        negPosAttr === 'chart-bottom' ||
+        negPosAttr === 'above-zero')
+    ) {
+      base.negativePosition = negPosAttr;
+    }
+
+    const padAttr = this.getAttribute('outer-label-padding');
+    if (
+      (typeof raw !== 'object' || raw?.padding === undefined) &&
+      padAttr !== null &&
+      !Number.isNaN(Number(padAttr))
+    ) {
+      base.padding = Math.max(0, Number(padAttr));
+    }
+
+    return base;
+  }
+
+  public override resolveMargin(): ChartMargin {
+    const margin = { ...super.resolveMargin() };
+    const outer = this.resolveOuterLabelsConfig();
+    if (!outer.enabled) return margin;
+
+    const fontSize = outer.fontSize ?? 12;
+    const boxExtra = outer.background ? 10 : 4;
+    const vertHeadroom = Math.ceil(fontSize * 1.4 + boxExtra + outer.padding);
+    const horizHeadroom = Math.ceil(44 + boxExtra + outer.padding);
+
+    if (this.layout === 'horizontal') {
+      margin.right = Math.max(margin.right, horizHeadroom);
+    } else {
+      const hasTitle = Boolean(this._config.title || this.getAttribute('chart-title'));
+      const minTop = (hasTitle ? 32 : 12) + vertHeadroom;
+      margin.top = Math.max(margin.top, minTop);
+    }
+
+    return margin;
+  }
+
   protected prepareContext(ctx: ChartRenderContext<BarDatum[]>): void {
+    const outerLabels = this.resolveOuterLabelsConfig();
     const model = computeBarChartModel(ctx, {
       indexBy: this.indexBy,
       keys: this.keys,
@@ -107,6 +210,7 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
       borderRadius: this.getOption('borderRadius', 'border-radius', 5) ?? 5,
       enableLabels:
         this.getOption('enableLabels', 'enable-labels', true) !== false,
+      outerLabels,
       xTitle: this.getOption('xTitle', 'x-title'),
       yTitle: this.getOption('yTitle', 'y-title'),
       setupThresholds: (c) => this.setupMarkersAndThresholds(c),
@@ -115,6 +219,7 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
     });
     ctx.state.model = model;
     ctx.state.computedBars = model.bars;
+    ctx.state.outerLabelItems = model.outerLabelItems;
     ctx.state.activeKeys = model.activeKeys;
   }
 
@@ -122,6 +227,7 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
     string,
     (ctx: ChartRenderContext<BarDatum[]>) => void
   > {
+    const hasExplicitOuterLayer = this.layers.some((l) => l === 'outerLabels');
     return {
       grid: (ctx) =>
         renderCartesianGrid(ctx, {
@@ -137,7 +243,11 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
       },
       bars: (ctx) => renderBarsLayer(ctx.state.model as BarChartModel, ctx),
       labels: (ctx) =>
-        renderBarLabelsLayer(ctx.state.model as BarChartModel, ctx),
+        renderBarLabelsLayer(ctx.state.model as BarChartModel, ctx, {
+          includeOuterLabels: !hasExplicitOuterLayer
+        }),
+      outerLabels: (ctx) =>
+        renderBarOuterLabelsLayer(ctx.state.model as BarChartModel, ctx),
       legends: (ctx) =>
         renderBarLegendsLayer(ctx.state.model as BarChartModel, ctx)
     };
