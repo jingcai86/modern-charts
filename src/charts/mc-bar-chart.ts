@@ -65,6 +65,10 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
     return createDefaultScaleConfig('band', 'linear');
   }
 
+  protected getDefaultTooltipPosition(): 'item' {
+    return 'item';
+  }
+
   get indexBy(): string {
     return this.getOption('indexBy', 'index-by', 'category') || 'category';
   }

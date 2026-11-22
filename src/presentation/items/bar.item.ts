@@ -2,6 +2,7 @@ import {
   computePartialClipPlan,
   createAxisClipPath
 } from '../../core/threshold-clip';
+import { resolveElementAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext, MarkerMatchStyle } from '../../core/types';
 import type { ComputedBarItemModel } from '../../models/bar.model';
 
@@ -197,6 +198,14 @@ export function renderBarItem(
       ? plan.matchedMarkerIds
       : b.threshold.matchedMarkerIds;
 
+  const fallbackAnchor = {
+    left: ctx.margin.left + b.x,
+    top: ctx.margin.top + b.y,
+    width: b.width,
+    height: b.height,
+    relative: true
+  };
+
   ctx.decorateAriaItem(hostEl, {
     type: 'bar',
     index: b.index,
@@ -208,6 +217,7 @@ export function renderBarItem(
     value: b.value,
     formattedValue: String(b.value),
     color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
+    anchor: fallbackAnchor,
     datum: {
       id: b.key,
       key: b.key,
@@ -262,6 +272,7 @@ export function renderBarItem(
         color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
         badge,
         threshold: b.threshold,
+        anchor: resolveElementAnchor(hostEl, fallbackAnchor),
         datum: {
           key: b.key,
           indexValue: b.indexValue,

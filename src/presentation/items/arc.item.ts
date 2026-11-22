@@ -1,3 +1,4 @@
+import { resolveChartPointAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
 import type { GaugeChartModel } from '../../models/gauge.model';
 import type { ComputedPieArcModel } from '../../models/pie.model';
@@ -23,6 +24,19 @@ export function renderPieArcItem(
   path.style.cursor = 'pointer';
   path.style.transition = 'd 160ms ease, filter 160ms ease';
 
+  const pieCx =
+    (ctx.state?.model as { cx?: number } | undefined)?.cx ?? ctx.innerWidth / 2;
+  const pieCy =
+    (ctx.state?.model as { cy?: number } | undefined)?.cy ?? ctx.innerHeight / 2;
+  const getPieAnchor = () =>
+    resolveChartPointAnchor(
+      ctx,
+      pieCx + arc.centroid[0],
+      pieCy + arc.centroid[1],
+      16,
+      16
+    );
+
   ctx.decorateAriaItem(path, {
     type: 'arc',
     index: arc.index,
@@ -33,6 +47,13 @@ export function renderPieArcItem(
     formattedValue: String(arc.value),
     percentage: arc.percentage,
     color: arc.color,
+    anchor: {
+      left: ctx.margin.left + pieCx + arc.centroid[0] - 8,
+      top: ctx.margin.top + pieCy + arc.centroid[1] - 8,
+      width: 16,
+      height: 16,
+      relative: true
+    },
     datum: {
       ...arc.data,
       percentage: arc.percentage
@@ -58,6 +79,7 @@ export function renderPieArcItem(
         formattedValue: `${arc.value} (${arc.percentage.toFixed(1)}%)`,
         color: arc.color,
         percentage: arc.percentage,
+        anchor: getPieAnchor(),
         datum: { ...arc.data, percentage: arc.percentage }
       },
       (e as MouseEvent).clientX,
@@ -92,6 +114,19 @@ export function renderSunburstArcItem(
   path.style.cursor = interactive && arc.hasChildren ? 'pointer' : 'default';
   path.style.transition = 'opacity 150ms ease, filter 150ms ease';
 
+  const sunCx =
+    (ctx.state?.model as { cx?: number } | undefined)?.cx ?? ctx.innerWidth / 2;
+  const sunCy =
+    (ctx.state?.model as { cy?: number } | undefined)?.cy ?? ctx.innerHeight / 2;
+  const getSunburstAnchor = () =>
+    resolveChartPointAnchor(
+      ctx,
+      sunCx + arc.centroid[0],
+      sunCy + arc.centroid[1],
+      16,
+      16
+    );
+
   ctx.decorateAriaItem(path, {
     type: 'sunburst-arc',
     index: arc.index,
@@ -103,6 +138,13 @@ export function renderSunburstArcItem(
     formattedValue: String(arc.value),
     percentage: arc.percentage,
     color: arc.color,
+    anchor: {
+      left: ctx.margin.left + sunCx + arc.centroid[0] - 8,
+      top: ctx.margin.top + sunCy + arc.centroid[1] - 8,
+      width: 16,
+      height: 16,
+      relative: true
+    },
     datum: {
       name: arc.name,
       breadcrumb: arc.breadcrumb,
@@ -130,6 +172,7 @@ export function renderSunburstArcItem(
         formattedValue: `${arc.value} (${arc.percentage.toFixed(1)}%)`,
         color: arc.color,
         percentage: arc.percentage,
+        anchor: getSunburstAnchor(),
         datum: {
           name: arc.name,
           breadcrumb: arc.breadcrumb,
@@ -171,6 +214,15 @@ export function renderGaugeValueArcItem(
   path.setAttribute('d', model.valueArcPathD);
   path.setAttribute('fill', ctx.theme.colors[0]);
 
+  const getGaugeAnchor = () =>
+    resolveChartPointAnchor(
+      ctx,
+      model.cx,
+      model.cy - model.outerRadius,
+      20,
+      12
+    );
+
   ctx.decorateAriaItem(path, {
     type: 'gauge-arc',
     index: 0,
@@ -180,6 +232,13 @@ export function renderGaugeValueArcItem(
     value: model.value,
     formattedValue: `${model.value}${model.unit}`,
     color: ctx.theme.colors[0],
+    anchor: {
+      left: ctx.margin.left + model.cx - 10,
+      top: ctx.margin.top + model.cy - model.outerRadius - 6,
+      width: 20,
+      height: 12,
+      relative: true
+    },
     datum: {
       value: model.value,
       min: model.min,
@@ -206,6 +265,7 @@ export function renderGaugeValueArcItem(
         value: model.value,
         formattedValue: `${model.value}${model.unit}`,
         color: ctx.theme.colors[0],
+        anchor: getGaugeAnchor(),
         datum: {
           ...model.datum,
           value: model.value,

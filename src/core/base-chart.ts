@@ -10,6 +10,7 @@ import { createDefaultLegendConfig } from './legend-engine';
 import { MarkerEngine, resolveMarkerAnnotation } from './marker-engine';
 import { createDefaultScaleConfig } from './scale-manager';
 import { createDefaultTheme, createOrdinalColorScale } from './theme';
+import { resolveElementAnchor } from './tooltip-anchor';
 import type {
   AnimationConfig,
   AriaConfig,
@@ -36,6 +37,7 @@ import type {
   TooltipConfig,
   TooltipInput,
   TooltipPayload,
+  TooltipPositionMode,
   ViewConfig
 } from './types';
 import {
@@ -49,7 +51,10 @@ import {
 } from '../components/layers/mc-layers';
 import { MCLabelElement } from '../components/mc-label';
 import { MCLegendElement } from '../components/mc-legend';
-import { MCTooltipElement } from '../components/mc-tooltip';
+import {
+  MCTooltipElement,
+  normalizeTooltipPosition
+} from '../components/mc-tooltip';
 import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -298,7 +303,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       'animate',
       'motion-config',
       'aria-label',
-      'is-focusable'
+      'is-focusable',
+      'tooltip-position'
     ];
   }
 
@@ -380,9 +386,31 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     return createDefaultScaleConfig('point', 'linear');
   }
 
+  /**
+   * Per-chart sensible default tooltip positioning mode.
+   * Subclasses representing discrete items (bar, scatter, radar, gauge)
+   * override this to `'item'`, while area/radial/matrix/flow charts use `'follow'`.
+   */
+  protected getDefaultTooltipPosition(): TooltipPositionMode {
+    return 'follow';
+  }
+
+  get tooltipPosition(): TooltipPositionMode {
+    return this.resolveTooltipConfig().position ?? this.getDefaultTooltipPosition();
+  }
+  set tooltipPosition(val: TooltipPositionMode) {
+    const normalized = normalizeTooltipPosition(val);
+    if (normalized) {
+      this.setAttribute('tooltip-position', normalized);
+    } else {
+      this.removeAttribute('tooltip-position');
+    }
+  }
+
   connectedCallback(): void {
     this._isConnected = true;
     this.#setupControlsListeners();
+    this.#setupTooltipPointerTracking();
     this.#setupChildObservers();
     this.#syncAutoSizeObserver();
 
@@ -1613,8 +1641,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
           ariaConfig,
           this._config,
           {
-            onItemFocus: (focusedItem, label, description) =>
-              this.#handleAriaItemFocus(focusedItem, label, description),
+            onItemFocus: (focusedItem, label, description, element) =>
+              this.#handleAriaItemFocus(focusedItem, label, description, element),
+            onItemBlur: () => this.#handleAriaItemBlur(),
             onItemActivate: (activatedItem, label, el) =>
               this.#handleAriaItemActivate(activatedItem, label, el),
             navigateRelative: (currentEl, delta) =>
@@ -1725,7 +1754,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   #handleAriaItemFocus(
     item: AriaItemDescriptor,
     label: string,
-    description?: string
+    description?: string,
+    element?: SVGElement
   ): void {
     const ariaConfig = this.resolveAriaConfig();
     if (ariaConfig.announceOnFocus) {
@@ -1743,6 +1773,62 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         detail: { item, label, description, chartType: this.chartType }
       })
     );
+
+    if (element) {
+      const anchor = item.anchor ?? resolveElementAnchor(element);
+      const container = this.shadowRoot?.querySelector(
+        '.mc-chart-container'
+      ) as HTMLDivElement | null;
+      const containerRect = container?.getBoundingClientRect();
+      const clientX = anchor
+        ? anchor.relative
+          ? (containerRect?.left ?? 0) + anchor.left + anchor.width / 2
+          : anchor.left + anchor.width / 2
+        : (containerRect?.left ?? 0) + (containerRect?.width ?? 0) / 2;
+      const clientY = anchor
+        ? anchor.relative
+          ? (containerRect?.top ?? 0) + anchor.top
+          : anchor.top
+        : (containerRect?.top ?? 0) + (containerRect?.height ?? 0) / 2;
+
+      this.showTooltip(
+        {
+          title: item.category || item.label || item.seriesId || item.id,
+          label:
+            item.seriesId && item.category
+              ? item.seriesId
+              : item.source && item.target
+              ? `${item.source} → ${item.target}`
+              : item.label || 'Value',
+          seriesId: item.seriesId,
+          category: item.category,
+          value: item.value,
+          formattedValue:
+            item.formattedValue ??
+            (item.percentage !== undefined && item.value !== undefined
+              ? `${item.value} (${item.percentage.toFixed(1)}%)`
+              : item.value !== undefined
+              ? String(item.value)
+              : undefined),
+          color: item.color,
+          percentage: item.percentage,
+          datum: item.datum,
+          anchor,
+          source: 'keyboard'
+        },
+        clientX,
+        clientY,
+        undefined,
+        { position: 'item' }
+      );
+    }
+  }
+
+  #handleAriaItemBlur(): void {
+    const tooltip = this.getTooltipElement();
+    if (tooltip && tooltip.activeSource === 'keyboard') {
+      this.hideTooltip();
+    }
   }
 
   #handleAriaItemActivate(
@@ -1923,6 +2009,14 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     let base: TooltipConfig =
       typeof raw === 'boolean' ? { enabled: raw } : { ...(raw ?? {}) };
 
+    const attrPosition = normalizeTooltipPosition(
+      this.getAttribute('tooltip-position')
+    );
+    const shorthandPosition = normalizeTooltipPosition(
+      this._config.tooltipPosition
+    );
+    const configPosition = normalizeTooltipPosition(base.position);
+
     const declTooltip = this.querySelector(
       ':scope > mc-tooltip'
     ) as MCTooltipElement | null;
@@ -1932,6 +2026,15 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         ...declTooltip.toTooltipConfig()
       };
     }
+
+    const declPosition = normalizeTooltipPosition(base.position);
+    base.position =
+      declPosition ??
+      configPosition ??
+      shorthandPosition ??
+      attrPosition ??
+      this.getDefaultTooltipPosition();
+
     if (base.enabled === undefined) {
       base.enabled = true;
     }
@@ -2164,6 +2267,34 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       viewportGroup.removeAttribute('transform');
       this.#setCustomState('zoomed', false);
     }
+  }
+
+  #setupTooltipPointerTracking(): void {
+    const svg = this.shadowRoot?.querySelector(
+      '.mc-chart-svg'
+    ) as SVGSVGElement | null;
+    if (!svg || (svg as any).__mcTooltipMoveBound) return;
+    (svg as any).__mcTooltipMoveBound = true;
+
+    svg.addEventListener('mousemove', (e: MouseEvent) => {
+      const tooltip = this.getTooltipElement();
+      if (!tooltip || tooltip.hidden) return;
+      if (
+        tooltip.activePositionMode !== 'follow' ||
+        tooltip.activeSource === 'keyboard'
+      ) {
+        return;
+      }
+      const container = this.shadowRoot?.querySelector(
+        '.mc-chart-container'
+      ) as HTMLDivElement | null;
+      if (!container || typeof tooltip.moveToPointer !== 'function') return;
+      tooltip.moveToPointer(
+        e.clientX,
+        e.clientY,
+        container.getBoundingClientRect()
+      );
+    });
   }
 
   #setupControlsListeners(): void {

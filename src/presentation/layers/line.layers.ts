@@ -1,4 +1,5 @@
 import { renderLegendLayer } from '../../core/scale-manager';
+import { resolveChartPointAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext, LineSeries } from '../../core/types';
 import type { LineChartModel } from '../../models/line.model';
 import {
@@ -160,11 +161,18 @@ export function renderLineSlicesLayer(
         })
         .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
+      let topPy = pt.py;
+      for (const s of model.series) {
+        const p = s.points[idx];
+        if (p && p.py < topPy) topPy = p.py;
+      }
+
       ctx.showTooltip(
         {
           title: String(pt.xValue),
           category: String(pt.xValue),
           items,
+          anchor: resolveChartPointAnchor(ctx, pt.px, topPy, 12, 12),
           datum: {
             x: pt.xValue,
             points: items.map((it) => it.datum)

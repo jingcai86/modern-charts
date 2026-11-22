@@ -1,3 +1,4 @@
+import { resolveElementAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
 import type { ComputedScatterNodeModel } from '../../models/scatter.model';
 
@@ -33,6 +34,14 @@ export function renderScatterNodeItem(
   }
   circle.style.cursor = 'pointer';
 
+  const fallbackAnchor = {
+    left: ctx.margin.left + node.px - node.radius,
+    top: ctx.margin.top + node.py - node.radius,
+    width: node.radius * 2,
+    height: node.radius * 2,
+    relative: true
+  };
+
   ctx.decorateAriaItem(circle, {
     type: 'scatter-node',
     index: node.index,
@@ -44,6 +53,7 @@ export function renderScatterNodeItem(
     value: node.yValue,
     formattedValue: `(${node.xValue}, ${node.yValue})`,
     color: node.color,
+    anchor: fallbackAnchor,
     datum: {
       seriesId: node.seriesId,
       label: node.label,
@@ -79,6 +89,7 @@ export function renderScatterNodeItem(
         color: node.color,
         items,
         threshold: node.threshold,
+        anchor: resolveElementAnchor(circle, fallbackAnchor),
         datum: {
           seriesId: node.seriesId,
           label: node.label,

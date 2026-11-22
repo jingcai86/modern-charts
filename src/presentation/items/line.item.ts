@@ -4,6 +4,7 @@ import {
   createAxisClipPath,
   type PartialClipPlan
 } from '../../core/threshold-clip';
+import { resolveElementAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
 import type {
   ComputedLinePointModel,
@@ -380,6 +381,14 @@ export function renderLinePointItem(
 
   circle.style.cursor = 'pointer';
 
+  const fallbackAnchor = {
+    left: ctx.margin.left + pt.px - radius,
+    top: ctx.margin.top + pt.py - radius,
+    width: radius * 2,
+    height: radius * 2,
+    relative: true
+  };
+
   ctx.decorateAriaItem(circle, {
     type: 'point',
     index: pt.globalIndex,
@@ -391,6 +400,7 @@ export function renderLinePointItem(
     value: pt.yValue,
     formattedValue: String(pt.yValue),
     color: pt.color,
+    anchor: fallbackAnchor,
     datum: {
       id: pt.seriesId,
       seriesId: pt.seriesId,
@@ -426,6 +436,7 @@ export function renderLinePointItem(
           ? `⚠ Under Threshold (${pt.threshold.matchedMarkerIds.join(', ')})`
           : undefined,
         threshold: pt.threshold,
+        anchor: resolveElementAnchor(circle, fallbackAnchor),
         datum: {
           seriesId: pt.seriesId,
           x: pt.xValue,

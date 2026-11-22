@@ -746,21 +746,41 @@ export class MarkerEngine {
             }`
           : undefined;
 
-      const buildPayload = () => ({
-        title: ann.text || marker.label || marker.id,
-        label: marker.type === 'area' ? 'Area Marker' : 'Line Marker',
-        seriesId: marker.id,
-        value: valueDisplay,
-        formattedValue: ann.tooltipText ?? String(valueDisplay),
-        color: accent,
-        badge: conditionBadge,
-        datum: marker
-      });
+      const buildPayload = (source: 'pointer' | 'keyboard' = 'pointer') => {
+        const r = annG.getBoundingClientRect();
+        return {
+          title: ann.text || marker.label || marker.id,
+          label: marker.type === 'area' ? 'Area Marker' : 'Line Marker',
+          seriesId: marker.id,
+          value: valueDisplay,
+          formattedValue: ann.tooltipText ?? String(valueDisplay),
+          color: accent,
+          badge: conditionBadge,
+          datum: marker,
+          source,
+          anchor:
+            r.width > 0 || r.height > 0
+              ? {
+                  left: r.left,
+                  top: r.top,
+                  width: r.width,
+                  height: r.height,
+                  relative: false
+                }
+              : {
+                  left: ctx.margin.left + x,
+                  top: ctx.margin.top + y,
+                  width: 0,
+                  height: 0,
+                  relative: true
+                }
+        };
+      };
 
       annG.addEventListener('mouseenter', (e) => {
         const me = e as MouseEvent;
         ctx.showTooltip(
-          buildPayload(),
+          buildPayload('pointer'),
           me.clientX,
           me.clientY,
           ann.tooltipConfig
@@ -769,7 +789,7 @@ export class MarkerEngine {
       annG.addEventListener('mousemove', (e) => {
         const me = e as MouseEvent;
         ctx.showTooltip(
-          buildPayload(),
+          buildPayload('pointer'),
           me.clientX,
           me.clientY,
           ann.tooltipConfig
@@ -781,10 +801,10 @@ export class MarkerEngine {
       annG.addEventListener('focus', () => {
         const rect = annG.getBoundingClientRect();
         ctx.showTooltip(
-          buildPayload(),
+          buildPayload('keyboard'),
           rect.left + rect.width / 2,
           rect.top,
-          ann.tooltipConfig
+          { ...(ann.tooltipConfig ?? {}), position: 'item' }
         );
       });
       annG.addEventListener('blur', () => {

@@ -1,9 +1,25 @@
 import type {
   ChartTheme,
+  TooltipAnchorRect,
   TooltipConfig,
   TooltipPayload,
+  TooltipPositionMode,
   TooltipRenderer
 } from '../core/types';
+
+/**
+ * Normalizes a tooltip position mode string (`'item' | 'anchor'` -> `'item'`,
+ * `'follow' | 'pointer'` -> `'follow'`).
+ */
+export function normalizeTooltipPosition(
+  raw?: string | null
+): TooltipPositionMode | undefined {
+  if (!raw) return undefined;
+  const lower = raw.trim().toLowerCase();
+  if (lower === 'item' || lower === 'anchor') return 'item';
+  if (lower === 'follow' || lower === 'pointer') return 'follow';
+  return undefined;
+}
 
 const tooltipTemplate = document.createElement('template');
 tooltipTemplate.innerHTML = `
@@ -172,6 +188,8 @@ function interpolateTooltipTemplate(
 export class MCTooltipElement extends HTMLElement {
   static observedAttributes = [
     'enabled',
+    'position',
+    'anchor-gap',
     'offset-x',
     'offset-y',
     'class-name'
@@ -181,6 +199,9 @@ export class MCTooltipElement extends HTMLElement {
   #renderer?: TooltipRenderer;
   #lastPayload: TooltipPayload | null = null;
   #configOverride?: TooltipConfig;
+  #activePositionMode: TooltipPositionMode = 'follow';
+  #activeSource: 'pointer' | 'keyboard' = 'pointer';
+  #activeConfig: TooltipConfig = {};
 
   constructor() {
     super();
@@ -248,6 +269,41 @@ export class MCTooltipElement extends HTMLElement {
     this.#notifyParentChart();
   }
 
+  get position(): TooltipPositionMode | undefined {
+    return (
+      normalizeTooltipPosition(this.getAttribute('position')) ??
+      normalizeTooltipPosition(this.#configOverride?.position)
+    );
+  }
+  set position(val: TooltipPositionMode | undefined) {
+    if (val) {
+      this.setAttribute('position', val);
+    } else {
+      this.removeAttribute('position');
+    }
+  }
+
+  get anchorGap(): number | undefined {
+    const attr = this.getAttribute('anchor-gap');
+    if (attr !== null && !Number.isNaN(Number(attr))) return Number(attr);
+    return this.#configOverride?.anchorGap;
+  }
+  set anchorGap(val: number | undefined) {
+    if (val !== undefined && Number.isFinite(val)) {
+      this.setAttribute('anchor-gap', String(val));
+    } else {
+      this.removeAttribute('anchor-gap');
+    }
+  }
+
+  get activePositionMode(): TooltipPositionMode {
+    return this.#activePositionMode;
+  }
+
+  get activeSource(): 'pointer' | 'keyboard' {
+    return this.#activeSource;
+  }
+
   get lastPayload(): TooltipPayload | null {
     return this.#lastPayload;
   }
@@ -265,6 +321,8 @@ export class MCTooltipElement extends HTMLElement {
 
   public toTooltipConfig(): TooltipConfig {
     const enabledAttr = this.getAttribute('enabled');
+    const positionAttr = normalizeTooltipPosition(this.getAttribute('position'));
+    const anchorGapAttr = this.getAttribute('anchor-gap');
     const offsetXAttr = this.getAttribute('offset-x');
     const offsetYAttr = this.getAttribute('offset-y');
     const classNameAttr = this.getAttribute('class-name') || undefined;
@@ -272,6 +330,10 @@ export class MCTooltipElement extends HTMLElement {
     return {
       ...(this.#configOverride ?? {}),
       ...(enabledAttr !== null ? { enabled: enabledAttr !== 'false' } : {}),
+      ...(positionAttr ? { position: positionAttr } : {}),
+      ...(anchorGapAttr !== null && !Number.isNaN(Number(anchorGapAttr))
+        ? { anchorGap: Number(anchorGapAttr) }
+        : {}),
       ...(offsetXAttr !== null && !Number.isNaN(Number(offsetXAttr))
         ? { offsetX: Number(offsetXAttr) }
         : {}),
@@ -407,8 +469,24 @@ export class MCTooltipElement extends HTMLElement {
     ) as HTMLElement | null;
     if (!surface || !headerEl || !bodyEl) return false;
 
+    const source = payload.source ?? 'pointer';
+    const requestedMode =
+      source === 'keyboard'
+        ? 'item'
+        : normalizeTooltipPosition(config.position) ??
+          payload.positionMode ??
+          'follow';
+    const resolvedMode: TooltipPositionMode =
+      requestedMode === 'item' && payload.anchor ? 'item' : 'follow';
+
+    payload.positionMode = resolvedMode;
     this.#lastPayload = payload;
+    this.#activePositionMode = resolvedMode;
+    this.#activeSource = source;
+    this.#activeConfig = config;
     this.setAttribute('data-chart-type', payload.chartType);
+    this.setAttribute('data-position-mode', resolvedMode);
+    this.setAttribute('data-trigger-source', source);
 
     const baseClass = this.classList.contains('mc-legend-tooltip')
       ? 'mc-legend-tooltip'
@@ -479,24 +557,158 @@ export class MCTooltipElement extends HTMLElement {
     }
 
     this.hidden = false;
-
-    const offsetX = config.offsetX ?? 14;
-    const offsetY = config.offsetY ?? 14;
-    const tipWidth = this.offsetWidth || surface.offsetWidth || 160;
-    const tipHeight = this.offsetHeight || surface.offsetHeight || 56;
-    const rawX = payload.clientX - containerRect.left + offsetX;
-    const rawY = payload.clientY - containerRect.top + offsetY;
-    const maxX = Math.max(8, containerRect.width - tipWidth - 10);
-    const maxY = Math.max(8, containerRect.height - tipHeight - 10);
-    const x = Math.max(8, Math.min(rawX, maxX));
-    const y = Math.max(8, Math.min(rawY, maxY));
-
-    this.style.transform = `translate(${x}px, ${y}px)`;
+    this.#positionTooltip(resolvedMode, payload, containerRect, config, surface);
     return true;
+  }
+
+  /**
+   * Fast-path pointer tracking update: repositions an already-visible tooltip
+   * in `'follow'` mode without rebuilding DOM or re-firing events.
+   */
+  public moveToPointer(
+    clientX: number,
+    clientY: number,
+    containerRect: DOMRect
+  ): void {
+    if (
+      this.hidden ||
+      this.#activePositionMode !== 'follow' ||
+      this.#activeSource === 'keyboard' ||
+      !this.#lastPayload
+    ) {
+      return;
+    }
+    const surface = this.shadowRoot?.querySelector(
+      '.mc-tooltip-surface'
+    ) as HTMLElement | null;
+    if (!surface) return;
+    this.#lastPayload.clientX = clientX;
+    this.#lastPayload.clientY = clientY;
+    this.#positionTooltip(
+      'follow',
+      this.#lastPayload,
+      containerRect,
+      this.#activeConfig,
+      surface
+    );
   }
 
   public hide(): void {
     this.hidden = true;
+    this.#activeSource = 'pointer';
+  }
+
+  #positionTooltip(
+    mode: TooltipPositionMode,
+    payload: TooltipPayload,
+    containerRect: DOMRect,
+    config: TooltipConfig,
+    surface: HTMLElement
+  ): void {
+    const pad = 8;
+    const tipWidth = this.offsetWidth || surface.offsetWidth || 160;
+    const tipHeight = this.offsetHeight || surface.offsetHeight || 56;
+    const hasRealRect = containerRect.width > 0 || containerRect.height > 0;
+    const containerW =
+      containerRect.width || this.parentElement?.clientWidth || 600;
+    const containerH =
+      containerRect.height || this.parentElement?.clientHeight || 360;
+
+    const viewportW =
+      typeof window !== 'undefined' && window.innerWidth > 0
+        ? window.innerWidth
+        : containerW;
+    const viewportH =
+      typeof window !== 'undefined' && window.innerHeight > 0
+        ? window.innerHeight
+        : containerH;
+
+    // Container bounds intersected with browser viewport bounds (when rendered in a live viewport)
+    const minX = hasRealRect ? Math.max(pad, pad - containerRect.left) : pad;
+    const maxX = Math.max(
+      minX,
+      hasRealRect
+        ? Math.min(
+            containerW - tipWidth - pad,
+            viewportW - containerRect.left - tipWidth - pad
+          )
+        : containerW - tipWidth - pad
+    );
+    const minY = hasRealRect ? Math.max(pad, pad - containerRect.top) : pad;
+    const maxY = Math.max(
+      minY,
+      hasRealRect
+        ? Math.min(
+            containerH - tipHeight - pad,
+            viewportH - containerRect.top - tipHeight - pad
+          )
+        : containerH - tipHeight - pad
+    );
+
+    if (mode === 'item' && payload.anchor) {
+      const anchor: TooltipAnchorRect = payload.anchor;
+      const ax = anchor.relative
+        ? anchor.left
+        : anchor.left - containerRect.left;
+      const ay = anchor.relative
+        ? anchor.top
+        : anchor.top - containerRect.top;
+      const aw = Math.max(0, anchor.width);
+      const ah = Math.max(0, anchor.height);
+      const gap = config.anchorGap ?? 10;
+
+      const centeredX = ax + aw / 2 - tipWidth / 2;
+      const x = Math.max(minX, Math.min(centeredX, maxX));
+
+      const aboveY = ay - tipHeight - gap;
+      const belowY = ay + ah + gap;
+      let y: number;
+      let placement: 'top' | 'bottom';
+
+      if (aboveY >= minY) {
+        y = Math.min(aboveY, maxY);
+        placement = 'top';
+      } else if (belowY <= maxY) {
+        y = Math.max(minY, belowY);
+        placement = 'bottom';
+      } else {
+        // Neither side fits completely: pick whichever side has more room and clamp
+        const roomAbove = ay - minY;
+        const roomBelow = maxY + tipHeight - (ay + ah);
+        if (roomAbove >= roomBelow) {
+          y = minY;
+          placement = 'top';
+        } else {
+          y = maxY;
+          placement = 'bottom';
+        }
+      }
+
+      this.setAttribute('data-placement', placement);
+      this.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+      return;
+    }
+
+    // 'follow' mode: track pointer with automatic edge flip & clamping
+    const offsetX = config.offsetX ?? 14;
+    const offsetY = config.offsetY ?? 14;
+    const localX = payload.clientX - containerRect.left;
+    const localY = payload.clientY - containerRect.top;
+
+    let rawX = localX + offsetX;
+    if (rawX > maxX && localX - tipWidth - offsetX >= minX) {
+      rawX = localX - tipWidth - offsetX;
+    }
+    let rawY = localY + offsetY;
+    if (rawY > maxY && localY - tipHeight - offsetY >= minY) {
+      rawY = localY - tipHeight - offsetY;
+    }
+
+    const x = Math.max(minX, Math.min(rawX, maxX));
+    const y = Math.max(minY, Math.min(rawY, maxY));
+
+    this.setAttribute('data-placement', 'follow');
+    this.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
   }
 
   #renderStructured(

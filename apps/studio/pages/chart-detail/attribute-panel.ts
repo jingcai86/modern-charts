@@ -93,6 +93,10 @@ export function createAttributePanel(opts: {
       } else {
         config.markers = buildMarkersForVirtualState(entry, vState);
       }
+    } else if (spec.configPath === 'tooltip.position' && rawVal === '') {
+      if (config.tooltip && typeof config.tooltip === 'object') {
+        delete config.tooltip.position;
+      }
     } else {
       setByPath(config, spec.configPath, rawVal);
     }

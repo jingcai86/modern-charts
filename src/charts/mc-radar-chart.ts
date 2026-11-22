@@ -44,6 +44,10 @@ export class MCRadarChart extends MCBaseChart<RadarDatum[]> {
     return { top: 44, right: 64, bottom: 58, left: 64 };
   }
 
+  protected getDefaultTooltipPosition(): 'item' {
+    return 'item';
+  }
+
   get indexBy(): string {
     return this.getOption('indexBy', 'index-by', 'metric') || 'metric';
   }

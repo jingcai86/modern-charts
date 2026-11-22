@@ -37,6 +37,10 @@ export class MCGaugeChart extends MCBaseChart<GaugeDatum> {
     return { top: 32, right: 32, bottom: 32, left: 32 };
   }
 
+  protected getDefaultTooltipPosition(): 'item' {
+    return 'item';
+  }
+
   protected prepareContext(ctx: ChartRenderContext<GaugeDatum>): void {
     const model = computeGaugeChartModel(ctx, {
       min: this.getOption('min', 'min'),

@@ -179,8 +179,10 @@ export class AriaEngine {
       onItemFocus?: (
         item: AriaItemDescriptor,
         label: string,
-        description?: string
+        description?: string,
+        element?: SVGElement
       ) => void;
+      onItemBlur?: (item: AriaItemDescriptor, element: SVGElement) => void;
       onItemActivate?: (
         item: AriaItemDescriptor,
         label: string,
@@ -266,12 +268,18 @@ export class AriaEngine {
       element.setAttribute('tabindex', '0');
 
       element.addEventListener('focus', () => {
-        hooks.onItemFocus?.(item, label, description);
+        hooks.onItemFocus?.(item, label, description, element);
+      });
+
+      element.addEventListener('blur', () => {
+        hooks.onItemBlur?.(item, element);
       });
 
       // Native button-like keyboard activation: Enter on keydown, Space on keyup
       element.addEventListener('keydown', (e: KeyboardEvent) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Escape') {
+          hooks.onItemBlur?.(item, element);
+        } else if (e.key === 'Enter') {
           e.preventDefault();
           hooks.onItemActivate?.(item, label, element);
         } else if (e.key === ' ') {

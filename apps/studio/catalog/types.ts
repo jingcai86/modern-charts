@@ -22,6 +22,7 @@ export interface ChartAttributeSpec {
     | 'Animation (<mc-animation-layer>)'
     | 'Marker & Threshold (<mc-marker-layer>)'
     | 'Legend (<mc-legend>)'
+    | 'Tooltip (<mc-tooltip>)'
     | 'Universal Label (<mc-label>)'
     | 'Accessibility (<mc-aria-layer>)'
     | 'Sizing & Layout';
