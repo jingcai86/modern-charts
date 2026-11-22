@@ -271,29 +271,7 @@ function renderOverviewPage(root: HTMLElement): void {
   const navOverviewBtn = document.getElementById('nav-overview-btn');
   navOverviewBtn?.classList.add('active');
 
-  // Hero section
-  const hero = document.createElement('section');
-  hero.className = 'overview-hero';
-  hero.innerHTML = `
-    <div>
-      <h2 class="overview-hero-title">Interactive Web Component Chart Gallery (${CHART_CATALOG.length} Chart Types)</h2>
-      <p class="overview-hero-desc">
-        Click any chart card below to open its <strong>Dedicated Chart Playground</strong>, where you can inspect the live visualization, edit its Nivo-style <code>chart.config</code> in real time, stream layers progressively, and customize every supported attribute &amp; layer property.
-      </p>
-    </div>
-    <div class="component-pills">
-      <span class="comp-pill">&lt;mc-theme-layer&gt;</span>
-      <span class="comp-pill">&lt;mc-scale-layer&gt;</span>
-      <span class="comp-pill">&lt;mc-view-layer&gt;</span>
-      <span class="comp-pill">&lt;mc-animation-layer&gt;</span>
-      <span class="comp-pill">&lt;mc-marker-layer&gt;</span>
-      <span class="comp-pill">&lt;mc-aria-layer&gt;</span>
-      <span class="comp-pill">&lt;mc-label&gt;</span>
-    </div>
-  `;
-  root.appendChild(hero);
-
-  // Grid of 10 live example cards
+  // Grid of 10 clean live example cards
   const grid = document.createElement('section');
   grid.className = 'overview-grid';
 
@@ -302,31 +280,13 @@ function renderOverviewPage(root: HTMLElement): void {
     card.className = 'overview-card';
     card.setAttribute('role', 'link');
     card.setAttribute('tabindex', '0');
-    card.setAttribute('aria-label', `Open ${entry.title} interactive playground`);
-
-    const attrCount = getAllAttributesForChart(entry).length;
+    card.setAttribute('aria-label', `Open ${entry.title}`);
 
     card.innerHTML = `
       <div class="overview-card-header">
-        <div>
-          <h3 class="overview-card-title">
-            <span>${entry.title}</span>
-          </h3>
-          <span class="comp-pill">&lt;${entry.tagName}&gt;</span>
-        </div>
-        <span class="version-pill">${attrCount} Attributes</span>
+        <h3 class="overview-card-title">${entry.title}</h3>
       </div>
-      <p class="overview-card-summary">${entry.summary}</p>
       <div class="overview-preview-stage" id="preview-stage-${entry.id}"></div>
-      <div class="overview-card-footer">
-        <div class="component-pills">
-          ${entry.subComponents
-            .slice(0, 4)
-            .map((c) => `<span class="comp-pill">&lt;${c}&gt;</span>`)
-            .join('')}
-        </div>
-        <span class="overview-cta">Customize &amp; Edit Config →</span>
-      </div>
     `;
 
     const navigateToChart = () => {

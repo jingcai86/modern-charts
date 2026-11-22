@@ -241,7 +241,7 @@ button.btn-primary:hover {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  padding: 18px;
+  padding: 16px 18px 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -259,56 +259,24 @@ button.btn-primary:hover {
 
 .overview-card-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
 }
 
 .overview-card-title {
   margin: 0;
-  font-size: 1.06rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.overview-card-summary {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  line-height: 1.45;
 }
 
 .overview-preview-stage {
-  height: 255px;
+  height: 270px;
   width: 100%;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   background: var(--bg-code);
   pointer-events: none;
-}
-
-.overview-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding-top: 4px;
-}
-
-.overview-cta {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #6366f1;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-:root:not([data-theme="light"]) .overview-cta {
-  color: #a5b4fc;
 }
 
 /* ============================================================================
