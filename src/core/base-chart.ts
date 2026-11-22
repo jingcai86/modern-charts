@@ -173,7 +173,7 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
 
         .mc-view-controls {
           position: absolute;
-          top: 10px;
+          bottom: 10px;
           right: 12px;
           display: inline-flex;
           gap: 4px;

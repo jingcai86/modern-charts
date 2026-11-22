@@ -303,14 +303,15 @@ function renderOverviewPage(root: HTMLElement): void {
 
     grid.appendChild(card);
 
-    // Mount live chart instance inside preview stage
+    // Mount live chart instance inside preview stage (without zoom overlay controls on home page cards)
     const stage = card.querySelector(`#preview-stage-${entry.id}`) as HTMLElement;
     const chartEl = document.createElement(entry.tagName) as MCBaseChart<any>;
     const cfg = getOrInitChartConfig(entry);
     stage.appendChild(chartEl);
     chartEl.setConfig({
       ...cfg,
-      themeMode: globalThemeMode
+      themeMode: globalThemeMode,
+      view: cfg.view ? { ...cfg.view, showControls: false } : undefined
     });
     activeOverviewCharts.push(chartEl);
   });
@@ -1099,7 +1100,13 @@ globalThemeSelect?.addEventListener('change', (e) => {
     );
   } else {
     activeOverviewCharts.forEach((chart) => {
-      chart.setConfig({ ...chart.config, themeMode: mode });
+      chart.setConfig({
+        ...chart.config,
+        themeMode: mode,
+        view: chart.config.view
+          ? { ...chart.config.view, showControls: false }
+          : undefined
+      });
     });
   }
 });
