@@ -1,3 +1,4 @@
+import { resolveElementAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
 import type {
   ComputedRadarPointModel,
@@ -51,6 +52,18 @@ export function renderRadarDotItem(
   dot.setAttribute('stroke-width', '1.8');
   dot.style.cursor = 'pointer';
 
+  const radarCx =
+    (ctx.state?.model as { cx?: number } | undefined)?.cx ?? ctx.innerWidth / 2;
+  const radarCy =
+    (ctx.state?.model as { cy?: number } | undefined)?.cy ?? ctx.innerHeight / 2;
+  const fallbackAnchor = {
+    left: ctx.margin.left + radarCx + pt.x - 5,
+    top: ctx.margin.top + radarCy + pt.y - 5,
+    width: 10,
+    height: 10,
+    relative: true
+  };
+
   ctx.decorateAriaItem(dot, {
     type: 'radar-point',
     index: pt.globalIndex,
@@ -62,6 +75,7 @@ export function renderRadarDotItem(
     value: pt.value,
     formattedValue: String(pt.value),
     color: pt.color,
+    anchor: fallbackAnchor,
     datum: {
       key: pt.seriesKey,
       axis: pt.axis,
@@ -87,6 +101,7 @@ export function renderRadarDotItem(
         value: pt.value,
         formattedValue: String(pt.value),
         color: pt.color,
+        anchor: resolveElementAnchor(dot, fallbackAnchor),
         datum: {
           key: pt.seriesKey,
           axis: pt.axis,

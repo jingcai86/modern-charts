@@ -2377,3 +2377,200 @@ describe('Partial / Split Threshold Styling — Option B Semantic <g> ARIA Host 
     expect(clip1).not.toBe(clip2);
   });
 });
+
+describe('Configurable Tooltip Positioning: follow vs. item-anchored & keyboard focus (Issue #9)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  const parseTranslateXY = (el: HTMLElement | null): { x: number; y: number } => {
+    const t = el?.style.transform ?? '';
+    const m = t.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    return { x: Number(m?.[1] ?? NaN), y: Number(m?.[2] ?? NaN) };
+  };
+
+  it('applies sensible per-chart defaults and respects config, attribute, and declarative <mc-tooltip> overrides', () => {
+    const itemDefaultTags = [
+      'mc-bar-chart',
+      'mc-scatter-chart',
+      'mc-radar-chart',
+      'mc-gauge-chart'
+    ];
+    for (const tag of itemDefaultTags) {
+      const el = document.createElement(tag) as any;
+      document.body.appendChild(el);
+      expect(el.resolveTooltipConfig().position).toBe('item');
+    }
+
+    const followDefaultTags = [
+      'mc-line-chart',
+      'mc-pie-chart',
+      'mc-sunburst-chart',
+      'mc-heatmap-chart',
+      'mc-treemap-chart',
+      'mc-sankey-chart'
+    ];
+    for (const tag of followDefaultTags) {
+      const el = document.createElement(tag) as any;
+      document.body.appendChild(el);
+      expect(el.resolveTooltipConfig().position).toBe('follow');
+    }
+
+    // HTML attribute shorthand & alias support ('pointer' -> 'follow', 'anchor' -> 'item')
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    bar.setAttribute('tooltip-position', 'pointer');
+    document.body.appendChild(bar);
+    expect(bar.resolveTooltipConfig().position).toBe('follow');
+    expect(bar.tooltipPosition).toBe('follow');
+
+    // chart.config.tooltipPosition overrides attribute
+    bar.config = { data: SAMPLE_BAR_DATA, indexBy: 'quarter', keys: ['Cloud'], tooltipPosition: 'item' };
+    expect(bar.resolveTooltipConfig().position).toBe('item');
+
+    // chart.config.tooltip.position overrides tooltipPosition
+    bar.config = { ...bar.config, tooltip: { position: 'follow' } };
+    expect(bar.resolveTooltipConfig().position).toBe('follow');
+
+    // Declarative <mc-tooltip position="anchor" anchor-gap="16"> wins cleanly
+    const decl = document.createElement('mc-tooltip') as MCTooltipElement;
+    decl.setAttribute('position', 'anchor');
+    decl.setAttribute('anchor-gap', '16');
+    bar.appendChild(decl);
+    const resolved = bar.resolveTooltipConfig();
+    expect(resolved.position).toBe('item');
+    expect(resolved.anchorGap).toBe(16);
+  });
+
+  it('anchors cleanly above hovered items in item mode, flips below near top edge, and stays steady on mousemove', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+    bar.config = {
+      data: [
+        { quarter: 'Q1', Cloud: 100 },
+        { quarter: 'Q2', Cloud: 40 }
+      ],
+      width: 600,
+      height: 360,
+      indexBy: 'quarter',
+      keys: ['Cloud'],
+      tooltip: { position: 'item', anchorGap: 10 }
+    };
+
+    const tooltip = bar.getTooltipElement()!;
+    const bars = Array.from(
+      bar.shadowRoot?.querySelectorAll('.mc-bar-rect') ?? []
+    ) as SVGElement[];
+    expect(bars.length).toBe(2);
+
+    // Shorter bar (Q2, value=40) has plenty of room above -> anchors on top
+    bars[1].dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 50, clientY: 300 })
+    );
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.getAttribute('data-position-mode')).toBe('item');
+    expect(tooltip.getAttribute('data-placement')).toBe('top');
+    const anchoredPos = parseTranslateXY(tooltip);
+
+    // Moving the pointer across the SVG must NOT move an item-anchored tooltip
+    const svg = bar.shadowRoot?.querySelector('.mc-chart-svg')!;
+    svg.dispatchEvent(
+      new MouseEvent('mousemove', { bubbles: true, clientX: 520, clientY: 120 })
+    );
+    expect(parseTranslateXY(tooltip)).toEqual(anchoredPos);
+
+    // Tallest bar (Q1, value=100, starts right at margin.top = 32 < tipHeight 56 + gap 10) -> flips below!
+    bars[0].dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 100, clientY: 100 })
+    );
+    expect(tooltip.getAttribute('data-position-mode')).toBe('item');
+    expect(tooltip.getAttribute('data-placement')).toBe('bottom');
+  });
+
+  it('tracks pointer dynamically on mousemove in follow mode with boundary flipping and zero duplicate show events', () => {
+    const heatmap = document.createElement('mc-heatmap-chart') as MCHeatmapChart;
+    document.body.appendChild(heatmap);
+    heatmap.config = {
+      data: SAMPLE_HEATMAP_DATA,
+      width: 600,
+      height: 360,
+      tooltip: { position: 'follow', offsetX: 14, offsetY: 14 }
+    };
+
+    const tooltip = heatmap.getTooltipElement()!;
+    const cell = heatmap.shadowRoot?.querySelector('.mc-heatmap-cell') as SVGElement;
+    const svg = heatmap.shadowRoot?.querySelector('.mc-chart-svg')!;
+    expect(cell).not.toBeNull();
+
+    let showCount = 0;
+    heatmap.addEventListener('mc-tooltip-show', () => {
+      showCount++;
+    });
+
+    cell.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 120, clientY: 100 })
+    );
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.getAttribute('data-position-mode')).toBe('follow');
+    expect(tooltip.getAttribute('data-placement')).toBe('follow');
+    const pos1 = parseTranslateXY(tooltip);
+    expect(pos1.x).toBe(134);
+    expect(pos1.y).toBe(114);
+    expect(showCount).toBe(1);
+
+    // Moving pointer glides tooltip smoothly without re-firing mc-tooltip-show
+    svg.dispatchEvent(
+      new MouseEvent('mousemove', { bubbles: true, clientX: 240, clientY: 160 })
+    );
+    const pos2 = parseTranslateXY(tooltip);
+    expect(pos2.x).toBe(254);
+    expect(pos2.y).toBe(174);
+    expect(showCount).toBe(1);
+
+    // Near right & bottom edges -> flips left/above and stays inside container bounds
+    svg.dispatchEvent(
+      new MouseEvent('mousemove', { bubbles: true, clientX: 590, clientY: 350 })
+    );
+    const posEdge = parseTranslateXY(tooltip);
+    expect(posEdge.x).toBeLessThan(590 - 14);
+    expect(posEdge.y).toBeLessThan(350 - 14);
+  });
+
+  it('shows item-anchored tooltips seamlessly on keyboard focus (Tab/Arrow) even in follow mode, and hides on Escape or blur', () => {
+    const pie = document.createElement('mc-pie-chart') as MCPieChart;
+    document.body.appendChild(pie);
+    pie.config = {
+      data: SAMPLE_PIE_DATA,
+      width: 560,
+      height: 360,
+      tooltip: { position: 'follow' }
+    };
+
+    const tooltip = pie.getTooltipElement()!;
+    const slices = Array.from(
+      pie.shadowRoot?.querySelectorAll('.mc-pie-arc') ?? []
+    ) as SVGElement[];
+    expect(slices.length).toBeGreaterThan(1);
+
+    // Focus first slice via keyboard -> always anchors in 'item' mode with source='keyboard'
+    slices[0].dispatchEvent(new FocusEvent('focus'));
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.getAttribute('data-position-mode')).toBe('item');
+    expect(tooltip.getAttribute('data-trigger-source')).toBe('keyboard');
+    expect(tooltip.shadowRoot?.textContent).toContain(
+      SAMPLE_PIE_DATA[0].label || SAMPLE_PIE_DATA[0].id
+    );
+
+    // Pressing Escape dismisses the tooltip while keeping keyboard navigation smooth
+    slices[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(tooltip.hidden).toBe(true);
+
+    // Focusing second slice re-shows anchored tooltip on second slice, and blur hides it
+    slices[1].dispatchEvent(new FocusEvent('focus'));
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.shadowRoot?.textContent).toContain(
+      SAMPLE_PIE_DATA[1].label || SAMPLE_PIE_DATA[1].id
+    );
+    slices[1].dispatchEvent(new FocusEvent('blur'));
+    expect(tooltip.hidden).toBe(true);
+  });
+});

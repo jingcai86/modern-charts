@@ -159,6 +159,8 @@ export interface AriaItemDescriptor {
   source?: string;
   target?: string;
   color?: string;
+  /** Optional item anchor rect used for keyboard-focus tooltips (falls back to element bounds when omitted). */
+  anchor?: TooltipAnchorRect;
   datum: Record<string, any>;
 }
 
@@ -615,6 +617,21 @@ export interface TooltipItemEntry {
   datum?: Record<string, any>;
 }
 
+export type TooltipPositionMode = 'follow' | 'item';
+
+export interface TooltipAnchorRect {
+  /** Anchor left coordinate (viewport client px, or container-relative px when `relative: true`). */
+  left: number;
+  /** Anchor top coordinate (viewport client px, or container-relative px when `relative: true`). */
+  top: number;
+  /** Anchor width in pixels. */
+  width: number;
+  /** Anchor height in pixels. */
+  height: number;
+  /** When true, `left`/`top` are relative to `.mc-chart-container` instead of viewport client coords. */
+  relative?: boolean;
+}
+
 /**
  * Unified structured payload passed to `<mc-tooltip>` and client
  * `tooltip.formatter` / `tooltip.renderer` callbacks across all 10 charts.
@@ -636,6 +653,12 @@ export interface TooltipPayload<TDatum = any> {
   threshold?: ThresholdEvaluationResult;
   clientX: number;
   clientY: number;
+  /** Optional item bounding box or point anchor used when `tooltip.position` is `'item'` (or on keyboard focus). */
+  anchor?: TooltipAnchorRect;
+  /** Resolved positioning mode applied for this tooltip display (`'item'` or `'follow'`). */
+  positionMode?: TooltipPositionMode;
+  /** Trigger source (`'pointer'` hover/move vs `'keyboard'` focus navigation). */
+  source?: 'pointer' | 'keyboard';
   defaultHtml?: string;
 }
 
@@ -651,9 +674,18 @@ export type TooltipRenderer<TDatum = any> = (
 export interface TooltipConfig<TDatum = any> {
   /** Enable or disable the unified chart tooltip. Default `true`. */
   enabled?: boolean;
-  /** Horizontal pixel offset from pointer. Default `14`. */
+  /**
+   * Tooltip positioning mode:
+   * - `'item'`: anchors centered on top of the active item (flips below when near the top edge).
+   * - `'follow'`: follows the mouse/pointer with edge flipping and boundary clamping.
+   * Defaults to a per-chart sensible mode (`'item'` for bar/scatter/radar/gauge; `'follow'` for line/pie/sunburst/heatmap/treemap/sankey).
+   */
+  position?: TooltipPositionMode;
+  /** Gap in pixels between the anchored item and the tooltip in `'item'` mode. Default `10`. */
+  anchorGap?: number;
+  /** Horizontal pixel offset from pointer in `'follow'` mode. Default `14`. */
   offsetX?: number;
-  /** Vertical pixel offset from pointer. Default `14`. */
+  /** Vertical pixel offset from pointer in `'follow'` mode. Default `14`. */
   offsetY?: number;
   /** Optional custom CSS class added to `<mc-tooltip>`. */
   className?: string;
@@ -787,6 +819,8 @@ export interface ChartConfig<TData = any> {
 
   // Unified <mc-tooltip> config (one singleton <mc-tooltip> per chart)
   tooltip?: boolean | TooltipConfig<any>;
+  /** Convenience shorthand for `tooltip.position` (`'item' | 'follow'`), also reflected by the `tooltip-position` HTML attribute. */
+  tooltipPosition?: TooltipPositionMode;
 
   // Unified SVG <mc-legend> config (shared across categorical charts)
   legend?: boolean | LegendConfig;

@@ -114,6 +114,67 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     defaultValue: 12
   },
 
+  // Unified Tooltip (<mc-tooltip>)
+  {
+    configPath: 'tooltip.enabled',
+    attrName: 'mc-tooltip[enabled]',
+    category: 'Tooltip (<mc-tooltip>)',
+    control: 'boolean',
+    description:
+      'Shows or hides the unified chart tooltip singleton (<mc-tooltip>).',
+    defaultValue: true
+  },
+  {
+    configPath: 'tooltip.position',
+    attrName: 'tooltip-position / mc-tooltip[position]',
+    category: 'Tooltip (<mc-tooltip>)',
+    control: 'select',
+    options: [
+      { label: 'Auto (chart default)', value: '' },
+      { label: 'item (anchored on top)', value: 'item' },
+      { label: 'follow (follow mouse)', value: 'follow' }
+    ],
+    description:
+      'Choose whether the tooltip anchors cleanly on top of each active item ("item") or tracks the mouse cursor ("follow"). Keyboard Tab/Arrow focus always anchors to the focused item.',
+    defaultValue: ''
+  },
+  {
+    configPath: 'tooltip.anchorGap',
+    attrName: 'mc-tooltip[anchor-gap]',
+    category: 'Tooltip (<mc-tooltip>)',
+    control: 'range',
+    min: 0,
+    max: 32,
+    step: 2,
+    description:
+      'Pixel gap between the active chart item and the tooltip in "item" anchor mode.',
+    defaultValue: 10
+  },
+  {
+    configPath: 'tooltip.offsetX',
+    attrName: 'mc-tooltip[offset-x]',
+    category: 'Tooltip (<mc-tooltip>)',
+    control: 'range',
+    min: 0,
+    max: 40,
+    step: 2,
+    description:
+      'Horizontal pixel offset from the cursor in "follow" mode.',
+    defaultValue: 14
+  },
+  {
+    configPath: 'tooltip.offsetY',
+    attrName: 'mc-tooltip[offset-y]',
+    category: 'Tooltip (<mc-tooltip>)',
+    control: 'range',
+    min: 0,
+    max: 40,
+    step: 2,
+    description:
+      'Vertical pixel offset from the cursor in "follow" mode.',
+    defaultValue: 14
+  },
+
   // Universal <mc-label>
   {
     configPath: 'labelMode',

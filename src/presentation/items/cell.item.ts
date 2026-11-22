@@ -1,4 +1,5 @@
 import { format } from 'd3';
+import { resolveElementAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
 import type { ComputedHeatmapCellModel } from '../../models/heatmap.model';
 import type { ComputedTreemapLeafModel } from '../../models/treemap.model';
@@ -40,6 +41,14 @@ export function renderHeatmapCellItem(
   node.style.cursor = 'pointer';
   node.style.transition = 'transform 140ms ease, filter 140ms ease';
 
+  const fallbackAnchor = {
+    left: ctx.margin.left + cell.x,
+    top: ctx.margin.top + cell.y,
+    width: cell.width,
+    height: cell.height,
+    relative: true
+  };
+
   ctx.decorateAriaItem(node, {
     type: 'cell',
     index: cell.index,
@@ -51,6 +60,7 @@ export function renderHeatmapCellItem(
     value: cell.value,
     formattedValue: String(cell.value),
     color: cell.color,
+    anchor: fallbackAnchor,
     datum: {
       rowId: cell.rowId,
       colId: cell.colId,
@@ -78,6 +88,7 @@ export function renderHeatmapCellItem(
         value: cell.value,
         formattedValue: String(cell.value),
         color: cell.color,
+        anchor: resolveElementAnchor(node, fallbackAnchor),
         datum: {
           rowId: cell.rowId,
           colId: cell.colId,
@@ -118,6 +129,14 @@ export function renderTreemapTileItem(
   rect.style.cursor = 'pointer';
   rect.style.transition = 'filter 140ms ease';
 
+  const fallbackAnchor = {
+    left: ctx.margin.left + leaf.x0,
+    top: ctx.margin.top + leaf.y0,
+    width: leaf.width,
+    height: leaf.height,
+    relative: true
+  };
+
   ctx.decorateAriaItem(rect, {
     type: 'treemap-tile',
     index: leaf.index,
@@ -128,6 +147,7 @@ export function renderTreemapTileItem(
     value: leaf.value,
     formattedValue: String(leaf.value),
     color: leaf.color,
+    anchor: fallbackAnchor,
     datum: {
       name: leaf.name,
       category: leaf.category,
@@ -152,6 +172,7 @@ export function renderTreemapTileItem(
         value: leaf.value,
         formattedValue: format(',')(leaf.value),
         color: leaf.color,
+        anchor: resolveElementAnchor(rect, fallbackAnchor),
         datum: {
           name: leaf.name,
           category: leaf.category,

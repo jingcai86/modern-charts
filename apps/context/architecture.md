@@ -130,12 +130,15 @@ interface SharedChartConfig<TData> {
   // Unified Tooltip (<mc-tooltip> — one reusable instance per chart)
   tooltip?: boolean | {
     enabled?: boolean;
+    position?: 'item' | 'follow'; // default 'item' (bar/scatter/radar/gauge) or 'follow' (line/pie/sunburst/heatmap/treemap/sankey)
+    anchorGap?: number; // default 10 (px gap above/below item in 'item' mode)
     offsetX?: number;
     offsetY?: number;
     className?: string;
     formatter?: (payload: TooltipPayload) => string | null | undefined;
     renderer?: (payload: TooltipPayload, defaultRender: () => HTMLElement) => HTMLElement | DocumentFragment | string | null | undefined;
   };
+  tooltipPosition?: 'item' | 'follow'; // shorthand also reflected via tooltip-position HTML attribute
 
   // Unified SVG Legend (<mc-legend> — shared by bar, line, pie, radar, scatter, sunburst, treemap, sankey)
   legend?: boolean | {
@@ -322,8 +325,9 @@ chart.appendChild(layer);
 
 Every chart owns strictly **one** `<mc-tooltip>` instance inside its Shadow DOM (reused in-place on pointer hover/move) and passes a structured `TooltipPayload` (`chartType`, `title`, `label`, `seriesId`, `category`, `value`, `formattedValue`, `color`, `percentage`, `badge`, `items[]`, `threshold`, `datum`, `data`).
 
-- **Customize via `chart.config.tooltip`**: `{ enabled, offsetX, offsetY, formatter, renderer }`.
-- **Customize declaratively**: `<mc-tooltip offset-x="16"><template>{{title}}: {{value}}</template></mc-tooltip>`.
+- **Positioning modes (`item` vs `follow`)**: Configure via `chart.config.tooltip.position`, `chart.config.tooltipPosition`, HTML attribute `tooltip-position="item|follow"`, or `<mc-tooltip position="item|follow" anchor-gap="10">`. Per-chart defaults anchor on top of discrete items (`bar`, `scatter`, `radar`, `gauge`) and follow the cursor on continuous/radial/matrix/flow charts (`line`, `pie`, `sunburst`, `heatmap`, `treemap`, `sankey`), with automatic viewport/container edge flipping & clamping. Keyboard `Tab`/`Arrow` focus always anchors cleanly to the active item and dismisses on `Escape`/`blur`.
+- **Customize via `chart.config.tooltip`**: `{ enabled, position, anchorGap, offsetX, offsetY, formatter, renderer }`.
+- **Customize declaratively**: `<mc-tooltip position="item" offset-x="16"><template>{{title}}: {{value}}</template></mc-tooltip>`.
 - **Style via CSS `::part()`**: `::part(tooltip)`, `::part(tooltip-header)`, `::part(tooltip-body)`, `::part(tooltip-row)`, `::part(tooltip-swatch)`, `::part(tooltip-label)`, `::part(tooltip-value)`, `::part(tooltip-badge)`.
 
 ---

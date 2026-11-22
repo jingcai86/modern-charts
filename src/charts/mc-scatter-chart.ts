@@ -55,6 +55,10 @@ export class MCScatterChart extends MCBaseChart<ScatterSeries[]> {
     return createDefaultScaleConfig('linear', 'linear');
   }
 
+  protected getDefaultTooltipPosition(): 'item' {
+    return 'item';
+  }
+
   protected prepareContext(ctx: ChartRenderContext<ScatterSeries[]>): void {
     const model = computeScatterChartModel(ctx, {
       minNodeSize: this.getOption('minNodeSize', 'min-node-size', 6) ?? 6,

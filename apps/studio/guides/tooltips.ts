@@ -393,5 +393,95 @@ chart.config = {
     )
   );
 
+  // Example 4: Configurable Tooltip Positioning ('item' vs 'follow' + Keyboard Tab/Arrow)
+  const ex4 = document.createElement('section');
+  ex4.className = 'panel-card guide-section';
+  ex4.innerHTML = `
+    <div class="guide-example-header">
+      <div>
+        <h3 class="guide-example-title">4. Configurable Positioning: Item-Anchored vs. Follow Mouse</h3>
+        <p class="guide-prose">
+          Toggle between <code>position: 'item'</code> (snaps cleanly on top of each bar/point/cell and flips below near the top edge)
+          and <code>position: 'follow'</code> (glides with the mouse pointer with automatic edge flipping).
+          Try pressing <strong>Tab</strong> and <strong>Arrow</strong> keys on the chart — keyboard focus always anchors cleanly to the active item.
+        </p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button type="button" class="btn-chip active" data-pos-mode="item">Anchored on Item (item)</button>
+        <button type="button" class="btn-chip" data-pos-mode="follow">Follow Mouse (follow)</button>
+      </div>
+    </div>
+    <div class="guide-split">
+      <div class="guide-chart-box" id="guide-tooltip-chart-4"></div>
+      <div id="guide-tooltip-code-4"></div>
+    </div>
+  `;
+  container.appendChild(ex4);
+
+  const bar4 = document.createElement('mc-bar-chart') as MCBaseChart<any>;
+  bar4.style.width = '100%';
+  bar4.style.height = '340px';
+  ex4.querySelector('#guide-tooltip-chart-4')!.appendChild(bar4);
+  const bar4BaseConfig = {
+    data: [
+      { quarter: 'Q1', Cloud: 142, Edge: 88, AI: 64 },
+      { quarter: 'Q2', Cloud: 168, Edge: 104, AI: 96 },
+      { quarter: 'Q3', Cloud: 190, Edge: 118, AI: 132 },
+      { quarter: 'Q4', Cloud: 215, Edge: 136, AI: 168 }
+    ],
+    indexBy: 'quarter',
+    keys: ['Cloud', 'Edge', 'AI'],
+    themeMode,
+    palette: 'modern' as const,
+    title: 'Hover or Tab through bars — Tooltip Position: item',
+    tooltip: {
+      position: 'item' as 'item' | 'follow',
+      anchorGap: 10
+    }
+  };
+  bar4.config = bar4BaseConfig;
+  mounted.push(bar4);
+
+  ex4.querySelectorAll('button[data-pos-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mode = btn.getAttribute('data-pos-mode') as 'item' | 'follow';
+      ex4
+        .querySelectorAll('button[data-pos-mode]')
+        .forEach((b) => b.classList.toggle('active', b === btn));
+      bar4.config = {
+        ...bar4.config,
+        title: `Hover or Tab through bars — Tooltip Position: ${mode}`,
+        tooltip: {
+          position: mode,
+          anchorGap: 10
+        }
+      };
+    });
+  });
+
+  ex4.querySelector('#guide-tooltip-code-4')!.appendChild(
+    createCodeBlock(
+      `
+// 1. Config API (per-chart defaults: 'item' for bar/scatter/radar/gauge, 'follow' for line/pie/sunburst/heatmap/treemap/sankey)
+chart.config = {
+  ...config,
+  tooltip: {
+    position: 'item',  // or 'follow'
+    anchorGap: 10      // gap in px above/below anchored item
+  }
+};
+
+// 2. HTML attribute shorthand on any chart
+// <mc-bar-chart tooltip-position="follow"></mc-bar-chart>
+
+// 3. Declarative <mc-tooltip> child
+// <mc-heatmap-chart>
+//   <mc-tooltip position="item" anchor-gap="8"></mc-tooltip>
+// </mc-heatmap-chart>
+      `,
+      'Tooltip Positioning Modes (item vs. follow)'
+    )
+  );
+
   return mounted;
 }

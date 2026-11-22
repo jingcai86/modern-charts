@@ -1,4 +1,8 @@
 import { format } from 'd3';
+import {
+  resolveChartPointAnchor,
+  resolveElementAnchor
+} from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
 import type {
   ComputedSankeyLinkModel,
@@ -50,6 +54,11 @@ export function renderSankeyLinkItem(
   path.style.cursor = 'pointer';
   path.style.transition = 'stroke-opacity 150ms ease';
 
+  const midX = (link.source.x1 + link.target.x0) / 2;
+  const midY = (link.sy + link.ty) / 2;
+  const getLinkAnchor = () =>
+    resolveChartPointAnchor(ctx, midX, midY, 16, Math.max(8, link.width));
+
   ctx.decorateAriaItem(path, {
     type: 'sankey-link',
     index: link.index,
@@ -61,6 +70,13 @@ export function renderSankeyLinkItem(
     value: link.value,
     formattedValue: String(link.value),
     color: link.source.color,
+    anchor: {
+      left: ctx.margin.left + midX - 8,
+      top: ctx.margin.top + midY - Math.max(8, link.width) / 2,
+      width: 16,
+      height: Math.max(8, link.width),
+      relative: true
+    },
     datum: {
       source: link.source.id,
       sourceName: link.source.name,
@@ -87,6 +103,7 @@ export function renderSankeyLinkItem(
         value: link.value,
         formattedValue: format(',')(link.value),
         color: link.source.color,
+        anchor: getLinkAnchor(),
         datum: {
           source: link.source.id,
           sourceName: link.source.name,
@@ -126,6 +143,14 @@ export function renderSankeyNodeItem(
   rect.setAttribute('fill', node.color);
   rect.style.cursor = 'pointer';
 
+  const fallbackAnchor = {
+    left: ctx.margin.left + node.x0,
+    top: ctx.margin.top + node.y0,
+    width: Math.max(4, node.x1 - node.x0),
+    height: Math.max(4, node.y1 - node.y0),
+    relative: true
+  };
+
   ctx.decorateAriaItem(rect, {
     type: 'sankey-node',
     index: node.index,
@@ -135,6 +160,7 @@ export function renderSankeyNodeItem(
     value: node.value,
     formattedValue: String(node.value),
     color: node.color,
+    anchor: fallbackAnchor,
     datum: {
       id: node.id,
       name: node.name,
@@ -158,6 +184,7 @@ export function renderSankeyNodeItem(
         value: node.value,
         formattedValue: format(',')(node.value),
         color: node.color,
+        anchor: resolveElementAnchor(rect, fallbackAnchor),
         datum: {
           id: node.id,
           name: node.name,
