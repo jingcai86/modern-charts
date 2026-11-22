@@ -1,62 +1,134 @@
 [
   {
-    "name": "Full library (modern-charts)",
+    "name": "Full library (modern-charts) [brotli]",
     "path": "dist/index.js",
-    "limit": "160 kB"
+    "limit": "110 kB"
   },
   {
-    "name": "Core engine & layers (modern-charts/core)",
+    "name": "Full library (modern-charts) [gzip]",
+    "path": "dist/index.js",
+    "gzip": true,
+    "limit": "125 kB"
+  },
+  {
+    "name": "Core engine & layers (modern-charts/core) [brotli]",
     "path": "dist/core.js",
-    "limit": "95 kB"
+    "limit": "75 kB"
   },
   {
-    "name": "Standalone Bar chart (modern-charts/bar)",
+    "name": "Core engine & layers (modern-charts/core) [gzip]",
+    "path": "dist/core.js",
+    "gzip": true,
+    "limit": "90 kB"
+  },
+  {
+    "name": "Standalone Bar chart (modern-charts/bar) [brotli]",
     "path": "dist/bar.js",
+    "limit": "80 kB"
+  },
+  {
+    "name": "Standalone Bar chart (modern-charts/bar) [gzip]",
+    "path": "dist/bar.js",
+    "gzip": true,
     "limit": "95 kB"
   },
   {
-    "name": "Standalone Line chart (modern-charts/line)",
+    "name": "Standalone Line chart (modern-charts/line) [brotli]",
     "path": "dist/line.js",
-    "limit": "100 kB"
+    "limit": "80 kB"
   },
   {
-    "name": "Standalone Pie chart (modern-charts/pie)",
+    "name": "Standalone Line chart (modern-charts/line) [gzip]",
+    "path": "dist/line.js",
+    "gzip": true,
+    "limit": "95 kB"
+  },
+  {
+    "name": "Standalone Pie chart (modern-charts/pie) [brotli]",
     "path": "dist/pie.js",
-    "limit": "95 kB"
+    "limit": "80 kB"
   },
   {
-    "name": "Standalone Heatmap chart (modern-charts/heatmap)",
+    "name": "Standalone Pie chart (modern-charts/pie) [gzip]",
+    "path": "dist/pie.js",
+    "gzip": true,
+    "limit": "90 kB"
+  },
+  {
+    "name": "Standalone Heatmap chart (modern-charts/heatmap) [brotli]",
     "path": "dist/heatmap.js",
-    "limit": "105 kB"
+    "limit": "75 kB"
   },
   {
-    "name": "Standalone Radar chart (modern-charts/radar)",
+    "name": "Standalone Heatmap chart (modern-charts/heatmap) [gzip]",
+    "path": "dist/heatmap.js",
+    "gzip": true,
+    "limit": "85 kB"
+  },
+  {
+    "name": "Standalone Radar chart (modern-charts/radar) [brotli]",
     "path": "dist/radar.js",
-    "limit": "95 kB"
+    "limit": "75 kB"
   },
   {
-    "name": "Standalone Sunburst chart (modern-charts/sunburst)",
+    "name": "Standalone Radar chart (modern-charts/radar) [gzip]",
+    "path": "dist/radar.js",
+    "gzip": true,
+    "limit": "85 kB"
+  },
+  {
+    "name": "Standalone Sunburst chart (modern-charts/sunburst) [brotli]",
     "path": "dist/sunburst.js",
-    "limit": "100 kB"
+    "limit": "80 kB"
   },
   {
-    "name": "Standalone Sankey chart (modern-charts/sankey)",
+    "name": "Standalone Sunburst chart (modern-charts/sunburst) [gzip]",
+    "path": "dist/sunburst.js",
+    "gzip": true,
+    "limit": "95 kB"
+  },
+  {
+    "name": "Standalone Sankey chart (modern-charts/sankey) [brotli]",
     "path": "dist/sankey.js",
-    "limit": "95 kB"
+    "limit": "75 kB"
   },
   {
-    "name": "Standalone Scatter chart (modern-charts/scatter)",
+    "name": "Standalone Sankey chart (modern-charts/sankey) [gzip]",
+    "path": "dist/sankey.js",
+    "gzip": true,
+    "limit": "85 kB"
+  },
+  {
+    "name": "Standalone Scatter chart (modern-charts/scatter) [brotli]",
     "path": "dist/scatter.js",
-    "limit": "95 kB"
+    "limit": "75 kB"
   },
   {
-    "name": "Standalone Treemap chart (modern-charts/treemap)",
+    "name": "Standalone Scatter chart (modern-charts/scatter) [gzip]",
+    "path": "dist/scatter.js",
+    "gzip": true,
+    "limit": "85 kB"
+  },
+  {
+    "name": "Standalone Treemap chart (modern-charts/treemap) [brotli]",
     "path": "dist/treemap.js",
-    "limit": "95 kB"
+    "limit": "75 kB"
   },
   {
-    "name": "Standalone Gauge chart (modern-charts/gauge)",
+    "name": "Standalone Treemap chart (modern-charts/treemap) [gzip]",
+    "path": "dist/treemap.js",
+    "gzip": true,
+    "limit": "85 kB"
+  },
+  {
+    "name": "Standalone Gauge chart (modern-charts/gauge) [brotli]",
     "path": "dist/gauge.js",
-    "limit": "95 kB"
+    "limit": "75 kB"
+  },
+  {
+    "name": "Standalone Gauge chart (modern-charts/gauge) [gzip]",
+    "path": "dist/gauge.js",
+    "gzip": true,
+    "limit": "85 kB"
   }
 ]

@@ -1,4 +1,4 @@
-import { extent, scaleSqrt } from 'd3';
+import { extent, scaleSqrt } from '../core/scales';
 import { buildAxisScale, getScalePosition } from '../core/scale-manager';
 import { createOrdinalColorScale } from '../core/theme';
 import type {

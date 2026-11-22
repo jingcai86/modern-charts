@@ -1,4 +1,3 @@
-import { select, zoom as d3Zoom, zoomIdentity, type ZoomBehavior } from 'd3';
 import { getChartD3 } from './d3-context';
 import {
   AnimationEngine,
@@ -306,7 +305,12 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   #internals: ElementInternals | null = null;
   #resizeObserver: ResizeObserver | null = null;
   #mutationObserver: MutationObserver | null = null;
-  #zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> | null = null;
+  #viewTransform = { k: 1, x: 0, y: 0 };
+  #viewController: {
+    scaleBy: (factor: number) => void;
+    reset: () => void;
+    destroy: () => void;
+  } | null = null;
   #streamTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected labelEngine = new LabelEngine();
@@ -399,6 +403,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   disconnectedCallback(): void {
     this._isConnected = false;
     this.#teardownAutoSizeObserver();
+    if (this.#viewController) {
+      this.#viewController.destroy();
+      this.#viewController = null;
+    }
     if (this.#mutationObserver) {
       this.#mutationObserver.disconnect();
       this.#mutationObserver = null;
@@ -2023,52 +2031,138 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     viewConfig: ViewConfig,
     dims: ChartDimensions
   ): void {
-    const d3Svg = select(svg);
+    if (this.#viewController) {
+      this.#viewController.destroy();
+      this.#viewController = null;
+    }
+
     if (!viewConfig.enabled) {
-      d3Svg.on('.zoom', null);
+      this.#viewTransform = { k: 1, x: 0, y: 0 };
       viewportGroup.removeAttribute('transform');
       this.#setCustomState('zoomed', false);
       return;
     }
 
-    const zoom = d3Zoom<SVGSVGElement, unknown>()
-      .scaleExtent(
-        viewConfig.zoomable ? [viewConfig.minZoom, viewConfig.maxZoom] : [1, 1]
-      )
-      .translateExtent([
-        [-dims.width * 0.5, -dims.height * 0.5],
-        [dims.width * 1.5, dims.height * 1.5]
-      ])
-      .on('zoom', (event) => {
-        const t = event.transform;
-        const tx = viewConfig.direction === 'y' ? 0 : t.x;
-        const ty = viewConfig.direction === 'x' ? 0 : t.y;
-        viewportGroup.setAttribute(
-          'transform',
-          `translate(${tx}, ${ty}) scale(${t.k})`
-        );
-        this.#setCustomState('zoomed', t.k !== 1 || tx !== 0 || ty !== 0);
-        this.dispatchEvent(
-          new CustomEvent('mc-zoom', {
-            bubbles: true,
-            composed: true,
-            detail: { k: t.k, x: tx, y: ty }
-          })
-        );
-      });
+    const minK = viewConfig.zoomable ? viewConfig.minZoom : 1;
+    const maxK = viewConfig.zoomable ? viewConfig.maxZoom : 1;
 
-    this.#zoomBehavior = zoom;
-    d3Svg.call(zoom);
+    const clamp = (value: number, lo: number, hi: number): number =>
+      Math.max(Math.min(lo, hi), Math.min(Math.max(lo, hi), value));
+
+    const applyTransform = (nextK: number, nextX: number, nextY: number): void => {
+      const k = clamp(nextK, minK, maxK);
+      const rawX = viewConfig.direction === 'y' ? 0 : nextX;
+      const rawY = viewConfig.direction === 'x' ? 0 : nextY;
+      const tx =
+        viewConfig.direction === 'y'
+          ? 0
+          : clamp(rawX, dims.width * (1 - 1.5 * k), dims.width * 0.5 * k);
+      const ty =
+        viewConfig.direction === 'x'
+          ? 0
+          : clamp(rawY, dims.height * (1 - 1.5 * k), dims.height * 0.5 * k);
+
+      this.#viewTransform = { k, x: tx, y: ty };
+      viewportGroup.setAttribute(
+        'transform',
+        `translate(${tx}, ${ty}) scale(${k})`
+      );
+      this.#setCustomState('zoomed', k !== 1 || tx !== 0 || ty !== 0);
+      this.dispatchEvent(
+        new CustomEvent('mc-zoom', {
+          bubbles: true,
+          composed: true,
+          detail: { k, x: tx, y: ty }
+        })
+      );
+    };
+
+    const scaleBy = (
+      factor: number,
+      cx = dims.width / 2,
+      cy = dims.height / 2
+    ): void => {
+      const prev = this.#viewTransform;
+      const nextK = clamp(prev.k * factor, minK, maxK);
+      const ratio = nextK / prev.k;
+      const nextX = cx - (cx - prev.x) * ratio;
+      const nextY = cy - (cy - prev.y) * ratio;
+      applyTransform(nextK, nextX, nextY);
+    };
+
+    const onWheel = (e: WheelEvent): void => {
+      if (!viewConfig.zoomable) return;
+      e.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const cx = rect.width > 0 ? e.clientX - rect.left : dims.width / 2;
+      const cy = rect.height > 0 ? e.clientY - rect.top : dims.height / 2;
+      const deltaScale = e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : 0.002;
+      scaleBy(Math.pow(2, -e.deltaY * deltaScale), cx, cy);
+    };
+
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let origX = 0;
+    let origY = 0;
+
+    const onPointerDown = (e: PointerEvent): void => {
+      if (!viewConfig.pannable || e.button !== 0) return;
+      dragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      origX = this.#viewTransform.x;
+      origY = this.#viewTransform.y;
+      svg.setPointerCapture?.(e.pointerId);
+    };
+
+    const onPointerMove = (e: PointerEvent): void => {
+      if (!dragging) return;
+      applyTransform(
+        this.#viewTransform.k,
+        origX + (e.clientX - startX),
+        origY + (e.clientY - startY)
+      );
+    };
+
+    const onPointerEnd = (e: PointerEvent): void => {
+      if (!dragging) return;
+      dragging = false;
+      svg.releasePointerCapture?.(e.pointerId);
+    };
+
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    svg.addEventListener('pointerdown', onPointerDown);
+    svg.addEventListener('pointermove', onPointerMove);
+    svg.addEventListener('pointerup', onPointerEnd);
+    svg.addEventListener('pointercancel', onPointerEnd);
+
+    this.#viewController = {
+      scaleBy: (factor: number) => scaleBy(factor),
+      reset: () => applyTransform(1, 0, 0),
+      destroy: () => {
+        svg.removeEventListener('wheel', onWheel);
+        svg.removeEventListener('pointerdown', onPointerDown);
+        svg.removeEventListener('pointermove', onPointerMove);
+        svg.removeEventListener('pointerup', onPointerEnd);
+        svg.removeEventListener('pointercancel', onPointerEnd);
+      }
+    };
 
     if (
       viewConfig.initialZoom !== 1 ||
       viewConfig.initialPanX !== 0 ||
       viewConfig.initialPanY !== 0
     ) {
-      const initialTransform = zoomIdentity
-        .translate(viewConfig.initialPanX, viewConfig.initialPanY)
-        .scale(viewConfig.initialZoom);
-      d3Svg.call(zoom.transform, initialTransform);
+      applyTransform(
+        viewConfig.initialZoom,
+        viewConfig.initialPanX,
+        viewConfig.initialPanY
+      );
+    } else {
+      this.#viewTransform = { k: 1, x: 0, y: 0 };
+      viewportGroup.removeAttribute('transform');
+      this.#setCustomState('zoomed', false);
     }
   }
 
@@ -2081,20 +2175,15 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       const btn = (e.target as HTMLElement).closest(
         'button[data-zoom]'
       ) as HTMLButtonElement | null;
-      if (!btn || !this.#zoomBehavior) return;
-      const svg = this.shadowRoot?.querySelector(
-        '.mc-chart-svg'
-      ) as SVGSVGElement | null;
-      if (!svg) return;
+      if (!btn || !this.#viewController) return;
 
       const action = btn.getAttribute('data-zoom');
-      const d3Svg = select(svg);
       if (action === 'in') {
-        this.#zoomBehavior.scaleBy(d3Svg, 1.25);
+        this.#viewController.scaleBy(1.25);
       } else if (action === 'out') {
-        this.#zoomBehavior.scaleBy(d3Svg, 0.8);
+        this.#viewController.scaleBy(0.8);
       } else if (action === 'reset') {
-        this.#zoomBehavior.transform(d3Svg, zoomIdentity);
+        this.#viewController.reset();
       }
     });
   }
