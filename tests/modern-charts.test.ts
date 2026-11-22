@@ -1855,3 +1855,277 @@ describe('Unified SVG <mc-legend> Component (Issue #16)', () => {
     }
   });
 });
+
+describe('Partial / Split Threshold Styling — Option B Semantic <g> ARIA Host + Clipped Shapes (Issue #18)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('splits bars crossing a threshold into a single semantic <g> ARIA host with aria-hidden clipped segments supporting fill, stroke, dasharray, and opacity', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    bar.config = {
+      data: [
+        { quarter: 'Q1', Spend: 60 },
+        { quarter: 'Q2', Spend: 150 },
+        { quarter: 'Q3', Spend: 200 }
+      ],
+      width: 640,
+      height: 380,
+      indexBy: 'quarter',
+      keys: ['Spend'],
+      borderRadius: 6,
+      markers: [
+        {
+          id: 'cap-100',
+          type: 'line',
+          axis: 'y',
+          value: 100,
+          label: 'Cap $100K',
+          condition: 'above',
+          matchStyle: {
+            color: '#ef4444',
+            stroke: '#991b1b',
+            strokeWidth: 2,
+            strokeDasharray: '4 2',
+            opacity: 0.85
+          }
+        }
+      ]
+    };
+
+    // ARIA invariant: 3 bars -> strictly 3 focusable .mc-aria-item elements (NEVER doubled!)
+    const ariaItems = bar.shadowRoot?.querySelectorAll('.mc-aria-item') ?? [];
+    expect(ariaItems.length).toBe(3);
+
+    // Q1 (60): 0% above 100 -> single normal <rect> with original color
+    const q1 = bar.shadowRoot?.querySelector(
+      '[data-item-component="mc-bar-item"][data-index="Q1"]'
+    );
+    expect(q1?.tagName.toLowerCase()).toBe('rect');
+    expect(q1?.getAttribute('data-threshold-split')).toBeNull();
+
+    // Q2 (150) & Q3 (200): cross 100 -> Option B single <g> ARIA host + 2 aria-hidden clipped <rect>s
+    const q2 = bar.shadowRoot?.querySelector(
+      '[data-item-component="mc-bar-item"][data-index="Q2"]'
+    );
+    expect(q2?.tagName.toLowerCase()).toBe('g');
+    expect(q2?.getAttribute('data-threshold-split')).toBe('partial');
+    expect(q2?.getAttribute('role')).toBe('graphics-symbol');
+    expect(q2?.hasAttribute('tabindex')).toBe(true);
+    expect(q2?.getAttribute('aria-label')).toContain('Q2');
+    expect(q2?.getAttribute('aria-description')).toContain('Cap $100K');
+
+    const baseSeg = q2?.querySelector('.mc-bar-segment--base');
+    const threshSeg = q2?.querySelector('.mc-bar-segment--threshold');
+    expect(baseSeg).not.toBeNull();
+    expect(threshSeg).not.toBeNull();
+
+    // Decorative clipped children are hidden from screen readers and non-focusable
+    for (const child of [baseSeg, threshSeg]) {
+      expect(child?.getAttribute('aria-hidden')).toBe('true');
+      expect(child?.getAttribute('role')).toBe('presentation');
+      expect(child?.hasAttribute('tabindex')).toBe(false);
+      expect(child?.classList.contains('mc-aria-item')).toBe(false);
+      expect(child?.getAttribute('rx')).toBe('6');
+    }
+
+    // Threshold segment applies full partial styling (fill + stroke + dasharray + opacity)
+    expect(threshSeg?.getAttribute('fill')).toBe('#ef4444');
+    expect(threshSeg?.getAttribute('stroke')).toBe('#991b1b');
+    expect(threshSeg?.getAttribute('stroke-dasharray')).toBe('4 2');
+    expect(threshSeg?.getAttribute('fill-opacity')).toBe('0.85');
+    expect(baseSeg?.getAttribute('fill')).not.toBe('#ef4444');
+
+    // Both segments reference valid unique <clipPath> definitions in <defs>
+    const baseClipMatch = baseSeg
+      ?.getAttribute('clip-path')
+      ?.match(/url\(#([^)]+)\)/);
+    const threshClipMatch = threshSeg
+      ?.getAttribute('clip-path')
+      ?.match(/url\(#([^)]+)\)/);
+    expect(baseClipMatch?.[1]).toBeTruthy();
+    expect(threshClipMatch?.[1]).toBeTruthy();
+    expect(baseClipMatch?.[1]).not.toBe(threshClipMatch?.[1]);
+    expect(bar.shadowRoot?.querySelector(`#${baseClipMatch![1]}`)).not.toBeNull();
+    expect(
+      bar.shadowRoot?.querySelector(`#${threshClipMatch![1]}`)
+    ).not.toBeNull();
+
+    // Hovering the semantic <g> triggers the tooltip cleanly
+    q2?.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 200, clientY: 160 })
+    );
+    const tooltip = bar.shadowRoot?.querySelector('.mc-tooltip') as MCTooltipElement;
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.renderedHtml).toContain('Crosses Threshold');
+
+    // Switching matchScope to 'item' falls back to whole-bar single <rect> restyling
+    bar.config = {
+      ...bar.config,
+      markers: [
+        {
+          id: 'cap-100',
+          type: 'line',
+          axis: 'y',
+          value: 100,
+          condition: 'above',
+          matchScope: 'item',
+          matchStyle: { color: '#ef4444' }
+        }
+      ]
+    };
+    const q2ItemScope = bar.shadowRoot?.querySelector(
+      '[data-item-component="mc-bar-item"][data-index="Q2"]'
+    );
+    expect(q2ItemScope?.tagName.toLowerCase()).toBe('rect');
+    expect(q2ItemScope?.getAttribute('fill')).toBe('#ef4444');
+    expect(q2ItemScope?.getAttribute('data-threshold-split')).toBe('item');
+  });
+
+  it('supports partial threshold splits across horizontal bars, between-bands, stacked bars, and <mc-marker match-scope>', () => {
+    // 1. Horizontal bar crossing an x-axis threshold
+    const hBar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(hBar);
+    hBar.config = {
+      data: [
+        { team: 'Core', Score: 40 },
+        { team: 'AI', Score: 140 }
+      ],
+      width: 600,
+      height: 300,
+      indexBy: 'team',
+      keys: ['Score'],
+      layout: 'horizontal',
+      markers: [
+        {
+          id: 'x-cap',
+          type: 'line',
+          axis: 'x',
+          value: 100,
+          condition: 'above',
+          matchStyle: { color: '#f59e0b' }
+        }
+      ]
+    };
+    expect(hBar.shadowRoot?.querySelectorAll('.mc-aria-item').length).toBe(2);
+    const aiBar = hBar.shadowRoot?.querySelector(
+      '[data-item-component="mc-bar-item"][data-index="AI"]'
+    );
+    expect(aiBar?.tagName.toLowerCase()).toBe('g');
+    expect(aiBar?.getAttribute('data-threshold-split')).toBe('partial');
+
+    // 2. Stacked bar with between band: only crossing segment splits; base clipPath unions top & bottom unmatched bands
+    const sBar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(sBar);
+    sBar.config = {
+      data: [{ quarter: 'Q1', Base: 50, Peak: 150 }],
+      width: 500,
+      height: 360,
+      indexBy: 'quarter',
+      keys: ['Base', 'Peak'],
+      groupMode: 'stacked',
+      markers: [
+        {
+          id: 'mid-band',
+          type: 'area',
+          axis: 'y',
+          from: 80,
+          to: 140,
+          condition: 'between',
+          matchStyle: { color: '#ec4899' }
+        }
+      ]
+    };
+    const peakBar = sBar.shadowRoot?.querySelector(
+      '[data-item-component="mc-bar-item"][data-key="Peak"]'
+    );
+    expect(peakBar?.tagName.toLowerCase()).toBe('g');
+    const baseClipId = peakBar
+      ?.querySelector('.mc-bar-segment--base')
+      ?.getAttribute('clip-path')
+      ?.match(/url\(#([^)]+)\)/)?.[1];
+    // Peak spans [50, 200] while band is [80, 140], so base clipPath has 2 disjoint rects ([50,80] and [140,200])
+    const baseClipRects = sBar.shadowRoot?.querySelectorAll(`#${baseClipId} rect`);
+    expect(baseClipRects?.length).toBe(2);
+
+    // 3. Declarative <mc-marker match-scope="item">
+    const declMarker = document.createElement('mc-marker') as any;
+    declMarker.setAttribute('axis', 'y');
+    declMarker.setAttribute('value', '100');
+    declMarker.setAttribute('condition', 'above');
+    declMarker.setAttribute('match-scope', 'item');
+    expect(declMarker.toMarkerConfig().matchScope).toBe('item');
+  });
+
+  it('splits both line path stroke and area fill at threshold boundaries with unique per-chart clipPath IDs across multiple charts', () => {
+    const makeLineChart = () => {
+      const el = document.createElement('mc-line-chart') as MCLineChart;
+      document.body.appendChild(el);
+      el.config = {
+        data: [
+          {
+            id: 'Traffic',
+            data: [
+              { x: 'Jan', y: 60 },
+              { x: 'Feb', y: 180 },
+              { x: 'Mar', y: 90 },
+              { x: 'Apr', y: 210 }
+            ]
+          }
+        ],
+        width: 600,
+        height: 340,
+        enableArea: true,
+        markers: [
+          {
+            id: 'high-alert',
+            type: 'line',
+            axis: 'y',
+            value: 150,
+            condition: 'above',
+            matchStyle: {
+              color: '#ef4444',
+              stroke: '#ef4444',
+              strokeDasharray: '5 3'
+            }
+          }
+        ]
+      };
+      return el;
+    };
+
+    const line1 = makeLineChart();
+    const line2 = makeLineChart();
+
+    const pathGroup1 = line1.shadowRoot?.querySelector(
+      '.mc-line-path[data-threshold-split="partial"]'
+    );
+    const areaGroup1 = line1.shadowRoot?.querySelector(
+      '.mc-line-area[data-threshold-split="partial"]'
+    );
+    expect(pathGroup1?.tagName.toLowerCase()).toBe('g');
+    expect(areaGroup1?.tagName.toLowerCase()).toBe('g');
+
+    const lineThreshSeg = pathGroup1?.querySelector('.mc-line-segment--threshold');
+    expect(lineThreshSeg?.getAttribute('stroke')).toBe('#ef4444');
+    expect(lineThreshSeg?.getAttribute('stroke-dasharray')).toBe('5 3');
+    expect(lineThreshSeg?.getAttribute('aria-hidden')).toBe('true');
+
+    const areaThreshSeg = areaGroup1?.querySelector(
+      '.mc-line-area-segment--threshold'
+    );
+    expect(areaThreshSeg?.getAttribute('aria-hidden')).toBe('true');
+    expect(areaThreshSeg?.getAttribute('clip-path')).toMatch(/^url\(#mc-thresh-clip-\d+\)$/);
+
+    // ClipPath IDs across two separate charts never collide
+    const clip1 = lineThreshSeg?.getAttribute('clip-path');
+    const clip2 = line2.shadowRoot
+      ?.querySelector('.mc-line-segment--threshold')
+      ?.getAttribute('clip-path');
+    expect(clip1).toBeTruthy();
+    expect(clip2).toBeTruthy();
+    expect(clip1).not.toBe(clip2);
+  });
+});

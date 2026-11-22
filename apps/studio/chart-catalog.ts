@@ -448,6 +448,19 @@ export const MARKER_THRESHOLD_ATTRIBUTES: ChartAttributeSpec[] = [
     defaultValue: 'below'
   },
   {
+    configPath: '__markerMatchScope',
+    attrName: 'mc-marker[match-scope]',
+    category: 'Marker & Threshold (<mc-marker-layer>)',
+    control: 'select',
+    options: [
+      { label: 'partial (split color/stroke at threshold boundary)', value: 'partial' },
+      { label: 'item (restyle entire bar/line when matched)', value: 'item' }
+    ],
+    description:
+      'Controls whether threshold restyling splits partially across the marker boundary or applies to the whole item.',
+    defaultValue: 'partial'
+  },
+  {
     configPath: '__markerMatchColor',
     attrName: 'mc-marker[match-color]',
     category: 'Marker & Threshold (<mc-marker-layer>)',

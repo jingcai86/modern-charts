@@ -203,6 +203,7 @@ interface MarkerConfig {
   fill?: string;
   fillOpacity?: number;
   condition?: 'below' | 'under' | 'lte' | 'above' | 'over' | 'gte' | 'between' | 'outside' | ((value: number, datum?: any) => boolean);
+  matchScope?: 'partial' | 'item'; // default 'partial' (clips fill/stroke/dasharray at exact threshold boundary using single ARIA host + aria-hidden segments)
   matchStyle?: {
     color?: string;
     fill?: string;

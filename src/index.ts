@@ -36,6 +36,7 @@ export * from './core/animation-engine';
 export * from './core/aria-engine';
 export * from './core/marker-engine';
 export * from './core/legend-engine';
+export * from './core/threshold-clip';
 export * from './core/scale-manager';
 export * from './core/d3-context';
 export * from './core/registry';

@@ -203,6 +203,8 @@ export type MarkerCondition =
   | 'outside'
   | ((value: number, datum?: any) => boolean);
 
+export type MarkerMatchScope = 'partial' | 'item';
+
 export interface MarkerMatchStyle {
   color?: string;
   fill?: string;
@@ -276,6 +278,12 @@ export interface MarkerConfig {
    * is applied to change its color/styles and recorded in `ctx.thresholds`.
    */
   condition?: MarkerCondition;
+  /**
+   * Controls whether threshold styling applies only to the portion of a bar,
+   * line, or area that crosses the marker boundary (`'partial'`, default) or
+   * restyles the entire item (`'item'`).
+   */
+  matchScope?: MarkerMatchScope;
   matchStyle?: MarkerMatchStyle;
 }
 

@@ -2,8 +2,8 @@ name: Deploy Demo to GitHub Pages
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -41,7 +41,7 @@ jobs:
         run: npm run build
 
       - name: Build demo site
-        run: npm run build:examples
+        run: npm run build:apps
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
