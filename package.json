@@ -10,6 +10,50 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/entries/core.d.ts",
+      "import": "./dist/core.js"
+    },
+    "./bar": {
+      "types": "./dist/entries/bar.d.ts",
+      "import": "./dist/bar.js"
+    },
+    "./line": {
+      "types": "./dist/entries/line.d.ts",
+      "import": "./dist/line.js"
+    },
+    "./pie": {
+      "types": "./dist/entries/pie.d.ts",
+      "import": "./dist/pie.js"
+    },
+    "./heatmap": {
+      "types": "./dist/entries/heatmap.d.ts",
+      "import": "./dist/heatmap.js"
+    },
+    "./radar": {
+      "types": "./dist/entries/radar.d.ts",
+      "import": "./dist/radar.js"
+    },
+    "./sunburst": {
+      "types": "./dist/entries/sunburst.d.ts",
+      "import": "./dist/sunburst.js"
+    },
+    "./sankey": {
+      "types": "./dist/entries/sankey.d.ts",
+      "import": "./dist/sankey.js"
+    },
+    "./scatter": {
+      "types": "./dist/entries/scatter.d.ts",
+      "import": "./dist/scatter.js"
+    },
+    "./treemap": {
+      "types": "./dist/entries/treemap.d.ts",
+      "import": "./dist/treemap.js"
+    },
+    "./gauge": {
+      "types": "./dist/entries/gauge.d.ts",
+      "import": "./dist/gauge.js"
     }
   },
   "files": [
@@ -17,7 +61,20 @@
     "README.md",
     "LICENSE"
   ],
-  "sideEffects": true,
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/core.js",
+    "./dist/bar.js",
+    "./dist/line.js",
+    "./dist/pie.js",
+    "./dist/heatmap.js",
+    "./dist/radar.js",
+    "./dist/sunburst.js",
+    "./dist/sankey.js",
+    "./dist/scatter.js",
+    "./dist/treemap.js",
+    "./dist/gauge.js"
+  ],
   "homepage": "https://jingcai86.github.io/modern-charts/",
   "repository": {
     "type": "git",

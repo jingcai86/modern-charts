@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+import { format } from 'd3';
 import type { ChartRenderContext } from '../../core/types';
 import type {
   ComputedSankeyLinkModel,
@@ -83,7 +83,7 @@ export function renderSankeyLinkItem(
     ctx.showTooltip(
       `<strong>${link.source.name} → ${
         link.target.name
-      }</strong><br/>Flow: <b>${d3.format(',')(link.value)}</b>`,
+      }</strong><br/>Flow: <b>${format(',')(link.value)}</b>`,
       (e as MouseEvent).clientX,
       (e as MouseEvent).clientY
     );
@@ -141,7 +141,7 @@ export function renderSankeyNodeItem(
 
   rect.addEventListener('mouseenter', (e) => {
     ctx.showTooltip(
-      `<strong>${node.name}</strong><br/>Total Flow: <b>${d3.format(',')(
+      `<strong>${node.name}</strong><br/>Total Flow: <b>${format(',')(
         node.value
       )}</b>`,
       (e as MouseEvent).clientX,

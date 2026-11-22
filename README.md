@@ -89,7 +89,10 @@ npm install modern-charts
 <mc-bar-chart id="my-chart" style="width: 100%; height: 420px;"></mc-bar-chart>
 
 <script type="module">
-  import 'modern-charts';
+  // Import only the chart you need (tree-shakeable, ~44% smaller bundle)
+  import 'modern-charts/bar';
+  // Or import the entire library to register all 10 charts:
+  // import 'modern-charts';
 
   const chart = document.getElementById('my-chart');
 
@@ -129,6 +132,24 @@ npm install modern-charts
     layers: ['grid', 'axes', 'bars', 'labels', 'legends']
   };
 </script>
+```
+
+### 3. Per-Chart Subpath Imports (Tree-Shaking)
+
+Import individual chart entry points so bundlers tree-shake unused charts and D3 modules, and only the required custom elements are registered:
+
+```js
+import 'modern-charts/bar';      // <mc-bar-chart> + core layers only
+import 'modern-charts/line';     // <mc-line-chart> + core layers only
+import 'modern-charts/pie';      // <mc-pie-chart> + core layers only
+import 'modern-charts/heatmap';  // <mc-heatmap-chart> + core layers only
+import 'modern-charts/radar';    // <mc-radar-chart> + core layers only
+import 'modern-charts/sunburst'; // <mc-sunburst-chart> + core layers only
+import 'modern-charts/sankey';   // <mc-sankey-chart> + core layers only
+import 'modern-charts/scatter';  // <mc-scatter-chart> + core layers only
+import 'modern-charts/treemap';  // <mc-treemap-chart> + core layers only
+import 'modern-charts/gauge';    // <mc-gauge-chart> + core layers only
+import 'modern-charts/core';     // BaseChart, engines & shared layers only
 ```
 
 ---

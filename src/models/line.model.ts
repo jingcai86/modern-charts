@@ -1,4 +1,15 @@
-import * as d3 from 'd3';
+import {
+  area,
+  curveCatmullRom,
+  curveLinear,
+  curveMonotoneX,
+  curveNatural,
+  curveStep,
+  curveStepAfter,
+  curveStepBefore,
+  line,
+  type CurveFactory
+} from 'd3';
 import { buildAxisScale, getScalePosition } from '../core/scale-manager';
 import { createOrdinalColorScale } from '../core/theme';
 import type {
@@ -73,23 +84,23 @@ export interface LineModelInput {
   ) => ThresholdMatchedItem;
 }
 
-export function getD3CurveFactory(curveName: string): d3.CurveFactory {
+export function getD3CurveFactory(curveName: string): CurveFactory {
   switch (curveName) {
     case 'linear':
-      return d3.curveLinear;
+      return curveLinear;
     case 'catmullRom':
-      return d3.curveCatmullRom.alpha(0.5);
+      return curveCatmullRom.alpha(0.5);
     case 'natural':
-      return d3.curveNatural;
+      return curveNatural;
     case 'step':
-      return d3.curveStep;
+      return curveStep;
     case 'stepAfter':
-      return d3.curveStepAfter;
+      return curveStepAfter;
     case 'stepBefore':
-      return d3.curveStepBefore;
+      return curveStepBefore;
     case 'monotoneX':
     default:
-      return d3.curveMonotoneX;
+      return curveMonotoneX;
   }
 }
 
@@ -208,14 +219,12 @@ export function computeLineChartModel(
       return itemModel;
     });
 
-    const lineGen = d3
-      .line<ComputedLinePointModel>()
+    const lineGen = line<ComputedLinePointModel>()
       .x((d) => d.px)
       .y((d) => d.py)
       .curve(curveFactory);
 
-    const areaGen = d3
-      .area<ComputedLinePointModel>()
+    const areaGen = area<ComputedLinePointModel>()
       .x((d) => d.px)
       .y0((d) => d.py0)
       .y1((d) => d.py)

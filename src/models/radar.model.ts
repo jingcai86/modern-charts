@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+import { scaleLinear } from 'd3';
 import { createOrdinalColorScale } from '../core/theme';
 import type { ChartRenderContext, RadarDatum } from '../core/types';
 
@@ -75,7 +75,7 @@ export function computeRadarChartModel(
     36,
     Math.min(ctx.innerWidth, ctx.innerHeight) / 2 - 28
   );
-  const rScale = d3.scaleLinear().domain([0, maxVal]).range([0, radius]);
+  const rScale = scaleLinear().domain([0, maxVal]).range([0, radius]);
 
   ctx.colorScale = createOrdinalColorScale(ctx.theme, activeKeys);
 

@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+import { hierarchy as d3Hierarchy, treemap as d3Treemap } from 'd3';
 import { createOrdinalColorScale } from '../core/theme';
 import type { ChartRenderContext, HierarchyNode } from '../core/types';
 
@@ -37,8 +37,7 @@ export function computeTreemapChartModel(
 ): TreemapChartModel {
   const rootData = ctx.data ?? { name: 'Root', children: [] };
 
-  const hierarchy = d3
-    .hierarchy<HierarchyNode>(rootData)
+  const hierarchy = d3Hierarchy<HierarchyNode>(rootData)
     .sum((d) =>
       d.children && d.children.length > 0
         ? 0
@@ -46,8 +45,7 @@ export function computeTreemapChartModel(
     )
     .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
-  const treemap = d3
-    .treemap<HierarchyNode>()
+  const treemap = d3Treemap<HierarchyNode>()
     .size([ctx.innerWidth, ctx.innerHeight])
     .paddingInner(input.tilePadding)
     .paddingOuter(2)

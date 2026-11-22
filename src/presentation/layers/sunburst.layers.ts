@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+import { format } from 'd3';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, HierarchyNode } from '../../core/types';
 import type { SunburstChartModel } from '../../models/sunburst.model';
@@ -85,7 +85,7 @@ export function renderSunburstCenterLayer(
 
   const title = model.isDrilledDown
     ? `↩ ${model.activeRootName}`
-    : `${model.activeRootName}\n${d3.format(',')(model.total)}`;
+    : `${model.activeRootName}\n${format(',')(model.total)}`;
 
   ctx.renderLabel(g, {
     id: 'sunburst-center-label',

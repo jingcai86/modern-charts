@@ -1,5 +1,6 @@
-import * as d3 from 'd3';
+import { scaleOrdinal } from 'd3';
 import type { ChartPaletteName, ChartTheme, ThemeModePreference } from './types';
+export { createSequentialColorScale } from './color-schemes';
 
 export function resolveEffectiveThemeMode(
   mode: ThemeModePreference = 'system'
@@ -119,34 +120,9 @@ export function createOrdinalColorScale(
   theme: ChartTheme,
   domain?: (string | number)[]
 ): (key: string | number) => string {
-  const scale = d3.scaleOrdinal<string | number, string>(theme.colors);
+  const scale = scaleOrdinal<string | number, string>(theme.colors);
   if (domain && domain.length > 0) {
     scale.domain(domain);
   }
   return (key: string | number) => scale(key);
-}
-
-export function createSequentialColorScale(
-  scheme: string = 'viridis',
-  domain: [number, number] = [0, 100]
-): d3.ScaleSequential<string, never> {
-  const interpolatorMap: Record<string, (t: number) => string> = {
-    viridis: d3.interpolateViridis,
-    plasma: d3.interpolatePlasma,
-    inferno: d3.interpolateInferno,
-    magma: d3.interpolateMagma,
-    cividis: d3.interpolateCividis,
-    turbo: d3.interpolateTurbo,
-    warm: d3.interpolateWarm,
-    cool: d3.interpolateCool,
-    blues: d3.interpolateBlues,
-    greens: d3.interpolateGreens,
-    oranges: d3.interpolateOranges,
-    purples: d3.interpolatePurples,
-    ylGnBu: d3.interpolateYlGnBu,
-    rdYlBu: d3.interpolateRdYlBu,
-    spectral: d3.interpolateSpectral
-  };
-  const interpolator = interpolatorMap[scheme] ?? d3.interpolateViridis;
-  return d3.scaleSequential(interpolator).domain(domain);
 }

@@ -1,4 +1,4 @@
-import * as d3 from 'd3';
+import { format } from 'd3';
 import type { ChartRenderContext } from '../../core/types';
 import type { ComputedHeatmapCellModel } from '../../models/heatmap.model';
 import type { ComputedTreemapLeafModel } from '../../models/treemap.model';
@@ -130,7 +130,7 @@ export function renderTreemapTileItem(
   rect.addEventListener('mouseenter', (e) => {
     rect.style.filter = 'brightness(1.1)';
     ctx.showTooltip(
-      `<strong>${leaf.category} › ${leaf.name}</strong><br/>Value: <b>${d3.format(
+      `<strong>${leaf.category} › ${leaf.name}</strong><br/>Value: <b>${format(
         ','
       )(leaf.value)}</b>`,
       (e as MouseEvent).clientX,

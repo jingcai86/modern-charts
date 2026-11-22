@@ -1,5 +1,5 @@
 import { buildAxisScale } from '../core/scale-manager';
-import { createSequentialColorScale } from '../core/theme';
+import { createSequentialColorScale } from '../core/color-schemes';
 import type { ChartRenderContext, HeatmapRow } from '../core/types';
 
 export interface ComputedHeatmapCellModel {
