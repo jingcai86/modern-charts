@@ -1,6 +1,7 @@
 import {
   registerModernCharts,
-  type MCBaseChart
+  type MCBaseChart,
+  type ThemeModePreference
 } from '../../src/index';
 import { CHART_CATALOG, type ChartCatalogEntry } from './catalog';
 import { GUIDES_CATALOG, renderGuidePage, type GuideId } from './guides';
@@ -139,7 +140,7 @@ function handleRoute(): void {
 
 window.addEventListener('hashchange', handleRoute);
 
-// Two-state Light / Dark Theme Selector (follows system by default, stores literal override only on divergence)
+// Three-state Theme Selector (System / Dark Mode / Light Mode + localStorage + OS listener)
 const globalThemeSelect = document.getElementById(
   'global-theme-select'
 ) as HTMLSelectElement | null;
@@ -148,23 +149,23 @@ if (globalThemeSelect) {
   globalThemeSelect.value = getGlobalThemeMode();
 }
 
-function syncActiveViewTheme(mode: 'light' | 'dark'): void {
-  if (globalThemeSelect && globalThemeSelect.value !== mode) {
-    globalThemeSelect.value = mode;
+function syncActiveViewTheme(pref: ThemeModePreference): void {
+  if (globalThemeSelect && globalThemeSelect.value !== pref) {
+    globalThemeSelect.value = pref;
   }
 
-  syncAllStoredConfigsTheme(mode);
+  syncAllStoredConfigsTheme(pref);
 
   const root = document.getElementById('app-root')!;
   if (activeGuideId) {
-    renderGuidePage(root, activeGuideId, mode);
+    renderGuidePage(root, activeGuideId, pref);
   } else if (activeDetailChart && activeDetailEntry) {
     activeDetailChart = renderChartDetailPage(root, activeDetailEntry);
   } else {
     activeOverviewCharts.forEach((chart) => {
       chart.setConfig({
         ...chart.config,
-        themeMode: mode,
+        themeMode: pref,
         xTitle: undefined,
         yTitle: undefined,
         view: chart.config.view
@@ -176,13 +177,13 @@ function syncActiveViewTheme(mode: 'light' | 'dark'): void {
 }
 
 globalThemeSelect?.addEventListener('change', (e) => {
-  const target = (e.target as HTMLSelectElement).value as 'light' | 'dark';
-  const effective = setGlobalThemeMode(target);
-  syncActiveViewTheme(effective);
+  const target = (e.target as HTMLSelectElement).value as ThemeModePreference;
+  const nextPref = setGlobalThemeMode(target);
+  syncActiveViewTheme(nextPref);
 });
 
-subscribeThemeChanges((nextMode) => {
-  syncActiveViewTheme(nextMode);
+subscribeThemeChanges((nextPref) => {
+  syncActiveViewTheme(nextPref);
 });
 
 handleRoute();

@@ -1,77 +1,67 @@
-import type { ThemeModePreference } from '../../../src/index';
+import {
+  resolveEffectiveThemeMode,
+  type ThemeModePreference
+} from '../../../src/index';
 
 const THEME_STORAGE_KEY = 'modern-charts-theme-mode';
 
-function getSystemColorScheme(): 'light' | 'dark' {
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? 'dark'
-      : 'light';
-  }
-  return 'dark';
-}
-
-function readStoredOverride(): 'light' | 'dark' | null {
+function readStoredPreference(): ThemeModePreference {
   try {
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    if (saved === 'light' || saved === 'dark') {
+    if (saved === 'light' || saved === 'dark' || saved === 'system') {
       return saved;
     }
   } catch {
     // ignore storage errors
   }
-  return null;
+  return 'system';
 }
 
-function syncDocumentColorScheme(override: 'light' | 'dark' | null): 'light' | 'dark' {
-  const effective = override ?? getSystemColorScheme();
+function syncDocumentColorScheme(pref: ThemeModePreference): 'light' | 'dark' {
+  const effective = resolveEffectiveThemeMode(pref);
   const meta = document.querySelector<HTMLMetaElement>('meta[name="color-scheme"]');
   if (meta) {
-    meta.content = override ?? 'light dark';
+    meta.content = pref === 'system' ? 'light dark' : pref;
   }
   document.documentElement.dataset.theme = effective;
   return effective;
 }
 
-let storedOverride: 'light' | 'dark' | null = readStoredOverride();
-let effectiveMode: 'light' | 'dark' = syncDocumentColorScheme(storedOverride);
+let currentThemePreference: ThemeModePreference = readStoredPreference();
+syncDocumentColorScheme(currentThemePreference);
 
 /**
- * Returns the active rendered color scheme (`'light'` or `'dark'`) shown in the UI
- * and applied to charts.
+ * Returns the selected theme preference (`'system'`, `'dark'`, or `'light'`).
  */
 export function getGlobalThemeMode(): ThemeModePreference {
-  return effectiveMode;
+  return currentThemePreference;
 }
 
 /**
- * Applies a two-state Light / Dark selection:
- * - If `target` differs from the current OS preference, stores the literal override.
- * - If `target` matches the current OS preference, removes the stored override so
- *   `<meta name="color-scheme">` returns to `light dark` and follows future OS changes.
+ * Sets and persists the 3-state theme preference (`'system' | 'dark' | 'light'`).
+ * Selecting `'system'` removes any pinned override and restores `<meta name="color-scheme" content="light dark">`.
  */
-export function setGlobalThemeMode(target: 'light' | 'dark'): 'light' | 'dark' {
-  const sys = getSystemColorScheme();
-  storedOverride = target === sys ? null : target;
+export function setGlobalThemeMode(pref: ThemeModePreference): ThemeModePreference {
+  currentThemePreference = pref;
   try {
-    if (storedOverride) {
-      localStorage.setItem(THEME_STORAGE_KEY, storedOverride);
-    } else {
+    if (pref === 'system') {
       localStorage.removeItem(THEME_STORAGE_KEY);
+    } else {
+      localStorage.setItem(THEME_STORAGE_KEY, pref);
     }
   } catch {
     // ignore storage errors; still apply visually
   }
-  effectiveMode = syncDocumentColorScheme(storedOverride);
-  return effectiveMode;
+  syncDocumentColorScheme(pref);
+  return pref;
 }
 
 /**
- * Subscribes to both OS color-scheme changes (when no override is stored) and
+ * Subscribes to both OS color-scheme changes (when in `'system'` mode) and
  * cross-tab `localStorage` changes so all open Studio tabs stay synchronized.
  */
 export function subscribeThemeChanges(
-  onThemeChange: (nextMode: 'light' | 'dark') => void
+  onThemeChange: (nextPref: ThemeModePreference) => void
 ): void {
   if (typeof window === 'undefined') return;
 
@@ -79,19 +69,18 @@ export function subscribeThemeChanges(
     window
       .matchMedia('(prefers-color-scheme: dark)')
       .addEventListener('change', () => {
-        // Never retroactively clear a stored override when OS matches it
-        if (storedOverride === null) {
-          effectiveMode = syncDocumentColorScheme(null);
-          onThemeChange(effectiveMode);
+        if (currentThemePreference === 'system') {
+          syncDocumentColorScheme('system');
+          onThemeChange('system');
         }
       });
   }
 
   window.addEventListener('storage', (e) => {
     if (e.key === THEME_STORAGE_KEY) {
-      storedOverride = readStoredOverride();
-      effectiveMode = syncDocumentColorScheme(storedOverride);
-      onThemeChange(effectiveMode);
+      currentThemePreference = readStoredPreference();
+      syncDocumentColorScheme(currentThemePreference);
+      onThemeChange(currentThemePreference);
     }
   });
 }
