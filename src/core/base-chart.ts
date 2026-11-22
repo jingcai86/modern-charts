@@ -1321,24 +1321,6 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       }
     });
 
-    // If markers are configured but 'markers' wasn't in a custom layer list, ensure 'markers' layer runs
-    if (
-      this.resolveMarkersConfig().length > 0 &&
-      !sequence.some((s) => s.name === 'markers')
-    ) {
-      const axesIdx = sequence.findIndex((s) => s.name === 'axes');
-      const markerEntry = {
-        name: 'markers',
-        input: 'markers',
-        render: builtInRenderers.markers
-      };
-      if (axesIdx >= 0) {
-        sequence.splice(axesIdx + 1, 0, markerEntry);
-      } else {
-        sequence.push(markerEntry);
-      }
-    }
-
     for (const el of directLayerChildren) {
       if (el.tagName.toLowerCase() !== 'mc-custom-layer') continue;
       const customEl = el as MCCustomLayer;

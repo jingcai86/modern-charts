@@ -265,6 +265,14 @@ describe('Dedicated <mc-marker-layer> / <mc-marker> Thresholds & Client Custom L
         ?.querySelector('.client-threshold-layer')
         ?.getAttribute('data-under-count')
     ).toBe('5');
+
+    // 4. Removing 'markers' from active layers removes the marker visual layer
+    bar.config = {
+      ...bar.config,
+      layers: []
+    };
+    expect(bar.shadowRoot?.querySelector('.mc-marker-line')).toBeNull();
+    expect(bar.shadowRoot?.querySelector('.mc-marker-area')).toBeNull();
   });
 
   it('supports declarative <mc-marker-layer> and <mc-marker> elements on <mc-line-chart> and splits line path gradient at threshold', () => {
