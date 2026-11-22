@@ -269,6 +269,23 @@ export function renderLinePathItem(
     }
 
     ctx.animateItem(group, { type: 'line-draw', index: series.index });
+    ctx.registerEventTarget(group, {
+      target: 'lineSeries',
+      category: 'item',
+      id: series.id,
+      data: {
+        id: series.id,
+        seriesId: series.id,
+        index: series.index,
+        count: series.points.length,
+        color: series.color,
+        points: series.points.map((p) => ({
+          x: p.xValue,
+          y: p.yValue,
+          raw: p.raw
+        }))
+      }
+    });
     return group;
   }
 
@@ -320,6 +337,23 @@ export function renderLinePathItem(
   path.setAttribute('stroke-linejoin', 'round');
 
   ctx.animateItem(path, { type: 'line-draw', index: series.index });
+  ctx.registerEventTarget(path, {
+    target: 'lineSeries',
+    category: 'item',
+    id: series.id,
+    data: {
+      id: series.id,
+      seriesId: series.id,
+      index: series.index,
+      count: series.points.length,
+      color: series.color,
+      points: series.points.map((p) => ({
+        x: p.xValue,
+        y: p.yValue,
+        raw: p.raw
+      }))
+    }
+  });
   return path;
 }
 
@@ -418,6 +452,27 @@ export function renderLinePointItem(
     index: pt.globalIndex,
     originX: pt.px,
     originY: pt.py
+  });
+
+  ctx.registerEventTarget(circle, {
+    target: 'linePoint',
+    category: 'item',
+    id: pt.id,
+    data: {
+      id: pt.id,
+      seriesId: pt.seriesId,
+      x: pt.xValue,
+      y: pt.yValue,
+      value: pt.yValue,
+      index: pt.globalIndex,
+      pointIndex: pt.pointIndex,
+      count: pt.totalPoints,
+      total: pt.totalPoints,
+      color: pt.color,
+      position: { x: pt.px, y: pt.py },
+      threshold: pt.threshold,
+      datum: pt.raw
+    }
   });
 
   circle.addEventListener('mouseenter', (e) => {

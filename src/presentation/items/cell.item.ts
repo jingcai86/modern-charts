@@ -106,6 +106,24 @@ export function renderHeatmapCellItem(
     ctx.hideTooltip();
   });
 
+  ctx.registerEventTarget(node, {
+    target: 'heatmapCell',
+    category: 'item',
+    id: `${cell.rowId}-${cell.colId}`,
+    data: {
+      id: `${cell.rowId}-${cell.colId}`,
+      rowId: cell.rowId,
+      colId: cell.colId,
+      x: cell.colId,
+      y: cell.rowId,
+      value: cell.value,
+      index: cell.index,
+      count: cell.totalCount,
+      color: cell.color,
+      bounds: { x: cell.x, y: cell.y, width: cell.width, height: cell.height }
+    }
+  });
+
   return node;
 }
 
@@ -186,6 +204,22 @@ export function renderTreemapTileItem(
   rect.addEventListener('mouseleave', () => {
     rect.style.filter = 'none';
     ctx.hideTooltip();
+  });
+
+  ctx.registerEventTarget(rect, {
+    target: 'treemapTile',
+    category: 'item',
+    id: leaf.name,
+    data: {
+      id: leaf.name,
+      name: leaf.name,
+      category: leaf.category,
+      value: leaf.value,
+      index: leaf.index,
+      count: leaf.totalLeaves,
+      color: leaf.color,
+      bounds: { x: leaf.x0, y: leaf.y0, width: leaf.width, height: leaf.height }
+    }
   });
 
   return rect;

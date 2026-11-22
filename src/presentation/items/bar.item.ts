@@ -253,6 +253,55 @@ export function renderBarItem(
     originY: b.isHorizontal ? b.y + b.height / 2 : b.y + b.height
   });
 
+  const barModel = ctx.state?.model as
+    | {
+        bars?: ComputedBarItemModel[];
+        activeKeys?: string[];
+        groupMode?: 'grouped' | 'stacked';
+        layout?: 'vertical' | 'horizontal';
+      }
+    | undefined;
+  const sameCategoryBars =
+    barModel?.bars?.filter((item) => item.indexValue === b.indexValue) ?? [b];
+  const categoryTotal = sameCategoryBars.reduce(
+    (sum, item) => sum + Math.abs(item.value),
+    0
+  );
+  const stackTotal = sameCategoryBars.reduce((sum, item) => sum + item.value, 0);
+  const percentage =
+    categoryTotal > 0 ? (Math.abs(b.value) / categoryTotal) * 100 : 0;
+
+  ctx.registerEventTarget(hostEl, {
+    target: 'barItem',
+    category: 'item',
+    id: b.id,
+    data: {
+      id: b.id,
+      key: b.key,
+      seriesId: b.key,
+      category: b.indexValue,
+      indexValue: b.indexValue,
+      value: b.value,
+      index: b.index,
+      count: b.total,
+      total: b.total,
+      seriesCount: barModel?.activeKeys?.length ?? 1,
+      categoryBarCount: sameCategoryBars.length,
+      stackTotal,
+      percentage,
+      color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
+      originalColor: b.originalColor,
+      layout: barModel?.layout ?? (b.isHorizontal ? 'horizontal' : 'vertical'),
+      groupMode: barModel?.groupMode ?? 'grouped',
+      isHorizontal: b.isHorizontal,
+      bounds: { x: b.x, y: b.y, width: b.width, height: b.height },
+      threshold: b.threshold,
+      thresholdCoverage: ariaThresholdCoverage,
+      matchedMarkerIds: thresholdIds,
+      datum: b.datum
+    }
+  });
+
   hostEl.addEventListener('mouseenter', (e) => {
     hostEl.style.filter = 'brightness(1.1)';
     const badge =

@@ -258,6 +258,7 @@ export function renderCartesianAxes(
     const xAxisG = document.createElementNS(SVG_NS, 'g');
     xAxisG.setAttribute('class', 'mc-axis mc-axis--x');
 
+    const xTicks = getScaleTicks(ctx.xScale, options.xTickCount ?? 6);
     const domainLine = document.createElementNS(SVG_NS, 'line');
     domainLine.setAttribute('x1', '0');
     domainLine.setAttribute('x2', String(ctx.innerWidth));
@@ -265,9 +266,14 @@ export function renderCartesianAxes(
     domainLine.setAttribute('y2', String(ctx.innerHeight));
     domainLine.setAttribute('stroke', ctx.theme.axisColor);
     domainLine.setAttribute('stroke-width', '1');
+    ctx.registerEventTarget(domainLine, {
+      target: 'axis',
+      category: 'axis',
+      id: 'x-axis-line',
+      data: { axis: 'x', part: 'line', count: xTicks.length }
+    });
     xAxisG.appendChild(domainLine);
 
-    const xTicks = getScaleTicks(ctx.xScale, options.xTickCount ?? 6);
     const maxTickWidth =
       xTicks.length > 1
         ? Math.max(40, Math.floor(ctx.innerWidth / xTicks.length) - 6)
@@ -277,17 +283,33 @@ export function renderCartesianAxes(
       const x = getScalePosition(ctx.xScale, tick);
       if (!Number.isFinite(x)) return;
 
+      const formatted = formatVal(tick, options.xFormat);
+      const tickData = {
+        axis: 'x' as const,
+        part: 'tick' as const,
+        value: tick,
+        label: formatted,
+        index: idx,
+        count: xTicks.length
+      };
+
       const tickLine = document.createElementNS(SVG_NS, 'line');
       tickLine.setAttribute('x1', String(x));
       tickLine.setAttribute('x2', String(x));
       tickLine.setAttribute('y1', String(ctx.innerHeight));
       tickLine.setAttribute('y2', String(ctx.innerHeight + 5));
       tickLine.setAttribute('stroke', ctx.theme.axisColor);
+      ctx.registerEventTarget(tickLine, {
+        target: 'axis',
+        category: 'axis',
+        id: `x-tick-line-${idx}`,
+        data: tickData
+      });
       xAxisG.appendChild(tickLine);
 
-      ctx.renderLabel(xAxisG, {
+      const xTickLabel = ctx.renderLabel(xAxisG, {
         id: `x-tick-${idx}`,
-        text: formatVal(tick, options.xFormat),
+        text: formatted,
         x,
         y: ctx.innerHeight + 10,
         type: 'axis-tick',
@@ -298,10 +320,19 @@ export function renderCartesianAxes(
         color: ctx.theme.mutedTextColor,
         datum: { axis: 'x', value: tick }
       });
+      if (xTickLabel) {
+        xTickLabel.setAttribute('tabindex', '0');
+        ctx.registerEventTarget(xTickLabel, {
+          target: 'axis',
+          category: 'axis',
+          id: `x-tick-${idx}`,
+          data: tickData
+        });
+      }
     });
 
     if (options.xTitle) {
-      ctx.renderLabel(xAxisG, {
+      const xTitleLabel = ctx.renderLabel(xAxisG, {
         id: 'x-axis-title',
         text: options.xTitle,
         x: ctx.innerWidth / 2,
@@ -313,6 +344,20 @@ export function renderCartesianAxes(
         fontWeight: 600,
         color: ctx.theme.textColor
       });
+      if (xTitleLabel) {
+        xTitleLabel.setAttribute('tabindex', '0');
+        ctx.registerEventTarget(xTitleLabel, {
+          target: 'axis',
+          category: 'axis',
+          id: 'x-axis-title',
+          data: {
+            axis: 'x',
+            part: 'title',
+            value: options.xTitle,
+            label: options.xTitle
+          }
+        });
+      }
     }
 
     ctx.layerGroup.appendChild(xAxisG);
@@ -322,6 +367,7 @@ export function renderCartesianAxes(
     const yAxisG = document.createElementNS(SVG_NS, 'g');
     yAxisG.setAttribute('class', 'mc-axis mc-axis--y');
 
+    const yTicks = getScaleTicks(ctx.yScale, options.yTickCount ?? 5);
     const domainLine = document.createElementNS(SVG_NS, 'line');
     domainLine.setAttribute('x1', '0');
     domainLine.setAttribute('x2', '0');
@@ -329,12 +375,27 @@ export function renderCartesianAxes(
     domainLine.setAttribute('y2', String(ctx.innerHeight));
     domainLine.setAttribute('stroke', ctx.theme.axisColor);
     domainLine.setAttribute('stroke-width', '1');
+    ctx.registerEventTarget(domainLine, {
+      target: 'axis',
+      category: 'axis',
+      id: 'y-axis-line',
+      data: { axis: 'y', part: 'line', count: yTicks.length }
+    });
     yAxisG.appendChild(domainLine);
 
-    const yTicks = getScaleTicks(ctx.yScale, options.yTickCount ?? 5);
     yTicks.forEach((tick, idx) => {
       const y = getScalePosition(ctx.yScale, tick);
       if (!Number.isFinite(y)) return;
+
+      const formatted = formatVal(tick, options.yFormat);
+      const tickData = {
+        axis: 'y' as const,
+        part: 'tick' as const,
+        value: tick,
+        label: formatted,
+        index: idx,
+        count: yTicks.length
+      };
 
       const tickLine = document.createElementNS(SVG_NS, 'line');
       tickLine.setAttribute('x1', '-5');
@@ -342,11 +403,17 @@ export function renderCartesianAxes(
       tickLine.setAttribute('y1', String(y));
       tickLine.setAttribute('y2', String(y));
       tickLine.setAttribute('stroke', ctx.theme.axisColor);
+      ctx.registerEventTarget(tickLine, {
+        target: 'axis',
+        category: 'axis',
+        id: `y-tick-line-${idx}`,
+        data: tickData
+      });
       yAxisG.appendChild(tickLine);
 
-      ctx.renderLabel(yAxisG, {
+      const yTickLabel = ctx.renderLabel(yAxisG, {
         id: `y-tick-${idx}`,
-        text: formatVal(tick, options.yFormat),
+        text: formatted,
         x: -10,
         y,
         type: 'axis-tick',
@@ -357,10 +424,19 @@ export function renderCartesianAxes(
         color: ctx.theme.mutedTextColor,
         datum: { axis: 'y', value: tick }
       });
+      if (yTickLabel) {
+        yTickLabel.setAttribute('tabindex', '0');
+        ctx.registerEventTarget(yTickLabel, {
+          target: 'axis',
+          category: 'axis',
+          id: `y-tick-${idx}`,
+          data: tickData
+        });
+      }
     });
 
     if (options.yTitle) {
-      ctx.renderLabel(yAxisG, {
+      const yTitleLabel = ctx.renderLabel(yAxisG, {
         id: 'y-axis-title',
         text: options.yTitle,
         x: -Math.max(36, ctx.margin.left - 14),
@@ -373,6 +449,20 @@ export function renderCartesianAxes(
         fontWeight: 600,
         color: ctx.theme.textColor
       });
+      if (yTitleLabel) {
+        yTitleLabel.setAttribute('tabindex', '0');
+        ctx.registerEventTarget(yTitleLabel, {
+          target: 'axis',
+          category: 'axis',
+          id: 'y-axis-title',
+          data: {
+            axis: 'y',
+            part: 'title',
+            value: options.yTitle,
+            label: options.yTitle
+          }
+        });
+      }
     }
 
     ctx.layerGroup.appendChild(yAxisG);

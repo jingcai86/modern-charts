@@ -108,6 +108,26 @@ export function renderScatterNodeItem(
     ctx.hideTooltip();
   });
 
+  ctx.registerEventTarget(circle, {
+    target: 'scatterPoint',
+    category: 'item',
+    id: node.label || `${node.seriesId}-${node.index}`,
+    data: {
+      id: node.label || `${node.seriesId}-${node.index}`,
+      seriesId: node.seriesId,
+      label: node.label,
+      x: node.xValue,
+      y: node.yValue,
+      value: node.yValue,
+      size: node.sizeValue,
+      radius: node.radius,
+      index: node.index,
+      count: node.totalNodes,
+      color: node.color,
+      threshold: node.threshold
+    }
+  });
+
   return circle;
 }
 

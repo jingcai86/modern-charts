@@ -31,6 +31,21 @@ export function renderRadarPolygonItem(
     originY: 0
   });
 
+  ctx.registerEventTarget(poly, {
+    target: 'radarPolygon',
+    category: 'item',
+    id: s.key,
+    data: {
+      id: s.key,
+      seriesId: s.key,
+      key: s.key,
+      index: s.index,
+      count: s.points.length,
+      color: s.color,
+      points: s.points.map((p) => ({ axis: p.axis, value: p.value }))
+    }
+  });
+
   return poly;
 }
 
@@ -115,6 +130,22 @@ export function renderRadarDotItem(
   dot.addEventListener('mouseleave', () => {
     dot.setAttribute('r', '4.2');
     ctx.hideTooltip();
+  });
+
+  ctx.registerEventTarget(dot, {
+    target: 'radarDot',
+    category: 'item',
+    id: `${pt.seriesKey}-${pt.axis}`,
+    data: {
+      id: `${pt.seriesKey}-${pt.axis}`,
+      seriesId: pt.seriesKey,
+      key: pt.seriesKey,
+      axis: pt.axis,
+      value: pt.value,
+      index: pt.globalIndex,
+      count: pt.totalDots,
+      color: pt.color
+    }
   });
 
   return dot;

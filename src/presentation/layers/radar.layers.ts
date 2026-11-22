@@ -74,7 +74,7 @@ export function renderRadarAxesLayer(
     const cos = Math.cos(angle);
     const anchor = Math.abs(cos) < 0.2 ? 'middle' : cos > 0 ? 'start' : 'end';
 
-    ctx.renderLabel(g, {
+    const axisLabelG = ctx.renderLabel(g, {
       id: `radar-axis-${i}`,
       text: axisName,
       x: lx,
@@ -88,6 +88,22 @@ export function renderRadarAxesLayer(
       color: ctx.theme.textColor,
       datum: { axis: axisName }
     });
+    if (axisLabelG) {
+      axisLabelG.setAttribute('tabindex', '0');
+      ctx.registerEventTarget(axisLabelG, {
+        target: 'axis',
+        category: 'axis',
+        id: `radar-axis-${i}`,
+        data: {
+          axis: 'radial',
+          part: 'tick',
+          value: axisName,
+          label: axisName,
+          index: i,
+          count: model.axes.length
+        }
+      });
+    }
   });
 
   ctx.layerGroup.appendChild(g);

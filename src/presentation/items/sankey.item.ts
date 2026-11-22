@@ -121,6 +121,24 @@ export function renderSankeyLinkItem(
     ctx.hideTooltip();
   });
 
+  ctx.registerEventTarget(path, {
+    target: 'sankeyLink',
+    category: 'item',
+    id: link.id,
+    data: {
+      id: link.id,
+      source: link.source.id,
+      sourceName: link.source.name,
+      target: link.target.id,
+      targetName: link.target.name,
+      value: link.value,
+      index: link.index,
+      count: link.totalLinks,
+      width: link.width,
+      color: link.source.color
+    }
+  });
+
   return path;
 }
 
@@ -198,6 +216,27 @@ export function renderSankeyNodeItem(
   });
   rect.addEventListener('mouseleave', () => {
     ctx.hideTooltip();
+  });
+
+  ctx.registerEventTarget(rect, {
+    target: 'sankeyNode',
+    category: 'item',
+    id: node.id,
+    data: {
+      id: node.id,
+      name: node.name,
+      column: node.column,
+      value: node.value,
+      index: node.index,
+      count: node.totalNodes,
+      color: node.color,
+      bounds: {
+        x: node.x0,
+        y: node.y0,
+        width: Math.max(4, node.x1 - node.x0),
+        height: Math.max(4, node.y1 - node.y0)
+      }
+    }
   });
 
   return rect;

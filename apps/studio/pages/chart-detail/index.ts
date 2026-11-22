@@ -63,10 +63,10 @@ export function renderChartDetailPage(
 
     <div class="inspector-box">
       <div class="inspector-title">
-        Live Item Readout (Hover or Tab + Arrow Keys on chart items):
+        Live Unified Event Inspector (Click, Hover, or Tab-Focus anywhere — items, axes, legends, titles, or empty canvas):
       </div>
       <div class="inspector-readout" id="detail-aria-readout">
-        Interact with any data element inside &lt;${entry.tagName}&gt; to inspect its aria-label, threshold state, and datum payload...
+        Click, hover, or Tab-focus any part of &lt;${escapeHtml(entry.tagName)}&gt; to inspect its unified event type, target, category, and data payload...
       </div>
     </div>
   `;
@@ -80,16 +80,56 @@ export function renderChartDetailPage(
   const ariaReadout = chartCard.querySelector(
     '#detail-aria-readout'
   ) as HTMLElement;
-  chartEl.addEventListener('mc-item-pointer-enter', (e: Event) => {
-    const detail = (e as CustomEvent).detail;
-    const target = detail?.originalEvent?.target as SVGElement | null;
-    const ariaText = target?.getAttribute('aria-label') ?? 'Chart Item';
-    const underThresh = target?.getAttribute('data-under-threshold') === 'true';
-    ariaReadout.textContent = `role="${
-      target?.getAttribute('role') ?? 'graphics-symbol'
-    }" | aria-label="${ariaText}"${
-      underThresh ? ' | ⚠️ UNDER THRESHOLD (Restyled)' : ''
-    }`;
+
+  const formatEventSummary = (ev: {
+    type: string;
+    target: string;
+    category: string;
+    targetId?: string;
+    data?: Record<string, any>;
+  }): string => {
+    const header = `${ev.type} → target="${ev.target}" (category="${ev.category}"${
+      ev.targetId ? `, id="${ev.targetId}"` : ''
+    })`;
+    if (ev.data === undefined) {
+      return `${header} | data: undefined (empty area)`;
+    }
+    const preview: Record<string, unknown> = {};
+    for (const key of [
+      'label',
+      'key',
+      'seriesId',
+      'category',
+      'axis',
+      'part',
+      'value',
+      'index',
+      'count',
+      'percentage',
+      'stackTotal',
+      'text'
+    ]) {
+      if (ev.data[key] !== undefined) {
+        preview[key] =
+          typeof ev.data[key] === 'number' && !Number.isInteger(ev.data[key])
+            ? Number(ev.data[key].toFixed(2))
+            : ev.data[key];
+      }
+    }
+    return `${header} | data: ${JSON.stringify(preview)}`;
+  };
+
+  let lastClickSummary = '';
+  chartEl.on('click', (ev) => {
+    lastClickSummary = formatEventSummary(ev);
+    ariaReadout.textContent = lastClickSummary;
+  });
+  chartEl.on('mouseenter', (ev) => {
+    if (ev.target === 'canvas' && lastClickSummary) return;
+    ariaReadout.textContent = formatEventSummary(ev);
+  });
+  chartEl.on('focus', (ev) => {
+    ariaReadout.textContent = formatEventSummary(ev);
   });
 
   // Layer Toggle Chips

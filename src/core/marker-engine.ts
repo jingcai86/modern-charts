@@ -730,6 +730,26 @@ export class MarkerEngine {
 
     ctx.renderLabel(annG, annDescriptor);
 
+    ctx.registerEventTarget(annG, {
+      target: 'marker',
+      category: 'marker',
+      id: marker.id,
+      data: {
+        id: marker.id,
+        type: marker.type,
+        axis: marker.axis,
+        part: 'annotation',
+        label: ann.text || marker.label || marker.id,
+        value: marker.value,
+        from: marker.from,
+        to: marker.to,
+        condition: marker.condition,
+        matchedCount: marker.matchedItems.length,
+        matchedItems: marker.matchedItems,
+        marker
+      }
+    });
+
     if (ann.enableTooltip) {
       const valueDisplay =
         marker.type === 'area'

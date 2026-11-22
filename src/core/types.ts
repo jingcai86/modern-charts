@@ -772,6 +772,184 @@ export interface ResolvedLegendConfig {
 }
 
 /**
+ * All interactive event types emitted by the Unified Event System across every chart.
+ */
+export type ChartEventType =
+  | 'click'
+  | 'dblclick'
+  | 'contextmenu'
+  | 'focus'
+  | 'blur'
+  | 'mouseover'
+  | 'mouseout'
+  | 'mouseenter'
+  | 'mouseleave'
+  | 'mousemove'
+  | 'pointerdown'
+  | 'pointerup'
+  | 'keydown';
+
+/**
+ * Specific interactive target within any chart.
+ */
+export type ChartEventTargetKind =
+  | 'barItem'
+  | 'linePoint'
+  | 'lineSeries'
+  | 'lineSlice'
+  | 'pieSlice'
+  | 'sunburstArc'
+  | 'sunburstCenter'
+  | 'heatmapCell'
+  | 'treemapTile'
+  | 'radarDot'
+  | 'radarPolygon'
+  | 'scatterPoint'
+  | 'sankeyNode'
+  | 'sankeyLink'
+  | 'gaugeArc'
+  | 'gaugeNeedle'
+  | 'axis'
+  | 'legend'
+  | 'marker'
+  | 'title'
+  | 'label'
+  | 'canvas';
+
+/**
+ * High-level target category used for scoped event handler namespaces
+ * (`events.item`, `events.axis`, `events.legend`, `events.marker`, etc.).
+ */
+export type ChartEventCategory =
+  | 'item'
+  | 'axis'
+  | 'legend'
+  | 'marker'
+  | 'title'
+  | 'label'
+  | 'canvas';
+
+export interface AxisEventData {
+  axis: 'x' | 'y' | 'radial';
+  part: 'tick' | 'title' | 'line';
+  value?: any;
+  label?: string;
+  index?: number;
+  count?: number;
+}
+
+export interface LegendEventData {
+  id: string;
+  label: string;
+  color: string;
+  value?: number | string;
+  index: number;
+  count: number;
+  total: number;
+  kind: 'series' | 'marker';
+  swatch: 'square' | 'line' | 'area';
+  position: LegendPosition;
+  datum: LegendItem;
+}
+
+export interface MarkerEventData {
+  id: string;
+  type: MarkerType;
+  axis: 'x' | 'y';
+  part: 'annotation' | 'line' | 'area';
+  label?: string;
+  value?: number | string;
+  from?: number | string;
+  to?: number | string;
+  condition?: MarkerConfig['condition'];
+  matchedCount: number;
+  matchedItems: ThresholdMatchedItem[];
+  marker: ResolvedMarker;
+}
+
+export interface TitleEventData {
+  id: string;
+  text: string;
+}
+
+export interface LabelEventData {
+  id?: string;
+  labelType: Exclude<LabelTargetType, 'all'>;
+  text: string;
+  datum?: unknown;
+  index?: number;
+  count?: number;
+}
+
+export interface ChartEventTargetRegistration<TData = any> {
+  target: ChartEventTargetKind;
+  category: ChartEventCategory;
+  id?: string;
+  data?: TData;
+}
+
+/**
+ * Unified event payload emitted for every interaction anywhere inside a chart.
+ * When interacting with empty chart area (`target: 'canvas'`), `data` is
+ * explicitly `undefined`.
+ */
+export interface ChartEventPayload<TData = any> {
+  type: ChartEventType;
+  target: ChartEventTargetKind;
+  category: ChartEventCategory;
+  chartType: string;
+  targetId?: string;
+  data?: TData;
+  element: Element;
+  nativeEvent: Event;
+  clientX: number;
+  clientY: number;
+  chartX: number;
+  chartY: number;
+}
+
+export type ChartEventHandler<TData = any> = (
+  event: ChartEventPayload<TData>
+) => void;
+
+export interface ChartEventHandlers<TData = any> {
+  onClick?: ChartEventHandler<TData>;
+  onDoubleClick?: ChartEventHandler<TData>;
+  onContextMenu?: ChartEventHandler<TData>;
+  onFocus?: ChartEventHandler<TData>;
+  onBlur?: ChartEventHandler<TData>;
+  onMouseOver?: ChartEventHandler<TData>;
+  onMouseOut?: ChartEventHandler<TData>;
+  onMouseEnter?: ChartEventHandler<TData>;
+  onMouseLeave?: ChartEventHandler<TData>;
+  onMouseMove?: ChartEventHandler<TData>;
+  onPointerDown?: ChartEventHandler<TData>;
+  onPointerUp?: ChartEventHandler<TData>;
+  onKeyDown?: ChartEventHandler<TData>;
+}
+
+/**
+ * Unified event configuration on `chart.config.events`: supports both top-level
+ * global callbacks (fired for any target) and target-scoped handler maps
+ * (`item`, `axis`, `legend`, `marker`, `title`, `label`, `canvas`).
+ */
+export interface ChartEventsConfig extends ChartEventHandlers<any> {
+  item?: ChartEventHandlers<any>;
+  axis?: ChartEventHandlers<AxisEventData>;
+  legend?: ChartEventHandlers<LegendEventData>;
+  marker?: ChartEventHandlers<MarkerEventData>;
+  title?: ChartEventHandlers<TitleEventData>;
+  label?: ChartEventHandlers<LabelEventData>;
+  canvas?: ChartEventHandlers<undefined>;
+}
+
+export type ChartEventName =
+  | ChartEventType
+  | `${ChartEventCategory}:${ChartEventType}`
+  | `${ChartEventTargetKind}:${ChartEventType}`
+  | '*';
+
+/**
  * Single unified Nivo-style chart configuration object (`chart.config = { ... }`).
  * Underneath, the chart maps this single config onto its composable sub-components:
  * `<mc-theme-layer>`, `<mc-scale-layer>`, `<mc-view-layer>`, `<mc-animation-layer>`,
@@ -824,6 +1002,22 @@ export interface ChartConfig<TData = any> {
 
   // Unified SVG <mc-legend> config (shared across categorical charts)
   legend?: boolean | LegendConfig;
+
+  // Unified Event System config (global & scoped handlers on item, axis, legend, marker, title, label, canvas)
+  events?: ChartEventsConfig;
+  onClick?: ChartEventHandler<any>;
+  onDoubleClick?: ChartEventHandler<any>;
+  onContextMenu?: ChartEventHandler<any>;
+  onFocus?: ChartEventHandler<any>;
+  onBlur?: ChartEventHandler<any>;
+  onMouseOver?: ChartEventHandler<any>;
+  onMouseOut?: ChartEventHandler<any>;
+  onMouseEnter?: ChartEventHandler<any>;
+  onMouseLeave?: ChartEventHandler<any>;
+  onMouseMove?: ChartEventHandler<any>;
+  onPointerDown?: ChartEventHandler<any>;
+  onPointerUp?: ChartEventHandler<any>;
+  onKeyDown?: ChartEventHandler<any>;
 
   // Universal <mc-aria-layer> config + Nivo-style ARIA shorthands
   role?: string;
@@ -940,6 +1134,15 @@ export interface ChartRenderContext<TData = unknown> {
     clientY: number
   ) => void;
   hideLegendTooltip: () => void;
+  /**
+   * Registers an SVG element with the Unified Event System so any pointer, mouse,
+   * click, focus, or keyboard interaction resolves to the target and carries its
+   * associated data payload.
+   */
+  registerEventTarget: <TEventData = any>(
+    element: Element,
+    registration: ChartEventTargetRegistration<TEventData>
+  ) => Element;
   state: Record<string, any>;
 }
 

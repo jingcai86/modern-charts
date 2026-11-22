@@ -59,7 +59,7 @@ export function renderGaugeTicksLayer(
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
   model.ticks.forEach((tick) => {
-    ctx.renderLabel(g, {
+    const tickG = ctx.renderLabel(g, {
       id: `gauge-tick-${tick.index}`,
       text: String(tick.value),
       x: tick.x,
@@ -71,6 +71,22 @@ export function renderGaugeTicksLayer(
       color: ctx.theme.mutedTextColor,
       datum: { value: tick.value }
     });
+    if (tickG) {
+      tickG.setAttribute('tabindex', '0');
+      ctx.registerEventTarget(tickG, {
+        target: 'axis',
+        category: 'axis',
+        id: `gauge-tick-${tick.index}`,
+        data: {
+          axis: 'radial',
+          part: 'tick',
+          value: tick.value,
+          label: String(tick.value),
+          index: tick.index,
+          count: model.ticks.length
+        }
+      });
+    }
   });
 
   ctx.layerGroup.appendChild(g);

@@ -432,8 +432,27 @@ export function renderUnifiedLegendLayer(
     itemG.setAttribute('data-legend-row', String(rowIndex));
     itemG.setAttribute('data-legend-col', String(colIndex));
     itemG.setAttribute('transform', `translate(${x}, ${y})`);
-    itemG.style.cursor = cfg.enableTooltip ? 'pointer' : 'default';
+    itemG.style.cursor = 'pointer';
     itemG.style.outline = 'none';
+
+    ctx.registerEventTarget(itemG, {
+      target: 'legend',
+      category: 'legend',
+      id: item.id,
+      data: {
+        id: item.id,
+        label: item.label,
+        color: item.color,
+        value: item.value,
+        index,
+        count: combinedItems.length,
+        total: combinedItems.length,
+        kind: item.kind ?? 'series',
+        swatch: item.swatch ?? 'square',
+        position: cfg.position,
+        datum: item
+      }
+    });
 
     // Transparent hit area covering swatch + label for smooth hover & focus
     const hitRect = document.createElementNS(SVG_NS, 'rect');

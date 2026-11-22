@@ -67,6 +67,27 @@ export function renderPieArcItem(
     originY: 0
   });
 
+  const pieTotal =
+    (ctx.state?.model as { total?: number } | undefined)?.total ?? undefined;
+  ctx.registerEventTarget(path, {
+    target: 'pieSlice',
+    category: 'item',
+    id: arc.data.id,
+    data: {
+      id: arc.data.id,
+      label: arc.data.label || arc.data.id,
+      value: arc.value,
+      percentage: arc.percentage,
+      total: pieTotal,
+      index: arc.index,
+      count: arc.totalCount,
+      color: arc.color,
+      startAngle: arc.startAngle,
+      endAngle: arc.endAngle,
+      datum: arc.data
+    }
+  });
+
   path.addEventListener('mouseenter', (e) => {
     path.setAttribute('d', arc.hoverPathD);
     path.style.filter = 'brightness(1.08)';
@@ -198,6 +219,25 @@ export function renderSunburstArcItem(
     });
   }
 
+  ctx.registerEventTarget(path, {
+    target: 'sunburstArc',
+    category: 'item',
+    id: arc.name,
+    data: {
+      id: arc.name,
+      name: arc.name,
+      breadcrumb: arc.breadcrumb,
+      pathNames: arc.pathNames,
+      depth: arc.depth,
+      value: arc.value,
+      percentage: arc.percentage,
+      index: arc.index,
+      count: arc.totalCount,
+      hasChildren: arc.hasChildren,
+      color: arc.color
+    }
+  });
+
   return path;
 }
 
@@ -284,6 +324,25 @@ export function renderGaugeValueArcItem(
     ctx.hideTooltip();
   });
 
+  const gaugeRange = model.max - model.min;
+  const gaugePct =
+    gaugeRange !== 0 ? ((model.value - model.min) / gaugeRange) * 100 : 0;
+  ctx.registerEventTarget(path, {
+    target: 'gaugeArc',
+    category: 'item',
+    id: model.label || 'gauge-metric',
+    data: {
+      label: model.label || 'Gauge Metric',
+      value: model.value,
+      min: model.min,
+      max: model.max,
+      unit: model.unit,
+      percentage: gaugePct,
+      count: 1,
+      datum: model.datum
+    }
+  });
+
   return path;
 }
 
@@ -323,6 +382,20 @@ export function renderGaugeNeedleItem(
   pivot.setAttribute('stroke', ctx.theme.background);
   pivot.setAttribute('stroke-width', '2');
   g.appendChild(pivot);
+
+  ctx.registerEventTarget(g, {
+    target: 'gaugeNeedle',
+    category: 'item',
+    id: 'gauge-needle',
+    data: {
+      label: model.label || 'Gauge Metric',
+      value: model.value,
+      min: model.min,
+      max: model.max,
+      unit: model.unit,
+      datum: model.datum
+    }
+  });
 
   return g;
 }

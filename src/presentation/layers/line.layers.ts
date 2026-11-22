@@ -188,6 +188,34 @@ export function renderLineSlicesLayer(
       ctx.hideTooltip();
     });
 
+    const slicePoints = model.series
+      .map((s) => {
+        const p = s.points[idx];
+        if (!p) return null;
+        return {
+          seriesId: s.id,
+          x: p.xValue,
+          y: p.yValue,
+          value: p.yValue,
+          color: p.color,
+          datum: p.raw
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+    ctx.registerEventTarget(sliceRect, {
+      target: 'lineSlice',
+      category: 'item',
+      id: String(pt.xValue),
+      data: {
+        x: pt.xValue,
+        index: idx,
+        count: firstPoints.length,
+        seriesCount: model.series.length,
+        points: slicePoints
+      }
+    });
+
     ctx.layerGroup.appendChild(sliceRect);
   });
 }
