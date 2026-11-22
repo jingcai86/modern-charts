@@ -1,0 +1,48 @@
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+categories:
+  - title: '🚀 New Features & Enhancements'
+    labels:
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+      - 'fix'
+  - title: '♿ Accessibility (ARIA / a11y)'
+    labels:
+      - 'a11y'
+      - 'accessibility'
+  - title: '🎨 Theming & Styling'
+    labels:
+      - 'theme'
+      - 'ui'
+  - title: '📝 Documentation & Demos'
+    labels:
+      - 'documentation'
+      - 'docs'
+  - title: '⚙️ Tooling & Maintenance'
+    labels:
+      - 'dependencies'
+      - 'chore'
+version-resolver:
+  major:
+    labels:
+      - 'breaking'
+      - 'major'
+  minor:
+    labels:
+      - 'feature'
+      - 'minor'
+  patch:
+    labels:
+      - 'bug'
+      - 'fix'
+      - 'patch'
+  default: patch
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/jingcai86/modern-charts/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION

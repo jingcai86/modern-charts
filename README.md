@@ -7,8 +7,10 @@
 **Composable, Accessible Web Component Charting Library powered exclusively by D3 &amp; Pretext**
 
 <p align="center">
+  <a href="https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml/badge.svg" alt="CI Pipeline" /></a>
   <a href="https://github.com/jingcai86/modern-charts/actions/workflows/deploy-pages.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/deploy-pages.yml/badge.svg" alt="Deploy Demo to GitHub Pages" /></a>
   <a href="https://github.com/jingcai86/modern-charts/actions/workflows/codeql.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/codeql.yml/badge.svg" alt="CodeQL Analysis" /></a>
+  <a href="https://github.com/jingcai86/modern-charts"><img src="https://img.shields.io/badge/bundle--size-%3C160kB%20all--deps-blueviolet" alt="Bundle Size Limit" /></a>
   <a href="https://github.com/jingcai86/modern-charts"><img src="https://img.shields.io/badge/dependabot-enabled-blue.svg?logo=dependabot" alt="Dependabot Enabled" /></a>
   <a href="https://github.com/jingcai86/modern-charts"><img src="https://img.shields.io/badge/tests-23%20passed-brightgreen.svg" alt="Tests" /></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>

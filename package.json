@@ -23,7 +23,9 @@
     "build:examples": "vite build --config vite.examples.config.ts",
     "preview:examples": "vite preview --config vite.examples.config.ts",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
+    "size": "size-limit",
     "docker:up": "docker compose up --build",
     "docker:dev": "docker compose --profile dev up --build",
     "docker:down": "docker compose down"
@@ -47,8 +49,11 @@
     "d3": "^7.9.0"
   },
   "devDependencies": {
+    "@size-limit/preset-small-lib": "^14.3.0",
     "@types/d3": "^7.4.3",
+    "@vitest/coverage-v8": "^2.1.9",
     "happy-dom": "^15.11.7",
+    "size-limit": "^14.3.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vitest": "^2.1.8"
