@@ -1,4 +1,4 @@
-import { format } from 'd3';
+import { formatGroupedNumber } from '../../core/format';
 import type { ChartRenderContext } from '../../core/types';
 import type {
   ComputedSankeyLinkModel,
@@ -85,7 +85,7 @@ export function renderSankeyLinkItem(
         title: `${link.source.name} → ${link.target.name}`,
         label: 'Flow',
         value: link.value,
-        formattedValue: format(',')(link.value),
+        formattedValue: formatGroupedNumber(link.value),
         color: link.source.color,
         datum: {
           source: link.source.id,
@@ -156,7 +156,7 @@ export function renderSankeyNodeItem(
         title: node.name,
         label: 'Total Flow',
         value: node.value,
-        formattedValue: format(',')(node.value),
+        formattedValue: formatGroupedNumber(node.value),
         color: node.color,
         datum: {
           id: node.id,

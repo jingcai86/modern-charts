@@ -1,16 +1,13 @@
 import {
-  extent,
-  format,
   scaleBand,
   scaleLinear,
   scaleLog,
   scalePoint,
   scaleSqrt,
   scaleSymlog,
-  scaleTime,
-  timeFormat,
-  type ScaleContinuousNumeric
-} from 'd3';
+  type ContinuousNumericScale
+} from './scales';
+import { formatAxisDate, formatAxisNumber } from './format';
 import { renderUnifiedLegendLayer } from './legend-engine';
 import type {
   ChartRenderContext,
@@ -73,15 +70,49 @@ export function buildAxisScale(
   }
 
   if (config.type === 'time') {
-    const dates = domainValues.map((d) => (d instanceof Date ? d : new Date(d)));
-    const dateExtent = extent(dates) as [Date, Date];
-    const scale = scaleTime()
-      .domain(
-        dateExtent[0] && dateExtent[1] ? dateExtent : [new Date(0), new Date()]
-      )
-      .range(effectiveRange);
-    if (config.nice !== false) scale.nice();
-    return scale;
+    const timestamps = domainValues
+      .map((d) => (d instanceof Date ? d.getTime() : new Date(d).getTime()))
+      .filter((t) => Number.isFinite(t));
+    const minMs = timestamps.length > 0 ? Math.min(...timestamps) : 0;
+    const maxMs =
+      timestamps.length > 0 ? Math.max(...timestamps) : Date.now();
+    const safeMaxMs = maxMs === minMs ? minMs + 86_400_000 : maxMs;
+
+    const inner = scaleLinear().domain([minMs, safeMaxMs]).range(effectiveRange);
+    if (config.nice !== false) inner.nice();
+    if (config.clamp) inner.clamp(true);
+
+    const toMs = (v: Date | number | string): number =>
+      v instanceof Date ? v.getTime() : typeof v === 'number' ? v : new Date(v).getTime();
+
+    const makeTimeScale = (linear: ContinuousNumericScale): any => {
+      const fn: any = (v: Date | number | string) => linear(toMs(v));
+      fn.domain = (d?: Array<Date | number | string>) => {
+        if (!d) return linear.domain().map((ms) => new Date(ms));
+        linear.domain(d.map(toMs));
+        return fn;
+      };
+      fn.range = (r?: [number, number]) => {
+        if (!r) return linear.range();
+        linear.range(r);
+        return fn;
+      };
+      fn.ticks = (count = 6) => linear.ticks(count).map((ms) => new Date(ms));
+      fn.invert = (px: number) => new Date(linear.invert(px));
+      fn.nice = (count?: number) => {
+        linear.nice(count);
+        return fn;
+      };
+      fn.clamp = (c?: boolean) => {
+        if (c === undefined) return linear.clamp();
+        linear.clamp(c);
+        return fn;
+      };
+      fn.copy = () => makeTimeScale(linear.copy());
+      return fn;
+    };
+
+    return makeTimeScale(inner);
   }
 
   const nums = domainValues
@@ -101,7 +132,7 @@ export function buildAxisScale(
       ? minVal + 10
       : rawMax;
 
-  let scale: ScaleContinuousNumeric<number, number>;
+  let scale: ContinuousNumericScale;
   if (config.type === 'log') {
     const safeMin = minVal <= 0 ? 1 : minVal;
     const safeMax = maxVal <= safeMin ? safeMin * 10 : maxVal;
@@ -216,13 +247,9 @@ export function renderCartesianAxes(
   const enableY = options.enableYAxis ?? true;
   const formatVal = (v: any, fmt?: (val: any) => string): string => {
     if (fmt) return fmt(v);
-    if (v instanceof Date) return timeFormat('%b %d')(v);
+    if (v instanceof Date) return formatAxisDate(v);
     if (typeof v === 'number') {
-      return Math.abs(v) >= 1000 && v % 1000 === 0
-        ? format('~s')(v)
-        : Number.isInteger(v)
-        ? String(v)
-        : format('.2~f')(v);
+      return formatAxisNumber(v);
     }
     return String(v);
   };

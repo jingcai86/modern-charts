@@ -2,9 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import pkg from '../package.json';
 import {
   VERSION,
+  AnimationEngine,
   LabelEngine,
   MOTION_PRESETS,
+  buildAxisScale,
   createDefaultTheme,
+  createSequentialColorScale,
   MCLineChart,
   MCBarChart,
   MCPieChart,
@@ -26,6 +29,21 @@ import {
   type LegendItem,
   type TooltipPayload
 } from '../src/index';
+import {
+  extent,
+  scaleBand,
+  scaleLinear,
+  scaleLog,
+  scaleOrdinal,
+  scalePoint,
+  scaleSqrt,
+  scaleSymlog
+} from '../src/core/scales';
+import {
+  formatAxisDate,
+  formatAxisNumber,
+  formatGroupedNumber
+} from '../src/core/format';
 import {
   SAMPLE_BAR_DATA,
   SAMPLE_GAUGE_DATA,
@@ -2375,5 +2393,149 @@ describe('Partial / Split Threshold Styling — Option B Semantic <g> ARIA Host 
     expect(clip1).toBeTruthy();
     expect(clip2).toBeTruthy();
     expect(clip1).not.toBe(clip2);
+  });
+});
+
+describe('Lightweight Core Primitives & Native Pan/Zoom Controller', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('computes accurate numeric, time, band, point, and ordinal scales without heavy D3 subpackages', () => {
+    expect(extent([10, null, 2, undefined, NaN, 42])).toEqual([2, 42]);
+    expect(extent([])).toEqual([undefined, undefined]);
+
+    const linear = scaleLinear().domain([0, 100]).range([0, 500]);
+    expect(linear(50)).toBe(250);
+    expect(linear.invert(250)).toBe(50);
+    expect(linear.clamp(true)(150)).toBe(500);
+    expect(linear.ticks(5)).toEqual([0, 20, 40, 60, 80, 100]);
+
+    const niceLinear = scaleLinear().domain([3, 97]).nice(5);
+    expect(niceLinear.domain()).toEqual([0, 100]);
+
+    const sqrt = scaleSqrt().domain([0, 100]).range([0, 10]);
+    expect(sqrt(25)).toBeCloseTo(5, 6);
+    expect(sqrt.invert(5)).toBeCloseTo(25, 6);
+
+    const log = scaleLog().base(10).domain([1, 1000]).range([0, 300]);
+    expect(log(10)).toBeCloseTo(100, 6);
+    expect(log(100)).toBeCloseTo(200, 6);
+    expect(log.invert(200)).toBeCloseTo(100, 6);
+
+    const sym = scaleSymlog().constant(1).domain([-10, 10]).range([0, 200]);
+    expect(sym(0)).toBeCloseTo(100, 6);
+    expect(sym.invert(100)).toBeCloseTo(0, 6);
+
+    const band = scaleBand<string>()
+      .domain(['A', 'B', 'C', 'D'])
+      .range([0, 400])
+      .paddingInner(0.2)
+      .paddingOuter(0.1);
+    expect(band.bandwidth()).toBeGreaterThan(0);
+    expect(band('A')).toBeDefined();
+    expect(band('D')!).toBeGreaterThan(band('A')!);
+
+    const point = scalePoint<string>()
+      .domain(['X', 'Y', 'Z'])
+      .range([0, 200])
+      .padding(0.5);
+    expect(point.bandwidth()).toBe(0);
+    expect(point('Y')).toBeCloseTo(100, 6);
+
+    const ord = scaleOrdinal<string, string>(['#111', '#222']).domain(['a', 'b']);
+    expect(ord('a')).toBe('#111');
+    expect(ord('b')).toBe('#222');
+    expect(ord('c')).toBe('#111');
+
+    const timeScale = buildAxisScale(
+      { type: 'time', nice: true },
+      [new Date(2026, 0, 1), new Date(2026, 0, 11)],
+      [0, 200]
+    );
+    const ticks = timeScale.ticks(5);
+    expect(ticks.length).toBeGreaterThan(0);
+    expect(ticks[0]).toBeInstanceOf(Date);
+    expect(timeScale.invert(100)).toBeInstanceOf(Date);
+  });
+
+  it('formats grouped numbers, axis ticks, dates, sequential color ramps, and all 6 easings cleanly', () => {
+    expect(formatGroupedNumber(1234567)).toBe('1,234,567');
+    expect(formatAxisNumber(2000)).toBe('2k');
+    expect(formatAxisNumber(1500000)).toBe('1.5M');
+    expect(formatAxisNumber(42)).toBe('42');
+    expect(formatAxisNumber(1.256)).toBe('1.26');
+    expect(formatAxisDate(new Date(2026, 0, 5))).toBe('Jan 05');
+
+    const seq = createSequentialColorScale('viridis', [0, 100]);
+    expect(seq(0)).toBe('rgb(68, 1, 84)');
+    expect(seq(100)).toBe('rgb(253, 231, 37)');
+    expect(seq.domain()).toEqual([0, 100]);
+
+    const anim = new AnimationEngine();
+    for (const name of [
+      'linear',
+      'quad-out',
+      'cubic-out',
+      'back-out',
+      'elastic-out',
+      'bounce-out'
+    ] as const) {
+      const fn = anim.getD3Easing(name);
+      expect(fn(0)).toBeCloseTo(0, 5);
+      expect(fn(1)).toBeCloseTo(1, 5);
+      expect(Number.isFinite(fn(0.5))).toBe(true);
+    }
+  });
+
+  it('handles native zoom controls (+, −, Reset), initialZoom, and direction locking without d3-zoom', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    const events: Array<{ k: number; x: number; y: number }> = [];
+    bar.addEventListener('mc-zoom', (e) => {
+      events.push((e as CustomEvent).detail);
+    });
+
+    bar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 600,
+      height: 360,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      view: {
+        zoomable: true,
+        pannable: true,
+        showControls: true,
+        minZoom: 0.5,
+        maxZoom: 4,
+        direction: 'x',
+        initialZoom: 1.5,
+        initialPanX: 20,
+        initialPanY: 50
+      }
+    };
+
+    const viewport = bar.shadowRoot?.querySelector('.mc-chart-viewport');
+    // initialZoom applied and direction:'x' locks y=0
+    expect(events.length).toBeGreaterThan(0);
+    expect(events[events.length - 1].k).toBeCloseTo(1.5, 5);
+    expect(events[events.length - 1].y).toBe(0);
+    expect(viewport?.getAttribute('transform')).toContain('scale(1.5)');
+
+    const zoomInBtn = bar.shadowRoot?.querySelector(
+      'button[data-zoom="in"]'
+    ) as HTMLButtonElement;
+    const resetBtn = bar.shadowRoot?.querySelector(
+      'button[data-zoom="reset"]'
+    ) as HTMLButtonElement;
+
+    zoomInBtn.click();
+    expect(events[events.length - 1].k).toBeCloseTo(1.875, 5);
+    expect(events[events.length - 1].y).toBe(0);
+
+    resetBtn.click();
+    expect(events[events.length - 1]).toEqual({ k: 1, x: 0, y: 0 });
+    expect(viewport?.getAttribute('transform')).toBe('translate(0, 0) scale(1)');
   });
 });
