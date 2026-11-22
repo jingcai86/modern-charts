@@ -227,11 +227,54 @@ export type MarkerLabelPosition =
   | 'top-right'
   | 'bottom-left'
   | 'bottom-center'
-  | 'bottom-right'
-  | 'outside-left'
-  | 'outside-right'
-  | 'outside-top'
-  | 'outside-bottom';
+  | 'bottom-right';
+
+export type MarkerAnnotationPosition = 'left' | 'right' | 'top' | 'bottom';
+
+export interface MarkerAnnotationConfig {
+  /** Text shown in the outside annotation badge/callout. */
+  text?: string;
+  /** Optional icon (SVG string, emoji, or DOM element) shown outside (can be used with or without text). */
+  icon?: string | SVGElement | HTMLElement;
+  /**
+   * Outside side of the plot where the mark line/area reaches:
+   * - Horizontal (`axis: 'y'`) markers default to `'right'` (`'left'` / `'right'` align at the mark's Y).
+   * - Vertical (`axis: 'x'`) markers default to `'top'` (`'top'` / `'bottom'` align at the mark's X).
+   * All 4 sides (`'left' | 'right' | 'top' | 'bottom'`) are supported.
+   */
+  position?: MarkerAnnotationPosition;
+  /** Gap in px between the plot boundary (where the mark reaches) and the outside annotation. Default `8`. */
+  padding?: number;
+  offsetX?: number;
+  offsetY?: number;
+  color?: string;
+  background?: string;
+  borderColor?: string;
+  borderRadius?: number;
+  fontSize?: number;
+  /** Show a tooltip on hover and keyboard focus. Default `true`. */
+  enableTooltip?: boolean;
+  /**
+   * Customize or disable the annotation tooltip (`false` disables it; pass a string
+   * for custom summary text or a `TooltipConfig` for `formatter`/`renderer`/`offsetX`/`offsetY`).
+   */
+  tooltip?: boolean | string | TooltipConfig<ResolvedMarker>;
+}
+
+export type MarkerLegendSwatch = 'auto' | 'line' | 'area' | 'square';
+
+export interface MarkerLegendConfig {
+  /** Include this marker in the chart's unified legend. Default `true` when object is provided. */
+  enabled?: boolean;
+  /** Legend item text (defaults to `marker.label`, `annotation.text`, or `marker.id`). */
+  label?: string;
+  /** Swatch color override (defaults to `marker.stroke || marker.fill`). */
+  color?: string;
+  /** Visual swatch style (`'auto'` uses `'line'` for line markers and `'area'` for area markers). */
+  swatch?: MarkerLegendSwatch;
+  /** Optional custom tooltip text displayed when hovering or focusing this marker's legend item. */
+  tooltip?: string;
+}
 
 export interface MarkerConfig {
   id?: string;
@@ -245,19 +288,14 @@ export interface MarkerConfig {
   to?: number | string;
   label?: string;
   /**
-   * Marker label placement:
-   * - Inside relative to the marker line/area:
-   *   `'top-left'`, `'top-center'`, `'top-right'`,
-   *   `'bottom-left'`, `'bottom-center'`, `'bottom-right'`
-   *   (plus shorthands `'start'`, `'middle'`, `'end'`)
-   * - Outside the plot area adjacent to an axis:
-   *   `'outside-left'`, `'outside-right'`, `'outside-top'`, `'outside-bottom'`
+   * Inside marker label placement relative to the marker line/area:
+   * `'top-left'`, `'top-center'`, `'top-right'`,
+   * `'bottom-left'`, `'bottom-center'`, `'bottom-right'`
+   * (plus shorthands `'start'`, `'middle'`, `'end'`).
+   * For outside callout icons/text, use `annotation`.
    */
   labelPosition?: MarkerLabelPosition;
-  /**
-   * Padding (in px) away from the marker line/edge (for inside placements)
-   * or away from the chart axis (for `'outside-*'` placements).
-   */
+  /** Padding (in px) away from the marker line/edge for inside label placement. */
   labelPadding?: number;
   /**
    * Inset padding (in px) away from the left/right or top/bottom plot boundary
@@ -267,6 +305,17 @@ export interface MarkerConfig {
   labelOffsetX?: number;
   labelOffsetY?: number;
   icon?: string;
+  /**
+   * Optional outside annotation (icon and/or text) placed outside the plot edge
+   * where the mark line/area reaches (`left`, `right`, `top`, or `bottom`),
+   * with customizable `padding` and hover/focus tooltip (enabled by default).
+   */
+  annotation?: string | MarkerAnnotationConfig;
+  /**
+   * Optional legend entry for this line or area marker inside the chart's
+   * unified `<mc-legend>` (with marker-styled swatch and hover/focus legend tooltip).
+   */
+  legend?: boolean | MarkerLegendConfig;
   stroke?: string;
   strokeWidth?: number;
   strokeDasharray?: string;
@@ -624,6 +673,12 @@ export interface LegendItem {
   value?: number | string;
   index?: number;
   total?: number;
+  /** Swatch shape (`'square'` default, `'line'` for line markers, `'area'` for area markers). */
+  swatch?: 'square' | 'line' | 'area';
+  strokeDasharray?: string;
+  fillOpacity?: number;
+  kind?: 'series' | 'marker';
+  tooltipText?: string;
   meta?: Record<string, any>;
 }
 
@@ -829,7 +884,8 @@ export interface ChartRenderContext<TData = unknown> {
   showTooltip: (
     content: TooltipInput,
     clientX: number,
-    clientY: number
+    clientY: number,
+    overrideConfig?: TooltipConfig<any>
   ) => void;
   hideTooltip: () => void;
   showLegendTooltip: (

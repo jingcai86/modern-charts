@@ -50,11 +50,13 @@
     "top-right",
     "bottom-left",
     "bottom-center",
-    "bottom-right",
-    "outside-left",
-    "outside-right",
-    "outside-top",
-    "outside-bottom"
+    "bottom-right"
+  ],
+  "markerAnnotationPositions": [
+    "left",
+    "right",
+    "top",
+    "bottom"
   ],
   "charts": [
     {

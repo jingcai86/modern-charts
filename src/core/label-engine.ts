@@ -600,13 +600,17 @@ export class LabelEngine {
       !descriptor.icon.trim().startsWith('<')
         ? descriptor.iconPosition === 'end'
           ? ''
-          : `${descriptor.icon} `
+          : descriptor.text
+          ? `${descriptor.icon} `
+          : descriptor.icon
         : '';
     const iconSuffix =
       typeof descriptor.icon === 'string' &&
       !descriptor.icon.trim().startsWith('<') &&
       descriptor.iconPosition === 'end'
-        ? ` ${descriptor.icon}`
+        ? descriptor.text
+          ? ` ${descriptor.icon}`
+          : descriptor.icon
         : '';
 
     if (measured.lines.length <= 1) {

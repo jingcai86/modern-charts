@@ -64,7 +64,8 @@ const data: BarDatum[] = [
         axis: 'y',
         value: 100,
         label: 'Target $100K',
-        labelPosition: 'outside-right',
+        annotation: { text: '$100K', position: 'right', padding: 8 },
+        legend: true,
         stroke: '#ef4444',
         condition: 'below',
         matchStyle: { color: '#ef4444' }

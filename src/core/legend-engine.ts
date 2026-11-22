@@ -1,3 +1,4 @@
+import { buildMarkerLegendItems } from './marker-engine';
 import type {
   ChartRenderContext,
   ChartTheme,
@@ -163,7 +164,9 @@ export function computeLegendLayout(
       fontSize,
       maxWidth: config.maxItemWidth
     });
-    const width = Math.ceil(swatchSize + swatchGap + measured.boxWidth);
+    const itemSwatchWidth =
+      item.swatch === 'line' ? Math.max(swatchSize, 16) : swatchSize;
+    const width = Math.ceil(itemSwatchWidth + swatchGap + measured.boxWidth);
     const height = Math.max(swatchSize + 2, Math.ceil(measured.boxHeight));
     return { item, index, measured, width, height };
   });
@@ -344,7 +347,13 @@ export function renderUnifiedLegendLayer(
   items: LegendItem[],
   fallbackPosition: LegendPosition = 'bottom'
 ): void {
-  if (!items || items.length === 0) return;
+  const markerLegendItems = buildMarkerLegendItems(ctx.markers ?? []);
+  const existingIds = new Set((items ?? []).map((it) => it.id));
+  const combinedItems: LegendItem[] = [
+    ...(items ?? []),
+    ...markerLegendItems.filter((mItem) => !existingIds.has(mItem.id))
+  ];
+  if (combinedItems.length === 0) return;
 
   const cfg: ResolvedLegendConfig =
     ctx.legendConfig ??
@@ -357,7 +366,7 @@ export function renderUnifiedLegendLayer(
   const availableHeight = ctx.innerHeight;
 
   const layout = computeLegendLayout(
-    items,
+    combinedItems,
     cfg,
     availableWidth,
     availableHeight,
@@ -410,11 +419,15 @@ export function renderUnifiedLegendLayer(
     const { item, index, x, y, width, height, rowIndex, colIndex } = posItem;
 
     const itemG = document.createElementNS(SVG_NS, 'g');
-    itemG.setAttribute('class', 'mc-legend-item');
+    itemG.setAttribute(
+      'class',
+      `mc-legend-item${item.kind === 'marker' ? ' mc-legend-item--marker' : ''}`
+    );
     itemG.setAttribute('role', 'listitem');
     itemG.setAttribute('tabindex', '0');
     itemG.setAttribute('aria-label', `Legend: ${item.label}`);
     itemG.setAttribute('data-legend-id', item.id);
+    itemG.setAttribute('data-legend-kind', item.kind ?? 'series');
     itemG.setAttribute('data-legend-index', String(index));
     itemG.setAttribute('data-legend-row', String(rowIndex));
     itemG.setAttribute('data-legend-col', String(colIndex));
@@ -433,20 +446,55 @@ export function renderUnifiedLegendLayer(
     hitRect.setAttribute('fill', 'transparent');
     itemG.appendChild(hitRect);
 
-    const swatch = document.createElementNS(SVG_NS, 'rect');
-    swatch.setAttribute('class', 'mc-legend-swatch');
-    swatch.setAttribute('x', '0');
-    swatch.setAttribute('y', String(-halfSwatch));
-    swatch.setAttribute('width', String(layout.swatchSize));
-    swatch.setAttribute('height', String(layout.swatchSize));
-    swatch.setAttribute('rx', '2');
-    swatch.setAttribute('fill', item.color);
-    itemG.appendChild(swatch);
+    const itemSwatchWidth =
+      item.swatch === 'line' ? Math.max(layout.swatchSize, 16) : layout.swatchSize;
+
+    if (item.swatch === 'line') {
+      const lineSwatch = document.createElementNS(SVG_NS, 'line');
+      lineSwatch.setAttribute('class', 'mc-legend-swatch mc-legend-swatch--line');
+      lineSwatch.setAttribute('x1', '0');
+      lineSwatch.setAttribute('x2', String(itemSwatchWidth));
+      lineSwatch.setAttribute('y1', '0');
+      lineSwatch.setAttribute('y2', '0');
+      lineSwatch.setAttribute('stroke', item.color);
+      lineSwatch.setAttribute('stroke-width', '2.5');
+      lineSwatch.setAttribute('stroke-linecap', 'round');
+      if (item.strokeDasharray) {
+        lineSwatch.setAttribute('stroke-dasharray', item.strokeDasharray);
+      }
+      itemG.appendChild(lineSwatch);
+    } else if (item.swatch === 'area') {
+      const areaSwatch = document.createElementNS(SVG_NS, 'rect');
+      areaSwatch.setAttribute('class', 'mc-legend-swatch mc-legend-swatch--area');
+      areaSwatch.setAttribute('x', '0');
+      areaSwatch.setAttribute('y', String(-halfSwatch));
+      areaSwatch.setAttribute('width', String(itemSwatchWidth));
+      areaSwatch.setAttribute('height', String(layout.swatchSize));
+      areaSwatch.setAttribute('rx', '2');
+      areaSwatch.setAttribute('fill', item.color);
+      areaSwatch.setAttribute(
+        'fill-opacity',
+        String(Math.max(0.22, item.fillOpacity ?? 0.25))
+      );
+      areaSwatch.setAttribute('stroke', item.color);
+      areaSwatch.setAttribute('stroke-width', '1.2');
+      itemG.appendChild(areaSwatch);
+    } else {
+      const swatch = document.createElementNS(SVG_NS, 'rect');
+      swatch.setAttribute('class', 'mc-legend-swatch');
+      swatch.setAttribute('x', '0');
+      swatch.setAttribute('y', String(-halfSwatch));
+      swatch.setAttribute('width', String(itemSwatchWidth));
+      swatch.setAttribute('height', String(layout.swatchSize));
+      swatch.setAttribute('rx', '2');
+      swatch.setAttribute('fill', item.color);
+      itemG.appendChild(swatch);
+    }
 
     ctx.renderLabel(itemG, {
       id: `legend-${index}`,
       text: item.label,
-      x: layout.swatchSize + layout.swatchGap,
+      x: itemSwatchWidth + layout.swatchGap,
       y: 0,
       type: 'legend',
       anchor: 'start',
@@ -457,21 +505,37 @@ export function renderUnifiedLegendLayer(
       datum: item
     });
 
+    const isMarker = item.kind === 'marker';
+    const markerTypeLabel =
+      item.meta?.markerType === 'area' ? 'Area Marker' : 'Line Marker';
+    const markerConditionBadge =
+      isMarker && item.meta?.condition
+        ? `Condition: ${item.meta.condition}`
+        : undefined;
+
     const buildLegendTooltipPayload = () => ({
       title: item.label,
-      label: item.value !== undefined ? 'Value' : 'Series',
+      label: isMarker
+        ? markerTypeLabel
+        : item.value !== undefined
+        ? 'Value'
+        : 'Series',
       seriesId: item.id,
       value: item.value !== undefined ? item.value : item.label,
       formattedValue:
-        item.value !== undefined ? String(item.value) : item.label,
+        item.tooltipText ??
+        (item.value !== undefined ? String(item.value) : item.label),
       color: item.color,
+      badge: markerConditionBadge,
       datum: {
         id: item.id,
         label: item.label,
         color: item.color,
         value: item.value,
+        kind: item.kind ?? 'series',
+        swatch: item.swatch ?? 'square',
         index,
-        total: items.length,
+        total: combinedItems.length,
         ...(item.meta ?? {})
       }
     });

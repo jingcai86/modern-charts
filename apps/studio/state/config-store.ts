@@ -1,5 +1,6 @@
 import type {
   ChartConfig,
+  MarkerAnnotationPosition,
   MarkerLabelPosition,
   MarkerMatchScope,
   ThemeModePreference
@@ -16,6 +17,11 @@ export interface ChartVirtualState {
   __markerLabelPosition: MarkerLabelPosition;
   __markerLabelPadding: number;
   __markerLabelEdgePadding: number;
+  __markerLegend: boolean;
+  __markerAnnotationEnabled: boolean;
+  __markerAnnotationPosition: MarkerAnnotationPosition;
+  __markerAnnotationPadding: number;
+  __markerAnnotationTooltip: boolean;
   __labelIconPreset: string;
 }
 
@@ -29,6 +35,10 @@ export function getOrInitChartConfig(entry: ChartCatalogEntry): ChartConfig<any>
     chartConfigState.set(entry.id, cfg);
 
     const lineMarker = cfg.markers?.find((m) => m.type === 'line');
+    const annObj =
+      lineMarker?.annotation && typeof lineMarker.annotation === 'object'
+        ? lineMarker.annotation
+        : undefined;
     chartVirtualState.set(entry.id, {
       __markerEnabled: Boolean(cfg.markers && cfg.markers.length > 0),
       __markerThresholdValue:
@@ -40,6 +50,11 @@ export function getOrInitChartConfig(entry: ChartCatalogEntry): ChartConfig<any>
       __markerLabelPosition: lineMarker?.labelPosition ?? 'top-right',
       __markerLabelPadding: lineMarker?.labelPadding ?? 10,
       __markerLabelEdgePadding: lineMarker?.labelEdgePadding ?? 10,
+      __markerLegend: Boolean(lineMarker?.legend),
+      __markerAnnotationEnabled: Boolean(lineMarker?.annotation),
+      __markerAnnotationPosition: annObj?.position ?? 'right',
+      __markerAnnotationPadding: annObj?.padding ?? 8,
+      __markerAnnotationTooltip: annObj?.enableTooltip !== false,
       __labelIconPreset: 'none'
     });
   }
@@ -98,7 +113,15 @@ export function buildMarkersForVirtualState(
       from: 0,
       to: val,
       fill: color,
-      fillOpacity: 0.09
+      fillOpacity: 0.09,
+      ...(vState.__markerLegend
+        ? {
+            legend: {
+              label: `Threshold Band (0–${val})`,
+              tooltip: `Alert region from 0 to ${val}`
+            }
+          }
+        : {})
     },
     {
       id: `${entry.id}-threshold-line`,
@@ -117,6 +140,25 @@ export function buildMarkersForVirtualState(
       strokeDasharray: '6 4',
       condition: cond,
       matchScope,
+      ...(vState.__markerLegend
+        ? {
+            legend: {
+              label: `Threshold (${cond} ${val})`,
+              tooltip: `Triggers when value is ${cond} ${val}`
+            }
+          }
+        : {}),
+      ...(vState.__markerAnnotationEnabled
+        ? {
+            annotation: {
+              text: `${val}`,
+              icon: SVG_ICON_PRESETS.warn,
+              position: vState.__markerAnnotationPosition,
+              padding: Number(vState.__markerAnnotationPadding ?? 8),
+              enableTooltip: vState.__markerAnnotationTooltip
+            }
+          }
+        : {}),
       matchStyle: {
         color,
         fill: color,

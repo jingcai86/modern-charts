@@ -421,14 +421,10 @@ export const MARKER_THRESHOLD_ATTRIBUTES: ChartAttributeSpec[] = [
       { label: 'top-center (Inside — Above Center)', value: 'top-center' },
       { label: 'bottom-right (Inside — Below Right)', value: 'bottom-right' },
       { label: 'bottom-left (Inside — Below Left)', value: 'bottom-left' },
-      { label: 'bottom-center (Inside — Below Center)', value: 'bottom-center' },
-      { label: 'outside-right (Outside — Right of Plot)', value: 'outside-right' },
-      { label: 'outside-left (Outside — Left of Y-Axis)', value: 'outside-left' },
-      { label: 'outside-top (Outside — Above Plot)', value: 'outside-top' },
-      { label: 'outside-bottom (Outside — Below X-Axis)', value: 'outside-bottom' }
+      { label: 'bottom-center (Inside — Below Center)', value: 'bottom-center' }
     ],
     description:
-      'Places the marker label inside relative to the dashed line or outside next to the chart axes.',
+      'Places the inside marker label relative to the marker line/area. Use Annotation for outside callouts.',
     defaultValue: 'top-right'
   },
   {
@@ -440,7 +436,7 @@ export const MARKER_THRESHOLD_ATTRIBUTES: ChartAttributeSpec[] = [
     max: 36,
     step: 2,
     description:
-      'Distance (px) away from the dashed marker line (inside) or away from the axis (outside).',
+      'Distance (px) away from the marker line/area edge for inside label placement.',
     defaultValue: 10
   },
   {
@@ -454,5 +450,59 @@ export const MARKER_THRESHOLD_ATTRIBUTES: ChartAttributeSpec[] = [
     description:
       'Inset distance (px) from the left/right or top/bottom plot boundary when placed inside.',
     defaultValue: 10
+  },
+  {
+    configPath: '__markerLegend',
+    attrName: 'mc-marker[legend]',
+    category: 'Marker & Threshold (<mc-marker-layer>)',
+    control: 'boolean',
+    description:
+      'Shows the threshold marker line & area inside the unified chart legend with hover/focus legend tooltips.',
+    defaultValue: true
+  },
+  {
+    configPath: '__markerAnnotationEnabled',
+    attrName: 'mc-marker[annotation]',
+    category: 'Marker & Threshold (<mc-marker-layer>)',
+    control: 'boolean',
+    description:
+      'Displays an outside annotation callout (icon/text) where the mark line reaches the plot edge.',
+    defaultValue: false
+  },
+  {
+    configPath: '__markerAnnotationPosition',
+    attrName: 'mc-marker[annotation-position]',
+    category: 'Marker & Threshold (<mc-marker-layer>)',
+    control: 'select',
+    options: [
+      { label: 'right (Outside Right)', value: 'right' },
+      { label: 'left (Outside Left)', value: 'left' },
+      { label: 'top (Outside Top)', value: 'top' },
+      { label: 'bottom (Outside Bottom)', value: 'bottom' }
+    ],
+    description:
+      'Outside plot edge where the marker annotation sits (left, right, top, or bottom).',
+    defaultValue: 'right'
+  },
+  {
+    configPath: '__markerAnnotationPadding',
+    attrName: 'mc-marker[annotation-padding]',
+    category: 'Marker & Threshold (<mc-marker-layer>)',
+    control: 'range',
+    min: 0,
+    max: 36,
+    step: 2,
+    description:
+      'Gap (px) between the plot edge where the mark line reaches and the outside annotation.',
+    defaultValue: 8
+  },
+  {
+    configPath: '__markerAnnotationTooltip',
+    attrName: 'mc-marker[annotation-enable-tooltip]',
+    category: 'Marker & Threshold (<mc-marker-layer>)',
+    control: 'boolean',
+    description:
+      'Enables interactive hover & focus tooltip on the outside marker annotation (default true).',
+    defaultValue: true
   }
 ];
