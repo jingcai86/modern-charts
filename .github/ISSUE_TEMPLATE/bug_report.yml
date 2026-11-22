@@ -1,0 +1,100 @@
+name: 🐛 Bug Report
+description: Report a reproducible bug, visual glitch, or unexpected behavior in modern-charts
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please provide as much context and reproducible detail as possible so we can diagnose and resolve it quickly.
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: 1. Observed Behavior (What happened?)
+      description: Clearly describe what actually happened or what visual/behavioral glitch occurred.
+      placeholder: e.g. "When toggling off active layers, the marker layer's dashed line remains visible on the canvas."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 2. Expected Behavior (What should have happened?)
+      description: Describe what you expected to see or happen instead.
+      placeholder: e.g. "The marker layer should be removed immediately from the SVG and not render."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: chart-type
+    attributes:
+      label: 3. Chart Component Affected
+      description: Which chart component or layer is experiencing this issue?
+      options:
+        - "<mc-line-chart> (Line & Area)"
+        - "<mc-bar-chart> (Bar & Stack)"
+        - "<mc-pie-chart> (Pie & Donut)"
+        - "<mc-heatmap-chart> (Heatmap Matrix)"
+        - "<mc-radar-chart> (Radar / Spider)"
+        - "<mc-sunburst-chart> (Sunburst Hierarchy)"
+        - "<mc-sankey-chart> (Sankey Flow)"
+        - "<mc-scatter-chart> (Scatter & Bubble)"
+        - "<mc-treemap-chart> (Treemap Hierarchy)"
+        - "<mc-gauge-chart> (Radial Gauge)"
+        - "Core Layer Pipeline / Sub-Components (<mc-label>, <mc-aria-layer>, etc.)"
+        - "Theme / Animation / Motion Engine"
+        - "Catalog / Demo Site"
+        - "Other / General"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: 4. Steps to Reproduce
+      description: Step-by-step instructions to reproduce the issue.
+      value: |
+        1. Mount or navigate to `<mc-bar-chart>`
+        2. Set config with ...
+        3. Trigger action / click ...
+        4. See observed glitch
+    validations:
+      required: true
+
+  - type: textarea
+    id: config-code
+    attributes:
+      label: 5. Minimal `chart.config` Snippet
+      description: Paste the minimal `chart.config` or HTML snippet that reproduces the issue.
+      render: typescript
+      placeholder: |
+        const chart = document.querySelector('mc-bar-chart');
+        chart.config = {
+          data: [...],
+          layers: ['axes', 'bars']
+        };
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 6. Screenshots or Screen Recording
+      description: Drag and drop screenshots or screen recordings showing the observed behavior.
+      placeholder: Drag and drop images or video here...
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 7. Environment & Versions
+      description: Details about your environment.
+      value: |
+        - **modern-charts version**: v0.1.0-alpha.0
+        - **Browser & version**: e.g. Chrome 131, Safari 18, Firefox 132
+        - **OS**: e.g. macOS 15, Windows 11, Ubuntu 24.04
+        - **Framework / Runtime** (if applicable): e.g. Vanilla, React 19, Vue 3, Vite
+    validations:
+      required: true

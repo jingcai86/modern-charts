@@ -74,6 +74,6 @@ export function renderScatterLegendsLayer(
       label: s.id,
       color: s.color || ctx.colorScale(s.id)
     })),
-    'right'
+    'bottom'
   );
 }

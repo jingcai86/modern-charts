@@ -292,32 +292,9 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   const config = getOrInitChartConfig(entry);
   const vState = chartVirtualState.get(entry.id)!;
 
-  // 1. Top Chart Navigation Strip (Back to Gallery + All 10 chart tabs)
-  const navBar = document.createElement('nav');
-  navBar.className = 'chart-nav-bar';
-  navBar.setAttribute('aria-label', 'Chart Type Switcher');
-  navBar.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <a href="#/" class="nav-home-btn">← Back to Gallery</a>
-      <div class="chart-tabs-strip">
-        ${CHART_CATALOG.map(
-          (item) => `
-          <a
-            href="#/chart/${item.id}"
-            class="chart-tab-pill ${item.id === entry.id ? 'active' : ''}"
-          >
-            ${item.title}
-          </a>
-        `
-        ).join('')}
-      </div>
-    </div>
-  `;
-  root.appendChild(navBar);
-
-  // 2. Two-Column Studio Grid:
+  // Two-Column Studio Grid:
   //    Left: Live Interactive Chart Stage + Layer Toggles + AI Streamer + ARIA Inspector
-  //    Right: Live Editable `chart.config` JSON & Web Component HTML Inspector
+  //    Right: All Customizable Attributes & Config Properties
   const studioGrid = document.createElement('section');
   studioGrid.className = 'detail-studio-grid';
 
@@ -362,27 +339,50 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
     </div>
   `;
 
-  // Right Card: Live Editable Data, Config & Web Component Markup
-  const editorCard = document.createElement('div');
+  // Right Card: All Customizable Attributes & Config Properties (Nivo-style minimizable accordion sections)
+  const allAttributes = getAllAttributesForChart(entry);
+  const categories = Array.from(new Set(allAttributes.map((a) => a.category)));
+
+  const attributesSection = document.createElement('div');
+  attributesSection.className = 'panel-card';
+  attributesSection.innerHTML = `
+    <div class="attributes-section-header">
+      <div>
+        <h2 class="panel-title">
+          All Customizable Attributes &amp; Config Properties (${allAttributes.length})
+        </h2>
+        <p style="margin:4px 0 0;font-size:0.82rem;color:var(--text-muted);">
+          Click any category header to expand or minimize it. Change any control below to see it reflect on the live chart and in <code>chart.config</code> immediately.
+        </p>
+      </div>
+      <div class="attributes-filter-bar">
+        <button type="button" id="btn-expand-all-attrs">Expand All</button>
+        <button type="button" id="btn-collapse-all-attrs">Minimize All</button>
+        <input
+          type="text"
+          id="attr-search-input"
+          class="attr-search-input"
+          placeholder="Filter attributes..."
+          aria-label="Filter attributes"
+        />
+      </div>
+    </div>
+    <div class="attributes-accordion-list" id="attributes-categories-grid"></div>
+  `;
+
+  studioGrid.appendChild(chartCard);
+  studioGrid.appendChild(attributesSection);
+  root.appendChild(studioGrid);
+
+  // Bottom Full-Width Card: Web Component HTML Markup
+  const editorCard = document.createElement('section');
   editorCard.className = 'panel-card';
   editorCard.innerHTML = `
     <div class="panel-header">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <h2 class="panel-title">Live Config &amp; Data Editor</h2>
-        <span id="config-sync-status" class="config-status-badge">Live Synced ✓</span>
+        <h2 class="panel-title">Web Component HTML Markup</h2>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <div class="editor-tabs">
-          <button type="button" id="tab-btn-data" class="editor-tab-btn active">
-            chart.config.data (Edit Data)
-          </button>
-          <button type="button" id="tab-btn-json" class="editor-tab-btn">
-            chart.config (Full Config)
-          </button>
-          <button type="button" id="tab-btn-html" class="editor-tab-btn">
-            Web Component HTML
-          </button>
-        </div>
         <button type="button" id="btn-editor-randomize-data" class="btn-primary">
           🎲 Randomize Data
         </button>
@@ -393,30 +393,12 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
     </div>
 
     <p style="margin:0;font-size:0.8rem;color:var(--text-muted);" id="editor-helper-desc">
-      Edit the dataset JSON below or click <strong>🎲 Randomize Data</strong> to generate new values — changes reflect on the chart and in <code>chart.config</code> immediately.
+      Declarative Web Component HTML markup representing the current <code>chart.config</code>.
     </p>
 
-    <textarea
-      id="detail-data-textarea"
-      class="config-editor-textarea"
-      spellcheck="false"
-      aria-label="Live chart.config.data JSON editor"
-    ></textarea>
-
-    <textarea
-      id="detail-config-textarea"
-      class="config-editor-textarea"
-      spellcheck="false"
-      aria-label="Live chart.config JSON editor"
-      hidden
-    ></textarea>
-
-    <pre id="detail-html-preview" class="stream-code-box" hidden></pre>
+    <pre id="detail-html-preview" class="stream-code-box"></pre>
   `;
-
-  studioGrid.appendChild(chartCard);
-  studioGrid.appendChild(editorCard);
-  root.appendChild(studioGrid);
+  root.appendChild(editorCard);
 
   // Mount the live chart element
   const stage = chartCard.querySelector('#detail-chart-stage') as HTMLElement;
@@ -425,21 +407,9 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   chartEl.setConfig(config);
   activeDetailChart = chartEl;
 
-  const dataTextarea = editorCard.querySelector(
-    '#detail-data-textarea'
-  ) as HTMLTextAreaElement;
-  const configTextarea = editorCard.querySelector(
-    '#detail-config-textarea'
-  ) as HTMLTextAreaElement;
   const htmlPreviewBox = editorCard.querySelector(
     '#detail-html-preview'
   ) as HTMLPreElement;
-  const syncStatusBadge = editorCard.querySelector(
-    '#config-sync-status'
-  ) as HTMLElement;
-  const editorHelperDesc = editorCard.querySelector(
-    '#editor-helper-desc'
-  ) as HTMLElement;
   const ariaReadout = chartCard.querySelector(
     '#detail-aria-readout'
   ) as HTMLElement;
@@ -490,44 +460,6 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   }
   renderLayerChips();
 
-  // Tab switch between Editable Data, Editable Full Config JSON, and Web Component HTML
-  const tabBtnData = editorCard.querySelector('#tab-btn-data') as HTMLButtonElement;
-  const tabBtnJson = editorCard.querySelector('#tab-btn-json') as HTMLButtonElement;
-  const tabBtnHtml = editorCard.querySelector('#tab-btn-html') as HTMLButtonElement;
-
-  tabBtnData.addEventListener('click', () => {
-    tabBtnData.classList.add('active');
-    tabBtnJson.classList.remove('active');
-    tabBtnHtml.classList.remove('active');
-    dataTextarea.hidden = false;
-    configTextarea.hidden = true;
-    htmlPreviewBox.hidden = true;
-    editorHelperDesc.innerHTML =
-      'Edit the dataset JSON below or click <strong>🎲 Randomize Data</strong> to generate new values — changes reflect on the chart and in <code>chart.config</code> immediately.';
-  });
-
-  tabBtnJson.addEventListener('click', () => {
-    tabBtnJson.classList.add('active');
-    tabBtnData.classList.remove('active');
-    tabBtnHtml.classList.remove('active');
-    dataTextarea.hidden = true;
-    configTextarea.hidden = false;
-    htmlPreviewBox.hidden = true;
-    editorHelperDesc.innerHTML =
-      'Edit any field in the full <code>chart.config</code> JSON below or adjust any attribute control in the table underneath — both update the live chart immediately.';
-  });
-
-  tabBtnHtml.addEventListener('click', () => {
-    tabBtnHtml.classList.add('active');
-    tabBtnData.classList.remove('active');
-    tabBtnJson.classList.remove('active');
-    dataTextarea.hidden = true;
-    configTextarea.hidden = true;
-    htmlPreviewBox.hidden = false;
-    editorHelperDesc.innerHTML =
-      'Declarative Web Component HTML markup representing the current <code>chart.config</code> and its internal composable layer elements.';
-  });
-
   const handleRandomizeData = () => {
     config.data = generateRandomDataForChart(entry.id, config.data);
     applyConfigUpdate(config, 'randomize');
@@ -552,7 +484,6 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
         activeLayerNames = [...nextSlice];
         config.layers = [...nextSlice];
         chartEl.setConfig(config);
-        configTextarea.value = formatConfigAsJson(config);
         htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, config);
         renderLayerChips();
         await new Promise((r) => setTimeout(r, 240));
@@ -617,36 +548,6 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
       }
     });
 
-  // 3. Full Interactive Attributes & Properties Customizer Section
-  const allAttributes = getAllAttributesForChart(entry);
-  const categories = Array.from(new Set(allAttributes.map((a) => a.category)));
-
-  const attributesSection = document.createElement('section');
-  attributesSection.className = 'panel-card';
-  attributesSection.innerHTML = `
-    <div class="attributes-section-header">
-      <div>
-        <h2 class="panel-title">
-          All Customizable Attributes &amp; Config Properties (${allAttributes.length})
-        </h2>
-        <p style="margin:4px 0 0;font-size:0.83rem;color:var(--text-muted);">
-          Every attribute and property that <code>&lt;${entry.tagName}&gt;</code> accepts. Change any control below to see it reflect on the live chart and in <code>chart.config</code> immediately.
-        </p>
-      </div>
-      <div class="attributes-filter-bar">
-        <input
-          type="text"
-          id="attr-search-input"
-          class="attr-search-input"
-          placeholder="Filter attributes (e.g. zoom, threshold, curve, aria)..."
-          aria-label="Filter attributes"
-        />
-      </div>
-    </div>
-    <div class="attributes-categories-grid" id="attributes-categories-grid"></div>
-  `;
-  root.appendChild(attributesSection);
-
   const categoriesGrid = attributesSection.querySelector(
     '#attributes-categories-grid'
   ) as HTMLElement;
@@ -692,21 +593,28 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
     applyConfigUpdate(config, 'controls');
   }
 
-  categories.forEach((categoryName) => {
+  categories.forEach((categoryName, catIdx) => {
     const specsInCat = allAttributes.filter((a) => a.category === categoryName);
-    const catCard = document.createElement('div');
-    catCard.className = 'attr-category-card';
-    catCard.dataset.category = categoryName;
+    const catDetails = document.createElement('details');
+    catDetails.className = 'attr-category-accordion';
+    catDetails.dataset.category = categoryName;
+    if (catIdx === 0) {
+      catDetails.open = true;
+    }
 
-    catCard.innerHTML = `
-      <h3 class="attr-category-title">
-        <span>${categoryName.replace(/\s*\(<mc-[^>]+>\)/g, '')}</span>
-        <span class="comp-pill">${specsInCat.length} props</span>
-      </h3>
+    const cleanCatTitle = categoryName.replace(/\s*\(<mc-[^>]+>\)/g, '');
+    catDetails.innerHTML = `
+      <summary class="attr-category-summary">
+        <div class="attr-category-summary-left">
+          <span class="attr-chevron" aria-hidden="true">▸</span>
+          <span class="attr-category-name">${cleanCatTitle}</span>
+        </div>
+        <span class="comp-pill">${specsInCat.length}</span>
+      </summary>
       <div class="attr-list"></div>
     `;
 
-    const attrList = catCard.querySelector('.attr-list') as HTMLElement;
+    const attrList = catDetails.querySelector('.attr-list') as HTMLElement;
 
     specsInCat.forEach((spec) => {
       const row = document.createElement('div');
@@ -883,8 +791,29 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
       attrList.appendChild(row);
     });
 
-    categoriesGrid.appendChild(catCard);
+    categoriesGrid.appendChild(catDetails);
   });
+
+  // Expand All / Minimize All buttons
+  attributesSection
+    .querySelector('#btn-expand-all-attrs')
+    ?.addEventListener('click', () => {
+      categoriesGrid
+        .querySelectorAll<HTMLDetailsElement>('.attr-category-accordion')
+        .forEach((d) => {
+          d.open = true;
+        });
+    });
+
+  attributesSection
+    .querySelector('#btn-collapse-all-attrs')
+    ?.addEventListener('click', () => {
+      categoriesGrid
+        .querySelectorAll<HTMLDetailsElement>('.attr-category-accordion')
+        .forEach((d) => {
+          d.open = false;
+        });
+    });
 
   // Search filter for attributes
   const searchInput = attributesSection.querySelector(
@@ -892,8 +821,10 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   ) as HTMLInputElement;
   searchInput.addEventListener('input', () => {
     const q = searchInput.value.trim().toLowerCase();
-    const cards = categoriesGrid.querySelectorAll<HTMLElement>('.attr-category-card');
-    cards.forEach((card) => {
+    const cards = categoriesGrid.querySelectorAll<HTMLDetailsElement>(
+      '.attr-category-accordion'
+    );
+    cards.forEach((card, idx) => {
       const rows = card.querySelectorAll<HTMLElement>('.attr-row');
       let visibleInCard = 0;
       rows.forEach((r) => {
@@ -902,31 +833,23 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
         if (match) visibleInCard++;
       });
       card.style.display = visibleInCard > 0 ? '' : 'none';
+      if (q && visibleInCard > 0) {
+        card.open = true;
+      } else if (!q) {
+        card.open = idx === 0;
+      }
     });
   });
 
-  // Central sync helper between Chart, Data Editor, JSON Editor, HTML Preview, and Attribute Controls
+  // Central sync helper between Chart, HTML Preview, and Attribute Controls
   function applyConfigUpdate(
     nextCfg: ChartConfig<any>,
-    source: 'controls' | 'data-editor' | 'json-editor' | 'randomize' | 'reset'
+    source: 'controls' | 'randomize' | 'reset'
   ) {
     chartConfigState.set(entry.id, nextCfg);
     chartEl.setConfig(nextCfg);
 
     htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, nextCfg);
-
-    if (source !== 'data-editor') {
-      dataTextarea.value = JSON.stringify(nextCfg.data, null, 2);
-    }
-
-    if (source !== 'json-editor') {
-      configTextarea.value = formatConfigAsJson(nextCfg);
-    }
-
-    if (source !== 'data-editor' && source !== 'json-editor') {
-      syncStatusBadge.textContent = 'Live Synced ✓';
-      syncStatusBadge.classList.remove('error');
-    }
 
     if (source !== 'controls') {
       controlSyncCallbacks.forEach((syncFn) => syncFn());
@@ -942,40 +865,7 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
   }
 
   // Initialize editor contents
-  dataTextarea.value = JSON.stringify(config.data, null, 2);
-  configTextarea.value = formatConfigAsJson(config);
   htmlPreviewBox.textContent = generateWebComponentHtmlSnippet(entry, config);
-
-  // Live Data JSON editor input listener
-  dataTextarea.addEventListener('input', () => {
-    try {
-      const parsedData = JSON.parse(dataTextarea.value);
-      config.data = parsedData;
-
-      syncStatusBadge.textContent = 'Data Synced ✓';
-      syncStatusBadge.classList.remove('error');
-      applyConfigUpdate(config, 'data-editor');
-    } catch (_err: any) {
-      syncStatusBadge.textContent = 'Invalid Data JSON';
-      syncStatusBadge.classList.add('error');
-    }
-  });
-
-  // Live Full Config JSON editor input listener
-  configTextarea.addEventListener('input', () => {
-    try {
-      const parsed = JSON.parse(configTextarea.value);
-      Object.keys(config).forEach((k) => delete (config as any)[k]);
-      Object.assign(config, parsed);
-
-      syncStatusBadge.textContent = 'Config Synced ✓';
-      syncStatusBadge.classList.remove('error');
-      applyConfigUpdate(config, 'json-editor');
-    } catch (_err: any) {
-      syncStatusBadge.textContent = 'Invalid Config JSON';
-      syncStatusBadge.classList.add('error');
-    }
-  });
 
   // Reset Default Config button
   editorCard.querySelector('#btn-reset-config')?.addEventListener('click', () => {

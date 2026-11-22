@@ -1,0 +1,48 @@
+name: 💡 Feature Request
+description: Suggest an enhancement, new chart capability, or API extension for modern-charts
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to make `modern-charts` better? We welcome suggestions for new layers, scales, animation motion presets, or chart types!
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 1. Motivation / Problem Statement
+      description: What problem are you trying to solve, or what capability is currently missing?
+      placeholder: e.g. "I need to support multi-line text wrapping for radar axis labels..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: 2. Proposed Solution & API Design
+      description: Describe your proposed solution and how the `chart.config` or HTML API should look.
+      render: typescript
+      placeholder: |
+        // Example desired API in chart.config:
+        chart.config = {
+          ...
+        };
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 3. Alternatives Considered
+      description: Any alternative designs, workarounds, or libraries (e.g. Nivo, ECharts) with similar features.
+    validations:
+      required: false
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: 4. Visual Mockups or References
+      description: Add any design mockups, sketches, or reference links.
+    validations:
+      required: false

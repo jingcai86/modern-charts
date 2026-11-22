@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="100%" height="auto" style="border-radius:16px;">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0f1d" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e1b4b" />
+    </linearGradient>
+
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#818cf8" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#c084fc" stop-opacity="0.9" />
+    </linearGradient>
+
+    <linearGradient id="bar1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#2563eb" stop-opacity="0.3" />
+    </linearGradient>
+    <linearGradient id="bar2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#4f46e5" stop-opacity="0.3" />
+    </linearGradient>
+    <linearGradient id="bar3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#7e22ce" stop-opacity="0.3" />
+    </linearGradient>
+    <linearGradient id="bar4" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f43f5e" />
+      <stop offset="100%" stop-color="#be123c" stop-opacity="0.3" />
+    </linearGradient>
+
+    <radialGradient id="aurora" cx="70%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.35" />
+      <stop offset="50%" stop-color="#a855f7" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#0a0f1d" stop-opacity="0" />
+    </radialGradient>
+
+    <filter id="blurFilter">
+      <feGaussianBlur stdDeviation="40" />
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="1200" height="360" rx="16" fill="url(#bg)" stroke="#1e293b" stroke-width="2" />
+  <circle cx="950" cy="140" r="180" fill="url(#aurora)" filter="url(#blurFilter)" />
+
+  <!-- Subtle Grid Lines -->
+  <g stroke="#334155" stroke-opacity="0.25" stroke-dasharray="4 4">
+    <line x1="680" y1="80" x2="1140" y2="80" />
+    <line x1="680" y1="140" x2="1140" y2="140" />
+    <line x1="680" y1="200" x2="1140" y2="200" />
+    <line x1="680" y1="260" x2="1140" y2="260" />
+  </g>
+
+  <!-- Decorative Chart Graphics on Right -->
+  <g transform="translate(680, 20)">
+    <!-- Bars -->
+    <rect x="30" y="160" width="44" height="100" rx="6" fill="url(#bar1)" />
+    <rect x="94" y="110" width="44" height="150" rx="6" fill="url(#bar2)" />
+    <rect x="158" y="70" width="44" height="190" rx="6" fill="url(#bar3)" />
+    <rect x="222" y="130" width="44" height="130" rx="6" fill="url(#bar4)" />
+
+    <!-- Area Gradient Wave -->
+    <path d="M 30,220 Q 90,140 180,170 T 360,90 L 420,120 L 420,260 L 30,260 Z"
+          fill="url(#glow)" fill-opacity="0.12" />
+
+    <!-- Glowing Spline Line -->
+    <path d="M 30,220 Q 90,140 180,170 T 360,90 L 420,120"
+          fill="none" stroke="url(#glow)" stroke-width="4" stroke-linecap="round" />
+
+    <!-- Spline Data Dots -->
+    <circle cx="30" cy="220" r="5" fill="#38bdf8" stroke="#0a0f1d" stroke-width="2" />
+    <circle cx="135" cy="155" r="5" fill="#818cf8" stroke="#0a0f1d" stroke-width="2" />
+    <circle cx="270" cy="130" r="5" fill="#a855f7" stroke="#0a0f1d" stroke-width="2" />
+    <circle cx="360" cy="90" r="6" fill="#f43f5e" stroke="#ffffff" stroke-width="2.5" />
+    <circle cx="420" cy="120" r="5" fill="#38bdf8" stroke="#0a0f1d" stroke-width="2" />
+  </g>
+
+  <!-- Text & Brand on Left -->
+  <g transform="translate(70, 75)">
+    <!-- Category Pill Badge -->
+    <rect x="0" y="0" width="220" height="30" rx="15" fill="#312e81" stroke="#6366f1" stroke-width="1.2" />
+    <text x="110" y="20" fill="#a5b4fc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0.5">
+      WEB COMPONENT CHARTS
+    </text>
+
+    <!-- Main Title -->
+    <text x="0" y="95" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="56" font-weight="800" letter-spacing="-1">
+      modern-charts
+    </text>
+
+    <!-- Subtitle -->
+    <text x="0" y="140" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="500">
+      Composable, zero-bloat charting inspired by Nivo &amp; ECharts.
+    </text>
+
+    <!-- Tech Stack Feature Pills -->
+    <g transform="translate(0, 175)">
+      <rect x="0" y="0" width="136" height="28" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1" />
+      <text x="68" y="18" fill="#38bdf8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" text-anchor="middle">⚡ Powered by D3</text>
+
+      <rect x="146" y="0" width="170" height="28" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1" />
+      <text x="231" y="18" fill="#c084fc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" text-anchor="middle">✨ @chenglou/pretext</text>
+
+      <rect x="326" y="0" width="154" height="28" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1" />
+      <text x="403" y="18" fill="#34d399" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" text-anchor="middle">♿ W3C ARIA Item-Level</text>
+    </g>
+  </g>
+</svg>

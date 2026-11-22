@@ -264,7 +264,7 @@ export function renderCartesianAxes(
         id: 'x-axis-title',
         text: options.xTitle,
         x: ctx.innerWidth / 2,
-        y: ctx.innerHeight + 38,
+        y: ctx.innerHeight + 34,
         type: 'axis-title',
         anchor: 'middle',
         baseline: 'middle',
@@ -442,7 +442,7 @@ export function renderLegendLayer(
     const startX = Math.max(0, (ctx.innerWidth - cursorX) / 2);
     legendG.setAttribute(
       'transform',
-      `translate(${startX}, ${ctx.innerHeight + Math.min(36, ctx.margin.bottom - 12)})`
+      `translate(${startX}, ${ctx.innerHeight + Math.max(36, ctx.margin.bottom - 12)})`
     );
   } else {
     // Default top-right horizontal legend
