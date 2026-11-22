@@ -17,7 +17,8 @@ export interface ChartVirtualState {
   __markerLabelPosition: MarkerLabelPosition;
   __markerLabelPadding: number;
   __markerLabelEdgePadding: number;
-  __markerLegend: boolean;
+  __markerLineLegend: boolean;
+  __markerBandLegend: boolean;
   __markerAnnotationEnabled: boolean;
   __markerAnnotationPosition: MarkerAnnotationPosition;
   __markerAnnotationPadding: number;
@@ -35,6 +36,7 @@ export function getOrInitChartConfig(entry: ChartCatalogEntry): ChartConfig<any>
     chartConfigState.set(entry.id, cfg);
 
     const lineMarker = cfg.markers?.find((m) => m.type === 'line');
+    const areaMarker = cfg.markers?.find((m) => m.type === 'area');
     const annObj =
       lineMarker?.annotation && typeof lineMarker.annotation === 'object'
         ? lineMarker.annotation
@@ -50,7 +52,8 @@ export function getOrInitChartConfig(entry: ChartCatalogEntry): ChartConfig<any>
       __markerLabelPosition: lineMarker?.labelPosition ?? 'top-right',
       __markerLabelPadding: lineMarker?.labelPadding ?? 10,
       __markerLabelEdgePadding: lineMarker?.labelEdgePadding ?? 10,
-      __markerLegend: Boolean(lineMarker?.legend),
+      __markerLineLegend: Boolean(lineMarker?.legend),
+      __markerBandLegend: Boolean(areaMarker?.legend),
       __markerAnnotationEnabled: Boolean(lineMarker?.annotation),
       __markerAnnotationPosition: annObj?.position ?? 'right',
       __markerAnnotationPadding: annObj?.padding ?? 8,
@@ -114,7 +117,7 @@ export function buildMarkersForVirtualState(
       to: val,
       fill: color,
       fillOpacity: 0.09,
-      ...(vState.__markerLegend
+      ...(vState.__markerBandLegend
         ? {
             legend: {
               label: `Threshold Band (0–${val})`,
@@ -140,7 +143,7 @@ export function buildMarkersForVirtualState(
       strokeDasharray: '6 4',
       condition: cond,
       matchScope,
-      ...(vState.__markerLegend
+      ...(vState.__markerLineLegend
         ? {
             legend: {
               label: `Threshold (${cond} ${val})`,

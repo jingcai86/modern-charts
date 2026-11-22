@@ -452,13 +452,22 @@ export const MARKER_THRESHOLD_ATTRIBUTES: ChartAttributeSpec[] = [
     defaultValue: 10
   },
   {
-    configPath: '__markerLegend',
-    attrName: 'mc-marker[legend]',
+    configPath: '__markerLineLegend',
+    attrName: 'mc-marker[type="line"][legend]',
     category: 'Marker & Threshold (<mc-marker-layer>)',
     control: 'boolean',
     description:
-      'Shows the threshold marker line & area inside the unified chart legend with hover/focus legend tooltips.',
-    defaultValue: true
+      'Shows the threshold line marker inside the unified chart legend with its own dashed line swatch and legend tooltip.',
+    defaultValue: false
+  },
+  {
+    configPath: '__markerBandLegend',
+    attrName: 'mc-marker[type="area"][legend]',
+    category: 'Marker & Threshold (<mc-marker-layer>)',
+    control: 'boolean',
+    description:
+      'Shows the threshold band (area) marker inside the unified chart legend with its own shaded swatch and legend tooltip.',
+    defaultValue: false
   },
   {
     configPath: '__markerAnnotationEnabled',

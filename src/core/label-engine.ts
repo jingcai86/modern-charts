@@ -685,10 +685,11 @@ export class LabelEngine {
     const anchor = descriptor.anchor ?? 'middle';
     const baseline = descriptor.baseline ?? 'middle';
 
-    const extraW = descriptor.background || content || descriptor.icon ? 18 : 8;
-    const extraH = descriptor.background || content || descriptor.icon ? 8 : 4;
-    const boxW = Math.max(26, measured.boxWidth + extraW);
-    const boxH = Math.max(20, measured.boxHeight + extraH);
+    const hasBoxStyle = Boolean(descriptor.background || descriptor.borderColor);
+    const extraW = hasBoxStyle ? 18 : 4;
+    const extraH = hasBoxStyle ? 8 : 2;
+    const boxW = Math.max(hasBoxStyle ? 26 : 16, measured.boxWidth + extraW);
+    const boxH = Math.max(hasBoxStyle ? 20 : 16, measured.boxHeight + extraH);
 
     let offsetX = 0;
     if (anchor === 'middle') offsetX = -boxW / 2;
@@ -718,19 +719,9 @@ export class LabelEngine {
         : 'flex-start';
     const textAlign =
       anchor === 'middle' ? 'center' : anchor === 'end' ? 'right' : 'left';
-    const bg =
-      descriptor.background ??
-      (theme.mode === 'dark'
-        ? 'rgba(30, 41, 59, 0.88)'
-        : 'rgba(241, 245, 249, 0.92)');
-    const border =
-      descriptor.borderColor ??
-      (theme.mode === 'dark'
-        ? 'rgba(148, 163, 184, 0.3)'
-        : 'rgba(148, 163, 184, 0.45)');
     const iconGap = descriptor.iconGap ?? 5;
 
-    container.style.cssText = [
+    const styles: string[] = [
       'display: inline-flex',
       'align-items: center',
       `gap: ${iconGap}px`,
@@ -744,14 +735,28 @@ export class LabelEngine {
       `font-weight: ${fontWeight}`,
       `line-height: ${measured.lineHeight}px`,
       `color: ${descriptor.color ?? theme.textColor}`,
-      `background: ${bg}`,
-      `border: 1px solid ${border}`,
-      `border-radius: ${descriptor.borderRadius ?? 6}px`,
-      'padding: 2px 6px',
       'overflow-wrap: break-word',
       'pointer-events: none',
       'user-select: none'
-    ].join('; ');
+    ];
+    if (descriptor.background) {
+      styles.push(`background: ${descriptor.background}`);
+    }
+    if (descriptor.borderColor) {
+      styles.push(`border: 1px solid ${descriptor.borderColor}`);
+    }
+    if (descriptor.borderRadius !== undefined || hasBoxStyle) {
+      styles.push(`border-radius: ${descriptor.borderRadius ?? 6}px`);
+    }
+    if (descriptor.padding) {
+      styles.push(
+        `padding: ${descriptor.padding.top}px ${descriptor.padding.right}px ${descriptor.padding.bottom}px ${descriptor.padding.left}px`
+      );
+    } else if (hasBoxStyle) {
+      styles.push('padding: 2px 6px');
+    }
+
+    container.style.cssText = styles.join('; ');
 
     if (content instanceof HTMLElement) {
       container.innerHTML = '';
@@ -760,16 +765,23 @@ export class LabelEngine {
       container.innerHTML = content;
     } else {
       const iconNode = this.buildIconNode(descriptor, fontSize);
-      const textSpan = document.createElementNS(XHTML_NS, 'span');
-      textSpan.className = 'mc-fo-label-text';
-      textSpan.textContent = descriptor.text;
+      const hasText = Boolean(descriptor.text);
+      const textSpan = hasText
+        ? (document.createElementNS(XHTML_NS, 'span') as HTMLSpanElement)
+        : null;
+      if (textSpan) {
+        textSpan.className = 'mc-fo-label-text';
+        textSpan.textContent = descriptor.text;
+      }
 
-      if (iconNode && descriptor.iconPosition === 'end') {
+      if (iconNode && textSpan && descriptor.iconPosition === 'end') {
         container.append(textSpan, iconNode);
-      } else if (iconNode) {
+      } else if (iconNode && textSpan) {
         container.append(iconNode, textSpan);
-      } else {
-        container.appendChild(textSpan);
+      } else if (iconNode) {
+        container.append(iconNode);
+      } else if (textSpan) {
+        container.append(textSpan);
       }
     }
 

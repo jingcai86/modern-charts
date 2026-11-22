@@ -1247,13 +1247,43 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
     lineLegendItem!.dispatchEvent(new FocusEvent('blur'));
     expect(legendTip.hidden).toBe(true);
 
-    // 4. Marker labels & annotations render boxless by default (no .mc-label-bg),
+    // 4. Marker labels & annotations render boxless by default (both SVG and foreignObject with SVG icon!),
     //    and accept explicit background/border/color/formatter via labelStyle or annotation
     expect(
       line.shadowRoot?.querySelector(
         '[data-label-id="marker-annotation-alert-zone"] .mc-label-bg'
       )
     ).toBeNull();
+
+    // Verify foreignObject marker label & annotation (triggered by inline <svg> icon) have transparent bg & no border by default
+    line.config = {
+      ...line.config,
+      markers: [
+        {
+          id: 'svg-icon-marker',
+          type: 'line',
+          axis: 'y',
+          value: 120,
+          label: 'Warn 120',
+          icon: '<svg width="11" height="11" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>',
+          annotation: {
+            text: '120',
+            icon: '<svg width="11" height="11" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>',
+            position: 'right'
+          }
+        }
+      ]
+    };
+    const foLabelDiv = line.shadowRoot?.querySelector(
+      '[data-label-id="marker-label-svg-icon-marker"] .mc-fo-label'
+    ) as HTMLElement | null;
+    const foAnnDiv = line.shadowRoot?.querySelector(
+      '[data-label-id="marker-annotation-svg-icon-marker"] .mc-fo-label'
+    ) as HTMLElement | null;
+    expect(foLabelDiv?.style.background).toBe('');
+    expect(foLabelDiv?.style.border).toBe('');
+    expect(foAnnDiv?.style.background).toBe('');
+    expect(foAnnDiv?.style.border).toBe('');
 
     line.config = {
       ...line.config,
