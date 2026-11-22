@@ -693,6 +693,7 @@ export class MarkerEngine {
       ...(ann.borderRadius !== undefined ? { borderRadius: ann.borderRadius } : {}),
       ...(ann.labelPadding ? { padding: ann.labelPadding } : {}),
       ...(ann.renderer ? { renderer: ann.renderer } : {}),
+      enableTooltip: ann.enableTooltip ? false : undefined,
       icon: ann.icon,
       datum: marker
     };

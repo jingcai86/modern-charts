@@ -298,27 +298,59 @@ chart.config = {
 
   renderLabelDemo1('svg');
 
-  // Example 2: Multi-Line Pretext Wrapping with Live maxWidth Slider
+  // Example 2: Interactive Pretext Truncation, Rotation & Tooltip Playground (<mc-truncate>)
   const ex2 = document.createElement('section');
   ex2.className = 'panel-card guide-section';
   ex2.innerHTML = `
     <div class="panel-header">
       <div>
-        <h2 class="panel-title">Example 2: Zero-Reflow Multi-Line Wrapping via <code>maxWidth</code></h2>
+        <h2 class="panel-title">Example 2: Pretext Label Truncation, Rotation &amp; Tooltips (<code>&lt;mc-truncate&gt;</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Drag the <code>maxWidth</code> slider to watch <code>@chenglou/pretext</code> break long category labels cleanly into multiple lines without touching the DOM layout engine.
+          Every <code>&lt;mc-label&gt;</code> uses the shared <code>@chenglou/pretext</code> truncation engine.
+          When <code>maxWidth</code> or <code>maxChars</code> is exceeded, it defaults to ellipsis truncation with an automatic hover/keyboard tooltip showing the full text — or switch to <code>rotate</code> (default 45° or negative like -45°), <code>both</code>, or <code>wrap</code>.
         </p>
       </div>
-      <div class="guide-controls-row">
-        <label for="lbl-maxwidth-slider" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
-          Axis Tick <code>maxWidth</code>: <strong id="lbl-maxwidth-val">82px</strong>
-        </label>
-        <input type="range" id="lbl-maxwidth-slider" min="48" max="170" step="2" value="82" />
+      <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
+        <button type="button" data-ov-strat="truncate" class="btn-primary">truncate</button>
+        <button type="button" data-ov-strat="rotate">rotate</button>
+        <button type="button" data-ov-strat="both">both</button>
+        <button type="button" data-ov-strat="wrap">wrap</button>
+        <button type="button" data-ov-strat="none">none</button>
       </div>
+    </div>
+    <div class="guide-controls-row" style="flex-wrap:wrap;gap:14px;margin:0 0 12px;">
+      <label for="lbl-maxwidth-slider" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
+        <code>maxWidth</code>: <strong id="lbl-maxwidth-val">82px</strong>
+        <input type="range" id="lbl-maxwidth-slider" min="48" max="170" step="2" value="82" style="vertical-align:middle;margin-left:6px;" />
+      </label>
+      <label for="lbl-maxchars-slider" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
+        <code>maxChars</code>: <strong id="lbl-maxchars-val">off</strong>
+        <input type="range" id="lbl-maxchars-slider" min="0" max="26" step="1" value="0" style="vertical-align:middle;margin-left:6px;" />
+      </label>
+      <label for="lbl-maxrot-slider" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
+        <code>maxRotation</code>: <strong id="lbl-maxrot-val">-45°</strong>
+        <input type="range" id="lbl-maxrot-slider" min="-90" max="90" step="5" value="-45" style="vertical-align:middle;margin-left:6px;" />
+      </label>
+      <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="lbl-tooltip-toggle" checked />
+        <code>enableTooltip</code> (hover/Tab truncated labels)
+      </label>
     </div>
     <div class="guide-example-grid">
       <div class="guide-chart-stage" id="guide-label-chart-2"></div>
       <div id="guide-label-code-2"></div>
+    </div>
+    <div style="margin-top:14px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;">
+      <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted);">Standalone <code>&lt;mc-truncate&gt;</code> component (hover or Tab):</span>
+      <mc-truncate
+        id="standalone-truncate-demo"
+        text="Global Enterprise Cloud Infrastructure Throughput Analysis"
+        max-width="150"
+        strategy="truncate"
+        font-size="13"
+        font-weight="600"
+        theme-mode="${themeMode}"
+      ></mc-truncate>
     </div>
   `;
   container.appendChild(ex2);
@@ -327,8 +359,26 @@ chart.config = {
   ex2.querySelector('#guide-label-chart-2')!.appendChild(wrapChart);
   mounted.push(wrapChart);
 
+  const code2Host = ex2.querySelector('#guide-label-code-2') as HTMLElement;
+  const standaloneTruncate = ex2.querySelector('#standalone-truncate-demo') as HTMLElement;
+
+  let ovStrategy: 'truncate' | 'rotate' | 'both' | 'wrap' | 'none' = 'truncate';
   let tickMaxWidth = 82;
-  const renderWrapChart = () => {
+  let tickMaxChars = 0;
+  let tickMaxRotation = -45;
+  let tickEnableTooltip = true;
+
+  const renderOverflowChart = () => {
+    const overflowCfg: Record<string, any> = {
+      strategy: ovStrategy,
+      maxWidth: tickMaxWidth,
+      maxRotation: tickMaxRotation,
+      enableTooltip: tickEnableTooltip
+    };
+    if (tickMaxChars > 0) {
+      overflowCfg.maxChars = tickMaxChars;
+    }
+
     wrapChart.setConfig({
       data: [
         { dept: 'Cloud Platform Engineering', Spend: 214 },
@@ -339,50 +389,106 @@ chart.config = {
       autoSize: true,
       themeMode,
       palette: 'sunset',
-      title: `Pretext Wrapping (axis-tick maxWidth: ${tickMaxWidth}px)`,
+      title: `Pretext Overflow: strategy="${ovStrategy}" (maxWidth: ${tickMaxWidth}px${
+        tickMaxChars > 0 ? `, maxChars: ${tickMaxChars}` : ''
+      })`,
       indexBy: 'dept',
       keys: ['Spend'],
       borderRadius: 6,
-      margin: { top: 44, right: 24, bottom: 88, left: 50 },
+      margin: {
+        top: 44,
+        right: 24,
+        bottom: ovStrategy === 'rotate' || ovStrategy === 'both' ? 116 : 84,
+        left: 50
+      },
       label: {
         target: 'axis-tick',
-        maxWidth: tickMaxWidth,
+        overflow: overflowCfg,
         fontSize: 11
       },
       layers: ['grid', 'axes', 'bars', 'labels']
     });
+
+    standaloneTruncate.setAttribute('strategy', ovStrategy === 'wrap' ? 'truncate' : ovStrategy);
+    standaloneTruncate.setAttribute('max-width', String(Math.max(90, tickMaxWidth + 40)));
+    if (tickMaxChars > 0) {
+      standaloneTruncate.setAttribute('max-chars', String(tickMaxChars));
+    } else {
+      standaloneTruncate.removeAttribute('max-chars');
+    }
+    standaloneTruncate.setAttribute('max-rotation', String(tickMaxRotation));
+    standaloneTruncate.setAttribute('enable-tooltip', String(tickEnableTooltip));
+
+    code2Host.innerHTML = '';
+    code2Host.appendChild(
+      createCodeBlock(
+        `
+// 1. Unified chart config (applies across all <mc-label> targets):
+chart.config = {
+  data: departmentData,
+  labelOverflow: {
+    strategy: '${ovStrategy}', // 'truncate' | 'rotate' | 'both' | 'wrap' | 'none'
+    maxWidth: ${tickMaxWidth},${tickMaxChars > 0 ? `\n    maxChars: ${tickMaxChars},` : ''}
+    maxRotation: ${tickMaxRotation}, // default 45 (supports negative e.g. -45)
+    enableTooltip: ${tickEnableTooltip} // default true; customizable via tooltip: { formatter }
+  }
+};
+
+// 2. Declarative <mc-truncate> inside any chart or standalone:
+// <mc-bar-chart>
+//   <mc-truncate for="axis-tick" strategy="${ovStrategy}" max-width="${tickMaxWidth}"${
+          tickMaxChars > 0 ? ` max-chars="${tickMaxChars}"` : ''
+        } max-rotation="${tickMaxRotation}" enable-tooltip="${tickEnableTooltip}"></mc-truncate>
+// </mc-bar-chart>
+        `,
+        'Pretext Truncation, Rotation & Tooltip'
+      )
+    );
   };
-  renderWrapChart();
+  renderOverflowChart();
+
+  const stratButtons = Array.from(
+    ex2.querySelectorAll<HTMLButtonElement>('[data-ov-strat]')
+  );
+  stratButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      ovStrategy = btn.dataset.ovStrat as typeof ovStrategy;
+      stratButtons.forEach((b) =>
+        b.classList.toggle('btn-primary', b.dataset.ovStrat === ovStrategy)
+      );
+      renderOverflowChart();
+    });
+  });
 
   const maxWidthSlider = ex2.querySelector('#lbl-maxwidth-slider') as HTMLInputElement;
   const maxWidthVal = ex2.querySelector('#lbl-maxwidth-val') as HTMLElement;
   maxWidthSlider.addEventListener('input', () => {
     tickMaxWidth = Number(maxWidthSlider.value);
     maxWidthVal.textContent = `${tickMaxWidth}px`;
-    renderWrapChart();
+    renderOverflowChart();
   });
 
-  ex2.querySelector('#guide-label-code-2')!.appendChild(
-    createCodeBlock(
-      `
-// Works both via chart.config.label AND declaratively via <mc-label>:
-chart.config = {
-  data: departmentData,
-  label: {
-    target: 'axis-tick', // 'all' | 'data' | 'axis-tick' | 'arc' | 'title' | 'marker' | ...
-    maxWidth: 82,
-    fontSize: 11
-  }
-};
+  const maxCharsSlider = ex2.querySelector('#lbl-maxchars-slider') as HTMLInputElement;
+  const maxCharsVal = ex2.querySelector('#lbl-maxchars-val') as HTMLElement;
+  maxCharsSlider.addEventListener('input', () => {
+    tickMaxChars = Number(maxCharsSlider.value);
+    maxCharsVal.textContent = tickMaxChars > 0 ? `${tickMaxChars}` : 'off';
+    renderOverflowChart();
+  });
 
-// Declarative Web Component equivalent:
-// <mc-bar-chart>
-//   <mc-label target="axis-tick" max-width="82" font-size="11"></mc-label>
-// </mc-bar-chart>
-      `,
-      'Multi-Line Wrapping with maxWidth'
-    )
-  );
+  const maxRotSlider = ex2.querySelector('#lbl-maxrot-slider') as HTMLInputElement;
+  const maxRotVal = ex2.querySelector('#lbl-maxrot-val') as HTMLElement;
+  maxRotSlider.addEventListener('input', () => {
+    tickMaxRotation = Number(maxRotSlider.value);
+    maxRotVal.textContent = `${tickMaxRotation}°`;
+    renderOverflowChart();
+  });
+
+  const tipToggle = ex2.querySelector('#lbl-tooltip-toggle') as HTMLInputElement;
+  tipToggle.addEventListener('change', () => {
+    tickEnableTooltip = tipToggle.checked;
+    renderOverflowChart();
+  });
 
   return mounted;
 }

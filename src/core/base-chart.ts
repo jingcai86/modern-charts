@@ -6,6 +6,10 @@ import {
 } from './animation-engine';
 import { AriaEngine, createDefaultAriaConfig } from './aria-engine';
 import { LabelEngine } from './label-engine';
+import {
+  normalizeOverflowInput,
+  normalizeOverflowStrategy
+} from './label-truncate';
 import { createDefaultLegendConfig } from './legend-engine';
 import { MarkerEngine, resolveMarkerAnnotation } from './marker-engine';
 import { createDefaultScaleConfig } from './scale-manager';
@@ -24,6 +28,8 @@ import type {
   CustomLabelRenderer,
   ItemAnimationSpec,
   LabelDescriptor,
+  LabelOverflowConfig,
+  LabelOverflowStrategy,
   LabelStyleOverride,
   LayerInput,
   LegendConfig,
@@ -50,6 +56,7 @@ import {
   MCViewLayer
 } from '../components/layers/mc-layers';
 import { MCLabelElement } from '../components/mc-label';
+import { MCTruncateElement } from '../components/mc-truncate';
 import { MCLegendElement } from '../components/mc-legend';
 import {
   MCTooltipElement,
@@ -195,8 +202,20 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
         }
 
         .mc-layer--markers .mc-marker-annotation,
-        .mc-layer--markers .mc-marker-annotation * {
+        .mc-layer--markers .mc-marker-annotation *,
+        .mc-label--interactive,
+        .mc-label--interactive * {
           pointer-events: auto;
+        }
+
+        .mc-label--interactive {
+          cursor: pointer;
+          outline: none;
+        }
+
+        .mc-label--interactive:focus-visible {
+          outline: 2px solid var(--_mc-focus-ring);
+          outline-offset: 2px;
         }
 
         @keyframes mc-layer-reveal {
@@ -300,6 +319,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       'chart-title',
       'layers',
       'label-mode',
+      'label-overflow',
       'animate',
       'motion-config',
       'aria-label',
@@ -733,6 +753,21 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._labelRenderer = fn;
     this._config.labelRenderer = fn;
     this.labelEngine.setCustomRenderer(fn);
+    if (this._isConnected) {
+      this.render();
+    }
+  }
+
+  get labelOverflow(): LabelOverflowStrategy | LabelOverflowConfig | undefined {
+    return (
+      this._config.labelOverflow ??
+      normalizeOverflowStrategy(this.getAttribute('label-overflow'))
+    );
+  }
+  set labelOverflow(
+    val: LabelOverflowStrategy | LabelOverflowConfig | undefined
+  ) {
+    this._config.labelOverflow = val;
     if (this._isConnected) {
       this.render();
     }
@@ -1330,6 +1365,30 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   public resolveLabelOverrides(): LabelStyleOverride[] {
     const overrides: LabelStyleOverride[] = [];
 
+    const rawLabelOverflow =
+      this._config.labelOverflow ??
+      normalizeOverflowStrategy(this.getAttribute('label-overflow'));
+    if (rawLabelOverflow !== undefined) {
+      const ov = normalizeOverflowInput(rawLabelOverflow);
+      if (Object.keys(ov).length > 0) {
+        overrides.push({
+          target: 'all',
+          overflow: ov,
+          ...(ov.maxWidth !== undefined ? { maxWidth: ov.maxWidth } : {}),
+          ...(ov.maxChars !== undefined ? { maxChars: ov.maxChars } : {}),
+          ...(ov.maxLines !== undefined ? { maxLines: ov.maxLines } : {}),
+          ...(ov.ellipsis !== undefined ? { ellipsis: ov.ellipsis } : {}),
+          ...(ov.maxRotation !== undefined
+            ? { maxRotation: ov.maxRotation }
+            : {}),
+          ...(ov.enableTooltip !== undefined
+            ? { enableTooltip: ov.enableTooltip }
+            : {}),
+          ...(ov.tooltip !== undefined ? { tooltip: ov.tooltip } : {})
+        });
+      }
+    }
+
     if (this._config.label) {
       const list = Array.isArray(this._config.label)
         ? this._config.label
@@ -1342,19 +1401,51 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       }
     }
 
-    const labelEls = Array.from(this.children).filter(
-      (el) => el.tagName.toLowerCase() === 'mc-label'
-    ) as MCLabelElement[];
+    const declarativeEls = Array.from(this.children).filter((el) => {
+      const tag = el.tagName.toLowerCase();
+      return tag === 'mc-label' || tag === 'mc-truncate';
+    });
 
-    for (const el of labelEls) {
-      if (typeof el.toStyleOverride === 'function') {
-        overrides.push(el.toStyleOverride());
+    for (const el of declarativeEls) {
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'mc-truncate') {
+        const truncEl = el as MCTruncateElement;
+        if (typeof truncEl.toStyleOverride === 'function') {
+          overrides.push(truncEl.toStyleOverride());
+        } else {
+          const strat = normalizeOverflowStrategy(el.getAttribute('strategy'));
+          overrides.push({
+            target: (el.getAttribute('for') as any) || 'all',
+            overflow: strat ? { strategy: strat } : undefined,
+            maxWidth: el.hasAttribute('max-width')
+              ? Number(el.getAttribute('max-width'))
+              : undefined,
+            maxChars: el.hasAttribute('max-chars')
+              ? Number(el.getAttribute('max-chars'))
+              : undefined,
+            maxRotation: el.hasAttribute('max-rotation')
+              ? Number(el.getAttribute('max-rotation'))
+              : undefined,
+            enableTooltip: el.hasAttribute('enable-tooltip')
+              ? el.getAttribute('enable-tooltip') !== 'false'
+              : undefined
+          });
+        }
+        continue;
+      }
+
+      const labelEl = el as MCLabelElement;
+      if (typeof labelEl.toStyleOverride === 'function') {
+        overrides.push(labelEl.toStyleOverride());
       } else {
         overrides.push({
           target: (el.getAttribute('for') as any) || 'all',
           renderMode: (el.getAttribute('mode') as any) || undefined,
           maxWidth: el.hasAttribute('max-width')
             ? Number(el.getAttribute('max-width'))
+            : undefined,
+          maxChars: el.hasAttribute('max-chars')
+            ? Number(el.getAttribute('max-chars'))
             : undefined,
           color: el.getAttribute('color') || undefined,
           background: el.getAttribute('bg-color') || undefined
@@ -1559,6 +1650,11 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
     this.labelEngine.setOverrides(labelOverrides);
     this.labelEngine.setCustomRenderer(this.labelRenderer);
+    this.labelEngine.setTooltipHandlers({
+      showTooltip: (content, clientX, clientY, overrideConfig) =>
+        this.showTooltip(content, clientX, clientY, theme, overrideConfig),
+      hideTooltip: () => this.hideTooltip()
+    });
 
     svg.setAttribute('width', String(dims.width));
     svg.setAttribute('height', String(dims.height));
@@ -1632,8 +1728,22 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       d3: getChartD3(),
       renderLabel: (parent: SVGElement, descriptor: LabelDescriptor) =>
         this.labelEngine.renderLabel(parent, descriptor, theme),
-      measureText: (text: string, options?: Partial<LabelDescriptor>) =>
-        this.labelEngine.measure(text, options, theme),
+      measureText: (text: string, options?: Partial<LabelDescriptor>) => {
+        if (options?.type) {
+          const { descriptor } = this.labelEngine.resolveDescriptor(
+            {
+              x: 0,
+              y: 0,
+              ...options,
+              text,
+              type: options.type
+            },
+            theme
+          );
+          return this.labelEngine.measure(descriptor.text, descriptor, theme);
+        }
+        return this.labelEngine.measure(text, options, theme);
+      },
       decorateAriaItem: (element: SVGElement, item: AriaItemDescriptor) => {
         const decorated = this.ariaEngine.decorateItem(
           element,
@@ -1693,6 +1803,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
           type: 'title',
           anchor: 'start',
           baseline: 'middle',
+          maxWidth: Math.max(80, dims.innerWidth),
           fontSize: theme.fontSize + 3,
           fontWeight: 700,
           color: theme.textColor

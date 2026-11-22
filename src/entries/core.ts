@@ -3,6 +3,7 @@ import { registerCoreComponents } from '../core/registry';
 // Core Engine
 export * from '../core/types';
 export * from '../core/theme';
+export * from '../core/label-truncate';
 export * from '../core/label-engine';
 export * from '../core/animation-engine';
 export * from '../core/aria-engine';
@@ -16,6 +17,7 @@ export * from '../core/base-chart';
 
 // Capability Layer Web Components
 export * from '../components/mc-label';
+export * from '../components/mc-truncate';
 export * from '../components/mc-tooltip';
 export * from '../components/mc-legend';
 export * from '../components/mc-animation';

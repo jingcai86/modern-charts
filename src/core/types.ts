@@ -426,6 +426,71 @@ export type LabelTargetType =
 
 export type LabelRenderMode = 'svg' | 'foreignObject' | 'custom';
 
+export type LabelOverflowStrategy =
+  | 'truncate'
+  | 'rotate'
+  | 'both'
+  | 'wrap'
+  | 'none';
+
+export interface LabelOverflowConfig {
+  /**
+   * Overflow strategy applied when text exceeds `maxWidth` or `maxChars`:
+   * - `'truncate'` (default): truncates with ellipsis using `@chenglou/pretext`.
+   * - `'rotate'`: rotates the label up to `maxRotation` (default `45°`; supports negative values like `-45`).
+   * - `'both'`: rotates (`maxRotation`) AND truncates to fit `maxWidth` / `maxChars`.
+   * - `'wrap'`: multi-line `@chenglou/pretext` wrapping (`layoutWithLines`).
+   * - `'none'`: disables truncation and automatic overflow rotation.
+   */
+  strategy?: LabelOverflowStrategy;
+  /** Maximum available pixel width measured via `@chenglou/pretext` before overflow triggers. */
+  maxWidth?: number;
+  /** Maximum character (grapheme) count before overflow triggers. */
+  maxChars?: number;
+  /** Maximum line count (applies to multi-line text and `'wrap'` strategy). */
+  maxLines?: number;
+  /** Ellipsis suffix appended when truncating. Default `'…'`. */
+  ellipsis?: string;
+  /**
+   * Maximum rotation angle in degrees when strategy is `'rotate'` or `'both'`.
+   * Default `45`. Supports negative values (e.g. `-45`).
+   */
+  maxRotation?: number;
+  /**
+   * Show full untruncated text in a tooltip on hover and keyboard focus when
+   * truncated. Enabled (`true`) by default; set `false` to explicitly disable.
+   */
+  enableTooltip?: boolean;
+  /**
+   * Customize or explicitly disable (`false`) the truncated-label tooltip using
+   * the standard `TooltipConfig` API.
+   */
+  tooltip?: boolean | TooltipConfig<LabelDescriptor>;
+}
+
+export interface ResolvedLabelOverflowConfig {
+  strategy: LabelOverflowStrategy;
+  maxWidth?: number;
+  maxChars?: number;
+  maxLines?: number;
+  ellipsis: string;
+  maxRotation: number;
+  enableTooltip: boolean;
+  tooltip?: TooltipConfig<LabelDescriptor>;
+}
+
+export interface LabelTruncateResult {
+  text: string;
+  originalText: string;
+  lines: MeasuredLabelLine[];
+  truncated: boolean;
+  overflowTriggered: boolean;
+  appliedStrategy: LabelOverflowStrategy;
+  appliedRotation: number;
+  naturalWidth: number;
+  width: number;
+}
+
 export interface LabelPadding {
   top: number;
   right: number;
@@ -443,7 +508,14 @@ export interface LabelDescriptor {
   baseline?: 'auto' | 'middle' | 'hanging' | 'central' | 'alphabetic';
   rotation?: number;
   maxWidth?: number;
+  maxChars?: number;
   maxHeight?: number;
+  maxLines?: number;
+  ellipsis?: string;
+  overflow?: LabelOverflowStrategy | LabelOverflowConfig;
+  maxRotation?: number;
+  enableTooltip?: boolean;
+  tooltip?: boolean | TooltipConfig<LabelDescriptor>;
   lineHeight?: number;
   fontSize?: number;
   fontWeight?: string | number;
@@ -473,6 +545,8 @@ export interface MeasuredLabelLine {
 
 export interface MeasuredLabel {
   text: string;
+  originalText: string;
+  displayText: string;
   font: string;
   lines: MeasuredLabelLine[];
   lineCount: number;
@@ -481,6 +555,9 @@ export interface MeasuredLabel {
   naturalWidth: number;
   lineHeight: number;
   truncated: boolean;
+  overflowTriggered: boolean;
+  appliedStrategy: LabelOverflowStrategy;
+  appliedRotation: number;
   iconExtraWidth: number;
   boxWidth: number;
   boxHeight: number;
@@ -490,6 +567,13 @@ export interface LabelStyleOverride {
   target: LabelTargetType;
   renderMode?: LabelRenderMode;
   maxWidth?: number;
+  maxChars?: number;
+  maxLines?: number;
+  ellipsis?: string;
+  overflow?: LabelOverflowStrategy | LabelOverflowConfig;
+  maxRotation?: number;
+  enableTooltip?: boolean;
+  tooltip?: boolean | TooltipConfig<LabelDescriptor>;
   lineHeight?: number;
   fontSize?: number;
   fontWeight?: string | number;
@@ -598,6 +682,12 @@ export interface BarOuterLabelConfig {
   borderRadius?: number;
   boxPadding?: LabelPadding;
   maxWidth?: number;
+  maxChars?: number;
+  ellipsis?: string;
+  overflow?: LabelOverflowStrategy | LabelOverflowConfig;
+  maxRotation?: number;
+  enableTooltip?: boolean;
+  tooltip?: boolean | TooltipConfig<LabelDescriptor>;
   icon?: string | SVGElement | HTMLElement;
   iconPosition?: 'start' | 'end';
   iconSize?: number;
@@ -811,10 +901,11 @@ export interface ChartConfig<TData = any> {
   // Marker & Threshold layer config (Nivo markers + ECharts markLine/markArea + conditional threshold styling)
   markers?: MarkerConfig[];
 
-  // Universal <mc-label> config
+  // Universal <mc-label> & <mc-truncate> overflow config
   label?: Partial<LabelStyleOverride> | Partial<LabelStyleOverride>[];
   labelMode?: LabelRenderMode;
   labelRenderer?: CustomLabelRenderer;
+  labelOverflow?: LabelOverflowStrategy | LabelOverflowConfig;
   enableLabels?: boolean;
 
   // Unified <mc-tooltip> config (one singleton <mc-tooltip> per chart)

@@ -98,6 +98,15 @@ export function createAttributePanel(opts: {
       if (config.tooltip && typeof config.tooltip === 'object') {
         delete config.tooltip.position;
       }
+    } else if (
+      (spec.configPath === 'labelOverflow.maxWidth' ||
+        spec.configPath === 'labelOverflow.maxChars') &&
+      Number(rawVal) <= 0
+    ) {
+      if (config.labelOverflow && typeof config.labelOverflow === 'object') {
+        const key = spec.configPath.split('.')[1] as 'maxWidth' | 'maxChars';
+        delete (config.labelOverflow as Record<string, any>)[key];
+      }
     } else {
       setByPath(config, spec.configPath, rawVal);
     }
