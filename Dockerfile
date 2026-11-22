@@ -22,7 +22,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 # ==============================================================================
 FROM base AS builder
 COPY . .
-RUN npm run build && npm run build:examples
+RUN npm run build && npm run build:apps
 
 # ==============================================================================
 # Stage 4: Production Static Demo Server (Nginx on Port 8080)

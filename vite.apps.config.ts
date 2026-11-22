@@ -3,14 +3,15 @@ import { resolve } from 'node:path';
 
 export default defineConfig({
   base: './',
-  root: resolve(__dirname, 'examples'),
+  root: resolve(import.meta.dirname, 'apps'),
+  publicDir: resolve(import.meta.dirname, 'context'),
   resolve: {
     alias: {
-      'modern-charts': resolve(__dirname, 'src/index.ts')
+      'modern-charts': resolve(import.meta.dirname, 'src/index.ts')
     }
   },
   build: {
-    outDir: resolve(__dirname, 'dist-examples'),
+    outDir: resolve(import.meta.dirname, 'dist-examples'),
     emptyOutDir: true
   },
   server: {

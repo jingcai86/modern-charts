@@ -54,10 +54,13 @@
     "./gauge": {
       "types": "./dist/entries/gauge.d.ts",
       "import": "./dist/gauge.js"
-    }
+    },
+    "./context/schema": "./context/charts.schema.json",
+    "./context/*": "./context/*"
   },
   "files": [
     "dist",
+    "context",
     "README.md",
     "LICENSE"
   ],
@@ -90,10 +93,12 @@
     "access": "public"
   },
   "scripts": {
-    "dev": "vite --config vite.examples.config.ts",
+    "dev": "vite --config vite.apps.config.ts",
     "build": "tsc --noEmit && vite build && tsc -p tsconfig.build.json",
-    "build:examples": "vite build --config vite.examples.config.ts",
-    "preview:examples": "vite preview --config vite.examples.config.ts",
+    "build:apps": "vite build --config vite.apps.config.ts",
+    "preview:apps": "vite preview --config vite.apps.config.ts",
+    "build:examples": "npm run build:apps",
+    "preview:examples": "npm run preview:apps",
     "prepublishOnly": "npm test && npm run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

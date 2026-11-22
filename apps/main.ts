@@ -577,6 +577,9 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
         <h2 class="panel-title">Web Component HTML Markup</h2>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="btn-copy-ai-context" title="Copy LLM-ready chart context specification">
+          🤖 Copy AI Context
+        </button>
         <button type="button" id="btn-editor-randomize-data" class="btn-primary">
           🎲 Randomize Data
         </button>
@@ -1065,6 +1068,27 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
     Object.keys(config).forEach((k) => delete (config as any)[k]);
     Object.assign(config, nextCfg);
     applyConfigUpdate(config, 'html-editor');
+  });
+
+  // Copy AI Context button (loads per-chart context spec from ./charts/<id>.md)
+  const copyAiContextBtn = editorCard.querySelector(
+    '#btn-copy-ai-context'
+  ) as HTMLButtonElement | null;
+  copyAiContextBtn?.addEventListener('click', async () => {
+    try {
+      const res = await fetch(`./charts/${entry.id}.md`);
+      const text = res.ok
+        ? await res.text()
+        : `# <${entry.tagName}>\n\nSubpath: modern-charts/${entry.id}\nDefault Layers: ${JSON.stringify(entry.defaultLayers)}`;
+      await navigator.clipboard.writeText(text);
+      const prev = copyAiContextBtn.textContent;
+      copyAiContextBtn.textContent = '✓ Copied AI Context';
+      setTimeout(() => {
+        copyAiContextBtn.textContent = prev || '🤖 Copy AI Context';
+      }, 1800);
+    } catch {
+      window.open(`./charts/${entry.id}.md`, '_blank', 'noopener,noreferrer');
+    }
   });
 
   // Reset Default Config button
