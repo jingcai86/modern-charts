@@ -1,4 +1,4 @@
-name: Publish to npm & Pages (Auto)
+name: Publish to npm & Pages (follows package.json)
 
 on:
   push:

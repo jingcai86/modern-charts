@@ -15,14 +15,14 @@ const DEFAULT_ALLOW_MAJOR = false;
 function parseArgs(argv) {
   const opts = {
     type: 'patch',
-    preid: 'alpha',
+    preid: 'none',
     custom: '',
     allowMajor: DEFAULT_ALLOW_MAJOR,
     write: false
   };
   for (const arg of argv) {
     if (arg.startsWith('--type=')) opts.type = arg.slice(7).trim();
-    else if (arg.startsWith('--preid=')) opts.preid = arg.slice(8).trim() || 'alpha';
+    else if (arg.startsWith('--preid=')) opts.preid = arg.slice(8).trim() || 'none';
     else if (arg.startsWith('--custom=')) opts.custom = arg.slice(9).trim();
     else if (arg === '--allow-major' || arg === '--allow-major=true') opts.allowMajor = true;
     else if (arg === '--write') opts.write = true;
@@ -91,16 +91,14 @@ function detectAutoBumpFromCommits(current) {
 function computeNextVersion(currentStr, opts) {
   const cur = parseSemver(currentStr);
   let bump = opts.type;
+  const preid = opts.preid && opts.preid !== 'none' ? opts.preid : null;
 
   if (bump === 'custom') {
     const cleaned = opts.custom.replace(/^v/i, '').trim();
     if (!cleaned) {
       throw new Error('custom_version is required when release_type is "custom".');
     }
-    const parsed = parseSemver(cleaned);
-    if (!opts.allowMajor && parsed.major >= 1) {
-      // Explicit custom version is allowed when user knowingly types >= 1.0.0
-    }
+    parseSemver(cleaned);
     return cleaned;
   }
 
@@ -114,25 +112,44 @@ function computeNextVersion(currentStr, opts) {
 
   switch (bump) {
     case 'prerelease': {
-      if (cur.preid === opts.preid && cur.prenum !== null) {
-        return `${cur.major}.${cur.minor}.${cur.patch}-${opts.preid}.${cur.prenum + 1}`;
+      const targetPreid = preid ?? cur.preid ?? 'alpha';
+      if (cur.preid === targetPreid && cur.prenum !== null) {
+        return `${cur.major}.${cur.minor}.${cur.patch}-${targetPreid}.${cur.prenum + 1}`;
       }
       if (cur.preid !== null) {
-        return `${cur.major}.${cur.minor}.${cur.patch}-${opts.preid}.0`;
+        return `${cur.major}.${cur.minor}.${cur.patch}-${targetPreid}.0`;
       }
-      return `${cur.major}.${cur.minor}.${cur.patch + 1}-${opts.preid}.0`;
+      return `${cur.major}.${cur.minor}.${cur.patch + 1}-${targetPreid}.0`;
     }
     case 'patch': {
-      // Graduating a prerelease (e.g. 0.1.0-alpha.1 -> 0.1.0) drops the prerelease tag first
+      if (preid) {
+        // e.g. 0.1.0-alpha.1 + patch + alpha -> 0.1.0-alpha.2
+        if (cur.preid === preid && cur.prenum !== null) {
+          return `${cur.major}.${cur.minor}.${cur.patch}-${preid}.${cur.prenum + 1}`;
+        }
+        // e.g. 0.1.0-alpha.1 + patch + beta -> 0.1.0-beta.0
+        if (cur.preid !== null) {
+          return `${cur.major}.${cur.minor}.${cur.patch}-${preid}.0`;
+        }
+        // e.g. 0.1.0 + patch + alpha -> 0.1.1-alpha.0
+        return `${cur.major}.${cur.minor}.${cur.patch + 1}-${preid}.0`;
+      }
+      // Stable patch: graduates prerelease (0.1.0-alpha.1 -> 0.1.0) or bumps patch (0.1.0 -> 0.1.1)
       if (cur.preid !== null) {
         return `${cur.major}.${cur.minor}.${cur.patch}`;
       }
       return `${cur.major}.${cur.minor}.${cur.patch + 1}`;
     }
     case 'minor': {
+      if (preid) {
+        return `${cur.major}.${cur.minor + 1}.0-${preid}.0`;
+      }
       return `${cur.major}.${cur.minor + 1}.0`;
     }
     case 'major': {
+      if (preid) {
+        return `${cur.major + 1}.0.0-${preid}.0`;
+      }
       return `${cur.major + 1}.0.0`;
     }
     default:
