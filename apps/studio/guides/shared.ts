@@ -34,22 +34,7 @@ export function renderGuideHeader(activeId: GuideId): HTMLElement {
   const header = document.createElement('section');
   header.className = 'guide-hero';
 
-  const tabsHtml = GUIDES_CATALOG.map(
-    (g) => `
-      <a
-        href="#/guide/${g.id}"
-        class="guide-tab-pill ${g.id === activeId ? 'active' : ''}"
-      >
-        <span>${g.icon}</span>
-        <span>${g.shortLabel}</span>
-      </a>
-    `
-  ).join('');
-
   header.innerHTML = `
-    <div class="guide-tabs-bar" role="navigation" aria-label="Documentation Guides">
-      ${tabsHtml}
-    </div>
     <div class="guide-hero-copy">
       <h1 class="guide-hero-title">${meta.icon} ${escapeHtml(meta.title)}</h1>
       <p class="guide-hero-summary">${escapeHtml(meta.summary)}</p>

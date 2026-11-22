@@ -6,7 +6,7 @@ import {
 } from '../../src/index';
 import { CHART_CATALOG, type ChartCatalogEntry } from './catalog';
 import { GUIDES_CATALOG, renderGuidePage, type GuideId } from './guides';
-import { renderOverviewPage } from './pages/overview';
+import { renderOverviewPage, writeStoredHomeTab } from './pages/overview';
 import { renderChartDetailPage } from './pages/chart-detail';
 import { syncAllStoredConfigsTheme } from './state/config-store';
 import {
@@ -68,11 +68,27 @@ if (navTrigger && navMenu) {
 
   navMenu.addEventListener('click', (event) => {
     const link = (event.target as HTMLElement | null)?.closest('a');
-    if (link && typeof navMenu.hidePopover === 'function') {
-      navMenu.hidePopover();
+    if (link) {
+      if (link.dataset.navRoute === 'overview') {
+        writeStoredHomeTab('examples');
+        if (window.location.hash === '#/' || window.location.hash === '') {
+          handleRoute();
+        }
+      }
+      if (typeof navMenu.hidePopover === 'function') {
+        navMenu.hidePopover();
+      }
     }
   });
 }
+
+const brandHomeLink = document.getElementById('brand-home-link');
+brandHomeLink?.addEventListener('click', () => {
+  writeStoredHomeTab('examples');
+  if (window.location.hash === '#/' || window.location.hash === '') {
+    handleRoute();
+  }
+});
 
 function syncTopNavActiveState(activeKey: string, showDropdown: boolean): void {
   if (siteNav) {
