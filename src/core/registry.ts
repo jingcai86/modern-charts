@@ -1,5 +1,6 @@
 import { MCLabelElement } from '../components/mc-label';
 import { MCTooltipElement } from '../components/mc-tooltip';
+import { MCLegendElement } from '../components/mc-legend';
 import { MCAnimationLayer } from '../components/mc-animation';
 import { MCAriaLayer } from '../components/mc-aria';
 import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
@@ -20,6 +21,7 @@ export class MCAriaElement extends MCAriaLayer {}
 export const CORE_COMPONENT_REGISTRY: Record<string, CustomElementConstructor> = {
   'mc-label': MCLabelElement,
   'mc-tooltip': MCTooltipElement,
+  'mc-legend': MCLegendElement,
   'mc-theme-layer': MCThemeLayer,
   'mc-scale-layer': MCScaleLayer,
   'mc-view-layer': MCViewLayer,

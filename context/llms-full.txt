@@ -189,6 +189,21 @@ interface SharedChartConfig<TData> {
     renderer?: (payload: TooltipPayload, defaultRender: () => HTMLElement) => HTMLElement | DocumentFragment | string | null | undefined;
   };
 
+  // Unified SVG Legend (<mc-legend> — shared by bar, line, pie, radar, scatter, sunburst, treemap, sankey)
+  legend?: boolean | {
+    enabled?: boolean;
+    position?: 'top' | 'bottom' | 'left' | 'right'; // default 'bottom'
+    padding?: number | { top?: number; right?: number; bottom?: number; left?: number };
+    wrap?: boolean; // default true (Pretext-measured exact centering + row/column wrapping)
+    enableTooltip?: boolean; // default true (hover + keyboard Tab focus dedicated legend tooltip)
+    tooltip?: boolean | TooltipConfig<LegendItem>; // same customization shape as chart.config.tooltip
+    itemGap?: number;
+    rowGap?: number;
+    swatchSize?: number;
+    maxItemWidth?: number;
+    fontSize?: number;
+  };
+
   // W3C ARIA Accessibility (<mc-aria-layer> / <mc-aria>)
   role?: string;
   ariaLabel?: string;
@@ -335,13 +350,25 @@ Every chart owns strictly **one** `<mc-tooltip>` instance inside its Shadow DOM 
 
 ---
 
-## 8. Key Methods & Events
+## 8. Unified SVG Legend (`<mc-legend>`) & Dedicated Legend Tooltip
+
+Shared across all 8 categorical-legend charts (`bar`, `line`, `pie`, `radar`, `scatter`, `sunburst`, `treemap`, `sankey`; `heatmap` keeps its continuous color bar and `gauge` has no categorical legend).
+
+- **4 positions & 4-side padding**: `position: 'top' | 'bottom' | 'left' | 'right'` and `padding: number | { top, right, bottom, left }` (with automatic margin reservation).
+- **Exact Pretext centering & wrapping**: `@chenglou/pretext` measures every legend label's exact dimensions so SVG legend rows (`top`/`bottom`) and columns (`left`/`right`) are centered accurately and wrap automatically by default (`wrap: false` disables wrapping).
+- **Dedicated legend tooltip (hover + keyboard Tab)**: Hovering or Tab-focusing a legend item shows a separate singleton `<mc-tooltip class="mc-legend-tooltip">` (distinct from the chart item tooltip `.mc-tooltip`), disabled via `legend.enableTooltip: false` or `legend.tooltip: false`, and customizable via `chart.config.legend.tooltip` (`formatter`, `renderer`, `offsetX`, `offsetY`) or declarative `<mc-legend><mc-tooltip>...</mc-tooltip></mc-legend>`.
+- **Style via CSS `::part()`**: `::part(legend-tooltip)`, `::part(legend-tooltip-header)`, `::part(legend-tooltip-body)`, `::part(legend-tooltip-row)`, `::part(legend-tooltip-swatch)`, `::part(legend-tooltip-label)`, `::part(legend-tooltip-value)`, `::part(legend-tooltip-badge)`.
+
+---
+
+## 9. Key Methods & Events
 
 - `chart.render()` — Re-renders immediately.
 - `chart.resize(width?, height?)` — Explicitly updates dimensions (especially when `autoSize: false`).
 - `chart.streamLayers(delayMs?)` — Streams layers progressively, firing `mc-layer-stream` per layer and `mc-stream-complete` on finish.
-- `chart.getTooltipElement()` — Returns the chart's singleton `<mc-tooltip>` instance.
-- Events: `mc-rendered`, `mc-zoom`, `mc-aria-focus`, `mc-aria-activate`, `mc-tooltip-show`, `mc-tooltip-hide`, `mc-layer-stream`, `mc-stream-complete`.
+- `chart.getTooltipElement()` — Returns the chart's singleton item `<mc-tooltip>` instance.
+- `chart.getLegendTooltipElement()` — Returns the chart's dedicated singleton legend `<mc-tooltip>` instance.
+- Events: `mc-rendered`, `mc-zoom`, `mc-aria-focus`, `mc-aria-activate`, `mc-tooltip-show`, `mc-tooltip-hide`, `mc-legend-tooltip-show`, `mc-legend-tooltip-hide`, `mc-layer-stream`, `mc-stream-complete`.
 
 ---
 

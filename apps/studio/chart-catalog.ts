@@ -32,6 +32,7 @@ export interface ChartAttributeSpec {
     | 'View & Zoom (<mc-view-layer>)'
     | 'Animation (<mc-animation-layer>)'
     | 'Marker & Threshold (<mc-marker-layer>)'
+    | 'Legend (<mc-legend>)'
     | 'Universal Label (<mc-label>)'
     | 'Accessibility (<mc-aria-layer>)'
     | 'Sizing & Layout';
@@ -281,6 +282,95 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     description:
       'Custom template string (e.g. "{{seriesId}} ({{category}}): {{value}}") for every item aria-label.',
     defaultValue: ''
+  }
+];
+
+export const LEGEND_ATTRIBUTES: ChartAttributeSpec[] = [
+  {
+    configPath: 'legend.enabled',
+    attrName: 'mc-legend[enabled]',
+    category: 'Legend (<mc-legend>)',
+    control: 'boolean',
+    description:
+      'Shows or hides the unified Pretext-measured SVG legend shared across categorical charts.',
+    defaultValue: true
+  },
+  {
+    configPath: 'legend.position',
+    attrName: 'mc-legend[position]',
+    category: 'Legend (<mc-legend>)',
+    control: 'select',
+    options: [
+      { label: 'bottom', value: 'bottom' },
+      { label: 'top', value: 'top' },
+      { label: 'left', value: 'left' },
+      { label: 'right', value: 'right' }
+    ],
+    description:
+      'Places the legend on any of the 4 sides (top, bottom, left, right) with automatic margin reservation.',
+    defaultValue: 'bottom'
+  },
+  {
+    configPath: 'legend.wrap',
+    attrName: 'mc-legend[wrap]',
+    category: 'Legend (<mc-legend>)',
+    control: 'boolean',
+    description:
+      'Wraps legend items onto additional rows (top/bottom) or columns (left/right) by default using @chenglou/pretext measurements.',
+    defaultValue: true
+  },
+  {
+    configPath: 'legend.enableTooltip',
+    attrName: 'mc-legend[enable-tooltip]',
+    category: 'Legend (<mc-legend>)',
+    control: 'boolean',
+    description:
+      'Shows a dedicated legend tooltip on pointer hover or keyboard Tab focus (independently customizable via legend.tooltip and ::part(legend-tooltip)).',
+    defaultValue: true
+  },
+  {
+    configPath: 'legend.padding.top',
+    attrName: 'mc-legend[padding-top]',
+    category: 'Legend (<mc-legend>)',
+    control: 'range',
+    min: 0,
+    max: 48,
+    step: 2,
+    description: 'Top padding around the SVG legend container in pixels.',
+    defaultValue: 8
+  },
+  {
+    configPath: 'legend.padding.right',
+    attrName: 'mc-legend[padding-right]',
+    category: 'Legend (<mc-legend>)',
+    control: 'range',
+    min: 0,
+    max: 48,
+    step: 2,
+    description: 'Right padding around the SVG legend container in pixels.',
+    defaultValue: 12
+  },
+  {
+    configPath: 'legend.padding.bottom',
+    attrName: 'mc-legend[padding-bottom]',
+    category: 'Legend (<mc-legend>)',
+    control: 'range',
+    min: 0,
+    max: 48,
+    step: 2,
+    description: 'Bottom padding around the SVG legend container in pixels.',
+    defaultValue: 8
+  },
+  {
+    configPath: 'legend.padding.left',
+    attrName: 'mc-legend[padding-left]',
+    category: 'Legend (<mc-legend>)',
+    control: 'range',
+    min: 0,
+    max: 48,
+    step: 2,
+    description: 'Left padding around the SVG legend container in pixels.',
+    defaultValue: 12
   }
 ];
 

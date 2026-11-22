@@ -410,10 +410,13 @@ export class MCTooltipElement extends HTMLElement {
     this.#lastPayload = payload;
     this.setAttribute('data-chart-type', payload.chartType);
 
+    const baseClass = this.classList.contains('mc-legend-tooltip')
+      ? 'mc-legend-tooltip'
+      : 'mc-tooltip';
     if (config.className) {
-      this.className = `mc-tooltip ${config.className}`;
+      this.className = `${baseClass} ${config.className}`;
     } else {
-      this.className = 'mc-tooltip';
+      this.className = baseClass;
     }
 
     // Apply active chart theme via internal CSS custom properties so client ::part() rules still win cleanly

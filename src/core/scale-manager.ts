@@ -11,11 +11,16 @@ import {
   timeFormat,
   type ScaleContinuousNumeric
 } from 'd3';
+import { renderUnifiedLegendLayer } from './legend-engine';
 import type {
   ChartRenderContext,
+  LegendItem,
+  LegendPosition,
   ScaleAxisConfig,
   ScaleConfig
 } from './types';
+
+export type { LegendItem };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -347,153 +352,18 @@ export function renderCartesianAxes(
   }
 }
 
-export interface LegendItem {
-  id: string;
-  label: string;
-  color: string;
-}
-
 /**
- * Renders chart legends where every legend item text is measured with `@chenglou/pretext`
- * and rendered via `<mc-label>` (`ctx.renderLabel(..., { type: 'legend' })`).
+ * Renders chart legends via the unified SVG `LegendEngine`, measuring every item
+ * with `@chenglou/pretext` for exact centering & wrapping, supporting all 4
+ * positions (`top`, `bottom`, `left`, `right`), 4-side padding, keyboard focus,
+ * and dedicated customizable legend tooltips.
  */
 export function renderLegendLayer(
   ctx: ChartRenderContext<any>,
   items: LegendItem[],
-  position: 'top-right' | 'bottom' | 'right' = 'top-right'
+  position: LegendPosition | 'top-right' = 'bottom'
 ): void {
-  if (!items || items.length === 0) return;
-
-  const legendG = document.createElementNS(SVG_NS, 'g');
-  legendG.setAttribute('class', 'mc-legend-layer');
-  legendG.setAttribute('part', 'legend');
-
-  if (position === 'right') {
-    const itemFontSize = Math.max(10, ctx.theme.fontSize - 1);
-    const rowHeight = 22;
-    const totalHeight = items.length * rowHeight;
-    const startX = ctx.innerWidth + 14;
-    const startY = Math.max(8, (ctx.innerHeight - totalHeight) / 2 + rowHeight / 2);
-
-    items.forEach((item, idx) => {
-      const itemG = document.createElementNS(SVG_NS, 'g');
-      itemG.setAttribute('class', 'mc-legend-item');
-      itemG.setAttribute(
-        'transform',
-        `translate(${startX}, ${startY + idx * rowHeight})`
-      );
-
-      const swatch = document.createElementNS(SVG_NS, 'rect');
-      swatch.setAttribute('x', '0');
-      swatch.setAttribute('y', '-5');
-      swatch.setAttribute('width', '9');
-      swatch.setAttribute('height', '9');
-      swatch.setAttribute('rx', '2');
-      swatch.setAttribute('fill', item.color);
-      itemG.appendChild(swatch);
-
-      ctx.renderLabel(itemG, {
-        id: `legend-${idx}`,
-        text: item.label,
-        x: 13,
-        y: 0,
-        type: 'legend',
-        anchor: 'start',
-        baseline: 'middle',
-        maxWidth: Math.max(56, ctx.margin.right - 22),
-        fontSize: itemFontSize,
-        color: ctx.theme.textColor,
-        datum: item
-      });
-
-      legendG.appendChild(itemG);
-    });
-  } else if (position === 'bottom') {
-    let cursorX = 0;
-    const itemFontSize = Math.max(10, ctx.theme.fontSize - 1);
-
-    items.forEach((item, idx) => {
-      const itemG = document.createElementNS(SVG_NS, 'g');
-      itemG.setAttribute('class', 'mc-legend-item');
-      itemG.setAttribute('transform', `translate(${cursorX}, 0)`);
-
-      const swatch = document.createElementNS(SVG_NS, 'rect');
-      swatch.setAttribute('x', '0');
-      swatch.setAttribute('y', '-5');
-      swatch.setAttribute('width', '9');
-      swatch.setAttribute('height', '9');
-      swatch.setAttribute('rx', '2');
-      swatch.setAttribute('fill', item.color);
-      itemG.appendChild(swatch);
-
-      const measured = ctx.measureText(item.label, {
-        fontSize: itemFontSize
-      });
-
-      ctx.renderLabel(itemG, {
-        id: `legend-${idx}`,
-        text: item.label,
-        x: 13,
-        y: 0,
-        type: 'legend',
-        anchor: 'start',
-        baseline: 'middle',
-        fontSize: itemFontSize,
-        color: ctx.theme.textColor,
-        datum: item
-      });
-
-      const itemW = 13 + measured.boxWidth + 12;
-      cursorX += itemW;
-      legendG.appendChild(itemG);
-    });
-
-    const startX = Math.max(0, (ctx.innerWidth - cursorX) / 2);
-    legendG.setAttribute(
-      'transform',
-      `translate(${startX}, ${ctx.innerHeight + Math.max(36, ctx.margin.bottom - 12)})`
-    );
-  } else {
-    // Default top-right horizontal legend
-    let cursorX = ctx.innerWidth;
-    const itemFontSize = Math.max(10, ctx.theme.fontSize - 1);
-    for (let i = items.length - 1; i >= 0; i--) {
-      const item = items[i];
-      const measured = ctx.measureText(item.label, {
-        fontSize: itemFontSize
-      });
-      const itemW = 13 + measured.boxWidth + 10;
-      cursorX -= itemW;
-
-      const itemG = document.createElementNS(SVG_NS, 'g');
-      itemG.setAttribute('class', 'mc-legend-item');
-      itemG.setAttribute('transform', `translate(${cursorX}, -18)`);
-
-      const swatch = document.createElementNS(SVG_NS, 'rect');
-      swatch.setAttribute('x', '0');
-      swatch.setAttribute('y', '-5');
-      swatch.setAttribute('width', '9');
-      swatch.setAttribute('height', '9');
-      swatch.setAttribute('rx', '2');
-      swatch.setAttribute('fill', item.color);
-      itemG.appendChild(swatch);
-
-      ctx.renderLabel(itemG, {
-        id: `legend-${i}`,
-        text: item.label,
-        x: 13,
-        y: 0,
-        type: 'legend',
-        anchor: 'start',
-        baseline: 'middle',
-        fontSize: itemFontSize,
-        color: ctx.theme.textColor,
-        datum: item
-      });
-
-      legendG.appendChild(itemG);
-    }
-  }
-
-  ctx.layerGroup.appendChild(legendG);
+  const normalizedPos: LegendPosition =
+    position === 'top-right' ? 'top' : position;
+  renderUnifiedLegendLayer(ctx, items, normalizedPos);
 }
