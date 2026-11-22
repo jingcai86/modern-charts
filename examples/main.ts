@@ -336,10 +336,7 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
         </p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" id="btn-detail-randomize-data" class="btn-primary">
-          🎲 Randomize Data
-        </button>
-        <button type="button" id="btn-detail-ai-stream">
+        <button type="button" id="btn-detail-ai-stream" class="btn-primary">
           ▶ Stream AI Layers
         </button>
         <button type="button" id="btn-detail-replay-anim">
@@ -536,9 +533,6 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
     applyConfigUpdate(config, 'randomize');
   };
 
-  chartCard
-    .querySelector('#btn-detail-randomize-data')
-    ?.addEventListener('click', handleRandomizeData);
   editorCard
     .querySelector('#btn-editor-randomize-data')
     ?.addEventListener('click', handleRandomizeData);
