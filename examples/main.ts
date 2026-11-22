@@ -16,6 +16,11 @@ import {
   type ChartCatalogEntry
 } from './chart-catalog';
 import { generateRandomDataForChart } from './sample-data';
+import {
+  GUIDES_CATALOG,
+  renderGuidePage,
+  type GuideId
+} from './guides';
 
 registerModernCharts();
 
@@ -900,20 +905,45 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
 }
 
 // ============================================================================
-// HASH ROUTER (#/ and #/chart/:id)
+// HASH ROUTER (#/, #/chart/:id, and #/guide/:id)
 // ============================================================================
+let activeGuideId: GuideId | null = null;
+
+function syncTopNavActiveState(activeKey: string): void {
+  document.querySelectorAll<HTMLAnchorElement>('[data-nav-route]').forEach((link) => {
+    link.classList.toggle('active', link.dataset.navRoute === activeKey);
+  });
+}
+
 function handleRoute(): void {
   const root = document.getElementById('app-root');
   if (!root) return;
 
   const hash = window.location.hash || '#/';
-  const match = hash.match(/^#\/chart\/([a-z0-9-]+)$/i);
 
+  const guideMatch = hash.match(/^#\/guides?(?:\/([a-z0-9-]+))?$/i);
+  if (guideMatch) {
+    const requested = (guideMatch[1] ?? 'custom-layers').toLowerCase() as GuideId;
+    const found = GUIDES_CATALOG.find((g) => g.id === requested);
+    const resolvedId: GuideId = found ? found.id : 'custom-layers';
+    activeDetailChart = null;
+    activeDetailEntry = null;
+    activeOverviewCharts = [];
+    activeGuideId = resolvedId;
+    renderGuidePage(root, resolvedId, globalThemeMode);
+    syncTopNavActiveState(`guide:${resolvedId}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+
+  const match = hash.match(/^#\/chart\/([a-z0-9-]+)$/i);
   if (match) {
     const chartId = match[1].toLowerCase();
     const entry = CHART_CATALOG.find((c) => c.id === chartId);
     if (entry) {
+      activeGuideId = null;
       renderChartDetailPage(root, entry);
+      syncTopNavActiveState('overview');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -921,7 +951,9 @@ function handleRoute(): void {
 
   activeDetailChart = null;
   activeDetailEntry = null;
+  activeGuideId = null;
   renderOverviewPage(root);
+  syncTopNavActiveState('overview');
 }
 
 window.addEventListener('hashchange', handleRoute);
@@ -960,7 +992,13 @@ function applyGlobalThemePreference(pref: ThemeModePreference): void {
   });
 
   // Update active view
-  if (activeDetailChart && activeDetailEntry) {
+  if (activeGuideId) {
+    renderGuidePage(
+      document.getElementById('app-root')!,
+      activeGuideId,
+      pref
+    );
+  } else if (activeDetailChart && activeDetailEntry) {
     renderChartDetailPage(
       document.getElementById('app-root')!,
       activeDetailEntry
