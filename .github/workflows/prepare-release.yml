@@ -1,0 +1,123 @@
+name: Prepare Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Version bump (locked to 0.x: patch / minor / prerelease / auto / custom)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - prerelease
+          - auto
+          - custom
+      preid:
+        description: 'Prerelease identifier (used only when release_type is prerelease)'
+        required: false
+        default: 'alpha'
+        type: choice
+        options:
+          - alpha
+          - beta
+          - rc
+      custom_version:
+        description: 'Exact version without "v" (used only when release_type is custom, e.g. 0.1.0)'
+        required: false
+        default: ''
+        type: string
+      dry_run:
+        description: 'Preview next version & release notes without opening a PR'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    name: Compute Version, Verify & Open Release PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Compute & apply next version (0.x guard)
+        id: ver
+        run: |
+          node .github/scripts/compute-next-version.mjs \
+            --type="${{ inputs.release_type }}" \
+            --preid="${{ inputs.preid }}" \
+            --custom="${{ inputs.custom_version }}" \
+            --write
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests, build & bundle size verification
+        run: |
+          npm test
+          npm run build
+          npm run size
+
+      - name: Generate preview release notes
+        env:
+          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
+          RELEASE_TAG: ${{ steps.ver.outputs.tag }}
+          RELEASE_DIST_TAG: ${{ steps.ver.outputs.dist_tag }}
+        run: node .github/scripts/generate-release-notes.mjs release-notes.md
+
+      - name: Write Job Summary
+        run: |
+          {
+            echo "## Release Preview: \`${{ steps.ver.outputs.tag }}\`"
+            echo "- **Previous version**: \`${{ steps.ver.outputs.current_version }}\`"
+            echo "- **Next version**: \`${{ steps.ver.outputs.version }}\`"
+            echo "- **npm dist-tag**: \`${{ steps.ver.outputs.dist_tag }}\`"
+            echo "- **Dry run**: \`${{ inputs.dry_run }}\`"
+            echo ""
+            cat release-notes.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit version bump & open Release PR
+        if: ${{ inputs.dry_run != true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          TAG="${{ steps.ver.outputs.tag }}"
+          BRANCH="release/${TAG}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${BRANCH}"
+          git add package.json package-lock.json src/core/types.ts
+          git commit -m "chore(release): ${TAG}"
+          git push -u origin "${BRANCH}" --force
+
+          EXISTING_PR=$(gh pr list --head "${BRANCH}" --base main --state open --json number --jq '.[0].number')
+          PR_BODY=$(printf "Bumps \`modern-charts\` from \`%s\` to \`%s\` (npm dist-tag: \`%s\`).\n\nMerging this PR into \`main\` automatically runs **Release & Publish to npm**, creates tag \`%s\`, publishes to npm via OIDC, creates the GitHub Release, and deploys GitHub Pages.\n\n---\n\n%s" \
+            "${{ steps.ver.outputs.current_version }}" \
+            "${VERSION}" \
+            "${{ steps.ver.outputs.dist_tag }}" \
+            "${TAG}" \
+            "$(cat release-notes.md)")
+
+          if [[ -n "$EXISTING_PR" ]]; then
+            gh pr edit "$EXISTING_PR" --title "chore(release): ${TAG}" --body "$PR_BODY"
+          else
+            gh pr create --base main --head "${BRANCH}" --title "chore(release): ${TAG}" --body "$PR_BODY"
+          fi
