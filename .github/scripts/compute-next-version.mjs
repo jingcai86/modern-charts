@@ -194,6 +194,24 @@ function applyVersionFiles(nextVersion) {
     }
     writeFileSync(typesPath, updated, 'utf8');
   }
+
+  // 4. apps/studio/index.html (keeps static title & version pill in sync before JS hydrates)
+  const studioHtmlPath = 'apps/studio/index.html';
+  if (existsSync(studioHtmlPath)) {
+    const htmlSrc = readFileSync(studioHtmlPath, 'utf8');
+    const updatedHtml = htmlSrc
+      .replace(
+        /<title>modern-charts v[^<]+ — Composable Web Component Charts<\/title>/,
+        `<title>modern-charts v${nextVersion} — Composable Web Component Charts</title>`
+      )
+      .replace(
+        /<span class="version-pill">v[^<]+<\/span>/,
+        `<span class="version-pill">v${nextVersion}</span>`
+      );
+    if (updatedHtml !== htmlSrc) {
+      writeFileSync(studioHtmlPath, updatedHtml, 'utf8');
+    }
+  }
 }
 
 const opts = parseArgs(process.argv.slice(2));
