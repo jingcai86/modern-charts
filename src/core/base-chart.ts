@@ -925,8 +925,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         {
           type: 'marker',
           fontSize: ann.fontSize ?? Math.max(10, theme.fontSize - 1),
-          fontWeight: 600,
-          background: ann.background ?? 'rgba(0,0,0,0.8)',
+          fontWeight: ann.fontWeight ?? 600,
+          background: ann.background,
+          padding: ann.labelPadding,
           icon: ann.icon
         },
         theme

@@ -1246,6 +1246,51 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
     expect(legendTip.renderedHtml).toContain('Line Marker');
     lineLegendItem!.dispatchEvent(new FocusEvent('blur'));
     expect(legendTip.hidden).toBe(true);
+
+    // 4. Marker labels & annotations render boxless by default (no .mc-label-bg),
+    //    and accept explicit background/border/color/formatter via labelStyle or annotation
+    expect(
+      line.shadowRoot?.querySelector(
+        '[data-label-id="marker-annotation-alert-zone"] .mc-label-bg'
+      )
+    ).toBeNull();
+
+    line.config = {
+      ...line.config,
+      markers: [
+        {
+          id: 'styled-marker',
+          type: 'line',
+          axis: 'y',
+          value: 120,
+          label: '120',
+          labelStyle: {
+            color: '#ffffff',
+            background: '#0f172a',
+            borderColor: '#ef4444',
+            borderRadius: 6,
+            formatter: (t) => `Target: ${t}`
+          },
+          annotation: {
+            text: 'SLA',
+            position: 'right',
+            background: '#1e293b',
+            borderColor: '#38bdf8'
+          }
+        }
+      ]
+    };
+
+    const styledLabel = line.shadowRoot?.querySelector(
+      '[data-label-id="marker-label-styled-marker"]'
+    );
+    expect(styledLabel?.querySelector('.mc-label-bg')).not.toBeNull();
+    expect(styledLabel?.textContent).toContain('Target: 120');
+
+    const styledAnn = line.shadowRoot?.querySelector(
+      '[data-label-id="marker-annotation-styled-marker"]'
+    );
+    expect(styledAnn?.querySelector('.mc-label-bg')).not.toBeNull();
   });
 });
 

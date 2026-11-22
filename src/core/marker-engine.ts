@@ -1,7 +1,10 @@
 import { getScalePosition } from './scale-manager';
 import type {
   ChartRenderContext,
+  CustomLabelRenderer,
   LabelDescriptor,
+  LabelPadding,
+  LabelStyleOverride,
   LegendItem,
   MarkerAnnotationConfig,
   MarkerAnnotationPosition,
@@ -30,6 +33,11 @@ export interface ResolvedMarkerAnnotation {
   borderColor?: string;
   borderRadius?: number;
   fontSize?: number;
+  fontWeight?: string | number;
+  fontFamily?: string;
+  labelPadding?: LabelPadding;
+  formatter?: LabelStyleOverride['formatter'];
+  renderer?: CustomLabelRenderer;
   enableTooltip: boolean;
   tooltipText?: string;
   tooltipConfig?: TooltipConfig<ResolvedMarker>;
@@ -89,6 +97,11 @@ export function resolveMarkerAnnotation(
     borderColor: raw.borderColor,
     borderRadius: raw.borderRadius,
     fontSize: raw.fontSize,
+    fontWeight: raw.fontWeight,
+    fontFamily: raw.fontFamily,
+    labelPadding: raw.labelPadding,
+    formatter: raw.formatter,
+    renderer: raw.renderer,
     enableTooltip,
     tooltipText: typeof rawTip === 'string' ? rawTip : undefined,
     tooltipConfig
@@ -653,7 +666,9 @@ export class MarkerEngine {
     annG.style.cursor = ann.enableTooltip ? 'pointer' : 'default';
     annG.style.outline = 'none';
 
-    ctx.renderLabel(annG, {
+    const annFontSize = ann.fontSize ?? Math.max(10, ctx.theme.fontSize - 1);
+    const annFontWeight = ann.fontWeight ?? 600;
+    const annDescriptor: LabelDescriptor = {
       id: `marker-annotation-${marker.id}`,
       text: ann.text,
       x,
@@ -661,21 +676,53 @@ export class MarkerEngine {
       type: 'marker',
       anchor,
       baseline,
-      fontSize: ann.fontSize ?? Math.max(10, ctx.theme.fontSize - 1),
-      fontWeight: 600,
+      fontSize: annFontSize,
+      fontWeight: annFontWeight,
+      fontFamily: ann.fontFamily,
       color:
         ann.color ??
         (ctx.theme.mode === 'dark' ? '#fecdd3' : accent),
-      background:
-        ann.background ??
-        (ctx.theme.mode === 'dark'
-          ? 'rgba(136, 19, 55, 0.86)'
-          : 'rgba(255, 241, 242, 0.96)'),
-      borderColor: ann.borderColor ?? accent,
-      borderRadius: ann.borderRadius ?? 6,
+      ...(ann.background ? { background: ann.background } : {}),
+      ...(ann.borderColor ? { borderColor: ann.borderColor } : {}),
+      ...(ann.borderRadius !== undefined ? { borderRadius: ann.borderRadius } : {}),
+      ...(ann.labelPadding ? { padding: ann.labelPadding } : {}),
+      ...(ann.renderer ? { renderer: ann.renderer } : {}),
       icon: ann.icon,
       datum: marker
-    });
+    };
+    if (typeof ann.formatter === 'function') {
+      annDescriptor.text = ann.formatter(annDescriptor.text, annDescriptor);
+    }
+
+    // Transparent hover hit-area so boxless annotation text/icons remain easy to hover
+    if (ann.enableTooltip) {
+      const measured = ctx.measureText(annDescriptor.text, annDescriptor);
+      const hitW = Math.max(18, measured.boxWidth + 8);
+      const hitH = Math.max(18, measured.boxHeight + 6);
+      const hitX =
+        anchor === 'end'
+          ? x - hitW + 4
+          : anchor === 'middle'
+          ? x - hitW / 2
+          : x - 4;
+      const hitY =
+        baseline === 'hanging'
+          ? y - 3
+          : baseline === 'alphabetic'
+          ? y - hitH + 3
+          : y - hitH / 2;
+      const hitRect = document.createElementNS(SVG_NS, 'rect');
+      hitRect.setAttribute('class', 'mc-marker-annotation-hit');
+      hitRect.setAttribute('x', String(hitX));
+      hitRect.setAttribute('y', String(hitY));
+      hitRect.setAttribute('width', String(hitW));
+      hitRect.setAttribute('height', String(hitH));
+      hitRect.setAttribute('rx', '4');
+      hitRect.setAttribute('fill', 'transparent');
+      annG.appendChild(hitRect);
+    }
+
+    ctx.renderLabel(annG, annDescriptor);
 
     if (ann.enableTooltip) {
       const valueDisplay =
@@ -813,8 +860,8 @@ export class MarkerEngine {
             minP,
             maxP
           });
-
-          const areaLabel = ctx.renderLabel(itemG, {
+          const ls = marker.labelStyle;
+          const areaLabelDesc: LabelDescriptor = {
             id: `marker-label-${marker.id}`,
             text: marker.label,
             x: placement.x,
@@ -822,18 +869,28 @@ export class MarkerEngine {
             type: 'marker',
             anchor: placement.anchor,
             baseline: placement.baseline,
-            fontSize: Math.max(10, ctx.theme.fontSize - 1),
-            fontWeight: 600,
-            color: marker.stroke || '#fda4af',
-            background:
-              ctx.theme.mode === 'dark'
-                ? 'rgba(15, 23, 42, 0.84)'
-                : 'rgba(255, 255, 255, 0.9)',
-            borderColor: marker.stroke || fill,
-            borderRadius: 5,
-            icon: marker.icon,
+            fontSize: ls?.fontSize ?? Math.max(10, ctx.theme.fontSize - 1),
+            fontWeight: ls?.fontWeight ?? 600,
+            fontFamily: ls?.fontFamily,
+            color: ls?.color ?? (marker.stroke || fill),
+            ...(ls?.renderMode ? { renderMode: ls.renderMode } : {}),
+            ...(ls?.background ? { background: ls.background } : {}),
+            ...(ls?.borderColor ? { borderColor: ls.borderColor } : {}),
+            ...(ls?.borderRadius !== undefined ? { borderRadius: ls.borderRadius } : {}),
+            ...(ls?.padding ? { padding: ls.padding } : {}),
+            ...(ls?.maxWidth !== undefined ? { maxWidth: ls.maxWidth } : {}),
+            ...(ls?.rotation !== undefined ? { rotation: ls.rotation } : {}),
+            ...(ls?.templateHtml ? { templateHtml: ls.templateHtml } : {}),
+            ...(ls?.renderer ? { renderer: ls.renderer } : {}),
+            icon: ls?.icon ?? marker.icon,
+            ...(ls?.iconPosition ? { iconPosition: ls.iconPosition } : {}),
             datum: marker
-          });
+          };
+          if (typeof ls?.formatter === 'function') {
+            areaLabelDesc.text = ls.formatter(areaLabelDesc.text, areaLabelDesc);
+          }
+
+          const areaLabel = ctx.renderLabel(itemG, areaLabelDesc);
           if (areaLabel) {
             areaLabel.setAttribute('pointer-events', 'none');
             areaLabel.style.pointerEvents = 'none';
@@ -873,8 +930,8 @@ export class MarkerEngine {
           const placement = this.resolveMarkerLabelPlacement(marker, ctx, {
             posPx
           });
-
-          const lineLabel = ctx.renderLabel(itemG, {
+          const ls = marker.labelStyle;
+          const lineLabelDesc: LabelDescriptor = {
             id: `marker-label-${marker.id}`,
             text: marker.label,
             x: placement.x,
@@ -882,19 +939,29 @@ export class MarkerEngine {
             type: 'marker',
             anchor: placement.anchor,
             baseline: placement.baseline,
-            fontSize: Math.max(10, ctx.theme.fontSize - 1),
-            fontWeight: 600,
+            fontSize: ls?.fontSize ?? Math.max(10, ctx.theme.fontSize - 1),
+            fontWeight: ls?.fontWeight ?? 600,
+            fontFamily: ls?.fontFamily,
             color:
-              ctx.theme.mode === 'dark' ? '#fecdd3' : stroke,
-            background:
-              ctx.theme.mode === 'dark'
-                ? 'rgba(136, 19, 55, 0.82)'
-                : 'rgba(255, 241, 242, 0.95)',
-            borderColor: stroke,
-            borderRadius: 5,
-            icon: marker.icon,
+              ls?.color ?? (ctx.theme.mode === 'dark' ? '#fecdd3' : stroke),
+            ...(ls?.renderMode ? { renderMode: ls.renderMode } : {}),
+            ...(ls?.background ? { background: ls.background } : {}),
+            ...(ls?.borderColor ? { borderColor: ls.borderColor } : {}),
+            ...(ls?.borderRadius !== undefined ? { borderRadius: ls.borderRadius } : {}),
+            ...(ls?.padding ? { padding: ls.padding } : {}),
+            ...(ls?.maxWidth !== undefined ? { maxWidth: ls.maxWidth } : {}),
+            ...(ls?.rotation !== undefined ? { rotation: ls.rotation } : {}),
+            ...(ls?.templateHtml ? { templateHtml: ls.templateHtml } : {}),
+            ...(ls?.renderer ? { renderer: ls.renderer } : {}),
+            icon: ls?.icon ?? marker.icon,
+            ...(ls?.iconPosition ? { iconPosition: ls.iconPosition } : {}),
             datum: marker
-          });
+          };
+          if (typeof ls?.formatter === 'function') {
+            lineLabelDesc.text = ls.formatter(lineLabelDesc.text, lineLabelDesc);
+          }
+
+          const lineLabel = ctx.renderLabel(itemG, lineLabelDesc);
           if (lineLabel) {
             lineLabel.setAttribute('pointer-events', 'none');
             lineLabel.style.pointerEvents = 'none';

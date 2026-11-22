@@ -252,6 +252,12 @@ export interface MarkerAnnotationConfig {
   borderColor?: string;
   borderRadius?: number;
   fontSize?: number;
+  fontWeight?: string | number;
+  fontFamily?: string;
+  /** Optional inner box padding when `background` or `borderColor` is set. */
+  labelPadding?: LabelPadding;
+  formatter?: LabelStyleOverride['formatter'];
+  renderer?: CustomLabelRenderer;
   /** Show a tooltip on hover and keyboard focus. Default `true`. */
   enableTooltip?: boolean;
   /**
@@ -304,6 +310,12 @@ export interface MarkerConfig {
   labelEdgePadding?: number;
   labelOffsetX?: number;
   labelOffsetY?: number;
+  /**
+   * Optional per-marker styling & formatting overrides for the inside `label`
+   * (e.g. `color`, `background`, `borderColor`, `borderRadius`, `fontSize`, `fontWeight`, `formatter`, `renderer`).
+   * By default, marker text renders without a background box.
+   */
+  labelStyle?: Partial<Omit<LabelStyleOverride, 'target'>>;
   icon?: string;
   /**
    * Optional outside annotation (icon and/or text) placed outside the plot edge

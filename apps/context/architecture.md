@@ -195,8 +195,10 @@ interface MarkerConfig {
   labelEdgePadding?: number; // px inset from plot edge for inside labels (default 10)
   labelOffsetX?: number;
   labelOffsetY?: number;
+  // Optional per-marker inside label styling (boxless text by default)
+  labelStyle?: Partial<Omit<LabelStyleOverride, 'target'>>;
   icon?: string;
-  // Outside callout (icon and/or text) placed where the mark line/area reaches the plot boundary
+  // Outside callout (icon and/or text, boxless by default) placed where the mark line/area reaches the plot boundary
   annotation?: string | {
     text?: string;
     icon?: string | SVGElement | HTMLElement;
@@ -209,6 +211,11 @@ interface MarkerConfig {
     borderColor?: string;
     borderRadius?: number;
     fontSize?: number;
+    fontWeight?: string | number;
+    fontFamily?: string;
+    labelPadding?: LabelPadding;
+    formatter?: LabelStyleOverride['formatter'];
+    renderer?: CustomLabelRenderer;
     enableTooltip?: boolean; // default true (hover + keyboard Tab focus)
     tooltip?: boolean | string | TooltipConfig<ResolvedMarker>;
   };
