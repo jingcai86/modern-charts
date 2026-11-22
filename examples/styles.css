@@ -259,9 +259,9 @@ button.btn-primary:hover {
 
 .overview-grid:has(.overview-card:hover, .overview-card:focus-visible)
   .overview-card:not(:hover):not(:focus-visible) {
-  filter: blur(3.5px);
-  opacity: 0.45;
-  transform: scale(0.985);
+  filter: blur(1.2px);
+  opacity: 0.72;
+  transform: scale(0.992);
 }
 
 .overview-card:hover,
