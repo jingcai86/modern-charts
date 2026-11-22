@@ -185,13 +185,12 @@ function generateWebComponentHtmlSnippet(
   const palette = config.palette ?? 'modern';
   const motion =
     typeof config.motionConfig === 'string' ? config.motionConfig : 'default';
-  const stagger = config.animation?.stagger ?? 32;
   const labelMode = config.labelMode ?? 'svg';
-  const activeLayers = config.layers ?? entry.defaultLayers;
 
-  const lines: string[] = [];
-  lines.push(
+  const lines: string[] = [
+    `<!-- 1. Place the Web Component tag in HTML -->`,
     `<${entry.tagName}`,
+    `  id="my-${entry.id}-chart"`,
     `  auto-size="${config.autoSize !== false}"`,
     `  theme-mode="${themeMode}"`,
     `  palette="${palette}"`,
@@ -199,86 +198,20 @@ function generateWebComponentHtmlSnippet(
     `  label-mode="${labelMode}"`,
     `  aria-label="${config.ariaLabel ?? entry.title}"`,
     `  is-focusable="${config.isFocusable !== false}"`,
-    `>`
-  );
-
-  lines.push(
-    `  <!-- Composable Sub-Component Layers driven by chart.config -->`,
-    `  <mc-theme-layer mode="${themeMode}" palette="${palette}" font-size="${
-      config.theme?.fontSize ?? 12
-    }"></mc-theme-layer>`
-  );
-
-  if (entry.supportsCartesianScales) {
-    lines.push(
-      `  <mc-scale-layer axis="x" type="${
-        config.xScale?.type ?? 'band'
-      }"></mc-scale-layer>`,
-      `  <mc-scale-layer axis="y" type="${
-        config.yScale?.type ?? 'linear'
-      }" min="${config.yScale?.min ?? 'auto'}" max="${
-        config.yScale?.max ?? 'auto'
-      }"></mc-scale-layer>`
-    );
-  }
-
-  if (entry.supportsViewZoom && config.view) {
-    lines.push(
-      `  <mc-view-layer zoomable="${config.view.zoomable !== false}" pannable="${
-        config.view.pannable !== false
-      }" show-controls="${config.view.showControls !== false}" max-zoom="${
-        config.view.maxZoom ?? 6
-      }"></mc-view-layer>`
-    );
-  }
-
-  lines.push(
-    `  <mc-animation-layer preset="${motion}" stagger="${stagger}" enabled="${
-      config.animate !== false
-    }"></mc-animation-layer>`,
-    `  <mc-aria-layer label="${config.ariaLabel ?? entry.title}" item-role="${
-      config.aria?.itemRole ?? 'graphics-symbol'
-    }" is-focusable="${config.isFocusable !== false}"></mc-aria-layer>`
-  );
-
-  if (entry.supportsMarkers && config.markers && config.markers.length > 0) {
-    lines.push(`  <mc-marker-layer>`);
-    config.markers.forEach((m) => {
-      if (m.type === 'line') {
-        lines.push(
-          `    <mc-marker type="line" axis="${m.axis ?? 'y'}" value="${
-            m.value
-          }" condition="${m.condition ?? 'below'}" match-color="${
-            m.matchStyle?.color ?? '#ef4444'
-          }" label="${m.label ?? ''}"></mc-marker>`
-        );
-      } else {
-        lines.push(
-          `    <mc-marker type="area" axis="${m.axis ?? 'y'}" from="${
-            m.from
-          }" to="${m.to}" fill="${m.fill ?? '#ef4444'}"></mc-marker>`
-        );
-      }
-    });
-    lines.push(`  </mc-marker-layer>`);
-  }
-
-  const labelObj = !Array.isArray(config.label) ? config.label : undefined;
-  lines.push(
-    `  <mc-label mode="${labelMode}" ${
-      labelObj?.icon ? 'icon="<svg>...</svg>"' : ''
-    }></mc-label>`,
+    `></${entry.tagName}>`,
     ``,
-    `  <!-- Render Pipeline Layers -->`
-  );
-
-  activeLayers
-    .filter((l): l is string => typeof l === 'string')
-    .forEach((layerName, i) => {
-      lines.push(`  <mc-chart-layer name="${layerName}" order="${i}"></mc-chart-layer>`);
-    });
-
-  lines.push(`</${entry.tagName}>`);
+    `<!-- 2. Or configure everything via a single Nivo-style chart.config object -->`,
+    `<script type="module">`,
+    `  import { registerModernCharts } from 'modern-charts';`,
+    `  registerModernCharts();`,
+    ``,
+    `  const chart = document.getElementById('my-${entry.id}-chart');`,
+    `  chart.config = ${formatConfigAsJson(config)
+      .split('\n')
+      .map((l, idx) => (idx === 0 ? l : `  ${l}`))
+      .join('\n')};`,
+    `</script>`
+  ];
   return lines.join('\n');
 }
 
@@ -418,20 +351,13 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
       </div>
     </div>
 
-    <div class="component-pills">
-      <span class="comp-pill">chart.config = { ... }</span>
-      ${entry.subComponents
-        .map((c) => `<span class="comp-pill">&lt;${c}&gt;</span>`)
-        .join('')}
-    </div>
-
     <div class="layer-chips" id="detail-layer-chips"></div>
 
     <div class="detail-chart-stage" id="detail-chart-stage"></div>
 
     <div class="inspector-box">
       <div class="inspector-title">
-        &lt;mc-aria-layer&gt; &amp; &lt;mc-marker-layer&gt; Live Item Readout (Hover or Tab + Arrow Keys on chart items):
+        Live Item Readout (Hover or Tab + Arrow Keys on chart items):
       </div>
       <div class="inspector-readout" id="detail-aria-readout">
         Interact with any data element inside &lt;${entry.tagName}&gt; to inspect its aria-label, threshold state, and datum payload...
@@ -710,7 +636,7 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
           All Customizable Attributes &amp; Config Properties (${allAttributes.length})
         </h2>
         <p style="margin:4px 0 0;font-size:0.83rem;color:var(--text-muted);">
-          Every attribute that <code>&lt;${entry.tagName}&gt;</code> and its composable sub-components accept. Change any control below to see it reflect on the live chart and in <code>chart.config</code> immediately.
+          Every attribute and property that <code>&lt;${entry.tagName}&gt;</code> accepts. Change any control below to see it reflect on the live chart and in <code>chart.config</code> immediately.
         </p>
       </div>
       <div class="attributes-filter-bar">
@@ -780,7 +706,7 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
 
     catCard.innerHTML = `
       <h3 class="attr-category-title">
-        <span>${categoryName}</span>
+        <span>${categoryName.replace(/\s*\(<mc-[^>]+>\)/g, '')}</span>
         <span class="comp-pill">${specsInCat.length} props</span>
       </h3>
       <div class="attr-list"></div>
@@ -793,6 +719,9 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
       row.className = 'attr-row';
       row.dataset.searchText = `${spec.configPath} ${spec.attrName} ${spec.description} ${spec.category}`.toLowerCase();
 
+      const cleanAttrBadge = spec.attrName
+        .replace(/\s*\/\s*mc-[a-z-]+\[[^\]]+\]/g, '')
+        .replace(/^mc-[a-z-]+\[([^\]]+)\]$/, '$1');
       const metaDiv = document.createElement('div');
       metaDiv.className = 'attr-meta';
       metaDiv.innerHTML = `
@@ -802,7 +731,7 @@ function renderChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry): voi
               ? spec.configPath.replace('__', '')
               : spec.configPath
           }</span>
-          <span class="attr-html-badge">${spec.attrName}</span>
+          <span class="attr-html-badge">${cleanAttrBadge}</span>
         </div>
         <p class="attr-desc">${spec.description}</p>
       `;
