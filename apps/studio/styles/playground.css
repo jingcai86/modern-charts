@@ -1,0 +1,427 @@
+/* ============================================================================
+   DEDICATED CHART PLAYGROUND PAGE (#/chart/:id)
+   ============================================================================ */
+.detail-studio-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 1100px) {
+  .detail-studio-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--card-shadow);
+}
+
+.panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.component-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.comp-pill {
+  font-size: 0.72rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--pill-cyan-bg);
+  color: var(--pill-cyan-fg);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.layer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.layer-chip {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.layer-chip.active {
+  background: var(--chip-active-bg);
+  color: var(--chip-active-fg);
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.detail-chart-stage {
+  height: 430px;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-code);
+}
+
+.inspector-box {
+  background: var(--bg-code);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.inspector-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--pill-cyan-fg);
+}
+
+.inspector-readout {
+  font-size: 0.8rem;
+  color: var(--chip-active-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Live Config Editor Panel */
+.editor-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.editor-tab-btn {
+  font-size: 0.76rem;
+  padding: 5px 10px;
+  border-radius: 7px;
+}
+
+.editor-tab-btn.active {
+  background: var(--pill-purple-bg);
+  color: var(--pill-purple-fg);
+  border-color: rgba(99, 102, 241, 0.45);
+}
+
+.config-status-badge {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--chip-active-bg);
+  color: var(--chip-active-fg);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.config-status-badge.error {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.config-editor-textarea {
+  width: 100%;
+  flex: 1;
+  min-height: 410px;
+  background: var(--bg-code);
+  color: var(--code-text);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.79rem;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.config-editor-textarea:focus {
+  border-color: var(--border-focus);
+}
+
+.stream-code-box {
+  background: var(--bg-code);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--code-text);
+  overflow: auto;
+  min-height: 410px;
+  max-height: 460px;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* ============================================================================
+   INTERACTIVE ATTRIBUTES & CONFIG PROPERTIES CUSTOMIZER
+   ============================================================================ */
+@media (min-width: 1101px) {
+  .attributes-panel-card {
+    height: 0;
+    min-height: 100%;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 1100px) {
+  .attributes-panel-card {
+    max-height: 560px;
+    overflow: hidden;
+  }
+}
+
+.attributes-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.attributes-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.attr-search-input {
+  min-width: 240px;
+}
+
+.attributes-accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-focus) transparent;
+}
+
+.attributes-accordion-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.attributes-accordion-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.attributes-accordion-list::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 999px;
+}
+
+.attributes-accordion-list::-webkit-scrollbar-thumb:hover {
+  background: var(--border-focus);
+}
+
+.attr-category-accordion {
+  background: var(--bg-code);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: border-color 150ms ease;
+}
+
+.attr-category-accordion[open] {
+  border-color: var(--border-focus);
+}
+
+.attr-category-summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-elevated);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-main);
+  transition: background 140ms ease;
+}
+
+.attr-category-summary::-webkit-details-marker {
+  display: none;
+}
+
+.attr-category-summary:hover {
+  background: var(--bg-card-hover);
+}
+
+.attr-category-summary-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.attr-chevron {
+  display: inline-block;
+  font-size: 0.9rem;
+  color: var(--pill-cyan-fg);
+  transition: transform 160ms ease;
+}
+
+.attr-category-accordion[open] .attr-chevron {
+  transform: rotate(90deg);
+}
+
+.attr-category-name {
+  color: var(--text-main);
+}
+
+.attr-list {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px 14px;
+  gap: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.attr-row {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--bg-code);
+  border: 1px solid var(--border-subtle);
+  transition: border-color 140ms ease;
+}
+
+.attr-row:hover {
+  border-color: var(--border-focus);
+}
+
+@media (max-width: 560px) {
+  .attr-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.attr-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.attr-names {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.attr-config-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.81rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.attr-html-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--pill-purple-bg);
+  color: var(--pill-purple-fg);
+}
+
+.attr-desc {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.attr-control-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.attr-control-cell input[type="text"],
+.attr-control-cell input[type="number"],
+.attr-control-cell select {
+  width: 100%;
+  max-width: 220px;
+}
+
+.attr-range-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 220px;
+}
+
+.attr-range-wrap input[type="range"] {
+  flex: 1;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+.attr-range-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.76rem;
+  min-width: 42px;
+  text-align: right;
+  color: var(--pill-cyan-fg);
+}
+
+/* Toggle Switch for boolean attributes */
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.toggle-switch input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #6366f1;
+  cursor: pointer;
+}

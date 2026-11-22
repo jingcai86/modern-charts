@@ -43,30 +43,33 @@ describe('AI Context directory & LLM schema validation (Issue #17)', () => {
     document.body.innerHTML = '';
   });
 
-  it('ships complete AI context files in context/ and exposes them in package.json', async () => {
+  it('ships complete AI context files in apps/context/ and exposes them in package.json via dist/context/', async () => {
     const { existsSync, readFileSync, resolvePath, cwd } =
       await loadNodeHelpers();
 
     // Core AI context files
     for (const relPath of [
-      'context/README.md',
-      'context/llms.txt',
-      'context/llms-full.txt',
-      'context/architecture.md',
-      'context/charts.schema.json'
+      'apps/context/README.md',
+      'apps/context/llms.txt',
+      'apps/context/llms-full.txt',
+      'apps/context/architecture.md',
+      'apps/context/charts.schema.json'
     ]) {
       expect(existsSync(resolvePath(cwd, relPath))).toBe(true);
     }
 
     // Per-chart markdown specs for all 10 charts
-    const llmsTxt = readFileSync(resolvePath(cwd, 'context/llms.txt'), 'utf-8');
+    const llmsTxt = readFileSync(
+      resolvePath(cwd, 'apps/context/llms.txt'),
+      'utf-8'
+    );
     const llmsFull = readFileSync(
-      resolvePath(cwd, 'context/llms-full.txt'),
+      resolvePath(cwd, 'apps/context/llms-full.txt'),
       'utf-8'
     );
 
     for (const chartId of ALL_CHARTS) {
-      const mdPath = resolvePath(cwd, `context/charts/${chartId}.md`);
+      const mdPath = resolvePath(cwd, `apps/context/charts/${chartId}.md`);
       expect(existsSync(mdPath)).toBe(true);
       const md = readFileSync(mdPath, 'utf-8');
       expect(md).toContain(`<mc-${chartId}-chart>`);
@@ -75,17 +78,19 @@ describe('AI Context directory & LLM schema validation (Issue #17)', () => {
       expect(llmsFull).toContain(`# \`<mc-${chartId}-chart>\``);
     }
 
-    // Shipped in npm package files and exports
-    expect(pkg.files).toContain('context');
+    // Shipped in npm package via dist/context/ (copied during `npm run build`)
+    expect(pkg.files).toContain('dist');
     const exportsMap = pkg.exports as Record<string, any>;
-    expect(exportsMap['./context/schema']).toBe('./context/charts.schema.json');
-    expect(exportsMap['./context/*']).toBe('./context/*');
+    expect(exportsMap['./context/schema']).toBe(
+      './dist/context/charts.schema.json'
+    );
+    expect(exportsMap['./context/*']).toBe('./dist/context/*');
   });
 
   it('validates charts.schema.json against every registered chart and renders every minimalConfig without error', async () => {
     const { readFileSync, resolvePath, cwd } = await loadNodeHelpers();
     const schema = JSON.parse(
-      readFileSync(resolvePath(cwd, 'context/charts.schema.json'), 'utf-8')
+      readFileSync(resolvePath(cwd, 'apps/context/charts.schema.json'), 'utf-8')
     );
 
     expect(Array.isArray(schema.charts)).toBe(true);

@@ -41,7 +41,7 @@ export class MCRadarChart extends MCBaseChart<RadarDatum[]> {
   }
 
   protected getDefaultMargin(): ChartMargin {
-    return { top: 44, right: 64, bottom: 48, left: 64 };
+    return { top: 44, right: 64, bottom: 58, left: 64 };
   }
 
   get indexBy(): string {

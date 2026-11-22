@@ -364,7 +364,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   >;
 
   protected getDefaultMargin(): ChartMargin {
-    return { top: 32, right: 28, bottom: 64, left: 56 };
+    return { top: 32, right: 28, bottom: 76, left: 56 };
   }
 
   protected getDefaultScaleConfig(): ScaleConfig {
@@ -956,7 +956,11 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     const hasCustomLegend =
       this._config.legend !== undefined ||
       this.querySelector(':scope > mc-legend') !== null;
-    if (!hasCustomLegend) return;
+    const hasXTitle = Boolean(this._config.xTitle);
+    const usesCategoricalLegend =
+      this.defaultLayers.includes('legends') && this.chartType !== 'heatmap';
+
+    if (!hasCustomLegend && !(hasXTitle && usesCategoricalLegend)) return;
 
     const legend = this.resolveLegendConfig();
     if (!legend.enabled) return;
@@ -969,7 +973,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       const needed = (hasTitle ? 34 : 8) + baseRowH + pad.top + pad.bottom;
       margin.top = Math.max(margin.top, Math.ceil(needed));
     } else if (legend.position === 'bottom') {
-      const needed = 34 + baseRowH + pad.top + pad.bottom;
+      const topClearance = hasXTitle ? 42 : 34;
+      const needed = topClearance + baseRowH + pad.top + pad.bottom + 8;
       margin.bottom = Math.max(margin.bottom, Math.ceil(needed));
     } else if (legend.position === 'left') {
       const needed = 104 + pad.left + pad.right;

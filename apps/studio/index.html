@@ -3,8 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        var saved = localStorage.getItem('modern-charts-theme-mode');
+        var meta = document.querySelector('meta[name="color-scheme"]');
+        if (saved === 'light' || saved === 'dark') {
+          if (meta) meta.content = saved;
+          document.documentElement.dataset.theme = saved;
+        } else {
+          if (meta) meta.content = 'light dark';
+          document.documentElement.dataset.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+      } catch (e) {}
+    </script>
     <title>modern-charts v0.1.0-alpha.1 — Composable Web Component Charts</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles/index.css" />
   </head>
   <body>
     <header class="site-header">
@@ -21,31 +35,100 @@
       </div>
 
       <div class="global-controls">
-        <a href="#/" class="nav-home-btn" id="nav-overview-btn" data-nav-route="overview">
-          ⊞ All Charts
-        </a>
-        <a href="#/guide/custom-layers" class="nav-home-btn" data-nav-route="guide:custom-layers">
-          🧩 Custom Layers
-        </a>
-        <a href="#/guide/themes" class="nav-home-btn" data-nav-route="guide:themes">
-          🎨 Themes
-        </a>
-        <a href="#/guide/d3" class="nav-home-btn" data-nav-route="guide:d3">
-          📐 D3
-        </a>
-        <a href="#/guide/custom-labels" class="nav-home-btn" data-nav-route="guide:custom-labels">
-          🏷️ Labels
-        </a>
-        <a href="#/guide/tooltips" class="nav-home-btn" data-nav-route="guide:tooltips">
-          💬 Tooltips
-        </a>
-        <a href="./llms.txt" target="_blank" rel="noopener noreferrer" class="nav-home-btn" title="Open AI Context (llms.txt)">
-          🤖 AI Context
-        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <button
+            type="button"
+            id="nav-pages-trigger"
+            class="nav-dropdown-trigger"
+            popovertarget="studio-pages-menu"
+            popovertargetaction="toggle"
+            aria-controls="studio-pages-menu"
+            aria-expanded="false"
+          >
+            <span id="nav-pages-current-label">⊞ All Charts</span>
+            <span class="nav-dropdown-chevron" aria-hidden="true">▾</span>
+          </button>
+
+          <ul id="studio-pages-menu" class="nav-dropdown-panel" popover="auto">
+            <li>
+              <a
+                href="#/"
+                class="nav-dropdown-link"
+                data-nav-route="overview"
+                data-nav-label="⊞ All Charts"
+              >
+                ⊞ All Charts
+              </a>
+            </li>
+            <li class="nav-dropdown-group-label" aria-hidden="true">Guides</li>
+            <li>
+              <a
+                href="#/guide/custom-layers"
+                class="nav-dropdown-link"
+                data-nav-route="guide:custom-layers"
+                data-nav-label="🧩 Custom Layers"
+              >
+                🧩 Custom Layers
+              </a>
+            </li>
+            <li>
+              <a
+                href="#/guide/themes"
+                class="nav-dropdown-link"
+                data-nav-route="guide:themes"
+                data-nav-label="🎨 Themes"
+              >
+                🎨 Themes
+              </a>
+            </li>
+            <li>
+              <a
+                href="#/guide/d3"
+                class="nav-dropdown-link"
+                data-nav-route="guide:d3"
+                data-nav-label="📐 D3"
+              >
+                📐 D3
+              </a>
+            </li>
+            <li>
+              <a
+                href="#/guide/custom-labels"
+                class="nav-dropdown-link"
+                data-nav-route="guide:custom-labels"
+                data-nav-label="🏷️ Labels"
+              >
+                🏷️ Labels
+              </a>
+            </li>
+            <li>
+              <a
+                href="#/guide/tooltips"
+                class="nav-dropdown-link"
+                data-nav-route="guide:tooltips"
+                data-nav-label="💬 Tooltips"
+              >
+                💬 Tooltips
+              </a>
+            </li>
+            <li class="nav-dropdown-group-label" aria-hidden="true">Resources</li>
+            <li>
+              <a
+                href="./llms.txt"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="nav-dropdown-link"
+                title="Open AI Context (llms.txt)"
+              >
+                🤖 AI Context (llms.txt) ↗
+              </a>
+            </li>
+          </ul>
+        </nav>
 
         <div class="control-group">
           <label for="global-theme-select">Theme:</label>
-          <select id="global-theme-select">
+          <select id="global-theme-select" aria-label="Color theme">
             <option value="system" selected>System</option>
             <option value="dark">Dark Mode</option>
             <option value="light">Light Mode</option>
@@ -54,7 +137,7 @@
       </div>
     </header>
 
-    <!-- Dynamic Router View: Overview Gallery (#/) or Dedicated Chart Playground (#/chart/:id) -->
+    <!-- Dynamic Router View: Overview Gallery (#/), Chart Playground (#/chart/:id), or Guides (#/guide/:id) -->
     <main class="main-content" id="app-root"></main>
 
     <script type="module" src="./main.ts"></script>

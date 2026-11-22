@@ -37,7 +37,7 @@ export class MCSankeyChart extends MCBaseChart<SankeyData> {
   }
 
   protected getDefaultMargin(): ChartMargin {
-    return { top: 28, right: 36, bottom: 44, left: 36 };
+    return { top: 36, right: 36, bottom: 58, left: 36 };
   }
 
   protected prepareContext(ctx: ChartRenderContext<SankeyData>): void {

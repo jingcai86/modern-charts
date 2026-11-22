@@ -15,7 +15,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 export const DEFAULT_LEGEND_PADDING: LegendPadding = {
   top: 8,
   right: 12,
-  bottom: 8,
+  bottom: 12,
   left: 12
 };
 
@@ -370,7 +370,14 @@ export function renderUnifiedLegendLayer(
   let originY = 0;
   if (cfg.position === 'bottom') {
     originX = 0;
-    originY = ctx.innerHeight + Math.max(24, ctx.margin.bottom - layout.boxHeight);
+    const hasBottomAxis = Boolean(ctx.xScale);
+    const hasXTitle = hasBottomAxis && Boolean(ctx.config.xTitle);
+    const slotTop = hasBottomAxis ? (hasXTitle ? 42 : 24) : 6;
+    const bottomOuterGap = 8;
+    const slotBottom = ctx.margin.bottom - bottomOuterGap;
+    const slotHeight = Math.max(0, slotBottom - slotTop);
+    const offsetInSlot = Math.max(0, (slotHeight - layout.boxHeight) / 2);
+    originY = ctx.innerHeight + slotTop + offsetInSlot;
   } else if (cfg.position === 'top') {
     originX = 0;
     const hasTitle = Boolean(ctx.config.title);

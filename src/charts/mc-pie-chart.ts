@@ -33,7 +33,7 @@ export class MCPieChart extends MCBaseChart<PieDatum[]> {
   }
 
   protected getDefaultMargin(): ChartMargin {
-    return { top: 36, right: 80, bottom: 44, left: 80 };
+    return { top: 36, right: 80, bottom: 58, left: 80 };
   }
 
   get innerRadiusRatio(): number {

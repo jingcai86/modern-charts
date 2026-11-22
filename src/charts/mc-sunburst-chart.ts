@@ -38,7 +38,7 @@ export class MCSunburstChart extends MCBaseChart<HierarchyNode> {
   }
 
   protected getDefaultMargin(): ChartMargin {
-    return { top: 32, right: 32, bottom: 48, left: 32 };
+    return { top: 36, right: 32, bottom: 58, left: 32 };
   }
 
   public resetDrilldown(): void {

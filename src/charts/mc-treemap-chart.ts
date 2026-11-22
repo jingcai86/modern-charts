@@ -35,7 +35,7 @@ export class MCTreemapChart extends MCBaseChart<HierarchyNode> {
   }
 
   protected getDefaultMargin(): ChartMargin {
-    return { top: 28, right: 20, bottom: 44, left: 20 };
+    return { top: 36, right: 20, bottom: 58, left: 20 };
   }
 
   protected prepareContext(ctx: ChartRenderContext<HierarchyNode>): void {
