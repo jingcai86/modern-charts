@@ -315,12 +315,21 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     defaultValue: 'Interactive Chart Visualization'
   },
   {
+    configPath: 'isInteractive',
+    attrName: 'is-interactive',
+    category: 'Accessibility (<mc-aria-layer>)',
+    control: 'boolean',
+    description:
+      'Master interactivity switch (default true). When false, renders a fully static chart: no <mc-tooltip>, no hover styles/cursors, no listeners/events, no tabindex (overrides isFocusable), keeping role="img" and aria-label on the SVG.',
+    defaultValue: true
+  },
+  {
     configPath: 'isFocusable',
     attrName: 'is-focusable / mc-aria[is-focusable]',
     category: 'Accessibility (<mc-aria-layer>)',
     control: 'boolean',
     description:
-      'Makes every chart data item keyboard-focusable (tabindex="0") with Arrow key navigation.',
+      'Controls keyboard focus (tabindex="0" and Arrow key navigation) when isInteractive is true. Set isInteractive: true, isFocusable: false for mouse-only interactive charts.',
     defaultValue: true
   },
   {
