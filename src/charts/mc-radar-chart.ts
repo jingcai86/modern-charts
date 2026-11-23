@@ -83,6 +83,21 @@ export class MCRadarChart extends MCBaseChart<RadarDatum[]> {
     if (this._isConnected) this.render();
   }
 
+  protected override hasPlottableData(data: RadarDatum[] | null): boolean {
+    if (!Array.isArray(data) || data.length === 0) return false;
+    const keys = this.keys;
+    if (keys.length === 0) return false;
+    const idxKey = this.indexBy;
+    const isFiniteVal = (v: unknown): boolean =>
+      v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+    return data.some(
+      (row) =>
+        row &&
+        (keys.some((k) => isFiniteVal(row[k])) ||
+          Object.keys(row).some((k) => k !== idxKey && isFiniteVal(row[k])))
+    );
+  }
+
   protected prepareContext(ctx: ChartRenderContext<RadarDatum[]>): void {
     const model = computeRadarChartModel(ctx, {
       indexBy: this.indexBy,

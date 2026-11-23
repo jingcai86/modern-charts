@@ -7,7 +7,8 @@ export type GuideId =
   | 'truncation'
   | 'events'
   | 'accessibility'
-  | 'dynamic-updates';
+  | 'dynamic-updates'
+  | 'chart-state';
 
 export interface GuideMeta {
   id: GuideId;
@@ -89,5 +90,13 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '🔄',
     summary:
       'Update data and config at runtime: live 1-second sliding-window streaming, randomize/add/remove mutations, batched setConfig(), resize behavior, and React/Vue snippets.'
+  },
+  {
+    id: 'chart-state',
+    title: 'Loading & Empty States (<mc-chart-state>)',
+    shortLabel: 'Chart States',
+    icon: '⏳',
+    summary:
+      'Shared minimal <mc-chart-state> overlay across all 10 charts with automatic empty detection, loading/empty slots, CSS ::part() hooks, and mc-state-change events.'
   }
 ];

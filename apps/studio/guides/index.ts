@@ -9,6 +9,7 @@ import { renderTruncationGuide } from './truncation';
 import { renderEventsGuide } from './events';
 import { renderAccessibilityGuide } from './accessibility';
 import { renderDynamicUpdatesGuide } from './dynamic-updates';
+import { renderChartStateGuide } from './chart-state';
 import type { GuideId } from './types';
 
 export { GUIDES_CATALOG, type GuideId, type GuideMeta } from './types';
@@ -44,5 +45,7 @@ export function renderGuidePage(
       return renderAccessibilityGuide(body, themeMode);
     case 'dynamic-updates':
       return renderDynamicUpdatesGuide(body, themeMode);
+    case 'chart-state':
+      return renderChartStateGuide(body, themeMode);
   }
 }
