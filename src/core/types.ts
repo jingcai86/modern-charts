@@ -1383,6 +1383,15 @@ export interface ChartRenderContext<TData = unknown> {
     element: SVGElement,
     spec: ItemAnimationSpec
   ) => void;
+  /**
+   * Registers an SVG element with the Unified Event System so any pointer, mouse,
+   * click, focus, or keyboard interaction resolves to the target and carries its
+   * associated data payload.
+   */
+  registerEventTarget: <TEventData = any>(
+    element: Element,
+    registration: ChartEventTargetRegistration<TEventData>
+  ) => Element;
   evaluateThresholds: (
     value: number,
     datum?: any,
@@ -1402,15 +1411,6 @@ export interface ChartRenderContext<TData = unknown> {
     clientY: number
   ) => void;
   hideLegendTooltip: () => void;
-  /**
-   * Registers an SVG element with the Unified Event System so any pointer, mouse,
-   * click, focus, or keyboard interaction resolves to the target and carries its
-   * associated data payload.
-   */
-  registerEventTarget: <TEventData = any>(
-    element: Element,
-    registration: ChartEventTargetRegistration<TEventData>
-  ) => Element;
   /** Resolves a configured pattern/gradient `url(#scopedId)` for a chart item or legend swatch, falling back to `matchCtx.color`. */
   resolveFill: (matchCtx: FillMatchContext) => string;
   /** Resolves a def ID or `url(#id)` string (e.g. from marker threshold styles) into a chart-scoped `url(#mc-def-...)`. */

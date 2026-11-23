@@ -374,9 +374,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   protected animationEngine = new AnimationEngine();
   protected ariaEngine = new AriaEngine();
   protected markerEngine = new MarkerEngine();
-  protected eventEngine = new EventEngine();
   protected patternEngine = new PatternEngine();
-  protected _lastMargin: ChartMargin = { top: 0, right: 0, bottom: 0, left: 0 };
 
   protected _config: ChartConfig<TData> = {};
   protected _data: TData | null = null;
@@ -403,6 +401,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     evalResult: ThresholdEvaluationResult
   ) => ThresholdMatchedItem;
   protected _isConnected = false;
+  protected eventEngine = new EventEngine();
+  protected _lastMargin: ChartMargin = { top: 0, right: 0, bottom: 0, left: 0 };
 
   constructor() {
     super();
@@ -2071,6 +2071,13 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       },
       animateItem: (element: SVGElement, spec: ItemAnimationSpec) =>
         this.animationEngine.animateItem(element, spec, animationConfig),
+      registerEventTarget: <TEventData = any>(
+        element: Element,
+        registration: ChartEventTargetRegistration<TEventData>
+      ) =>
+        isInteractive
+          ? this.eventEngine.registerTarget(element, registration)
+          : element,
       evaluateThresholds: initialThresholdCtrl.evaluate,
       showTooltip: (
         content: TooltipInput,
@@ -2085,13 +2092,6 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         clientY: number
       ) => this.showLegendTooltip(content, clientX, clientY, theme),
       hideLegendTooltip: () => this.hideLegendTooltip(),
-      registerEventTarget: <TEventData = any>(
-        element: Element,
-        registration: ChartEventTargetRegistration<TEventData>
-      ) =>
-        isInteractive
-          ? this.eventEngine.registerTarget(element, registration)
-          : element,
       resolveFill: (matchCtx: FillMatchContext) =>
         this.patternEngine.resolveFill(matchCtx),
       resolveDefUrl: (raw: string | undefined, baseColor: string) =>
