@@ -18,7 +18,19 @@ export function renderPieArcItem(
   path.setAttribute('data-item-component', 'mc-arc-item');
   path.setAttribute('data-id', arc.data.id);
   path.setAttribute('d', arc.pathD);
-  path.setAttribute('fill', arc.color);
+  const pieFill =
+    ctx.resolveFill?.({
+      id: arc.data.id,
+      seriesId: arc.data.id,
+      category: arc.data.label || arc.data.id,
+      index: arc.index,
+      value: arc.value,
+      color: arc.color,
+      chartType: 'pie',
+      target: 'arc',
+      datum: arc.data
+    }) ?? arc.color;
+  path.setAttribute('fill', pieFill);
   path.setAttribute('stroke', ctx.theme.background);
   path.setAttribute('stroke-width', '1.5');
   path.style.cursor = 'pointer';
@@ -110,7 +122,26 @@ export function renderSunburstArcItem(
   path.setAttribute('data-name', arc.name);
   path.setAttribute('data-depth', String(arc.depth));
   path.setAttribute('d', arc.pathD);
-  path.setAttribute('fill', arc.color);
+  const sunburstFill =
+    ctx.resolveFill?.({
+      id: arc.name,
+      seriesId: arc.pathNames[0] || arc.name,
+      category: arc.pathNames[0] || arc.name,
+      index: arc.index,
+      value: arc.value,
+      color: arc.color,
+      chartType: 'sunburst',
+      target: 'arc',
+      datum: {
+        id: arc.name,
+        name: arc.name,
+        breadcrumb: arc.breadcrumb,
+        pathNames: arc.pathNames,
+        depth: arc.depth,
+        value: arc.value
+      }
+    }) ?? arc.color;
+  path.setAttribute('fill', sunburstFill);
   path.style.cursor = interactive && arc.hasChildren ? 'pointer' : 'default';
   path.style.transition = 'opacity 150ms ease, filter 150ms ease';
 
@@ -212,7 +243,18 @@ export function renderGaugeValueArcItem(
   path.setAttribute('class', 'mc-gauge-value-arc');
   path.setAttribute('data-item-component', 'mc-arc-item');
   path.setAttribute('d', model.valueArcPathD);
-  path.setAttribute('fill', ctx.theme.colors[0]);
+  const gaugeFill =
+    ctx.resolveFill?.({
+      id: model.label || 'gauge',
+      seriesId: model.label || 'gauge',
+      index: 0,
+      value: model.value,
+      color: ctx.theme.colors[0],
+      chartType: 'gauge',
+      target: 'arc',
+      datum: model.datum
+    }) ?? ctx.theme.colors[0];
+  path.setAttribute('fill', gaugeFill);
 
   const getGaugeAnchor = () =>
     resolveChartPointAnchor(

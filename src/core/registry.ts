@@ -1,6 +1,7 @@
 import { MCLabelElement } from '../components/mc-label';
 import { MCTruncateElement } from '../components/mc-truncate';
 import { MCTooltipElement } from '../components/mc-tooltip';
+import { MCDefElement } from '../components/mc-def';
 import { MCLegendElement } from '../components/mc-legend';
 import { MCAnimationLayer } from '../components/mc-animation';
 import { MCAriaLayer } from '../components/mc-aria';
@@ -23,6 +24,7 @@ export const CORE_COMPONENT_REGISTRY: Record<string, CustomElementConstructor> =
   'mc-label': MCLabelElement,
   'mc-truncate': MCTruncateElement,
   'mc-tooltip': MCTooltipElement,
+  'mc-def': MCDefElement,
   'mc-legend': MCLegendElement,
   'mc-theme-layer': MCThemeLayer,
   'mc-scale-layer': MCScaleLayer,

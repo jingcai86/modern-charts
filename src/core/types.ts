@@ -867,6 +867,152 @@ export interface ResolvedLegendConfig {
  * `<mc-theme-layer>`, `<mc-scale-layer>`, `<mc-view-layer>`, `<mc-animation-layer>`,
  * `<mc-aria-layer>`, `<mc-marker-layer>`, `<mc-label>`, and the `layers` rendering pipeline.
  */
+// ============================================================================
+// SVG Pattern & Gradient Definitions (<defs> & fill rules — Issue #15)
+// ============================================================================
+
+export interface GradientStop {
+  offset: number | string;
+  color: string;
+  opacity?: number;
+}
+
+export interface DotsPatternDef {
+  id: string;
+  type: 'dots';
+  /** Base fill behind dots. Supports `'inherit'` to adopt each item's palette color. */
+  background?: string;
+  /** Dot fill color. Supports `'inherit'`. Defaults to `'rgba(255,255,255,0.42)'`. */
+  color?: string;
+  size?: number;
+  padding?: number;
+  stagger?: boolean;
+  opacity?: number;
+}
+
+export interface LinesPatternDef {
+  id: string;
+  type: 'lines';
+  background?: string;
+  color?: string;
+  /** Line angle in degrees (`0` = horizontal, `90` = vertical, `-45` = diagonal default). */
+  rotation?: number;
+  lineWidth?: number;
+  spacing?: number;
+  opacity?: number;
+}
+
+export interface SquaresPatternDef {
+  id: string;
+  type: 'squares';
+  background?: string;
+  color?: string;
+  size?: number;
+  padding?: number;
+  stagger?: boolean;
+  opacity?: number;
+}
+
+export interface CrosshatchPatternDef {
+  id: string;
+  type: 'crosshatch';
+  background?: string;
+  color?: string;
+  rotation?: number;
+  lineWidth?: number;
+  spacing?: number;
+  opacity?: number;
+}
+
+export interface LinearGradientDef {
+  id: string;
+  type: 'linearGradient';
+  /** Plain color strings (`['#6366f1', '#06b6d4']`) or explicit stop objects (`{ offset, color, opacity }`). Supports `'inherit'`. */
+  colors?: Array<string | GradientStop>;
+  /** Angle in degrees (`0` = top-to-bottom, `90` = left-to-right, `45` = diagonal). */
+  angle?: number;
+  x1?: number | string;
+  y1?: number | string;
+  x2?: number | string;
+  y2?: number | string;
+  gradientUnits?: 'objectBoundingBox' | 'userSpaceOnUse';
+}
+
+export interface RadialGradientDef {
+  id: string;
+  type: 'radialGradient';
+  colors?: Array<string | GradientStop>;
+  cx?: number | string;
+  cy?: number | string;
+  r?: number | string;
+  fx?: number | string;
+  fy?: number | string;
+  gradientUnits?: 'objectBoundingBox' | 'userSpaceOnUse';
+}
+
+export interface CustomPatternDef {
+  id: string;
+  type: 'custom';
+  width?: number;
+  height?: number;
+  patternUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
+  patternTransform?: string;
+  /** Raw inner SVG markup (wrapped in `<pattern>`) or a full `<pattern>`/`<linearGradient>`/`<radialGradient>` string. */
+  svg?: string;
+  /** Programmatic SVG element builder receiving the chart-scoped unique `id` and item `baseColor`. */
+  render?: (scopedId: string, baseColor: string) => SVGElement;
+}
+
+export type SvgFillDef =
+  | DotsPatternDef
+  | LinesPatternDef
+  | SquaresPatternDef
+  | CrosshatchPatternDef
+  | LinearGradientDef
+  | RadialGradientDef
+  | CustomPatternDef;
+
+export type FillTargetKind =
+  | 'item'
+  | 'area'
+  | 'node'
+  | 'link'
+  | 'arc'
+  | 'tile'
+  | 'cell'
+  | 'polygon'
+  | 'legend';
+
+export interface FillMatchContext {
+  id: string;
+  seriesId?: string;
+  key?: string;
+  category?: string;
+  index: number;
+  value?: number;
+  color: string;
+  chartType: string;
+  target?: FillTargetKind;
+  datum?: any;
+}
+
+export type FillMatcher =
+  | '*'
+  | string
+  | {
+      id?: string;
+      seriesId?: string;
+      key?: string;
+      category?: string;
+      target?: FillTargetKind;
+    }
+  | ((datum: any, ctx: FillMatchContext) => boolean);
+
+export interface FillRule {
+  match: FillMatcher;
+  id: string;
+}
+
 export interface ChartConfig<TData = any> {
   data?: TData;
   width?: number;
@@ -900,6 +1046,10 @@ export interface ChartConfig<TData = any> {
 
   // Marker & Threshold layer config (Nivo markers + ECharts markLine/markArea + conditional threshold styling)
   markers?: MarkerConfig[];
+
+  // Shared SVG <defs> pattern & gradient registry + fill match rules (Issue #15)
+  defs?: SvgFillDef[];
+  fill?: FillRule[];
 
   // Universal <mc-label> & <mc-truncate> overflow config
   label?: Partial<LabelStyleOverride> | Partial<LabelStyleOverride>[];
@@ -1031,6 +1181,10 @@ export interface ChartRenderContext<TData = unknown> {
     clientY: number
   ) => void;
   hideLegendTooltip: () => void;
+  /** Resolves a configured pattern/gradient `url(#scopedId)` for a chart item or legend swatch, falling back to `matchCtx.color`. */
+  resolveFill: (matchCtx: FillMatchContext) => string;
+  /** Resolves a def ID or `url(#id)` string (e.g. from marker threshold styles) into a chart-scoped `url(#mc-def-...)`. */
+  resolveDefUrl: (raw: string | undefined, baseColor: string) => string | undefined;
   state: Record<string, any>;
 }
 

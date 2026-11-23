@@ -449,6 +449,21 @@ export function renderUnifiedLegendLayer(
     const itemSwatchWidth =
       item.swatch === 'line' ? Math.max(layout.swatchSize, 16) : layout.swatchSize;
 
+    const swatchFill =
+      item.kind === 'marker'
+        ? item.color
+        : (ctx.resolveFill?.({
+            id: item.id,
+            seriesId: item.id,
+            key: item.id,
+            category: item.label,
+            index,
+            color: item.color,
+            chartType: ctx.chartType,
+            target: 'legend',
+            datum: item
+          }) ?? item.color);
+
     if (item.swatch === 'line') {
       const lineSwatch = document.createElementNS(SVG_NS, 'line');
       lineSwatch.setAttribute('class', 'mc-legend-swatch mc-legend-swatch--line');
@@ -471,7 +486,7 @@ export function renderUnifiedLegendLayer(
       areaSwatch.setAttribute('width', String(itemSwatchWidth));
       areaSwatch.setAttribute('height', String(layout.swatchSize));
       areaSwatch.setAttribute('rx', '2');
-      areaSwatch.setAttribute('fill', item.color);
+      areaSwatch.setAttribute('fill', swatchFill);
       areaSwatch.setAttribute(
         'fill-opacity',
         String(Math.max(0.22, item.fillOpacity ?? 0.25))
@@ -487,7 +502,7 @@ export function renderUnifiedLegendLayer(
       swatch.setAttribute('width', String(itemSwatchWidth));
       swatch.setAttribute('height', String(layout.swatchSize));
       swatch.setAttribute('rx', '2');
-      swatch.setAttribute('fill', item.color);
+      swatch.setAttribute('fill', swatchFill);
       itemG.appendChild(swatch);
     }
 

@@ -3,7 +3,8 @@ export type GuideId =
   | 'themes'
   | 'd3'
   | 'custom-labels'
-  | 'tooltips';
+  | 'tooltips'
+  | 'patterns';
 
 export interface GuideMeta {
   id: GuideId;
@@ -53,5 +54,13 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '💬',
     summary:
       'One reusable <mc-tooltip> per chart with full structured data access, custom formatter/renderer callbacks, declarative <mc-tooltip> overrides, and CSS ::part() styling.'
+  },
+  {
+    id: 'patterns',
+    title: 'Patterns & Gradients (<mc-def>)',
+    shortLabel: 'Patterns & Gradients',
+    icon: '✨',
+    summary:
+      'Reusable chart-scoped SVG patterns (dots, lines, squares, crosshatch, custom) and gradients across all 10 charts with color-blind friendly presets and declarative <mc-def>.'
   }
 ];

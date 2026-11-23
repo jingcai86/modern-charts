@@ -12,6 +12,7 @@ import {
 } from './label-truncate';
 import { createDefaultLegendConfig } from './legend-engine';
 import { MarkerEngine, resolveMarkerAnnotation } from './marker-engine';
+import { PatternEngine } from './pattern-engine';
 import { createDefaultScaleConfig } from './scale-manager';
 import { createDefaultTheme, createOrdinalColorScale } from './theme';
 import { resolveElementAnchor } from './tooltip-anchor';
@@ -26,6 +27,8 @@ import type {
   ChartRenderContext,
   ChartTheme,
   CustomLabelRenderer,
+  FillMatchContext,
+  FillRule,
   ItemAnimationSpec,
   LabelDescriptor,
   LabelOverflowConfig,
@@ -38,6 +41,7 @@ import type {
   MotionPresetName,
   ResolvedLegendConfig,
   ScaleConfig,
+  SvgFillDef,
   ThresholdEvaluationResult,
   ThresholdMatchedItem,
   TooltipConfig,
@@ -62,6 +66,7 @@ import {
   MCTooltipElement,
   normalizeTooltipPosition
 } from '../components/mc-tooltip';
+import { MCDefElement } from '../components/mc-def';
 import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -343,6 +348,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   protected animationEngine = new AnimationEngine();
   protected ariaEngine = new AriaEngine();
   protected markerEngine = new MarkerEngine();
+  protected patternEngine = new PatternEngine();
 
   protected _config: ChartConfig<TData> = {};
   protected _data: TData | null = null;
@@ -1302,6 +1308,31 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     return config;
   }
 
+  public resolvePatternDefsAndRules(): {
+    defs: SvgFillDef[];
+    fill: FillRule[];
+  } {
+    const defs: SvgFillDef[] = Array.isArray(this._config.defs)
+      ? [...this._config.defs]
+      : [];
+    const fill: FillRule[] = Array.isArray(this._config.fill)
+      ? [...this._config.fill]
+      : [];
+
+    const defEls = Array.from(this.children).filter(
+      (el) => el.tagName.toLowerCase() === 'mc-def'
+    ) as MCDefElement[];
+
+    for (const el of defEls) {
+      const def = typeof el.toFillDef === 'function' ? el.toFillDef() : null;
+      if (def) defs.push(def);
+      const rule = typeof el.toFillRule === 'function' ? el.toFillRule() : null;
+      if (rule) fill.push(rule);
+    }
+
+    return { defs, fill };
+  }
+
   public resolveMarkersConfig(): MarkerConfig[] {
     const markers: MarkerConfig[] = [];
 
@@ -1701,6 +1732,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
     this.#setCustomState('empty', false);
 
+    const { defs: fillDefs, fill: fillRules } = this.resolvePatternDefsAndRules();
+    this.patternEngine.prepare(defs, fillDefs, fillRules);
+
     const colorScale = createOrdinalColorScale(theme);
     const initialThresholdCtrl = this.markerEngine.createThresholdContext([]);
 
@@ -1782,6 +1816,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         clientY: number
       ) => this.showLegendTooltip(content, clientX, clientY, theme),
       hideLegendTooltip: () => this.hideLegendTooltip(),
+      resolveFill: (matchCtx: FillMatchContext) =>
+        this.patternEngine.resolveFill(matchCtx),
+      resolveDefUrl: (raw: string | undefined, baseColor: string) =>
+        this.patternEngine.resolveDefUrl(raw, baseColor),
       state: this._chartState
     };
 
