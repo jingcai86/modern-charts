@@ -19,7 +19,26 @@ export function renderSankeyLinkItem(
   ctx: ChartRenderContext<any>,
   defs?: Element | null
 ): SVGPathElement {
-  if (defs) {
+  const customLinkStroke =
+    ctx.resolveFill?.({
+      id: link.id,
+      seriesId: link.source.id,
+      category: link.target.id,
+      index: link.index,
+      value: link.value,
+      color: link.source.color,
+      chartType: 'sankey',
+      target: 'link',
+      datum: {
+        id: link.id,
+        source: link.source.id,
+        target: link.target.id,
+        value: link.value
+      }
+    }) ?? link.source.color;
+  const hasCustomLinkStroke = customLinkStroke !== link.source.color;
+
+  if (defs && !hasCustomLinkStroke) {
     const grad = document.createElementNS(SVG_NS, 'linearGradient');
     grad.setAttribute('id', link.gradientId);
     grad.setAttribute('gradientUnits', 'userSpaceOnUse');
@@ -47,7 +66,11 @@ export function renderSankeyLinkItem(
   path.setAttribute('fill', 'none');
   path.setAttribute(
     'stroke',
-    defs ? `url(#${link.gradientId})` : link.source.color
+    hasCustomLinkStroke
+      ? customLinkStroke
+      : defs
+        ? `url(#${link.gradientId})`
+        : link.source.color
   );
   path.setAttribute('stroke-width', String(link.width));
   path.setAttribute('stroke-opacity', String(link.opacity));
@@ -126,6 +149,24 @@ export function renderSankeyLinkItem(
     });
   }
 
+  ctx.registerEventTarget(path, {
+    target: 'sankeyLink',
+    category: 'item',
+    id: link.id,
+    data: {
+      id: link.id,
+      source: link.source.id,
+      sourceName: link.source.name,
+      target: link.target.id,
+      targetName: link.target.name,
+      value: link.value,
+      index: link.index,
+      count: link.totalLinks,
+      width: link.width,
+      color: link.source.color
+    }
+  });
+
   return path;
 }
 
@@ -145,7 +186,19 @@ export function renderSankeyNodeItem(
   rect.setAttribute('width', String(Math.max(4, node.x1 - node.x0)));
   rect.setAttribute('height', String(Math.max(4, node.y1 - node.y0)));
   rect.setAttribute('rx', '4');
-  rect.setAttribute('fill', node.color);
+  const nodeFill =
+    ctx.resolveFill?.({
+      id: node.id,
+      seriesId: node.id,
+      category: node.name,
+      index: node.index,
+      value: node.value,
+      color: node.color,
+      chartType: 'sankey',
+      target: 'node',
+      datum: node
+    }) ?? node.color;
+  rect.setAttribute('fill', nodeFill);
   const interactive = ctx.isInteractive !== false;
   if (interactive) {
     rect.style.cursor = 'pointer';
@@ -209,6 +262,27 @@ export function renderSankeyNodeItem(
       ctx.hideTooltip();
     });
   }
+
+  ctx.registerEventTarget(rect, {
+    target: 'sankeyNode',
+    category: 'item',
+    id: node.id,
+    data: {
+      id: node.id,
+      name: node.name,
+      column: node.column,
+      value: node.value,
+      index: node.index,
+      count: node.totalNodes,
+      color: node.color,
+      bounds: {
+        x: node.x0,
+        y: node.y0,
+        width: Math.max(4, node.x1 - node.x0),
+        height: Math.max(4, node.y1 - node.y0)
+      }
+    }
+  });
 
   return rect;
 }

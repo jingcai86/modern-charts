@@ -80,6 +80,18 @@ export function renderLineAreaItem(
 
   const activeDefs = defs ?? ctx.svg.querySelector('.mc-chart-defs');
   const plan = resolveSeriesPartialPlan(series, ctx, true);
+  const customAreaFill =
+    ctx.resolveFill?.({
+      id: series.id,
+      seriesId: series.id,
+      key: series.id,
+      index: series.index,
+      color: series.color,
+      chartType: 'line',
+      target: 'area',
+      datum: series
+    }) ?? series.color;
+  const hasCustomAreaFill = customAreaFill !== series.color;
 
   if (plan.isPartial && activeDefs) {
     const group = document.createElementNS(SVG_NS, 'g');
@@ -106,11 +118,6 @@ export function renderLineAreaItem(
         plan.baseIntervals,
         bounds
       );
-      const baseGradId = createAreaGradient(
-        activeDefs,
-        series.color,
-        series.areaOpacity
-      );
       const basePath = document.createElementNS(SVG_NS, 'path');
       basePath.setAttribute(
         'class',
@@ -119,7 +126,17 @@ export function renderLineAreaItem(
       basePath.setAttribute('aria-hidden', 'true');
       basePath.setAttribute('role', 'presentation');
       basePath.setAttribute('d', series.areaPathD);
-      basePath.setAttribute('fill', `url(#${baseGradId})`);
+      if (hasCustomAreaFill) {
+        basePath.setAttribute('fill', customAreaFill);
+        basePath.setAttribute('fill-opacity', String(Math.min(1, series.areaOpacity * 2.2)));
+      } else {
+        const baseGradId = createAreaGradient(
+          activeDefs,
+          series.color,
+          series.areaOpacity
+        );
+        basePath.setAttribute('fill', `url(#${baseGradId})`);
+      }
       basePath.setAttribute('clip-path', `url(#${baseClipId})`);
       group.appendChild(basePath);
     }
@@ -131,10 +148,13 @@ export function renderLineAreaItem(
         overlay.intervals,
         bounds
       );
+      const resolvedDefFill = ctx.resolveDefUrl?.(
+        overlay.style.fill,
+        series.color
+      );
       const ovColor =
-        overlay.style.fill || overlay.style.color || series.color;
+        resolvedDefFill || overlay.style.fill || overlay.style.color || series.color;
       const ovOpacity = overlay.style.opacity ?? series.areaOpacity;
-      const ovGradId = createAreaGradient(activeDefs, ovColor, ovOpacity);
       const ovPath = document.createElementNS(SVG_NS, 'path');
       ovPath.setAttribute(
         'class',
@@ -144,7 +164,13 @@ export function renderLineAreaItem(
       ovPath.setAttribute('role', 'presentation');
       ovPath.setAttribute('data-threshold-marker-id', overlay.marker.id);
       ovPath.setAttribute('d', series.areaPathD);
-      ovPath.setAttribute('fill', `url(#${ovGradId})`);
+      if (ovColor.startsWith('url(')) {
+        ovPath.setAttribute('fill', ovColor);
+        ovPath.setAttribute('fill-opacity', String(Math.min(1, ovOpacity * 2.2)));
+      } else {
+        const ovGradId = createAreaGradient(activeDefs, ovColor, ovOpacity);
+        ovPath.setAttribute('fill', `url(#${ovGradId})`);
+      }
       ovPath.setAttribute('clip-path', `url(#${overlayClipId})`);
       group.appendChild(ovPath);
     }
@@ -153,22 +179,36 @@ export function renderLineAreaItem(
     return group;
   }
 
-  const effectiveColor = plan.isFullMatch
-    ? plan.overlays[plan.overlays.length - 1]?.style.fill ||
-      plan.overlays[plan.overlays.length - 1]?.style.color ||
+  const fullMatchOverlay = plan.isFullMatch
+    ? plan.overlays[plan.overlays.length - 1]
+    : undefined;
+  const fullMatchDef = fullMatchOverlay
+    ? ctx.resolveDefUrl?.(fullMatchOverlay.style.fill, series.color)
+    : undefined;
+  const effectiveColor = fullMatchOverlay
+    ? fullMatchDef ||
+      fullMatchOverlay.style.fill ||
+      fullMatchOverlay.style.color ||
       series.color
-    : series.color;
-  const gradId = activeDefs
-    ? createAreaGradient(activeDefs, effectiveColor, series.areaOpacity)
-    : null;
+    : customAreaFill;
 
   const path = document.createElementNS(SVG_NS, 'path');
   path.setAttribute('class', 'mc-line-area');
   path.setAttribute('data-item-component', 'mc-line-area-item');
   path.setAttribute('data-series-id', series.id);
   path.setAttribute('d', series.areaPathD);
-  path.setAttribute('fill', gradId ? `url(#${gradId})` : effectiveColor);
-  if (!gradId) path.setAttribute('fill-opacity', String(series.areaOpacity));
+  if (effectiveColor.startsWith('url(')) {
+    path.setAttribute('fill', effectiveColor);
+    if (series.areaOpacity < 1) {
+      path.setAttribute('fill-opacity', String(Math.min(1, series.areaOpacity * 2.5)));
+    }
+  } else {
+    const gradId = activeDefs
+      ? createAreaGradient(activeDefs, effectiveColor, series.areaOpacity)
+      : null;
+    path.setAttribute('fill', gradId ? `url(#${gradId})` : effectiveColor);
+    if (!gradId) path.setAttribute('fill-opacity', String(series.areaOpacity));
+  }
   ctx.animateItem(path, { type: 'area-fade', index: series.index });
   return path;
 }
@@ -269,6 +309,23 @@ export function renderLinePathItem(
     }
 
     ctx.animateItem(group, { type: 'line-draw', index: series.index });
+    ctx.registerEventTarget(group, {
+      target: 'lineSeries',
+      category: 'item',
+      id: series.id,
+      data: {
+        id: series.id,
+        seriesId: series.id,
+        index: series.index,
+        count: series.points.length,
+        color: series.color,
+        points: series.points.map((p) => ({
+          x: p.xValue,
+          y: p.yValue,
+          raw: p.raw
+        }))
+      }
+    });
     return group;
   }
 
@@ -320,6 +377,23 @@ export function renderLinePathItem(
   path.setAttribute('stroke-linejoin', 'round');
 
   ctx.animateItem(path, { type: 'line-draw', index: series.index });
+  ctx.registerEventTarget(path, {
+    target: 'lineSeries',
+    category: 'item',
+    id: series.id,
+    data: {
+      id: series.id,
+      seriesId: series.id,
+      index: series.index,
+      count: series.points.length,
+      color: series.color,
+      points: series.points.map((p) => ({
+        x: p.xValue,
+        y: p.yValue,
+        raw: p.raw
+      }))
+    }
+  });
   return path;
 }
 
@@ -421,6 +495,27 @@ export function renderLinePointItem(
     index: pt.globalIndex,
     originX: pt.px,
     originY: pt.py
+  });
+
+  ctx.registerEventTarget(circle, {
+    target: 'linePoint',
+    category: 'item',
+    id: pt.id,
+    data: {
+      id: pt.id,
+      seriesId: pt.seriesId,
+      x: pt.xValue,
+      y: pt.yValue,
+      value: pt.yValue,
+      index: pt.globalIndex,
+      pointIndex: pt.pointIndex,
+      count: pt.totalPoints,
+      total: pt.totalPoints,
+      color: pt.color,
+      position: { x: pt.px, y: pt.py },
+      threshold: pt.threshold,
+      datum: pt.raw
+    }
   });
 
   if (interactive) {

@@ -19,9 +19,15 @@ function applyBarGeometry(rect: SVGRectElement, b: ComputedBarItemModel): void {
 function applyMatchStyleToRect(
   rect: SVGRectElement,
   style: MarkerMatchStyle,
-  fallbackColor: string
+  fallbackColor: string,
+  ctx: ChartRenderContext<any>
 ): void {
-  rect.setAttribute('fill', style.fill || style.color || fallbackColor);
+  const resolvedFill =
+    ctx.resolveDefUrl?.(style.fill, fallbackColor) ||
+    style.fill ||
+    style.color ||
+    fallbackColor;
+  rect.setAttribute('fill', resolvedFill);
   if (style.stroke) {
     rect.setAttribute('stroke', style.stroke);
     rect.setAttribute('stroke-width', String(style.strokeWidth ?? 1.8));
@@ -64,6 +70,27 @@ export function renderBarItem(
         b.threshold.isUnderThreshold ? ' mc-bar-rect--under-threshold' : ''
       }`
     : '';
+
+  const baseFill =
+    ctx.resolveFill?.({
+      id: b.id,
+      seriesId: b.key,
+      key: b.key,
+      category: b.indexValue,
+      index: b.index,
+      value: b.value,
+      color: b.originalColor,
+      chartType: 'bar',
+      target: 'item',
+      datum: {
+        id: b.key,
+        key: b.key,
+        indexValue: b.indexValue,
+        category: b.indexValue,
+        value: b.value,
+        ...b.datum
+      }
+    }) ?? b.originalColor;
 
   let hostEl: SVGElement;
   let ariaThresholdCoverage: 'none' | 'partial' | 'full' = 'none';
@@ -115,7 +142,7 @@ export function renderBarItem(
       baseRect.setAttribute('aria-hidden', 'true');
       baseRect.setAttribute('role', 'presentation');
       applyBarGeometry(baseRect, b);
-      baseRect.setAttribute('fill', b.originalColor);
+      baseRect.setAttribute('fill', baseFill);
       baseRect.setAttribute('clip-path', `url(#${baseClipId})`);
       group.appendChild(baseRect);
     }
@@ -138,7 +165,7 @@ export function renderBarItem(
       ovRect.setAttribute('role', 'presentation');
       ovRect.setAttribute('data-threshold-marker-id', overlay.marker.id);
       applyBarGeometry(ovRect, b);
-      applyMatchStyleToRect(ovRect, overlay.style, b.color);
+      applyMatchStyleToRect(ovRect, overlay.style, b.color, ctx);
       ovRect.setAttribute('clip-path', `url(#${overlayClipId})`);
       group.appendChild(ovRect);
     }
@@ -168,7 +195,7 @@ export function renderBarItem(
     applyBarGeometry(rect, b);
 
     if (applyFullMatch) {
-      applyMatchStyleToRect(rect, effectiveFullStyle, b.color);
+      applyMatchStyleToRect(rect, effectiveFullStyle, b.color, ctx);
       rect.setAttribute('data-threshold-matched', 'true');
       rect.setAttribute(
         'data-threshold-split',
@@ -184,7 +211,7 @@ export function renderBarItem(
           : b.threshold.matchedMarkerIds;
       rect.setAttribute('data-threshold-ids', ids.join(','));
     } else {
-      rect.setAttribute('fill', b.originalColor);
+      rect.setAttribute('fill', baseFill);
     }
 
     hostEl = rect;
@@ -255,6 +282,55 @@ export function renderBarItem(
     index: b.index,
     originX: b.isHorizontal ? b.x : b.x + b.width / 2,
     originY: b.isHorizontal ? b.y + b.height / 2 : b.y + b.height
+  });
+
+  const barModel = ctx.state?.model as
+    | {
+        bars?: ComputedBarItemModel[];
+        activeKeys?: string[];
+        groupMode?: 'grouped' | 'stacked';
+        layout?: 'vertical' | 'horizontal';
+      }
+    | undefined;
+  const sameCategoryBars =
+    barModel?.bars?.filter((item) => item.indexValue === b.indexValue) ?? [b];
+  const categoryTotal = sameCategoryBars.reduce(
+    (sum, item) => sum + Math.abs(item.value),
+    0
+  );
+  const stackTotal = sameCategoryBars.reduce((sum, item) => sum + item.value, 0);
+  const percentage =
+    categoryTotal > 0 ? (Math.abs(b.value) / categoryTotal) * 100 : 0;
+
+  ctx.registerEventTarget(hostEl, {
+    target: 'barItem',
+    category: 'item',
+    id: b.id,
+    data: {
+      id: b.id,
+      key: b.key,
+      seriesId: b.key,
+      category: b.indexValue,
+      indexValue: b.indexValue,
+      value: b.value,
+      index: b.index,
+      count: b.total,
+      total: b.total,
+      seriesCount: barModel?.activeKeys?.length ?? 1,
+      categoryBarCount: sameCategoryBars.length,
+      stackTotal,
+      percentage,
+      color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
+      originalColor: b.originalColor,
+      layout: barModel?.layout ?? (b.isHorizontal ? 'horizontal' : 'vertical'),
+      groupMode: barModel?.groupMode ?? 'grouped',
+      isHorizontal: b.isHorizontal,
+      bounds: { x: b.x, y: b.y, width: b.width, height: b.height },
+      threshold: b.threshold,
+      thresholdCoverage: ariaThresholdCoverage,
+      matchedMarkerIds: thresholdIds,
+      datum: b.datum
+    }
   });
 
   if (interactive) {

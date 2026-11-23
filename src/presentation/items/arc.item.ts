@@ -18,7 +18,19 @@ export function renderPieArcItem(
   path.setAttribute('data-item-component', 'mc-arc-item');
   path.setAttribute('data-id', arc.data.id);
   path.setAttribute('d', arc.pathD);
-  path.setAttribute('fill', arc.color);
+  const pieFill =
+    ctx.resolveFill?.({
+      id: arc.data.id,
+      seriesId: arc.data.id,
+      category: arc.data.label || arc.data.id,
+      index: arc.index,
+      value: arc.value,
+      color: arc.color,
+      chartType: 'pie',
+      target: 'arc',
+      datum: arc.data
+    }) ?? arc.color;
+  path.setAttribute('fill', pieFill);
   path.setAttribute('stroke', ctx.theme.background);
   path.setAttribute('stroke-width', '1.5');
   const isInteractive = ctx.isInteractive !== false;
@@ -70,6 +82,27 @@ export function renderPieArcItem(
     originY: 0
   });
 
+  const pieTotal =
+    (ctx.state?.model as { total?: number } | undefined)?.total ?? undefined;
+  ctx.registerEventTarget(path, {
+    target: 'pieSlice',
+    category: 'item',
+    id: arc.data.id,
+    data: {
+      id: arc.data.id,
+      label: arc.data.label || arc.data.id,
+      value: arc.value,
+      percentage: arc.percentage,
+      total: pieTotal,
+      index: arc.index,
+      count: arc.totalCount,
+      color: arc.color,
+      startAngle: arc.startAngle,
+      endAngle: arc.endAngle,
+      datum: arc.data
+    }
+  });
+
   if (isInteractive) {
     path.addEventListener('mouseenter', (e) => {
       path.setAttribute('d', arc.hoverPathD);
@@ -115,7 +148,26 @@ export function renderSunburstArcItem(
   path.setAttribute('data-name', arc.name);
   path.setAttribute('data-depth', String(arc.depth));
   path.setAttribute('d', arc.pathD);
-  path.setAttribute('fill', arc.color);
+  const sunburstFill =
+    ctx.resolveFill?.({
+      id: arc.name,
+      seriesId: arc.pathNames[0] || arc.name,
+      category: arc.pathNames[0] || arc.name,
+      index: arc.index,
+      value: arc.value,
+      color: arc.color,
+      chartType: 'sunburst',
+      target: 'arc',
+      datum: {
+        id: arc.name,
+        name: arc.name,
+        breadcrumb: arc.breadcrumb,
+        pathNames: arc.pathNames,
+        depth: arc.depth,
+        value: arc.value
+      }
+    }) ?? arc.color;
+  path.setAttribute('fill', sunburstFill);
   const chartInteractive = ctx.isInteractive !== false;
   path.style.cursor =
     chartInteractive && interactive && arc.hasChildren ? 'pointer' : 'default';
@@ -209,6 +261,25 @@ export function renderSunburstArcItem(
     }
   }
 
+  ctx.registerEventTarget(path, {
+    target: 'sunburstArc',
+    category: 'item',
+    id: arc.name,
+    data: {
+      id: arc.name,
+      name: arc.name,
+      breadcrumb: arc.breadcrumb,
+      pathNames: arc.pathNames,
+      depth: arc.depth,
+      value: arc.value,
+      percentage: arc.percentage,
+      index: arc.index,
+      count: arc.totalCount,
+      hasChildren: arc.hasChildren,
+      color: arc.color
+    }
+  });
+
   return path;
 }
 
@@ -223,7 +294,18 @@ export function renderGaugeValueArcItem(
   path.setAttribute('class', 'mc-gauge-value-arc');
   path.setAttribute('data-item-component', 'mc-arc-item');
   path.setAttribute('d', model.valueArcPathD);
-  path.setAttribute('fill', ctx.theme.colors[0]);
+  const gaugeFill =
+    ctx.resolveFill?.({
+      id: model.label || 'gauge',
+      seriesId: model.label || 'gauge',
+      index: 0,
+      value: model.value,
+      color: ctx.theme.colors[0],
+      chartType: 'gauge',
+      target: 'arc',
+      datum: model.datum
+    }) ?? ctx.theme.colors[0];
+  path.setAttribute('fill', gaugeFill);
 
   const getGaugeAnchor = () =>
     resolveChartPointAnchor(
@@ -297,6 +379,25 @@ export function renderGaugeValueArcItem(
     });
   }
 
+  const gaugeRange = model.max - model.min;
+  const gaugePct =
+    gaugeRange !== 0 ? ((model.value - model.min) / gaugeRange) * 100 : 0;
+  ctx.registerEventTarget(path, {
+    target: 'gaugeArc',
+    category: 'item',
+    id: model.label || 'gauge-metric',
+    data: {
+      label: model.label || 'Gauge Metric',
+      value: model.value,
+      min: model.min,
+      max: model.max,
+      unit: model.unit,
+      percentage: gaugePct,
+      count: 1,
+      datum: model.datum
+    }
+  });
+
   return path;
 }
 
@@ -336,6 +437,20 @@ export function renderGaugeNeedleItem(
   pivot.setAttribute('stroke', ctx.theme.background);
   pivot.setAttribute('stroke-width', '2');
   g.appendChild(pivot);
+
+  ctx.registerEventTarget(g, {
+    target: 'gaugeNeedle',
+    category: 'item',
+    id: 'gauge-needle',
+    data: {
+      label: model.label || 'Gauge Metric',
+      value: model.value,
+      min: model.min,
+      max: model.max,
+      unit: model.unit,
+      datum: model.datum
+    }
+  });
 
   return g;
 }

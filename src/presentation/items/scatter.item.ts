@@ -18,7 +18,29 @@ export function renderScatterNodeItem(
   circle.setAttribute('cx', String(node.px));
   circle.setAttribute('cy', String(node.py));
   circle.setAttribute('r', String(node.radius));
-  circle.setAttribute('fill', node.color);
+  const scatterFill =
+    (node.threshold.matched && node.threshold.style.fill
+      ? ctx.resolveDefUrl?.(node.threshold.style.fill, node.color)
+      : undefined) ??
+    ctx.resolveFill?.({
+      id: node.label || `${node.seriesId}-${node.index}`,
+      seriesId: node.seriesId,
+      key: node.seriesId,
+      index: node.index,
+      value: node.yValue,
+      color: node.color,
+      chartType: 'scatter',
+      target: 'item',
+      datum: {
+        seriesId: node.seriesId,
+        label: node.label,
+        x: node.xValue,
+        y: node.yValue,
+        size: node.sizeValue
+      }
+    }) ??
+    node.color;
+  circle.setAttribute('fill', scatterFill);
   circle.setAttribute(
     'fill-opacity',
     String(node.threshold.style.opacity ?? 0.74)
@@ -112,6 +134,26 @@ export function renderScatterNodeItem(
       ctx.hideTooltip();
     });
   }
+
+  ctx.registerEventTarget(circle, {
+    target: 'scatterPoint',
+    category: 'item',
+    id: node.label || `${node.seriesId}-${node.index}`,
+    data: {
+      id: node.label || `${node.seriesId}-${node.index}`,
+      seriesId: node.seriesId,
+      label: node.label,
+      x: node.xValue,
+      y: node.yValue,
+      value: node.yValue,
+      size: node.sizeValue,
+      radius: node.radius,
+      index: node.index,
+      count: node.totalNodes,
+      color: node.color,
+      threshold: node.threshold
+    }
+  });
 
   return circle;
 }

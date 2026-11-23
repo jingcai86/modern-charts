@@ -37,7 +37,26 @@ export function renderHeatmapCellItem(
   node.setAttribute('data-item-component', 'mc-cell-item');
   node.setAttribute('data-row', cell.rowId);
   node.setAttribute('data-col', cell.colId);
-  node.setAttribute('fill', cell.color);
+  const cellFill =
+    ctx.resolveFill?.({
+      id: `${cell.rowId}-${cell.colId}`,
+      seriesId: cell.rowId,
+      category: cell.colId,
+      index: cell.index,
+      value: cell.value,
+      color: cell.color,
+      chartType: 'heatmap',
+      target: 'cell',
+      datum: {
+        id: `${cell.rowId}-${cell.colId}`,
+        rowId: cell.rowId,
+        colId: cell.colId,
+        x: cell.colId,
+        y: cell.value,
+        value: cell.value
+      }
+    }) ?? cell.color;
+  node.setAttribute('fill', cellFill);
   const interactive = ctx.isInteractive !== false;
   if (interactive) {
     node.style.cursor = 'pointer';
@@ -111,6 +130,24 @@ export function renderHeatmapCellItem(
     });
   }
 
+  ctx.registerEventTarget(node, {
+    target: 'heatmapCell',
+    category: 'item',
+    id: `${cell.rowId}-${cell.colId}`,
+    data: {
+      id: `${cell.rowId}-${cell.colId}`,
+      rowId: cell.rowId,
+      colId: cell.colId,
+      x: cell.colId,
+      y: cell.rowId,
+      value: cell.value,
+      index: cell.index,
+      count: cell.totalCount,
+      color: cell.color,
+      bounds: { x: cell.x, y: cell.y, width: cell.width, height: cell.height }
+    }
+  });
+
   return node;
 }
 
@@ -130,7 +167,24 @@ export function renderTreemapTileItem(
   rect.setAttribute('width', String(leaf.width));
   rect.setAttribute('height', String(leaf.height));
   rect.setAttribute('rx', String(leaf.rx));
-  rect.setAttribute('fill', leaf.color);
+  const tileFill =
+    ctx.resolveFill?.({
+      id: leaf.name,
+      seriesId: leaf.category,
+      category: leaf.category,
+      index: leaf.index,
+      value: leaf.value,
+      color: leaf.color,
+      chartType: 'treemap',
+      target: 'tile',
+      datum: {
+        id: leaf.name,
+        name: leaf.name,
+        category: leaf.category,
+        value: leaf.value
+      }
+    }) ?? leaf.color;
+  rect.setAttribute('fill', tileFill);
   const interactive = ctx.isInteractive !== false;
   if (interactive) {
     rect.style.cursor = 'pointer';
@@ -197,6 +251,22 @@ export function renderTreemapTileItem(
       ctx.hideTooltip();
     });
   }
+
+  ctx.registerEventTarget(rect, {
+    target: 'treemapTile',
+    category: 'item',
+    id: leaf.name,
+    data: {
+      id: leaf.name,
+      name: leaf.name,
+      category: leaf.category,
+      value: leaf.value,
+      index: leaf.index,
+      count: leaf.totalLeaves,
+      color: leaf.color,
+      bounds: { x: leaf.x0, y: leaf.y0, width: leaf.width, height: leaf.height }
+    }
+  });
 
   return rect;
 }

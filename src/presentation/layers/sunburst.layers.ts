@@ -81,6 +81,16 @@ export function renderSunburstCenterLayer(
     circle.style.cursor = 'pointer';
     circle.addEventListener('click', onDrillUp);
   }
+  ctx.registerEventTarget(circle, {
+    target: 'sunburstCenter',
+    category: 'item',
+    id: 'sunburst-center',
+    data: {
+      name: model.activeRootName,
+      total: model.total,
+      isDrilledDown: model.isDrilledDown
+    }
+  });
   g.appendChild(circle);
 
   const title = model.isDrilledDown

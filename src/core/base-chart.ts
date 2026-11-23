@@ -5,6 +5,7 @@ import {
   resolveMotionConfig
 } from './animation-engine';
 import { AriaEngine, createDefaultAriaConfig } from './aria-engine';
+import { EventEngine } from './event-engine';
 import { LabelEngine } from './label-engine';
 import {
   normalizeOverflowInput,
@@ -12,6 +13,7 @@ import {
 } from './label-truncate';
 import { createDefaultLegendConfig } from './legend-engine';
 import { MarkerEngine, resolveMarkerAnnotation } from './marker-engine';
+import { PatternEngine } from './pattern-engine';
 import { createDefaultScaleConfig } from './scale-manager';
 import { createDefaultTheme, createOrdinalColorScale } from './theme';
 import { resolveElementAnchor } from './tooltip-anchor';
@@ -21,6 +23,10 @@ import type {
   AriaItemDescriptor,
   ChartConfig,
   ChartDimensions,
+  ChartEventHandler,
+  ChartEventName,
+  ChartEventsConfig,
+  ChartEventTargetRegistration,
   ChartMargin,
   ChartPaletteName,
   ChartRenderContext,
@@ -28,6 +34,8 @@ import type {
   ChartStateKind,
   ChartTheme,
   CustomLabelRenderer,
+  FillMatchContext,
+  FillRule,
   ItemAnimationSpec,
   LabelDescriptor,
   LabelOverflowConfig,
@@ -40,6 +48,7 @@ import type {
   MotionPresetName,
   ResolvedLegendConfig,
   ScaleConfig,
+  SvgFillDef,
   ThresholdEvaluationResult,
   ThresholdMatchedItem,
   TooltipConfig,
@@ -64,6 +73,7 @@ import {
   MCTooltipElement,
   normalizeTooltipPosition
 } from '../components/mc-tooltip';
+import { MCDefElement } from '../components/mc-def';
 import {
   DEFAULT_EMPTY_TEXT,
   DEFAULT_LOADING_TEXT,
@@ -212,11 +222,16 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
           pointer-events: auto;
         }
 
+        [data-event-target] {
+          cursor: pointer;
+        }
+
         .mc-label--interactive {
           cursor: pointer;
           outline: none;
         }
 
+        [data-event-target]:focus-visible,
         .mc-label--interactive:focus-visible {
           outline: 2px solid var(--_mc-focus-ring);
           outline-offset: 2px;
@@ -226,7 +241,6 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
         .mc-chart-container--static * {
           cursor: default !important;
         }
-
         @keyframes mc-layer-reveal {
           from {
             opacity: 0;
@@ -360,6 +374,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   protected animationEngine = new AnimationEngine();
   protected ariaEngine = new AriaEngine();
   protected markerEngine = new MarkerEngine();
+  protected patternEngine = new PatternEngine();
 
   protected _config: ChartConfig<TData> = {};
   protected _data: TData | null = null;
@@ -386,6 +401,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     evalResult: ThresholdEvaluationResult
   ) => ThresholdMatchedItem;
   protected _isConnected = false;
+  protected eventEngine = new EventEngine();
+  protected _lastMargin: ChartMargin = { top: 0, right: 0, bottom: 0, left: 0 };
 
   constructor() {
     super();
@@ -565,6 +582,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
   disconnectedCallback(): void {
     this._isConnected = false;
+    this.eventEngine.detach();
     this.#syncTooltipPointerTracking(false);
     this.#teardownAutoSizeObserver();
     if (this.#viewController) {
@@ -622,6 +640,35 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   }
   set config(val: ChartConfig<TData>) {
     this.setConfig(val);
+  }
+
+  get events(): ChartEventsConfig | undefined {
+    return this._config.events;
+  }
+  set events(val: ChartEventsConfig | undefined) {
+    this._config.events = val;
+  }
+
+  /**
+   * Subscribes to any unified chart event (`'click'`, `'item:click'`,
+   * `'barItem:click'`, `'axis:click'`, `'legend:mouseenter'`, `'canvas:click'`, `'*'`, etc.).
+   * Returns an unsubscribe function.
+   */
+  public on<TEventData = any>(
+    eventName: ChartEventName | (string & {}),
+    handler: ChartEventHandler<TEventData>
+  ): () => void {
+    return this.eventEngine.on(eventName, handler);
+  }
+
+  /**
+   * Unsubscribes a previously registered unified chart event handler.
+   */
+  public off<TEventData = any>(
+    eventName: ChartEventName | (string & {}),
+    handler: ChartEventHandler<TEventData>
+  ): void {
+    this.eventEngine.off(eventName, handler);
   }
 
   public setConfig(nextConfig: ChartConfig<TData>): void {
@@ -1466,6 +1513,31 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     return config;
   }
 
+  public resolvePatternDefsAndRules(): {
+    defs: SvgFillDef[];
+    fill: FillRule[];
+  } {
+    const defs: SvgFillDef[] = Array.isArray(this._config.defs)
+      ? [...this._config.defs]
+      : [];
+    const fill: FillRule[] = Array.isArray(this._config.fill)
+      ? [...this._config.fill]
+      : [];
+
+    const defEls = Array.from(this.children).filter(
+      (el) => el.tagName.toLowerCase() === 'mc-def'
+    ) as MCDefElement[];
+
+    for (const el of defEls) {
+      const def = typeof el.toFillDef === 'function' ? el.toFillDef() : null;
+      if (def) defs.push(def);
+      const rule = typeof el.toFillRule === 'function' ? el.toFillRule() : null;
+      if (rule) fill.push(rule);
+    }
+
+    return { defs, fill };
+  }
+
   public resolveMarkersConfig(): MarkerConfig[] {
     const markers: MarkerConfig[] = [];
 
@@ -1805,6 +1877,19 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
     const dims = this.resolveDimensions();
     const isInteractive = this.resolveIsInteractive();
+    this._lastMargin = dims.margin;
+    this.eventEngine.resetHoverState();
+    if (isInteractive) {
+      this.eventEngine.attach({
+        host: this,
+        svg,
+        getChartType: () => this.chartType,
+        getConfig: () => this._config,
+        getMargin: () => this._lastMargin
+      });
+    } else {
+      this.eventEngine.detach();
+    }
     const theme = this.resolveTheme();
     const scaleConfig = this.resolveScaleConfig();
     const viewConfig = this.resolveViewConfig();
@@ -1912,6 +1997,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
     this.#syncStateOverlay('ready', theme);
 
+    const { defs: fillDefs, fill: fillRules } = this.resolvePatternDefsAndRules();
+    this.patternEngine.prepare(defs, fillDefs, fillRules);
+
     const colorScale = createOrdinalColorScale(theme);
     const initialThresholdCtrl = this.markerEngine.createThresholdContext([]);
 
@@ -1983,6 +2071,13 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       },
       animateItem: (element: SVGElement, spec: ItemAnimationSpec) =>
         this.animationEngine.animateItem(element, spec, animationConfig),
+      registerEventTarget: <TEventData = any>(
+        element: Element,
+        registration: ChartEventTargetRegistration<TEventData>
+      ) =>
+        isInteractive
+          ? this.eventEngine.registerTarget(element, registration)
+          : element,
       evaluateThresholds: initialThresholdCtrl.evaluate,
       showTooltip: (
         content: TooltipInput,
@@ -1997,6 +2092,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         clientY: number
       ) => this.showLegendTooltip(content, clientX, clientY, theme),
       hideLegendTooltip: () => this.hideLegendTooltip(),
+      resolveFill: (matchCtx: FillMatchContext) =>
+        this.patternEngine.resolveFill(matchCtx),
+      resolveDefUrl: (raw: string | undefined, baseColor: string) =>
+        this.patternEngine.resolveDefUrl(raw, baseColor),
       state: this._chartState
     };
 
@@ -2008,7 +2107,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (this.chartTitle) {
       const titleG = document.createElementNS(SVG_NS, 'g');
       titleG.setAttribute('class', 'mc-layer mc-layer--title');
-      this.labelEngine.renderLabel(
+      const renderedTitle = this.labelEngine.renderLabel(
         titleG,
         {
           id: 'chart-title',
@@ -2025,6 +2124,17 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         },
         theme
       );
+      if (renderedTitle) {
+        this.eventEngine.registerTarget(renderedTitle, {
+          target: 'title',
+          category: 'title',
+          id: 'chart-title',
+          data: {
+            id: 'chart-title',
+            text: this.chartTitle
+          }
+        });
+      }
       rootGroup.appendChild(titleG);
     }
 
@@ -2537,7 +2647,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       scaleBy(Math.pow(2, -e.deltaY * deltaScale), cx, cy);
     };
 
+    let pointerDown = false;
     let dragging = false;
+    let capturedPointerId: number | null = null;
     let startX = 0;
     let startY = 0;
     let origX = 0;
@@ -2545,27 +2657,40 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
     const onPointerDown = (e: PointerEvent): void => {
       if (!viewConfig.pannable || e.button !== 0) return;
-      dragging = true;
+      pointerDown = true;
+      dragging = false;
+      capturedPointerId = null;
       startX = e.clientX;
       startY = e.clientY;
       origX = this.#viewTransform.x;
       origY = this.#viewTransform.y;
-      svg.setPointerCapture?.(e.pointerId);
     };
 
     const onPointerMove = (e: PointerEvent): void => {
-      if (!dragging) return;
+      if (!pointerDown) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!dragging) {
+        if (Math.hypot(dx, dy) < 4) return;
+        dragging = true;
+        capturedPointerId = e.pointerId;
+        svg.setPointerCapture?.(e.pointerId);
+      }
       applyTransform(
         this.#viewTransform.k,
-        origX + (e.clientX - startX),
-        origY + (e.clientY - startY)
+        origX + dx,
+        origY + dy
       );
     };
 
-    const onPointerEnd = (e: PointerEvent): void => {
-      if (!dragging) return;
+    const onPointerEnd = (_e: PointerEvent): void => {
+      if (!pointerDown) return;
+      pointerDown = false;
       dragging = false;
-      svg.releasePointerCapture?.(e.pointerId);
+      if (capturedPointerId !== null) {
+        svg.releasePointerCapture?.(capturedPointerId);
+        capturedPointerId = null;
+      }
     };
 
     svg.addEventListener('wheel', onWheel, { passive: false });

@@ -75,7 +75,7 @@ export function renderPieArcLinkLabelsLayer(
     polyline.setAttribute('stroke-width', '1.5');
     g.appendChild(polyline);
 
-    ctx.renderLabel(g, {
+    const linkLabelG = ctx.renderLabel(g, {
       id: `arc-link-label-${idx}`,
       text: `${arc.data.label || arc.data.id} (${arc.value})`,
       x: p2[0] + (arc.isRightSide ? 6 : -6),
@@ -93,6 +93,21 @@ export function renderPieArcLinkLabelsLayer(
         value: arc.value
       }
     });
+    if (linkLabelG) {
+      ctx.registerEventTarget(linkLabelG, {
+        target: 'label',
+        category: 'label',
+        id: `arc-link-label-${idx}`,
+        data: {
+          id: arc.data.id,
+          labelType: 'arc-link',
+          text: `${arc.data.label || arc.data.id} (${arc.value})`,
+          datum: arc.data,
+          index: idx,
+          count: model.arcs.length
+        }
+      });
+    }
   });
 
   ctx.layerGroup.appendChild(g);

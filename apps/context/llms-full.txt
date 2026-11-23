@@ -217,6 +217,14 @@ interface SharedChartConfig<TData> {
     fontSize?: number;
   };
 
+  // Unified Event System (global + target-scoped callbacks for item, axis, legend, marker, title, label, canvas)
+  events?: ChartEventsConfig;
+  onClick?: ChartEventHandler;
+  onFocus?: ChartEventHandler;
+  onMouseOver?: ChartEventHandler;
+  onMouseEnter?: ChartEventHandler;
+  onMouseLeave?: ChartEventHandler;
+
   // W3C ARIA Accessibility (<mc-aria-layer> / <mc-aria>)
   role?: string;
   ariaLabel?: string;
@@ -412,14 +420,21 @@ Shared across all 8 categorical-legend charts (`bar`, `line`, `pie`, `radar`, `s
 
 ---
 
-## 9. Key Methods & Events
+## 9. Unified Event System (`config.events`, `.on()` / `.off()`, & `mc-*` CustomEvents)
+
+Every chart region emits consistent `ChartEventPayload` objects across 13 event types (`click`, `dblclick`, `contextmenu`, `focus`, `blur`, `mouseover`, `mouseout`, `mouseenter`, `mouseleave`, `mousemove`, `pointerdown`, `pointerup`, `keydown`) via `config.events` (global + `item`/`axis`/`legend`/`marker`/`title`/`label`/`canvas` scopes), `chart.on()` / `chart.off()`, and composed DOM events (`mc-event`, `mc-<type>`, `mc-<category>-<type>`). Empty chart area interactions emit `target: 'canvas'`, `category: 'canvas'`, and strictly `data: undefined`.
+
+---
+
+## 10. Key Methods & Events
 
 - `chart.render()` — Re-renders immediately.
 - `chart.resize(width?, height?)` — Explicitly updates dimensions (especially when `autoSize: false`).
+- `chart.on(eventName, handler)` / `chart.off(eventName, handler)` — Subscribe/unsubscribe to unified chart events (`'click'`, `'barItem:click'`, `'axis:click'`, `'legend:mouseenter'`, `'canvas:click'`, `'*'`).
 - `chart.streamLayers(delayMs?)` — Streams layers progressively, firing `mc-layer-stream` per layer and `mc-stream-complete` on finish.
 - `chart.getTooltipElement()` — Returns the chart's singleton item `<mc-tooltip>` instance.
 - `chart.getLegendTooltipElement()` — Returns the chart's dedicated singleton legend `<mc-tooltip>` instance.
-- Events: `mc-rendered`, `mc-zoom`, `mc-aria-focus`, `mc-aria-activate`, `mc-tooltip-show`, `mc-tooltip-hide`, `mc-legend-tooltip-show`, `mc-legend-tooltip-hide`, `mc-layer-stream`, `mc-stream-complete`.
+- Events: `mc-event`, `mc-click`, `mc-focus`, `mc-blur`, `mc-mouseover`, `mc-mouseenter`, `mc-mouseleave`, `mc-item-*`, `mc-axis-*`, `mc-legend-*`, `mc-marker-*`, `mc-title-*`, `mc-canvas-*`, `mc-zoom`, `mc-aria-focus`, `mc-item-activate`, `mc-tooltip-show`, `mc-tooltip-hide`, `mc-legend-tooltip-show`, `mc-legend-tooltip-hide`, `mc-layer-stream`, `mc-stream-complete`.
 
 ---
 

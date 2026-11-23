@@ -112,6 +112,8 @@
   font-size: 0.8rem;
   color: var(--chip-active-fg);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Live Config Editor Panel */

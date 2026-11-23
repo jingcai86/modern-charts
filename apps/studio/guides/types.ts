@@ -8,7 +8,8 @@ export type GuideId =
   | 'events'
   | 'accessibility'
   | 'dynamic-updates'
-  | 'chart-state';
+  | 'chart-state'
+  | 'patterns';
 
 export interface GuideMeta {
   id: GuideId;
@@ -98,5 +99,13 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '⏳',
     summary:
       'Shared minimal <mc-chart-state> overlay across all 10 charts with automatic empty detection, loading/empty slots, CSS ::part() hooks, and mc-state-change events.'
+  },
+  {
+    id: 'patterns',
+    title: 'Patterns & Gradients (<mc-def>)',
+    shortLabel: 'Patterns & Gradients',
+    icon: '✨',
+    summary:
+      'Reusable chart-scoped SVG patterns (dots, lines, squares, crosshatch, custom) and gradients across all 10 charts with color-blind friendly presets and declarative <mc-def>.'
   }
 ];

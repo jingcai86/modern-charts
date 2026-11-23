@@ -29,6 +29,7 @@ import {
   MCAnimationLayer,
   MCAriaLayer,
   MCMarkerLayer,
+  type ChartEventPayload,
   type LegendItem,
   type TooltipPayload
 } from '../src/index';
@@ -3312,5 +3313,451 @@ describe('isInteractive Option for Fully Static Charts & isFocusable Alignment (
     expect(bar.shadowRoot?.querySelectorAll('[tabindex="0"]').length).toBeGreaterThan(
       0
     );
+  });
+});
+
+describe('Unified Event System across all chart targets (Issue #49)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('emits rich barItem data (datum, count, stackTotal, percentage, bounds) on click/hover/focus and returns data: undefined on empty canvas', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    const globalClicks: ChartEventPayload[] = [];
+    const itemClicks: ChartEventPayload[] = [];
+    const canvasClicks: ChartEventPayload[] = [];
+    const domEvents: ChartEventPayload[] = [];
+
+    bar.addEventListener('mc-click', (e) => {
+      domEvents.push((e as CustomEvent<ChartEventPayload>).detail);
+    });
+
+    bar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 640,
+      height: 360,
+      title: 'Quarterly Revenue',
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      groupMode: 'stacked',
+      xTitle: 'Quarter',
+      yTitle: 'Revenue ($M)',
+      events: {
+        onClick: (ev) => globalClicks.push(ev),
+        item: { onClick: (ev) => itemClicks.push(ev) },
+        canvas: { onClick: (ev) => canvasClicks.push(ev) }
+      }
+    };
+
+    const barEl = bar.shadowRoot?.querySelector(
+      '.mc-bar-rect'
+    ) as SVGRectElement;
+    expect(barEl).not.toBeNull();
+    expect(barEl.getAttribute('data-event-target')).toBe('barItem');
+    expect(barEl.getAttribute('data-event-category')).toBe('item');
+
+    barEl.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, clientX: 120, clientY: 140 })
+    );
+
+    expect(globalClicks.length).toBe(1);
+    expect(itemClicks.length).toBe(1);
+    expect(canvasClicks.length).toBe(0);
+    expect(domEvents.length).toBe(1);
+
+    const barEv = itemClicks[0];
+    expect(barEv.type).toBe('click');
+    expect(barEv.target).toBe('barItem');
+    expect(barEv.category).toBe('item');
+    expect(barEv.chartType).toBe('bar');
+    expect(barEv.element).toBe(barEl);
+    expect(barEv.data.key).toBe('Cloud');
+    expect(barEv.data.category).toBe('Q1');
+    expect(barEv.data.value).toBe(SAMPLE_BAR_DATA[0].Cloud);
+    expect(barEv.data.count).toBe(8);
+    expect(barEv.data.seriesCount).toBe(2);
+    expect(barEv.data.groupMode).toBe('stacked');
+    expect(barEv.data.stackTotal).toBe(
+      Number(SAMPLE_BAR_DATA[0].Cloud) + Number(SAMPLE_BAR_DATA[0].Edge)
+    );
+    expect(barEv.data.percentage).toBeGreaterThan(0);
+    expect(barEv.data.bounds.width).toBeGreaterThan(0);
+    expect(barEv.data.datum).toEqual(SAMPLE_BAR_DATA[0]);
+
+    // Clicking empty SVG canvas returns target: 'canvas' with NO data (data === undefined)
+    const svg = bar.shadowRoot?.querySelector('.mc-chart-svg') as SVGSVGElement;
+    svg.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, clientX: 5, clientY: 5 })
+    );
+
+    expect(globalClicks.length).toBe(2);
+    expect(itemClicks.length).toBe(1);
+    expect(canvasClicks.length).toBe(1);
+
+    const emptyEv = canvasClicks[0];
+    expect(emptyEv.type).toBe('click');
+    expect(emptyEv.target).toBe('canvas');
+    expect(emptyEv.category).toBe('canvas');
+    expect(emptyEv.element).toBe(svg);
+    expect(emptyEv.targetId).toBeUndefined();
+    expect(emptyEv.data).toBeUndefined();
+    expect('data' in emptyEv).toBe(false);
+  });
+
+  it('fires scoped events on axis ticks & titles, legends, marker annotations, and chart titles', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    const axisClicks: ChartEventPayload[] = [];
+    const legendEvents: ChartEventPayload[] = [];
+    const markerClicks: ChartEventPayload[] = [];
+    const titleClicks: ChartEventPayload[] = [];
+    const domAxisClicks: ChartEventPayload[] = [];
+
+    bar.addEventListener('mc-axis-click', (e) => {
+      domAxisClicks.push((e as CustomEvent<ChartEventPayload>).detail);
+    });
+
+    bar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 640,
+      height: 360,
+      title: 'Infrastructure KPIs',
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      xTitle: 'Quarter',
+      yTitle: 'Throughput',
+      markers: [
+        {
+          id: 'sla-target',
+          axis: 'y',
+          value: 150,
+          label: 'SLA',
+          annotation: { text: 'SLA 150', position: 'right' }
+        }
+      ],
+      events: {
+        axis: { onClick: (ev) => axisClicks.push(ev) },
+        legend: {
+          onClick: (ev) => legendEvents.push(ev),
+          onMouseEnter: (ev) => legendEvents.push(ev)
+        },
+        marker: { onClick: (ev) => markerClicks.push(ev) },
+        title: { onClick: (ev) => titleClicks.push(ev) }
+      }
+    };
+
+    // Click X-axis tick label (clicking inner <text> walks up to registered axis label <g>)
+    const xTickText = bar.shadowRoot?.querySelector(
+      '[data-label-id="x-tick-1"] text'
+    ) as SVGTextElement;
+    expect(xTickText).not.toBeNull();
+    xTickText.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(axisClicks.length).toBe(1);
+    expect(domAxisClicks.length).toBe(1);
+    expect(axisClicks[0].target).toBe('axis');
+    expect(axisClicks[0].category).toBe('axis');
+    expect(axisClicks[0].data.axis).toBe('x');
+    expect(axisClicks[0].data.part).toBe('tick');
+    expect(axisClicks[0].data.value).toBe('Q2');
+    expect(axisClicks[0].data.index).toBe(1);
+    expect(axisClicks[0].data.count).toBe(4);
+
+    // Click Y-axis title
+    const yTitleEl = bar.shadowRoot?.querySelector(
+      '[data-label-id="y-axis-title"]'
+    ) as SVGGElement;
+    expect(yTitleEl).not.toBeNull();
+    yTitleEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(axisClicks.length).toBe(2);
+    expect(axisClicks[1].data.axis).toBe('y');
+    expect(axisClicks[1].data.part).toBe('title');
+    expect(axisClicks[1].data.label).toBe('Throughput');
+
+    // Hover & click legend item
+    const legendItem = bar.shadowRoot?.querySelector(
+      '.mc-legend-item'
+    ) as SVGGElement;
+    expect(legendItem).not.toBeNull();
+    legendItem.dispatchEvent(new MouseEvent('mouseenter'));
+    legendItem.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(legendEvents.map((e) => e.type)).toEqual(['mouseenter', 'click']);
+    expect(legendEvents[1].target).toBe('legend');
+    expect(legendEvents[1].category).toBe('legend');
+    expect(legendEvents[1].data.id).toBe('Cloud');
+    expect(legendEvents[1].data.count).toBe(2);
+
+    // Click marker annotation
+    const markerAnn = bar.shadowRoot?.querySelector(
+      '.mc-marker-annotation'
+    ) as SVGGElement;
+    expect(markerAnn).not.toBeNull();
+    markerAnn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(markerClicks.length).toBe(1);
+    expect(markerClicks[0].target).toBe('marker');
+    expect(markerClicks[0].category).toBe('marker');
+    expect(markerClicks[0].data.id).toBe('sla-target');
+    expect(markerClicks[0].data.part).toBe('annotation');
+    expect(markerClicks[0].data.value).toBe(150);
+
+    // Click chart title
+    const chartTitle = bar.shadowRoot?.querySelector(
+      '[data-label-id="chart-title"]'
+    ) as SVGGElement;
+    expect(chartTitle).not.toBeNull();
+    chartTitle.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(titleClicks.length).toBe(1);
+    expect(titleClicks[0].target).toBe('title');
+    expect(titleClicks[0].data.text).toBe('Infrastructure KPIs');
+  });
+
+  it('supports all event types (click, dblclick, contextmenu, focus, blur, mouseover, mouseout, mouseenter, mouseleave, mousemove, pointerdown, pointerup, keydown) and .on()/.off() with camelCase aliases', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    const seenTypes: string[] = [];
+    const barSpecific: string[] = [];
+
+    const offWildcard = bar.on('*', (ev) => seenTypes.push(ev.type));
+    const offBarEnter = bar.on('barItem:mouseEnter', (ev) =>
+      barSpecific.push(`${ev.target}:${ev.type}`)
+    );
+    const offBarOver = bar.on('barItem:mouseOver', (ev) =>
+      barSpecific.push(`${ev.target}:${ev.type}`)
+    );
+    const offBarLeave = bar.on('barItem:mouseLeave', (ev) =>
+      barSpecific.push(`${ev.target}:${ev.type}`)
+    );
+
+    const focusSeen: ChartEventPayload[] = [];
+    const blurSeen: ChartEventPayload[] = [];
+    bar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 560,
+      height: 320,
+      indexBy: 'quarter',
+      keys: ['Cloud'],
+      onFocus: (ev) => focusSeen.push(ev),
+      onBlur: (ev) => blurSeen.push(ev)
+    };
+
+    const barEl = bar.shadowRoot?.querySelector(
+      '.mc-bar-rect'
+    ) as SVGRectElement;
+    barEl.dispatchEvent(new MouseEvent('mouseenter'));
+    barEl.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    barEl.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    barEl.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    barEl.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+    barEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    barEl.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    barEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+    barEl.dispatchEvent(new FocusEvent('focus'));
+    barEl.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+    );
+    barEl.dispatchEvent(new FocusEvent('blur'));
+    barEl.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+    barEl.dispatchEvent(new MouseEvent('mouseleave'));
+
+    expect(seenTypes).toEqual([
+      'mouseenter',
+      'mouseover',
+      'mousemove',
+      'pointerdown',
+      'pointerup',
+      'click',
+      'dblclick',
+      'contextmenu',
+      'focus',
+      'keydown',
+      'click', // ARIA Enter activation cleanly triggers unified click
+      'blur',
+      'mouseout',
+      'mouseleave'
+    ]);
+    expect(barSpecific).toEqual([
+      'barItem:mouseenter',
+      'barItem:mouseover',
+      'barItem:mouseleave'
+    ]);
+    expect(focusSeen.length).toBe(1);
+    expect(focusSeen[0].target).toBe('barItem');
+    expect(blurSeen.length).toBe(1);
+    expect(blurSeen[0].target).toBe('barItem');
+
+    // Unsubscribe works cleanly
+    offWildcard();
+    offBarEnter();
+    offBarOver();
+    offBarLeave();
+    barEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(seenTypes.length).toBe(14);
+  });
+
+  it('registers unified event targets across all 10 chart types (line, pie, heatmap, radar, sunburst, sankey, scatter, treemap, gauge)', () => {
+    const checkTarget = (
+      chart: HTMLElement & { on: any; config: any },
+      selector: string,
+      expectedTarget: string,
+      expectedCategory: string
+    ) => {
+      document.body.appendChild(chart);
+      const hits: ChartEventPayload[] = [];
+      chart.on('click', (ev: ChartEventPayload) => hits.push(ev));
+      const el = chart.shadowRoot?.querySelector(selector) as Element | null;
+      expect(el, `missing ${selector} on ${chart.tagName}`).not.toBeNull();
+      el!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(hits.length).toBeGreaterThanOrEqual(1);
+      expect(hits[0].target).toBe(expectedTarget);
+      expect(hits[0].category).toBe(expectedCategory);
+      expect(hits[0].data).toBeDefined();
+      return hits[0];
+    };
+
+    const line = document.createElement('mc-line-chart') as MCLineChart;
+    line.config = { data: SAMPLE_LINE_DATA, width: 520, height: 300 };
+    const linePtEv = checkTarget(line, '.mc-line-point', 'linePoint', 'item');
+    expect(linePtEv.data.count).toBeGreaterThan(0);
+
+    const pie = document.createElement('mc-pie-chart') as MCPieChart;
+    pie.config = { data: SAMPLE_PIE_DATA, width: 460, height: 320 };
+    const pieEv = checkTarget(pie, '.mc-pie-arc', 'pieSlice', 'item');
+    expect(pieEv.data.count).toBe(SAMPLE_PIE_DATA.length);
+    expect(pieEv.data.percentage).toBeGreaterThan(0);
+
+    const heatmap = document.createElement('mc-heatmap-chart') as MCHeatmapChart;
+    heatmap.config = { data: SAMPLE_HEATMAP_DATA, width: 520, height: 320 };
+    const heatEv = checkTarget(heatmap, '.mc-heatmap-cell', 'heatmapCell', 'item');
+    expect(heatEv.data.rowId).toBeDefined();
+    expect(heatEv.data.colId).toBeDefined();
+
+    const radar = document.createElement('mc-radar-chart') as MCRadarChart;
+    radar.config = {
+      data: SAMPLE_RADAR_DATA,
+      indexBy: 'metric',
+      keys: ['Alpha', 'Beta'],
+      width: 460,
+      height: 340
+    };
+    checkTarget(radar, '.mc-radar-dot', 'radarDot', 'item');
+    const radarAxisEv = checkTarget(
+      radar,
+      '[data-label-id="radar-axis-0"]',
+      'axis',
+      'axis'
+    );
+    expect(radarAxisEv.data.axis).toBe('radial');
+
+    const sunburst = document.createElement(
+      'mc-sunburst-chart'
+    ) as MCSunburstChart;
+    sunburst.config = { data: SAMPLE_SUNBURST_DATA, width: 440, height: 340 };
+    checkTarget(sunburst, '.mc-sunburst-arc', 'sunburstArc', 'item');
+
+    const sankey = document.createElement('mc-sankey-chart') as MCSankeyChart;
+    sankey.config = { data: SAMPLE_SANKEY_DATA, width: 560, height: 340 };
+    checkTarget(sankey, '.mc-sankey-node', 'sankeyNode', 'item');
+    checkTarget(sankey, '.mc-sankey-link', 'sankeyLink', 'item');
+
+    const scatter = document.createElement('mc-scatter-chart') as MCScatterChart;
+    scatter.config = { data: SAMPLE_SCATTER_DATA, width: 520, height: 320 };
+    checkTarget(scatter, '.mc-scatter-node', 'scatterPoint', 'item');
+
+    const treemap = document.createElement('mc-treemap-chart') as MCTreemapChart;
+    treemap.config = { data: SAMPLE_SUNBURST_DATA, width: 520, height: 320 };
+    checkTarget(treemap, '.mc-treemap-tile', 'treemapTile', 'item');
+
+    const gauge = document.createElement('mc-gauge-chart') as MCGaugeChart;
+    gauge.config = {
+      data: { value: 74, min: 0, max: 100, label: 'Health', unit: '%' },
+      width: 400,
+      height: 280
+    };
+    const gaugeEv = checkTarget(gauge, '.mc-gauge-value-arc', 'gaugeArc', 'item');
+    expect(gaugeEv.data.value).toBe(74);
+    checkTarget(gauge, '[data-label-id="gauge-tick-0"]', 'axis', 'axis');
+  });
+
+  it('does not hijack clicks via setPointerCapture when view.pannable is enabled (only captures after drag threshold)', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    bar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 560,
+      height: 320,
+      indexBy: 'quarter',
+      keys: ['Cloud'],
+      view: { zoomable: true, pannable: true }
+    };
+
+    const svg = bar.shadowRoot?.querySelector('.mc-chart-svg') as SVGSVGElement;
+    let captureCalls = 0;
+    (svg as any).setPointerCapture = () => {
+      captureCalls += 1;
+    };
+    (svg as any).releasePointerCapture = () => {};
+
+    const barEl = bar.shadowRoot?.querySelector(
+      '.mc-bar-rect'
+    ) as SVGRectElement;
+    const clicks: ChartEventPayload[] = [];
+    bar.on('barItem:click', (ev) => clicks.push(ev));
+
+    // Simple click without dragging must NOT engage pointer capture
+    barEl.dispatchEvent(
+      new MouseEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        clientX: 100,
+        clientY: 100
+      })
+    );
+    barEl.dispatchEvent(
+      new MouseEvent('pointerup', {
+        bubbles: true,
+        button: 0,
+        clientX: 100,
+        clientY: 100
+      })
+    );
+    barEl.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, clientX: 100, clientY: 100 })
+    );
+
+    expect(captureCalls).toBe(0);
+    expect(clicks.length).toBe(1);
+    expect(clicks[0].target).toBe('barItem');
+
+    // Dragging beyond 4px engages pointer capture for smooth panning
+    svg.dispatchEvent(
+      new MouseEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        clientX: 100,
+        clientY: 100
+      })
+    );
+    svg.dispatchEvent(
+      new MouseEvent('pointermove', {
+        bubbles: true,
+        button: 0,
+        clientX: 120,
+        clientY: 100
+      })
+    );
+    svg.dispatchEvent(
+      new MouseEvent('pointerup', {
+        bubbles: true,
+        button: 0,
+        clientX: 120,
+        clientY: 100
+      })
+    );
+    expect(captureCalls).toBe(1);
   });
 });

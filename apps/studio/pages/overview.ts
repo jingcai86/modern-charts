@@ -114,6 +114,26 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="112" y="38" width="56" height="7" rx="3.5" fill="currentColor" fill-opacity="0.72"/>
       <rect x="112" y="51" width="40" height="6" rx="3" fill="currentColor" fill-opacity="0.38"/>
     </svg>`,
+  patterns: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <defs>
+        <pattern id="ov-pat-lines" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+          <rect width="6" height="6" fill="#6366f1"/>
+          <line x1="0" y1="3" x2="6" y2="3" stroke="white" stroke-opacity="0.5" stroke-width="1.6"/>
+        </pattern>
+        <pattern id="ov-pat-dots" width="7" height="7" patternUnits="userSpaceOnUse">
+          <rect width="7" height="7" fill="#06b6d4"/>
+          <circle cx="3.5" cy="3.5" r="1.4" fill="white" fill-opacity="0.65"/>
+        </pattern>
+        <linearGradient id="ov-pat-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f59e0b"/>
+          <stop offset="100%" stop-color="#ec4899"/>
+        </linearGradient>
+      </defs>
+      <rect x="34" y="26" width="38" height="52" rx="6" fill="url(#ov-pat-lines)"/>
+      <rect x="90" y="18" width="38" height="60" rx="6" fill="url(#ov-pat-dots)"/>
+      <rect x="146" y="34" width="38" height="44" rx="6" fill="url(#ov-pat-grad)"/>
+    </svg>`,
   'ai-context': `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
       <rect x="34" y="18" width="152" height="60" rx="10" fill="currentColor" fill-opacity="0.06" stroke="#a855f7" stroke-opacity="0.6" stroke-width="1.5"/>

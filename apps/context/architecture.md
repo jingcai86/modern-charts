@@ -165,6 +165,14 @@ interface SharedChartConfig<TData> {
     fontSize?: number;
   };
 
+  // Unified Event System (global + target-scoped callbacks for item, axis, legend, marker, title, label, canvas)
+  events?: ChartEventsConfig;
+  onClick?: ChartEventHandler;
+  onFocus?: ChartEventHandler;
+  onMouseOver?: ChartEventHandler;
+  onMouseEnter?: ChartEventHandler;
+  onMouseLeave?: ChartEventHandler;
+
   // W3C ARIA Accessibility (<mc-aria-layer> / <mc-aria>)
   role?: string;
   ariaLabel?: string;
@@ -360,11 +368,48 @@ Shared across all 8 categorical-legend charts (`bar`, `line`, `pie`, `radar`, `s
 
 ---
 
-## 9. Key Methods & Events
+## 9. Unified Event System (`config.events`, `.on()` / `.off()`, & `mc-*` CustomEvents)
+
+Every chart region is interactive and emits consistent `ChartEventPayload` objects across 13 event types (`click`, `dblclick`, `contextmenu`, `focus`, `blur`, `mouseover`, `mouseout`, `mouseenter`, `mouseleave`, `mousemove`, `pointerdown`, `pointerup`, `keydown`):
+
+- **Data Items (`category: 'item'`)**: `barItem`, `linePoint`, `lineSeries`, `lineSlice`, `pieSlice`, `sunburstArc`, `sunburstCenter`, `heatmapCell`, `treemapTile`, `radarDot`, `radarPolygon`, `scatterPoint`, `sankeyNode`, `sankeyLink`, `gaugeArc`, `gaugeNeedle` — pass full datum, value, index, count, bounds, percentage/stack totals, and threshold state in `event.data`.
+- **Axes (`target: 'axis'`, `category: 'axis'`)**: ticks, axis titles, and domain lines (`axis: 'x' | 'y' | 'radial'`, `part: 'tick' | 'title' | 'line'`, `value`, `label`, `index`, `count`).
+- **Legends (`target: 'legend'`, `category: 'legend'`)**: series & marker legend entries (`id`, `label`, `color`, `index`, `count`, `kind`, `position`, `datum`).
+- **Markers (`target: 'marker'`, `category: 'marker'`)**: outside marker annotations (`id`, `type`, `axis`, `value`/`from`/`to`, `matchedCount`, `matchedItems`).
+- **Title & Labels (`target: 'title' | 'label'`)**: chart title and interactive labels.
+- **Empty Chart Area (`target: 'canvas'`, `category: 'canvas'`)**: returns target and coordinates with `event.data === undefined`.
+
+```js
+// 1. Unified chart.config.events (global + scoped namespaces)
+chart.config = {
+  ...baseConfig,
+  events: {
+    onClick: (e) => console.log(e.target, e.data),
+    item: { onClick: (e) => console.log(e.target, e.data.count, e.data.datum) },
+    axis: { onClick: (e) => console.log(e.data.axis, e.data.value) },
+    legend: { onMouseEnter: (e) => console.log(e.data.label) },
+    canvas: { onClick: (e) => console.log(e.target, e.data) } // data === undefined
+  }
+};
+
+// 2. Programmatic .on() / .off() (returns unsubscribe function)
+const off = chart.on('barItem:click', (e) => console.log(e.data));
+chart.on('axis:click', (e) => console.log(e.data));
+
+// 3. Composed DOM CustomEvents
+chart.addEventListener('mc-axis-click', (e) => console.log(e.detail));
+chart.addEventListener('mc-click', (e) => console.log(e.detail));
+chart.addEventListener('mc-event', (e) => console.log(e.detail));
+```
+
+---
+
+## 10. Key Methods & Events
 
 - `chart.render()` — Re-renders immediately.
 - `chart.resize(width?, height?)` — Explicitly updates dimensions (especially when `autoSize: false`).
+- `chart.on(eventName, handler)` / `chart.off(eventName, handler)` — Subscribe/unsubscribe to unified chart events (`'click'`, `'item:click'`, `'barItem:click'`, `'axis:click'`, `'legend:mouseenter'`, `'canvas:click'`, `'*'`).
 - `chart.streamLayers(delayMs?)` — Streams layers progressively, firing `mc-layer-stream` per layer and `mc-stream-complete` on finish.
 - `chart.getTooltipElement()` — Returns the chart's singleton item `<mc-tooltip>` instance.
 - `chart.getLegendTooltipElement()` — Returns the chart's dedicated singleton legend `<mc-tooltip>` instance.
-- Events: `mc-rendered`, `mc-zoom`, `mc-aria-focus`, `mc-aria-activate`, `mc-tooltip-show`, `mc-tooltip-hide`, `mc-legend-tooltip-show`, `mc-legend-tooltip-hide`, `mc-layer-stream`, `mc-stream-complete`.
+- Events: `mc-event`, `mc-click`, `mc-focus`, `mc-blur`, `mc-mouseover`, `mc-mouseenter`, `mc-mouseleave`, `mc-item-*`, `mc-axis-*`, `mc-legend-*`, `mc-marker-*`, `mc-title-*`, `mc-canvas-*`, `mc-zoom`, `mc-aria-focus`, `mc-item-activate`, `mc-tooltip-show`, `mc-tooltip-hide`, `mc-legend-tooltip-show`, `mc-legend-tooltip-hide`, `mc-layer-stream`, `mc-stream-complete`.

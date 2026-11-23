@@ -862,11 +862,335 @@ export interface ResolvedLegendConfig {
 }
 
 /**
+ * All interactive event types emitted by the Unified Event System across every chart.
+ */
+export type ChartEventType =
+  | 'click'
+  | 'dblclick'
+  | 'contextmenu'
+  | 'focus'
+  | 'blur'
+  | 'mouseover'
+  | 'mouseout'
+  | 'mouseenter'
+  | 'mouseleave'
+  | 'mousemove'
+  | 'pointerdown'
+  | 'pointerup'
+  | 'keydown';
+
+/**
+ * Specific interactive target within any chart.
+ */
+export type ChartEventTargetKind =
+  | 'barItem'
+  | 'linePoint'
+  | 'lineSeries'
+  | 'lineSlice'
+  | 'pieSlice'
+  | 'sunburstArc'
+  | 'sunburstCenter'
+  | 'heatmapCell'
+  | 'treemapTile'
+  | 'radarDot'
+  | 'radarPolygon'
+  | 'scatterPoint'
+  | 'sankeyNode'
+  | 'sankeyLink'
+  | 'gaugeArc'
+  | 'gaugeNeedle'
+  | 'axis'
+  | 'legend'
+  | 'marker'
+  | 'title'
+  | 'label'
+  | 'canvas';
+
+/**
+ * High-level target category used for scoped event handler namespaces
+ * (`events.item`, `events.axis`, `events.legend`, `events.marker`, etc.).
+ */
+export type ChartEventCategory =
+  | 'item'
+  | 'axis'
+  | 'legend'
+  | 'marker'
+  | 'title'
+  | 'label'
+  | 'canvas';
+
+export interface AxisEventData {
+  axis: 'x' | 'y' | 'radial';
+  part: 'tick' | 'title' | 'line';
+  value?: any;
+  label?: string;
+  index?: number;
+  count?: number;
+}
+
+export interface LegendEventData {
+  id: string;
+  label: string;
+  color: string;
+  value?: number | string;
+  index: number;
+  count: number;
+  total: number;
+  kind: 'series' | 'marker';
+  swatch: 'square' | 'line' | 'area';
+  position: LegendPosition;
+  datum: LegendItem;
+}
+
+export interface MarkerEventData {
+  id: string;
+  type: MarkerType;
+  axis: 'x' | 'y';
+  part: 'annotation' | 'line' | 'area';
+  label?: string;
+  value?: number | string;
+  from?: number | string;
+  to?: number | string;
+  condition?: MarkerConfig['condition'];
+  matchedCount: number;
+  matchedItems: ThresholdMatchedItem[];
+  marker: ResolvedMarker;
+}
+
+export interface TitleEventData {
+  id: string;
+  text: string;
+}
+
+export interface LabelEventData {
+  id?: string;
+  labelType: Exclude<LabelTargetType, 'all'>;
+  text: string;
+  datum?: unknown;
+  index?: number;
+  count?: number;
+}
+
+export interface ChartEventTargetRegistration<TData = any> {
+  target: ChartEventTargetKind;
+  category: ChartEventCategory;
+  id?: string;
+  data?: TData;
+}
+
+/**
+ * Unified event payload emitted for every interaction anywhere inside a chart.
+ * When interacting with empty chart area (`target: 'canvas'`), `data` is
+ * explicitly `undefined`.
+ */
+export interface ChartEventPayload<TData = any> {
+  type: ChartEventType;
+  target: ChartEventTargetKind;
+  category: ChartEventCategory;
+  chartType: string;
+  targetId?: string;
+  data?: TData;
+  element: Element;
+  nativeEvent: Event;
+  clientX: number;
+  clientY: number;
+  chartX: number;
+  chartY: number;
+}
+
+export type ChartEventHandler<TData = any> = (
+  event: ChartEventPayload<TData>
+) => void;
+
+export interface ChartEventHandlers<TData = any> {
+  onClick?: ChartEventHandler<TData>;
+  onDoubleClick?: ChartEventHandler<TData>;
+  onContextMenu?: ChartEventHandler<TData>;
+  onFocus?: ChartEventHandler<TData>;
+  onBlur?: ChartEventHandler<TData>;
+  onMouseOver?: ChartEventHandler<TData>;
+  onMouseOut?: ChartEventHandler<TData>;
+  onMouseEnter?: ChartEventHandler<TData>;
+  onMouseLeave?: ChartEventHandler<TData>;
+  onMouseMove?: ChartEventHandler<TData>;
+  onPointerDown?: ChartEventHandler<TData>;
+  onPointerUp?: ChartEventHandler<TData>;
+  onKeyDown?: ChartEventHandler<TData>;
+}
+
+/**
+ * Unified event configuration on `chart.config.events`: supports both top-level
+ * global callbacks (fired for any target) and target-scoped handler maps
+ * (`item`, `axis`, `legend`, `marker`, `title`, `label`, `canvas`).
+ */
+export interface ChartEventsConfig extends ChartEventHandlers<any> {
+  item?: ChartEventHandlers<any>;
+  axis?: ChartEventHandlers<AxisEventData>;
+  legend?: ChartEventHandlers<LegendEventData>;
+  marker?: ChartEventHandlers<MarkerEventData>;
+  title?: ChartEventHandlers<TitleEventData>;
+  label?: ChartEventHandlers<LabelEventData>;
+  canvas?: ChartEventHandlers<undefined>;
+}
+
+export type ChartEventName =
+  | ChartEventType
+  | `${ChartEventCategory}:${ChartEventType}`
+  | `${ChartEventTargetKind}:${ChartEventType}`
+  | '*';
+
+/**
  * Single unified Nivo-style chart configuration object (`chart.config = { ... }`).
  * Underneath, the chart maps this single config onto its composable sub-components:
  * `<mc-theme-layer>`, `<mc-scale-layer>`, `<mc-view-layer>`, `<mc-animation-layer>`,
  * `<mc-aria-layer>`, `<mc-marker-layer>`, `<mc-label>`, and the `layers` rendering pipeline.
  */
+// ============================================================================
+// SVG Pattern & Gradient Definitions (<defs> & fill rules — Issue #15)
+// ============================================================================
+
+export interface GradientStop {
+  offset: number | string;
+  color: string;
+  opacity?: number;
+}
+
+export interface DotsPatternDef {
+  id: string;
+  type: 'dots';
+  /** Base fill behind dots. Supports `'inherit'` to adopt each item's palette color. */
+  background?: string;
+  /** Dot fill color. Supports `'inherit'`. Defaults to `'rgba(255,255,255,0.42)'`. */
+  color?: string;
+  size?: number;
+  padding?: number;
+  stagger?: boolean;
+  opacity?: number;
+}
+
+export interface LinesPatternDef {
+  id: string;
+  type: 'lines';
+  background?: string;
+  color?: string;
+  /** Line angle in degrees (`0` = horizontal, `90` = vertical, `-45` = diagonal default). */
+  rotation?: number;
+  lineWidth?: number;
+  spacing?: number;
+  opacity?: number;
+}
+
+export interface SquaresPatternDef {
+  id: string;
+  type: 'squares';
+  background?: string;
+  color?: string;
+  size?: number;
+  padding?: number;
+  stagger?: boolean;
+  opacity?: number;
+}
+
+export interface CrosshatchPatternDef {
+  id: string;
+  type: 'crosshatch';
+  background?: string;
+  color?: string;
+  rotation?: number;
+  lineWidth?: number;
+  spacing?: number;
+  opacity?: number;
+}
+
+export interface LinearGradientDef {
+  id: string;
+  type: 'linearGradient';
+  /** Plain color strings (`['#6366f1', '#06b6d4']`) or explicit stop objects (`{ offset, color, opacity }`). Supports `'inherit'`. */
+  colors?: Array<string | GradientStop>;
+  /** Angle in degrees (`0` = top-to-bottom, `90` = left-to-right, `45` = diagonal). */
+  angle?: number;
+  x1?: number | string;
+  y1?: number | string;
+  x2?: number | string;
+  y2?: number | string;
+  gradientUnits?: 'objectBoundingBox' | 'userSpaceOnUse';
+}
+
+export interface RadialGradientDef {
+  id: string;
+  type: 'radialGradient';
+  colors?: Array<string | GradientStop>;
+  cx?: number | string;
+  cy?: number | string;
+  r?: number | string;
+  fx?: number | string;
+  fy?: number | string;
+  gradientUnits?: 'objectBoundingBox' | 'userSpaceOnUse';
+}
+
+export interface CustomPatternDef {
+  id: string;
+  type: 'custom';
+  width?: number;
+  height?: number;
+  patternUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
+  patternTransform?: string;
+  /** Raw inner SVG markup (wrapped in `<pattern>`) or a full `<pattern>`/`<linearGradient>`/`<radialGradient>` string. */
+  svg?: string;
+  /** Programmatic SVG element builder receiving the chart-scoped unique `id` and item `baseColor`. */
+  render?: (scopedId: string, baseColor: string) => SVGElement;
+}
+
+export type SvgFillDef =
+  | DotsPatternDef
+  | LinesPatternDef
+  | SquaresPatternDef
+  | CrosshatchPatternDef
+  | LinearGradientDef
+  | RadialGradientDef
+  | CustomPatternDef;
+
+export type FillTargetKind =
+  | 'item'
+  | 'area'
+  | 'node'
+  | 'link'
+  | 'arc'
+  | 'tile'
+  | 'cell'
+  | 'polygon'
+  | 'legend';
+
+export interface FillMatchContext {
+  id: string;
+  seriesId?: string;
+  key?: string;
+  category?: string;
+  index: number;
+  value?: number;
+  color: string;
+  chartType: string;
+  target?: FillTargetKind;
+  datum?: any;
+}
+
+export type FillMatcher =
+  | '*'
+  | string
+  | {
+      id?: string;
+      seriesId?: string;
+      key?: string;
+      category?: string;
+      target?: FillTargetKind;
+    }
+  | ((datum: any, ctx: FillMatchContext) => boolean);
+
+export interface FillRule {
+  match: FillMatcher;
+  id: string;
+}
+
 export type ChartStateKind = 'loading' | 'empty' | 'ready';
 export type ChartDisplayState = 'loading' | 'empty';
 
@@ -915,6 +1239,10 @@ export interface ChartConfig<TData = any> {
   // Marker & Threshold layer config (Nivo markers + ECharts markLine/markArea + conditional threshold styling)
   markers?: MarkerConfig[];
 
+  // Shared SVG <defs> pattern & gradient registry + fill match rules (Issue #15)
+  defs?: SvgFillDef[];
+  fill?: FillRule[];
+
   // Universal <mc-label> & <mc-truncate> overflow config
   label?: Partial<LabelStyleOverride> | Partial<LabelStyleOverride>[];
   labelMode?: LabelRenderMode;
@@ -929,6 +1257,22 @@ export interface ChartConfig<TData = any> {
 
   // Unified SVG <mc-legend> config (shared across categorical charts)
   legend?: boolean | LegendConfig;
+
+  // Unified Event System config (global & scoped handlers on item, axis, legend, marker, title, label, canvas)
+  events?: ChartEventsConfig;
+  onClick?: ChartEventHandler<any>;
+  onDoubleClick?: ChartEventHandler<any>;
+  onContextMenu?: ChartEventHandler<any>;
+  onFocus?: ChartEventHandler<any>;
+  onBlur?: ChartEventHandler<any>;
+  onMouseOver?: ChartEventHandler<any>;
+  onMouseOut?: ChartEventHandler<any>;
+  onMouseEnter?: ChartEventHandler<any>;
+  onMouseLeave?: ChartEventHandler<any>;
+  onMouseMove?: ChartEventHandler<any>;
+  onPointerDown?: ChartEventHandler<any>;
+  onPointerUp?: ChartEventHandler<any>;
+  onKeyDown?: ChartEventHandler<any>;
 
   // Universal <mc-aria-layer> config + interactivity / focus switches
   role?: string;
@@ -1039,6 +1383,15 @@ export interface ChartRenderContext<TData = unknown> {
     element: SVGElement,
     spec: ItemAnimationSpec
   ) => void;
+  /**
+   * Registers an SVG element with the Unified Event System so any pointer, mouse,
+   * click, focus, or keyboard interaction resolves to the target and carries its
+   * associated data payload.
+   */
+  registerEventTarget: <TEventData = any>(
+    element: Element,
+    registration: ChartEventTargetRegistration<TEventData>
+  ) => Element;
   evaluateThresholds: (
     value: number,
     datum?: any,
@@ -1058,6 +1411,10 @@ export interface ChartRenderContext<TData = unknown> {
     clientY: number
   ) => void;
   hideLegendTooltip: () => void;
+  /** Resolves a configured pattern/gradient `url(#scopedId)` for a chart item or legend swatch, falling back to `matchCtx.color`. */
+  resolveFill: (matchCtx: FillMatchContext) => string;
+  /** Resolves a def ID or `url(#id)` string (e.g. from marker threshold styles) into a chart-scoped `url(#mc-def-...)`. */
+  resolveDefUrl: (raw: string | undefined, baseColor: string) => string | undefined;
   state: Record<string, any>;
 }
 
