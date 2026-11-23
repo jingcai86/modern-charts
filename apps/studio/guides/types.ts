@@ -76,11 +76,11 @@ export const GUIDES_CATALOG: GuideMeta[] = [
   },
   {
     id: 'accessibility',
-    title: 'Accessibility & ARIA',
+    title: 'Accessibility, ARIA & Static Charts',
     shortLabel: 'Accessibility',
     icon: '♿',
     summary:
-      'Default W3C ARIA roles, customizable screen-reader labels, Tab/Arrow keyboard navigation, polite live announcements, hidden data-table fallback, and reduced-motion support.'
+      'W3C ARIA roles, screen-reader labels, Tab/Arrow keyboard navigation, polite live announcements, hidden data-table fallback, reduced-motion, and static charts via isInteractive vs. isFocusable.'
   },
   {
     id: 'dynamic-updates',

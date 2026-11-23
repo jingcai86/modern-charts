@@ -38,8 +38,11 @@ export function renderHeatmapCellItem(
   node.setAttribute('data-row', cell.rowId);
   node.setAttribute('data-col', cell.colId);
   node.setAttribute('fill', cell.color);
-  node.style.cursor = 'pointer';
-  node.style.transition = 'transform 140ms ease, filter 140ms ease';
+  const interactive = ctx.isInteractive !== false;
+  if (interactive) {
+    node.style.cursor = 'pointer';
+    node.style.transition = 'transform 140ms ease, filter 140ms ease';
+  }
 
   const fallbackAnchor = {
     left: ctx.margin.left + cell.x,
@@ -77,34 +80,36 @@ export function renderHeatmapCellItem(
     originY: cell.y + cell.height / 2
   });
 
-  node.addEventListener('mouseenter', (e) => {
-    node.style.filter = 'brightness(1.12)';
-    ctx.showTooltip(
-      {
-        title: `${cell.rowId} × ${cell.colId}`,
-        label: 'Value',
-        seriesId: cell.rowId,
-        category: cell.colId,
-        value: cell.value,
-        formattedValue: String(cell.value),
-        color: cell.color,
-        anchor: resolveElementAnchor(node, fallbackAnchor),
-        datum: {
-          rowId: cell.rowId,
-          colId: cell.colId,
-          x: cell.colId,
-          y: cell.value,
-          value: cell.value
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  node.addEventListener('mouseleave', () => {
-    node.style.filter = 'none';
-    ctx.hideTooltip();
-  });
+  if (interactive) {
+    node.addEventListener('mouseenter', (e) => {
+      node.style.filter = 'brightness(1.12)';
+      ctx.showTooltip(
+        {
+          title: `${cell.rowId} × ${cell.colId}`,
+          label: 'Value',
+          seriesId: cell.rowId,
+          category: cell.colId,
+          value: cell.value,
+          formattedValue: String(cell.value),
+          color: cell.color,
+          anchor: resolveElementAnchor(node, fallbackAnchor),
+          datum: {
+            rowId: cell.rowId,
+            colId: cell.colId,
+            x: cell.colId,
+            y: cell.value,
+            value: cell.value
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    node.addEventListener('mouseleave', () => {
+      node.style.filter = 'none';
+      ctx.hideTooltip();
+    });
+  }
 
   return node;
 }
@@ -126,8 +131,11 @@ export function renderTreemapTileItem(
   rect.setAttribute('height', String(leaf.height));
   rect.setAttribute('rx', String(leaf.rx));
   rect.setAttribute('fill', leaf.color);
-  rect.style.cursor = 'pointer';
-  rect.style.transition = 'filter 140ms ease';
+  const interactive = ctx.isInteractive !== false;
+  if (interactive) {
+    rect.style.cursor = 'pointer';
+    rect.style.transition = 'filter 140ms ease';
+  }
 
   const fallbackAnchor = {
     left: ctx.margin.left + leaf.x0,
@@ -162,31 +170,33 @@ export function renderTreemapTileItem(
     originY: leaf.y0 + leaf.height / 2
   });
 
-  rect.addEventListener('mouseenter', (e) => {
-    rect.style.filter = 'brightness(1.1)';
-    ctx.showTooltip(
-      {
-        title: `${leaf.category} › ${leaf.name}`,
-        label: 'Value',
-        category: leaf.category,
-        value: leaf.value,
-        formattedValue: formatGroupedNumber(leaf.value),
-        color: leaf.color,
-        anchor: resolveElementAnchor(rect, fallbackAnchor),
-        datum: {
-          name: leaf.name,
+  if (interactive) {
+    rect.addEventListener('mouseenter', (e) => {
+      rect.style.filter = 'brightness(1.1)';
+      ctx.showTooltip(
+        {
+          title: `${leaf.category} › ${leaf.name}`,
+          label: 'Value',
           category: leaf.category,
-          value: leaf.value
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  rect.addEventListener('mouseleave', () => {
-    rect.style.filter = 'none';
-    ctx.hideTooltip();
-  });
+          value: leaf.value,
+          formattedValue: formatGroupedNumber(leaf.value),
+          color: leaf.color,
+          anchor: resolveElementAnchor(rect, fallbackAnchor),
+          datum: {
+            name: leaf.name,
+            category: leaf.category,
+            value: leaf.value
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    rect.addEventListener('mouseleave', () => {
+      rect.style.filter = 'none';
+      ctx.hideTooltip();
+    });
+  }
 
   return rect;
 }

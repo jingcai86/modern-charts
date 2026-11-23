@@ -31,6 +31,7 @@ export const PIE_CHART_ENTRY: ChartCatalogEntry = {
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Runtime Footprint Breakdown Donut Chart',
+    isInteractive: true,
     isFocusable: true
   }),
   specificAttributes: [

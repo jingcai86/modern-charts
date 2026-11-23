@@ -3100,3 +3100,217 @@ describe('Shared Pretext Label Truncation, Rotation & Tooltips (<mc-truncate> â€
     expect(lblTip.hidden).toBe(true);
   });
 });
+
+describe('isInteractive Option for Fully Static Charts & isFocusable Alignment (Issue #53)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('renders fully static charts across all 10 chart types when isInteractive=false: no <mc-tooltip>, no tabindex, no item ARIA roles, keeping svg role="img" and aria-label', () => {
+    const cases: Array<{ tag: string; config: Record<string, any> }> = [
+      {
+        tag: 'mc-bar-chart',
+        config: {
+          data: SAMPLE_BAR_DATA,
+          indexBy: 'quarter',
+          keys: ['Cloud', 'Edge'],
+          markers: [
+            {
+              id: 'sla',
+              axis: 'y',
+              value: 120,
+              annotation: { text: 'SLA 120', position: 'right' }
+            }
+          ],
+          view: { zoomable: true, pannable: true, showControls: true },
+          labelOverflow: { maxChars: 6 }
+        }
+      },
+      {
+        tag: 'mc-line-chart',
+        config: { data: SAMPLE_LINE_DATA, enableSlices: true }
+      },
+      { tag: 'mc-pie-chart', config: { data: SAMPLE_PIE_DATA } },
+      { tag: 'mc-heatmap-chart', config: { data: SAMPLE_HEATMAP_DATA } },
+      {
+        tag: 'mc-radar-chart',
+        config: {
+          data: SAMPLE_RADAR_DATA,
+          indexBy: 'metric',
+          keys: ['Alpha', 'Beta']
+        }
+      },
+      {
+        tag: 'mc-sunburst-chart',
+        config: { data: SAMPLE_SUNBURST_DATA, interactiveDrilldown: true }
+      },
+      { tag: 'mc-sankey-chart', config: { data: SAMPLE_SANKEY_DATA } },
+      { tag: 'mc-scatter-chart', config: { data: SAMPLE_SCATTER_DATA } },
+      { tag: 'mc-treemap-chart', config: { data: SAMPLE_SUNBURST_DATA } },
+      {
+        tag: 'mc-gauge-chart',
+        config: {
+          data: { value: 74, min: 0, max: 100, label: 'Health', unit: '%' }
+        }
+      }
+    ];
+
+    for (const c of cases) {
+      const el = document.createElement(c.tag) as any;
+      el.setAttribute('is-interactive', 'false');
+      document.body.appendChild(el);
+      el.config = {
+        width: 480,
+        height: 300,
+        ariaLabel: `Static ${c.tag}`,
+        isFocusable: true, // must be overridden by isInteractive=false
+        ...c.config
+      };
+
+      const sr = el.shadowRoot as ShadowRoot;
+      expect(el.isInteractive, c.tag).toBe(false);
+      expect(el.isFocusable, c.tag).toBe(false);
+      expect(el.getTooltipElement(), c.tag).toBeNull();
+      expect(el.getLegendTooltipElement(), c.tag).toBeNull();
+      expect(sr.querySelectorAll('mc-tooltip').length, c.tag).toBe(0);
+      expect(sr.querySelectorAll('[tabindex]').length, c.tag).toBe(0);
+      expect(sr.querySelectorAll('.mc-aria-item').length, c.tag).toBe(0);
+      expect(sr.querySelectorAll('.mc-slice-hit').length, c.tag).toBe(0);
+      expect(sr.querySelectorAll('.mc-label--interactive').length, c.tag).toBe(
+        0
+      );
+
+      // SVG keeps role="img" and aria-label / title / desc
+      const svg = sr.querySelector('.mc-chart-svg') as SVGSVGElement;
+      expect(svg.getAttribute('role'), c.tag).toBe('img');
+      expect(svg.getAttribute('aria-label'), c.tag).toBe(`Static ${c.tag}`);
+
+      // View controls stay hidden even if view.showControls was true
+      const controls = sr.querySelector(
+        '.mc-view-controls'
+      ) as HTMLDivElement;
+      expect(controls.hidden, c.tag).toBe(true);
+    }
+  });
+
+  it('prevents hover styles, tooltips, events, and sunburst drilldown when isInteractive=false while still allowing animation', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    const emitted: string[] = [];
+    for (const evName of [
+      'mc-tooltip-show',
+      'mc-legend-tooltip-show',
+      'mc-aria-focus',
+      'mc-item-activate'
+    ]) {
+      bar.addEventListener(evName, () => emitted.push(evName));
+    }
+
+    bar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 560,
+      height: 320,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      isInteractive: false,
+      animate: true
+    };
+
+    const barEl = bar.shadowRoot?.querySelector(
+      '.mc-bar-rect'
+    ) as SVGRectElement;
+    const legendItem = bar.shadowRoot?.querySelector(
+      '.mc-legend-item'
+    ) as SVGGElement;
+    expect(barEl.style.cursor).not.toBe('pointer');
+    expect(legendItem.style.cursor).toBe('default');
+
+    barEl.dispatchEvent(new MouseEvent('mouseenter', { clientX: 80, clientY: 80 }));
+    barEl.dispatchEvent(new FocusEvent('focus'));
+    legendItem.dispatchEvent(
+      new MouseEvent('mouseenter', { clientX: 80, clientY: 280 })
+    );
+
+    expect(barEl.style.filter).toBe('');
+    expect(bar.shadowRoot?.querySelectorAll('mc-tooltip').length).toBe(0);
+    expect(emitted).toEqual([]);
+    // Animation remains independent of isInteractive
+    expect(bar.resolveAnimationConfig().enabled).toBe(true);
+
+    // Sunburst drilldown click does nothing when isInteractive=false
+    const sun = document.createElement('mc-sunburst-chart') as MCSunburstChart;
+    document.body.appendChild(sun);
+    sun.config = {
+      data: SAMPLE_SUNBURST_DATA,
+      width: 440,
+      height: 340,
+      interactiveDrilldown: true,
+      isInteractive: false
+    };
+    const initialArcs =
+      sun.shadowRoot?.querySelectorAll('.mc-sunburst-arc').length ?? 0;
+    const firstArc = sun.shadowRoot?.querySelector(
+      '.mc-sunburst-arc'
+    ) as SVGPathElement;
+    expect(firstArc.style.cursor).toBe('default');
+    firstArc.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(sun.shadowRoot?.querySelectorAll('.mc-sunburst-arc').length).toBe(
+      initialArcs
+    );
+  });
+
+  it('cleanly toggles isInteractive at runtime (true -> false -> true) and supports mouse-only mode (isInteractive: true, isFocusable: false)', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    bar.config = {
+      data: SAMPLE_BAR_DATA,
+      width: 560,
+      height: 320,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      isInteractive: true,
+      isFocusable: true
+    };
+
+    // 1. Starts interactive + focusable
+    expect(bar.shadowRoot?.querySelectorAll('mc-tooltip').length).toBe(2);
+    expect(bar.shadowRoot?.querySelectorAll('[tabindex="0"]').length).toBeGreaterThan(
+      0
+    );
+
+    // 2. Toggle isInteractive -> false at runtime: tooltips & tabindex cleanly removed
+    bar.isInteractive = false;
+    expect(bar.shadowRoot?.querySelectorAll('mc-tooltip').length).toBe(0);
+    expect(bar.shadowRoot?.querySelectorAll('[tabindex]').length).toBe(0);
+    expect(bar.getTooltipElement()).toBeNull();
+
+    // 3. Toggle back to isInteractive -> true with isFocusable: false (mouse-only interactive!)
+    bar.isFocusable = false;
+    bar.isInteractive = true;
+    expect(bar.isInteractive).toBe(true);
+    expect(bar.isFocusable).toBe(false);
+    expect(bar.shadowRoot?.querySelectorAll('mc-tooltip').length).toBe(2);
+    // Zero tabindex anywhere (items, legends, labels) in mouse-only mode
+    expect(bar.shadowRoot?.querySelectorAll('[tabindex]').length).toBe(0);
+
+    // Hover tooltip STILL works in mouse-only mode!
+    const barEl = bar.shadowRoot?.querySelector(
+      '.mc-bar-rect'
+    ) as SVGRectElement;
+    barEl.dispatchEvent(
+      new MouseEvent('mouseenter', { clientX: 100, clientY: 120 })
+    );
+    expect(bar.getTooltipElement()?.hidden).toBe(false);
+    barEl.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(bar.getTooltipElement()?.hidden).toBe(true);
+
+    // 4. Re-enabling isFocusable via attribute restores keyboard tabindex
+    bar.setAttribute('is-focusable', 'true');
+    expect(bar.isFocusable).toBe(true);
+    expect(bar.shadowRoot?.querySelectorAll('[tabindex="0"]').length).toBeGreaterThan(
+      0
+    );
+  });
+});

@@ -78,6 +78,7 @@ export const BAR_CHART_ENTRY: ChartCatalogEntry = {
       }
     ],
     ariaLabel: 'Quarterly Infrastructure Spend Bar Chart',
+    isInteractive: true,
     isFocusable: true
   }),
   specificAttributes: [

@@ -93,10 +93,10 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="40" y="46" width="14" height="20" rx="3" fill="#34d399"/>
       <rect x="60" y="34" width="14" height="32" rx="3" fill="#06b6d4"/>
       <rect x="80" y="40" width="14" height="26" rx="3" fill="#818cf8"/>
-      <rect x="118" y="24" width="74" height="20" rx="6" fill="currentColor" fill-opacity="0.08" stroke="#38bdf8" stroke-width="1.5"/>
-      <rect x="130" y="31" width="50" height="6" rx="3" fill="#38bdf8"/>
-      <rect x="118" y="52" width="74" height="20" rx="6" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.3"/>
-      <rect x="130" y="59" width="38" height="6" rx="3" fill="currentColor" fill-opacity="0.45"/>
+      <rect x="118" y="20" width="74" height="56" rx="10" fill="currentColor" fill-opacity="0.06" stroke="#94a3b8" stroke-dasharray="4 3" stroke-width="1.5"/>
+      <rect x="130" y="46" width="14" height="20" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
+      <rect x="150" y="34" width="14" height="32" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
+      <rect x="170" y="40" width="14" height="26" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
     </svg>`,
   'dynamic-updates': `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">

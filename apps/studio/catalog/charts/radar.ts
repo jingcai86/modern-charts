@@ -34,6 +34,7 @@ export const RADAR_CHART_ENTRY: ChartCatalogEntry = {
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Architecture Benchmark Radar Chart',
+    isInteractive: true,
     isFocusable: true
   }),
   specificAttributes: [

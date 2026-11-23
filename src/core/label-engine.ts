@@ -36,6 +36,8 @@ export interface LabelTooltipHandlers {
     overrideConfig?: TooltipConfig<LabelDescriptor>
   ) => void;
   hideTooltip: () => void;
+  /** Controls whether truncated labels receive `tabindex="0"` and keyboard focus tooltips (default `true`). */
+  isFocusable?: boolean;
 }
 
 export class LabelEngine {
@@ -609,8 +611,11 @@ export class LabelEngine {
     }
 
     const handlers = this.tooltipHandlers;
+    const isFocusable = handlers.isFocusable !== false;
     group.classList.add('mc-label--interactive');
-    group.setAttribute('tabindex', '0');
+    if (isFocusable) {
+      group.setAttribute('tabindex', '0');
+    }
 
     // Ensure SVG labels without a background pill still have an easy hit box
     if (
@@ -715,18 +720,20 @@ export class LabelEngine {
     group.addEventListener('mouseleave', () => {
       handlers.hideTooltip();
     });
-    group.addEventListener('focus', () => {
-      const r = group.getBoundingClientRect();
-      showLabelTooltip('keyboard', r.left + r.width / 2, r.top);
-    });
-    group.addEventListener('blur', () => {
-      handlers.hideTooltip();
-    });
-    group.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+    if (isFocusable) {
+      group.addEventListener('focus', () => {
+        const r = group.getBoundingClientRect();
+        showLabelTooltip('keyboard', r.left + r.width / 2, r.top);
+      });
+      group.addEventListener('blur', () => {
         handlers.hideTooltip();
-      }
-    });
+      });
+      group.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          handlers.hideTooltip();
+        }
+      });
+    }
   }
 
   private renderSvgTextLabel(

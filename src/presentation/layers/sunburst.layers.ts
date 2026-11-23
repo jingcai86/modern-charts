@@ -77,7 +77,7 @@ export function renderSunburstCenterLayer(
   circle.setAttribute('stroke', ctx.theme.axisColor);
   circle.setAttribute('stroke-width', '1.5');
 
-  if (model.isDrilledDown && onDrillUp) {
+  if (ctx.isInteractive !== false && model.isDrilledDown && onDrillUp) {
     circle.style.cursor = 'pointer';
     circle.addEventListener('click', onDrillUp);
   }
