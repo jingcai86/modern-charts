@@ -142,11 +142,15 @@ export function renderAccessibilityGuide(
       layers: ['grid', 'axes', 'bars', 'labels', 'legends']
     });
 
-    const tableHtml =
-      bar.shadowRoot?.querySelector('.mc-aria-table-container')?.innerHTML ?? '';
-    tablePreview.innerHTML = tableHtml
-      ? tableHtml
-      : '<p style="color:var(--text-muted);margin:0;">Data table fallback disabled (<code>aria.includeDataTable: false</code>).</p>';
+    const generatedTable = bar.shadowRoot?.querySelector(
+      '.mc-aria-table-container table'
+    );
+    if (generatedTable) {
+      tablePreview.replaceChildren(generatedTable.cloneNode(true));
+    } else {
+      tablePreview.innerHTML =
+        '<p style="color:var(--text-muted);margin:0;">Data table fallback disabled (<code>aria.includeDataTable: false</code>).</p>';
+    }
 
     code1.innerHTML = '';
     code1.appendChild(

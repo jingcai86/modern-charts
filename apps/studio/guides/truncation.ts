@@ -3,7 +3,7 @@ import type {
   MCBaseChart,
   ThemeModePreference
 } from '../../../src/index';
-import { createCodeBlock } from './shared';
+import { createCodeBlock, escapeHtml } from './shared';
 
 export function renderTruncationGuide(
   container: HTMLElement,
@@ -263,7 +263,6 @@ chart.config = {
         max-width="170"
         font-size="13"
         font-weight="600"
-        theme-mode="${themeMode}"
       ></mc-truncate>
       <mc-truncate
         text="🚀 Asia-Pacific Edge Compute Telemetry"
@@ -271,10 +270,16 @@ chart.config = {
         ellipsis="..."
         font-size="13"
         font-weight="600"
-        theme-mode="${themeMode}"
       ></mc-truncate>
     </div>
   `;
+  const safeThemeMode: ThemeModePreference =
+    themeMode === 'light' || themeMode === 'dark' || themeMode === 'system'
+      ? themeMode
+      : 'system';
+  ex2.querySelectorAll('mc-truncate').forEach((el) => {
+    el.setAttribute('theme-mode', safeThemeMode);
+  });
   container.appendChild(ex2);
 
   const pie2 = document.createElement('mc-pie-chart') as MCBaseChart<any>;
@@ -305,7 +310,8 @@ chart.config = {
       overflow: {
         strategy: 'truncate',
         tooltip: {
-          formatter: (p) => `<strong>Full Segment:</strong> ${p.title}`
+          formatter: (p) =>
+            `<strong>Full Segment:</strong> ${escapeHtml(String(p.title ?? ''))}`
         }
       }
     }
