@@ -217,8 +217,11 @@ export function renderBarItem(
     hostEl = rect;
   }
 
-  hostEl.style.cursor = 'pointer';
-  hostEl.style.transition = 'filter 140ms ease, opacity 140ms ease';
+  const interactive = ctx.isInteractive !== false;
+  if (interactive) {
+    hostEl.style.cursor = 'pointer';
+    hostEl.style.transition = 'filter 140ms ease, opacity 140ms ease';
+  }
 
   const thresholdIds =
     plan.matchedMarkerIds.length > 0
@@ -261,6 +264,7 @@ export function renderBarItem(
   });
 
   if (
+    interactive &&
     ariaThresholdCoverage === 'partial' &&
     !hostEl.hasAttribute('aria-description')
   ) {
@@ -280,43 +284,45 @@ export function renderBarItem(
     originY: b.isHorizontal ? b.y + b.height / 2 : b.y + b.height
   });
 
-  hostEl.addEventListener('mouseenter', (e) => {
-    hostEl.style.filter = 'brightness(1.1)';
-    const badge =
-      ariaThresholdCoverage === 'partial'
-        ? `⚡ Crosses Threshold (${thresholdIds.join(', ')})`
-        : b.threshold.isUnderThreshold
-        ? `⚠ Under Threshold (${thresholdIds.join(', ')})`
-        : undefined;
-    ctx.showTooltip(
-      {
-        title: b.indexValue,
-        label: b.key,
-        seriesId: b.key,
-        category: b.indexValue,
-        value: b.value,
-        formattedValue: String(b.value),
-        color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
-        badge,
-        threshold: b.threshold,
-        anchor: resolveElementAnchor(hostEl, fallbackAnchor),
-        datum: {
-          key: b.key,
-          indexValue: b.indexValue,
+  if (interactive) {
+    hostEl.addEventListener('mouseenter', (e) => {
+      hostEl.style.filter = 'brightness(1.1)';
+      const badge =
+        ariaThresholdCoverage === 'partial'
+          ? `⚡ Crosses Threshold (${thresholdIds.join(', ')})`
+          : b.threshold.isUnderThreshold
+          ? `⚠ Under Threshold (${thresholdIds.join(', ')})`
+          : undefined;
+      ctx.showTooltip(
+        {
+          title: b.indexValue,
+          label: b.key,
+          seriesId: b.key,
+          category: b.indexValue,
           value: b.value,
-          thresholdCoverage: ariaThresholdCoverage,
-          matchedMarkerIds: thresholdIds,
-          ...b.datum
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  hostEl.addEventListener('mouseleave', () => {
-    hostEl.style.filter = 'none';
-    ctx.hideTooltip();
-  });
+          formattedValue: String(b.value),
+          color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
+          badge,
+          threshold: b.threshold,
+          anchor: resolveElementAnchor(hostEl, fallbackAnchor),
+          datum: {
+            key: b.key,
+            indexValue: b.indexValue,
+            value: b.value,
+            thresholdCoverage: ariaThresholdCoverage,
+            matchedMarkerIds: thresholdIds,
+            ...b.datum
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    hostEl.addEventListener('mouseleave', () => {
+      hostEl.style.filter = 'none';
+      ctx.hideTooltip();
+    });
+  }
 
   return hostEl;
 }

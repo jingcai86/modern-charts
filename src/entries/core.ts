@@ -21,6 +21,7 @@ export * from '../components/mc-label';
 export * from '../components/mc-truncate';
 export * from '../components/mc-tooltip';
 export * from '../components/mc-def';
+export * from '../components/mc-chart-state';
 export * from '../components/mc-legend';
 export * from '../components/mc-animation';
 export * from '../components/mc-aria';

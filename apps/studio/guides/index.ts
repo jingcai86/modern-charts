@@ -5,6 +5,11 @@ import { renderThemesGuide } from './themes';
 import { renderD3Guide } from './d3';
 import { renderCustomLabelsGuide } from './custom-labels';
 import { renderTooltipsGuide } from './tooltips';
+import { renderTruncationGuide } from './truncation';
+import { renderEventsGuide } from './events';
+import { renderAccessibilityGuide } from './accessibility';
+import { renderDynamicUpdatesGuide } from './dynamic-updates';
+import { renderChartStateGuide } from './chart-state';
 import { renderPatternsGuide } from './patterns';
 import type { GuideId } from './types';
 
@@ -33,6 +38,16 @@ export function renderGuidePage(
       return renderCustomLabelsGuide(body, themeMode);
     case 'tooltips':
       return renderTooltipsGuide(body, themeMode);
+    case 'truncation':
+      return renderTruncationGuide(body, themeMode);
+    case 'events':
+      return renderEventsGuide(body, themeMode);
+    case 'accessibility':
+      return renderAccessibilityGuide(body, themeMode);
+    case 'dynamic-updates':
+      return renderDynamicUpdatesGuide(body, themeMode);
+    case 'chart-state':
+      return renderChartStateGuide(body, themeMode);
     case 'patterns':
       return renderPatternsGuide(body, themeMode);
   }

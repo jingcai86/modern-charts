@@ -30,6 +30,7 @@ export const GAUGE_CHART_ENTRY: ChartCatalogEntry = {
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Real-Time Text Layout Efficiency Gauge',
+    isInteractive: true,
     isFocusable: true
   }),
   specificAttributes: [

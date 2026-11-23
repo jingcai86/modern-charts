@@ -45,6 +45,13 @@ export class MCPieChart extends MCBaseChart<PieDatum[]> {
     this.setAttribute('inner-radius', String(val));
   }
 
+  protected override hasPlottableData(data: PieDatum[] | null): boolean {
+    if (!Array.isArray(data) || data.length === 0) return false;
+    return data.some(
+      (d) => d != null && Number.isFinite(Number(d.value)) && Number(d.value) > 0
+    );
+  }
+
   protected prepareContext(ctx: ChartRenderContext<PieDatum[]>): void {
     const model = computePieChartModel(ctx, {
       innerRadiusRatio: this.innerRadiusRatio,

@@ -419,7 +419,10 @@ export function renderLinePointItem(
     }
   }
 
-  circle.style.cursor = 'pointer';
+  const interactive = ctx.isInteractive !== false;
+  if (interactive) {
+    circle.style.cursor = 'pointer';
+  }
 
   const fallbackAnchor = {
     left: ctx.margin.left + pt.px - radius,
@@ -460,42 +463,44 @@ export function renderLinePointItem(
     originY: pt.py
   });
 
-  circle.addEventListener('mouseenter', (e) => {
-    circle.setAttribute('r', String(radius + 2));
-    circle.setAttribute('fill', pt.color);
-    ctx.showTooltip(
-      {
-        title: pt.seriesId,
-        label: String(pt.xValue),
-        seriesId: pt.seriesId,
-        category: String(pt.xValue),
-        value: pt.yValue,
-        formattedValue: String(pt.yValue),
-        color: pt.color,
-        badge: pt.threshold.isUnderThreshold
-          ? `⚠ Under Threshold (${pt.threshold.matchedMarkerIds.join(', ')})`
-          : undefined,
-        threshold: pt.threshold,
-        anchor: resolveElementAnchor(circle, fallbackAnchor),
-        datum: {
+  if (interactive) {
+    circle.addEventListener('mouseenter', (e) => {
+      circle.setAttribute('r', String(radius + 2));
+      circle.setAttribute('fill', pt.color);
+      ctx.showTooltip(
+        {
+          title: pt.seriesId,
+          label: String(pt.xValue),
           seriesId: pt.seriesId,
-          x: pt.xValue,
-          y: pt.yValue,
-          ...pt.raw
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  circle.addEventListener('mouseleave', () => {
-    circle.setAttribute('r', String(radius));
-    circle.setAttribute(
-      'fill',
-      pt.threshold.matched ? pt.color : ctx.theme.background
-    );
-    ctx.hideTooltip();
-  });
+          category: String(pt.xValue),
+          value: pt.yValue,
+          formattedValue: String(pt.yValue),
+          color: pt.color,
+          badge: pt.threshold.isUnderThreshold
+            ? `⚠ Under Threshold (${pt.threshold.matchedMarkerIds.join(', ')})`
+            : undefined,
+          threshold: pt.threshold,
+          anchor: resolveElementAnchor(circle, fallbackAnchor),
+          datum: {
+            seriesId: pt.seriesId,
+            x: pt.xValue,
+            y: pt.yValue,
+            ...pt.raw
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    circle.addEventListener('mouseleave', () => {
+      circle.setAttribute('r', String(radius));
+      circle.setAttribute(
+        'fill',
+        pt.threshold.matched ? pt.color : ctx.theme.background
+      );
+      ctx.hideTooltip();
+    });
+  }
 
   return circle;
 }

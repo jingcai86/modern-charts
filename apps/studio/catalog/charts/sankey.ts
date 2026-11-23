@@ -34,6 +34,7 @@ export const SANKEY_CHART_ENTRY: ChartCatalogEntry = {
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Rendering Pipeline Sankey Diagram',
+    isInteractive: true,
     isFocusable: true
   }),
   specificAttributes: [

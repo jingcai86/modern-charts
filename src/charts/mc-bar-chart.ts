@@ -204,6 +204,24 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
     return margin;
   }
 
+  protected override hasPlottableData(data: BarDatum[] | null): boolean {
+    if (!Array.isArray(data) || data.length === 0) return false;
+    const keys = this.keys;
+    if (keys.length === 0) return false;
+    return data.some((row) =>
+      row &&
+      keys.some((k) => {
+        const v = row[k];
+        return (
+          v !== null &&
+          v !== undefined &&
+          v !== '' &&
+          Number.isFinite(Number(v))
+        );
+      })
+    );
+  }
+
   protected prepareContext(ctx: ChartRenderContext<BarDatum[]>): void {
     const outerLabels = this.resolveOuterLabelsConfig();
     const model = computeBarChartModel(ctx, {

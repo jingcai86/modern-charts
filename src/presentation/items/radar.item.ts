@@ -61,7 +61,10 @@ export function renderRadarDotItem(
   dot.setAttribute('fill', pt.color);
   dot.setAttribute('stroke', ctx.theme.background);
   dot.setAttribute('stroke-width', '1.8');
-  dot.style.cursor = 'pointer';
+  const interactive = ctx.isInteractive !== false;
+  if (interactive) {
+    dot.style.cursor = 'pointer';
+  }
 
   const radarCx =
     (ctx.state?.model as { cx?: number } | undefined)?.cx ?? ctx.innerWidth / 2;
@@ -101,32 +104,34 @@ export function renderRadarDotItem(
     originY: pt.y
   });
 
-  dot.addEventListener('mouseenter', (e) => {
-    dot.setAttribute('r', '6');
-    ctx.showTooltip(
-      {
-        title: pt.axis,
-        label: pt.seriesKey,
-        seriesId: pt.seriesKey,
-        category: pt.axis,
-        value: pt.value,
-        formattedValue: String(pt.value),
-        color: pt.color,
-        anchor: resolveElementAnchor(dot, fallbackAnchor),
-        datum: {
-          key: pt.seriesKey,
-          axis: pt.axis,
-          value: pt.value
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  dot.addEventListener('mouseleave', () => {
-    dot.setAttribute('r', '4.2');
-    ctx.hideTooltip();
-  });
+  if (interactive) {
+    dot.addEventListener('mouseenter', (e) => {
+      dot.setAttribute('r', '6');
+      ctx.showTooltip(
+        {
+          title: pt.axis,
+          label: pt.seriesKey,
+          seriesId: pt.seriesKey,
+          category: pt.axis,
+          value: pt.value,
+          formattedValue: String(pt.value),
+          color: pt.color,
+          anchor: resolveElementAnchor(dot, fallbackAnchor),
+          datum: {
+            key: pt.seriesKey,
+            axis: pt.axis,
+            value: pt.value
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    dot.addEventListener('mouseleave', () => {
+      dot.setAttribute('r', '4.2');
+      ctx.hideTooltip();
+    });
+  }
 
   return dot;
 }

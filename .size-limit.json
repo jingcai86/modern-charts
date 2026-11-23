@@ -13,7 +13,7 @@
   {
     "name": "Core engine & layers (modern-charts/core) [brotli]",
     "path": "dist/core.js",
-    "limit": "75 kB"
+    "limit": "80 kB"
   },
   {
     "name": "Core engine & layers (modern-charts/core) [gzip]",
@@ -35,7 +35,7 @@
   {
     "name": "Standalone Line chart (modern-charts/line) [brotli]",
     "path": "dist/line.js",
-    "limit": "80 kB"
+    "limit": "85 kB"
   },
   {
     "name": "Standalone Line chart (modern-charts/line) [gzip]",
@@ -63,7 +63,7 @@
     "name": "Standalone Heatmap chart (modern-charts/heatmap) [gzip]",
     "path": "dist/heatmap.js",
     "gzip": true,
-    "limit": "85 kB"
+    "limit": "90 kB"
   },
   {
     "name": "Standalone Radar chart (modern-charts/radar) [brotli]",
@@ -74,7 +74,7 @@
     "name": "Standalone Radar chart (modern-charts/radar) [gzip]",
     "path": "dist/radar.js",
     "gzip": true,
-    "limit": "85 kB"
+    "limit": "90 kB"
   },
   {
     "name": "Standalone Sunburst chart (modern-charts/sunburst) [brotli]",
@@ -96,7 +96,7 @@
     "name": "Standalone Sankey chart (modern-charts/sankey) [gzip]",
     "path": "dist/sankey.js",
     "gzip": true,
-    "limit": "85 kB"
+    "limit": "90 kB"
   },
   {
     "name": "Standalone Scatter chart (modern-charts/scatter) [brotli]",
@@ -107,7 +107,7 @@
     "name": "Standalone Scatter chart (modern-charts/scatter) [gzip]",
     "path": "dist/scatter.js",
     "gzip": true,
-    "limit": "85 kB"
+    "limit": "90 kB"
   },
   {
     "name": "Standalone Treemap chart (modern-charts/treemap) [brotli]",
@@ -118,7 +118,7 @@
     "name": "Standalone Treemap chart (modern-charts/treemap) [gzip]",
     "path": "dist/treemap.js",
     "gzip": true,
-    "limit": "85 kB"
+    "limit": "90 kB"
   },
   {
     "name": "Standalone Gauge chart (modern-charts/gauge) [brotli]",
@@ -129,6 +129,6 @@
     "name": "Standalone Gauge chart (modern-charts/gauge) [gzip]",
     "path": "dist/gauge.js",
     "gzip": true,
-    "limit": "85 kB"
+    "limit": "90 kB"
   }
 ]

@@ -40,6 +40,13 @@ export class MCSankeyChart extends MCBaseChart<SankeyData> {
     return { top: 36, right: 36, bottom: 58, left: 36 };
   }
 
+  protected override hasPlottableData(data: SankeyData | null): boolean {
+    if (!data || typeof data !== 'object') return false;
+    const hasNodes = Array.isArray(data.nodes) && data.nodes.length > 0;
+    const hasLinks = Array.isArray(data.links) && data.links.length > 0;
+    return hasNodes || hasLinks;
+  }
+
   protected prepareContext(ctx: ChartRenderContext<SankeyData>): void {
     const model = computeSankeyChartModel(ctx, {
       nodeWidth: this.getOption('nodeWidth', 'node-width', 18) ?? 18,

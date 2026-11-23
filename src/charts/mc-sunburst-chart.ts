@@ -46,6 +46,17 @@ export class MCSunburstChart extends MCBaseChart<HierarchyNode> {
     this.render();
   }
 
+  protected override hasPlottableData(data: HierarchyNode | null): boolean {
+    if (!data || typeof data !== 'object') return false;
+    const hasPositiveLeaf = (node: HierarchyNode): boolean => {
+      if (Array.isArray(node.children) && node.children.length > 0) {
+        return node.children.some((c) => c && hasPositiveLeaf(c));
+      }
+      return Number.isFinite(Number(node.value)) && Number(node.value) > 0;
+    };
+    return hasPositiveLeaf(data);
+  }
+
   protected prepareContext(ctx: ChartRenderContext<HierarchyNode>): void {
     const model = computeSunburstChartModel(ctx, {
       focusPath: this.#focusPath,

@@ -400,10 +400,15 @@ export function renderUnifiedLegendLayer(
     originY = 0;
   }
 
+  const interactive = ctx.isInteractive !== false;
+  const focusable = interactive && ctx.ariaConfig.isFocusable;
+
   const legendG = document.createElementNS(SVG_NS, 'g');
   legendG.setAttribute('class', `mc-legend mc-legend--${cfg.position}`);
-  legendG.setAttribute('role', 'list');
-  legendG.setAttribute('aria-label', 'Chart legend');
+  if (interactive) {
+    legendG.setAttribute('role', 'list');
+    legendG.setAttribute('aria-label', 'Chart legend');
+  }
   legendG.setAttribute('data-legend-position', cfg.position);
   legendG.setAttribute('data-legend-wrap', String(cfg.wrap));
   legendG.setAttribute('data-legend-rows', String(layout.rowCount));
@@ -423,28 +428,35 @@ export function renderUnifiedLegendLayer(
       'class',
       `mc-legend-item${item.kind === 'marker' ? ' mc-legend-item--marker' : ''}`
     );
-    itemG.setAttribute('role', 'listitem');
-    itemG.setAttribute('tabindex', '0');
-    itemG.setAttribute('aria-label', `Legend: ${item.label}`);
+    if (interactive) {
+      itemG.setAttribute('role', 'listitem');
+      if (focusable) {
+        itemG.setAttribute('tabindex', '0');
+      }
+      itemG.setAttribute('aria-label', `Legend: ${item.label}`);
+    }
     itemG.setAttribute('data-legend-id', item.id);
     itemG.setAttribute('data-legend-kind', item.kind ?? 'series');
     itemG.setAttribute('data-legend-index', String(index));
     itemG.setAttribute('data-legend-row', String(rowIndex));
     itemG.setAttribute('data-legend-col', String(colIndex));
     itemG.setAttribute('transform', `translate(${x}, ${y})`);
-    itemG.style.cursor = cfg.enableTooltip ? 'pointer' : 'default';
+    itemG.style.cursor = interactive && cfg.enableTooltip ? 'pointer' : 'default';
     itemG.style.outline = 'none';
 
     // Transparent hit area covering swatch + label for smooth hover & focus
-    const hitRect = document.createElementNS(SVG_NS, 'rect');
-    hitRect.setAttribute('class', 'mc-legend-hit');
-    hitRect.setAttribute('x', '-3');
-    hitRect.setAttribute('y', String(-height / 2 - 2));
-    hitRect.setAttribute('width', String(width + 6));
-    hitRect.setAttribute('height', String(height + 4));
-    hitRect.setAttribute('rx', '4');
-    hitRect.setAttribute('fill', 'transparent');
-    itemG.appendChild(hitRect);
+    let hitRect: SVGRectElement | null = null;
+    if (interactive) {
+      hitRect = document.createElementNS(SVG_NS, 'rect');
+      hitRect.setAttribute('class', 'mc-legend-hit');
+      hitRect.setAttribute('x', '-3');
+      hitRect.setAttribute('y', String(-height / 2 - 2));
+      hitRect.setAttribute('width', String(width + 6));
+      hitRect.setAttribute('height', String(height + 4));
+      hitRect.setAttribute('rx', '4');
+      hitRect.setAttribute('fill', 'transparent');
+      itemG.appendChild(hitRect);
+    }
 
     const itemSwatchWidth =
       item.swatch === 'line' ? Math.max(layout.swatchSize, 16) : layout.swatchSize;
@@ -556,9 +568,9 @@ export function renderUnifiedLegendLayer(
       }
     });
 
-    if (cfg.enableTooltip) {
+    if (interactive && cfg.enableTooltip) {
       itemG.addEventListener('mouseenter', (e) => {
-        hitRect.setAttribute(
+        hitRect?.setAttribute(
           'fill',
           ctx.theme.mode === 'dark'
             ? 'rgba(148, 163, 184, 0.14)'
@@ -572,30 +584,32 @@ export function renderUnifiedLegendLayer(
         );
       });
       itemG.addEventListener('mouseleave', () => {
-        hitRect.setAttribute('fill', 'transparent');
+        hitRect?.setAttribute('fill', 'transparent');
         ctx.hideLegendTooltip();
       });
-      itemG.addEventListener('focus', () => {
-        hitRect.setAttribute(
-          'fill',
-          ctx.theme.mode === 'dark'
-            ? 'rgba(56, 189, 248, 0.18)'
-            : 'rgba(2, 132, 199, 0.1)'
-        );
-        const rect = itemG.getBoundingClientRect();
-        const anchorX = rect.left + rect.width / 2;
-        const anchorY = rect.top;
-        ctx.showLegendTooltip(buildLegendTooltipPayload(), anchorX, anchorY);
-      });
-      itemG.addEventListener('blur', () => {
-        hitRect.setAttribute('fill', 'transparent');
-        ctx.hideLegendTooltip();
-      });
-      itemG.addEventListener('keydown', (e) => {
-        if ((e as KeyboardEvent).key === 'Escape') {
+      if (focusable) {
+        itemG.addEventListener('focus', () => {
+          hitRect?.setAttribute(
+            'fill',
+            ctx.theme.mode === 'dark'
+              ? 'rgba(56, 189, 248, 0.18)'
+              : 'rgba(2, 132, 199, 0.1)'
+          );
+          const rect = itemG.getBoundingClientRect();
+          const anchorX = rect.left + rect.width / 2;
+          const anchorY = rect.top;
+          ctx.showLegendTooltip(buildLegendTooltipPayload(), anchorX, anchorY);
+        });
+        itemG.addEventListener('blur', () => {
+          hitRect?.setAttribute('fill', 'transparent');
           ctx.hideLegendTooltip();
-        }
-      });
+        });
+        itemG.addEventListener('keydown', (e) => {
+          if ((e as KeyboardEvent).key === 'Escape') {
+            ctx.hideLegendTooltip();
+          }
+        });
+      }
     }
 
     legendG.appendChild(itemG);

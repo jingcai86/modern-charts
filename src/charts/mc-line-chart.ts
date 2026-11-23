@@ -82,6 +82,22 @@ export class MCLineChart extends MCBaseChart<LineSeries[]> {
     else this.removeAttribute('enable-point-labels');
   }
 
+  protected override hasPlottableData(data: LineSeries[] | null): boolean {
+    if (!Array.isArray(data) || data.length === 0) return false;
+    return data.some(
+      (s) =>
+        Array.isArray(s?.data) &&
+        s.data.some(
+          (pt) =>
+            pt != null &&
+            pt.y !== null &&
+            pt.y !== undefined &&
+            (pt.y as unknown) !== '' &&
+            Number.isFinite(Number(pt.y))
+        )
+    );
+  }
+
   protected prepareContext(ctx: ChartRenderContext<LineSeries[]>): void {
     const model = computeLineChartModel(ctx, {
       curve: this.curve,
