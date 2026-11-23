@@ -204,6 +204,67 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
       'Embeds an inline SVG icon inside every chart label <foreignObject>, measured via @chenglou/pretext.',
     defaultValue: 'none'
   },
+  {
+    configPath: 'labelOverflow.strategy',
+    attrName: 'label-overflow / mc-truncate[strategy]',
+    category: 'Universal Label (<mc-label>)',
+    control: 'select',
+    options: [
+      { label: 'truncate (default ellipsis)', value: 'truncate' },
+      { label: 'rotate (tilt up to maxRotation)', value: 'rotate' },
+      { label: 'both (rotate + truncate)', value: 'both' },
+      { label: 'wrap (multi-line Pretext)', value: 'wrap' },
+      { label: 'none (no overflow handling)', value: 'none' }
+    ],
+    description:
+      'Overflow strategy applied via @chenglou/pretext whenever a label exceeds maxWidth or maxChars.',
+    defaultValue: 'truncate'
+  },
+  {
+    configPath: 'labelOverflow.maxWidth',
+    attrName: 'mc-truncate[max-width]',
+    category: 'Universal Label (<mc-label>)',
+    control: 'range',
+    min: 0,
+    max: 180,
+    step: 4,
+    description:
+      'Maximum pixel width for labels before overflow triggers (0 = auto per-slot width).',
+    defaultValue: 0
+  },
+  {
+    configPath: 'labelOverflow.maxChars',
+    attrName: 'mc-truncate[max-chars]',
+    category: 'Universal Label (<mc-label>)',
+    control: 'range',
+    min: 0,
+    max: 32,
+    step: 1,
+    description:
+      'Maximum grapheme character count before overflow triggers (0 = unlimited).',
+    defaultValue: 0
+  },
+  {
+    configPath: 'labelOverflow.maxRotation',
+    attrName: 'mc-truncate[max-rotation]',
+    category: 'Universal Label (<mc-label>)',
+    control: 'range',
+    min: -90,
+    max: 90,
+    step: 5,
+    description:
+      'Maximum rotation angle in degrees when strategy is "rotate" or "both" (default 45; supports negative angles like -45).',
+    defaultValue: 45
+  },
+  {
+    configPath: 'labelOverflow.enableTooltip',
+    attrName: 'mc-truncate[enable-tooltip]',
+    category: 'Universal Label (<mc-label>)',
+    control: 'boolean',
+    description:
+      'Reveals full untruncated label text in a tooltip on hover and keyboard focus (enabled by default).',
+    defaultValue: true
+  },
 
   // Animation Layer
   {
@@ -254,12 +315,21 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     defaultValue: 'Interactive Chart Visualization'
   },
   {
+    configPath: 'isInteractive',
+    attrName: 'is-interactive',
+    category: 'Accessibility (<mc-aria-layer>)',
+    control: 'boolean',
+    description:
+      'Master interactivity switch (default true). When false, renders a fully static chart: no <mc-tooltip>, no hover styles/cursors, no listeners/events, no tabindex (overrides isFocusable), keeping role="img" and aria-label on the SVG.',
+    defaultValue: true
+  },
+  {
     configPath: 'isFocusable',
     attrName: 'is-focusable / mc-aria[is-focusable]',
     category: 'Accessibility (<mc-aria-layer>)',
     control: 'boolean',
     description:
-      'Makes every chart data item keyboard-focusable (tabindex="0") with Arrow key navigation.',
+      'Controls keyboard focus (tabindex="0" and Arrow key navigation) when isInteractive is true. Set isInteractive: true, isFocusable: false for mouse-only interactive charts.',
     defaultValue: true
   },
   {

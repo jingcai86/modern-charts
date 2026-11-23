@@ -426,6 +426,71 @@ export type LabelTargetType =
 
 export type LabelRenderMode = 'svg' | 'foreignObject' | 'custom';
 
+export type LabelOverflowStrategy =
+  | 'truncate'
+  | 'rotate'
+  | 'both'
+  | 'wrap'
+  | 'none';
+
+export interface LabelOverflowConfig {
+  /**
+   * Overflow strategy applied when text exceeds `maxWidth` or `maxChars`:
+   * - `'truncate'` (default): truncates with ellipsis using `@chenglou/pretext`.
+   * - `'rotate'`: rotates the label up to `maxRotation` (default `45°`; supports negative values like `-45`).
+   * - `'both'`: rotates (`maxRotation`) AND truncates to fit `maxWidth` / `maxChars`.
+   * - `'wrap'`: multi-line `@chenglou/pretext` wrapping (`layoutWithLines`).
+   * - `'none'`: disables truncation and automatic overflow rotation.
+   */
+  strategy?: LabelOverflowStrategy;
+  /** Maximum available pixel width measured via `@chenglou/pretext` before overflow triggers. */
+  maxWidth?: number;
+  /** Maximum character (grapheme) count before overflow triggers. */
+  maxChars?: number;
+  /** Maximum line count (applies to multi-line text and `'wrap'` strategy). */
+  maxLines?: number;
+  /** Ellipsis suffix appended when truncating. Default `'…'`. */
+  ellipsis?: string;
+  /**
+   * Maximum rotation angle in degrees when strategy is `'rotate'` or `'both'`.
+   * Default `45`. Supports negative values (e.g. `-45`).
+   */
+  maxRotation?: number;
+  /**
+   * Show full untruncated text in a tooltip on hover and keyboard focus when
+   * truncated. Enabled (`true`) by default; set `false` to explicitly disable.
+   */
+  enableTooltip?: boolean;
+  /**
+   * Customize or explicitly disable (`false`) the truncated-label tooltip using
+   * the standard `TooltipConfig` API.
+   */
+  tooltip?: boolean | TooltipConfig<LabelDescriptor>;
+}
+
+export interface ResolvedLabelOverflowConfig {
+  strategy: LabelOverflowStrategy;
+  maxWidth?: number;
+  maxChars?: number;
+  maxLines?: number;
+  ellipsis: string;
+  maxRotation: number;
+  enableTooltip: boolean;
+  tooltip?: TooltipConfig<LabelDescriptor>;
+}
+
+export interface LabelTruncateResult {
+  text: string;
+  originalText: string;
+  lines: MeasuredLabelLine[];
+  truncated: boolean;
+  overflowTriggered: boolean;
+  appliedStrategy: LabelOverflowStrategy;
+  appliedRotation: number;
+  naturalWidth: number;
+  width: number;
+}
+
 export interface LabelPadding {
   top: number;
   right: number;
@@ -443,7 +508,14 @@ export interface LabelDescriptor {
   baseline?: 'auto' | 'middle' | 'hanging' | 'central' | 'alphabetic';
   rotation?: number;
   maxWidth?: number;
+  maxChars?: number;
   maxHeight?: number;
+  maxLines?: number;
+  ellipsis?: string;
+  overflow?: LabelOverflowStrategy | LabelOverflowConfig;
+  maxRotation?: number;
+  enableTooltip?: boolean;
+  tooltip?: boolean | TooltipConfig<LabelDescriptor>;
   lineHeight?: number;
   fontSize?: number;
   fontWeight?: string | number;
@@ -473,6 +545,8 @@ export interface MeasuredLabelLine {
 
 export interface MeasuredLabel {
   text: string;
+  originalText: string;
+  displayText: string;
   font: string;
   lines: MeasuredLabelLine[];
   lineCount: number;
@@ -481,6 +555,9 @@ export interface MeasuredLabel {
   naturalWidth: number;
   lineHeight: number;
   truncated: boolean;
+  overflowTriggered: boolean;
+  appliedStrategy: LabelOverflowStrategy;
+  appliedRotation: number;
   iconExtraWidth: number;
   boxWidth: number;
   boxHeight: number;
@@ -490,6 +567,13 @@ export interface LabelStyleOverride {
   target: LabelTargetType;
   renderMode?: LabelRenderMode;
   maxWidth?: number;
+  maxChars?: number;
+  maxLines?: number;
+  ellipsis?: string;
+  overflow?: LabelOverflowStrategy | LabelOverflowConfig;
+  maxRotation?: number;
+  enableTooltip?: boolean;
+  tooltip?: boolean | TooltipConfig<LabelDescriptor>;
   lineHeight?: number;
   fontSize?: number;
   fontWeight?: string | number;
@@ -598,6 +682,12 @@ export interface BarOuterLabelConfig {
   borderRadius?: number;
   boxPadding?: LabelPadding;
   maxWidth?: number;
+  maxChars?: number;
+  ellipsis?: string;
+  overflow?: LabelOverflowStrategy | LabelOverflowConfig;
+  maxRotation?: number;
+  enableTooltip?: boolean;
+  tooltip?: boolean | TooltipConfig<LabelDescriptor>;
   icon?: string | SVGElement | HTMLElement;
   iconPosition?: 'start' | 'end';
   iconSize?: number;
@@ -955,6 +1045,161 @@ export type ChartEventName =
  * `<mc-theme-layer>`, `<mc-scale-layer>`, `<mc-view-layer>`, `<mc-animation-layer>`,
  * `<mc-aria-layer>`, `<mc-marker-layer>`, `<mc-label>`, and the `layers` rendering pipeline.
  */
+// ============================================================================
+// SVG Pattern & Gradient Definitions (<defs> & fill rules — Issue #15)
+// ============================================================================
+
+export interface GradientStop {
+  offset: number | string;
+  color: string;
+  opacity?: number;
+}
+
+export interface DotsPatternDef {
+  id: string;
+  type: 'dots';
+  /** Base fill behind dots. Supports `'inherit'` to adopt each item's palette color. */
+  background?: string;
+  /** Dot fill color. Supports `'inherit'`. Defaults to `'rgba(255,255,255,0.42)'`. */
+  color?: string;
+  size?: number;
+  padding?: number;
+  stagger?: boolean;
+  opacity?: number;
+}
+
+export interface LinesPatternDef {
+  id: string;
+  type: 'lines';
+  background?: string;
+  color?: string;
+  /** Line angle in degrees (`0` = horizontal, `90` = vertical, `-45` = diagonal default). */
+  rotation?: number;
+  lineWidth?: number;
+  spacing?: number;
+  opacity?: number;
+}
+
+export interface SquaresPatternDef {
+  id: string;
+  type: 'squares';
+  background?: string;
+  color?: string;
+  size?: number;
+  padding?: number;
+  stagger?: boolean;
+  opacity?: number;
+}
+
+export interface CrosshatchPatternDef {
+  id: string;
+  type: 'crosshatch';
+  background?: string;
+  color?: string;
+  rotation?: number;
+  lineWidth?: number;
+  spacing?: number;
+  opacity?: number;
+}
+
+export interface LinearGradientDef {
+  id: string;
+  type: 'linearGradient';
+  /** Plain color strings (`['#6366f1', '#06b6d4']`) or explicit stop objects (`{ offset, color, opacity }`). Supports `'inherit'`. */
+  colors?: Array<string | GradientStop>;
+  /** Angle in degrees (`0` = top-to-bottom, `90` = left-to-right, `45` = diagonal). */
+  angle?: number;
+  x1?: number | string;
+  y1?: number | string;
+  x2?: number | string;
+  y2?: number | string;
+  gradientUnits?: 'objectBoundingBox' | 'userSpaceOnUse';
+}
+
+export interface RadialGradientDef {
+  id: string;
+  type: 'radialGradient';
+  colors?: Array<string | GradientStop>;
+  cx?: number | string;
+  cy?: number | string;
+  r?: number | string;
+  fx?: number | string;
+  fy?: number | string;
+  gradientUnits?: 'objectBoundingBox' | 'userSpaceOnUse';
+}
+
+export interface CustomPatternDef {
+  id: string;
+  type: 'custom';
+  width?: number;
+  height?: number;
+  patternUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
+  patternTransform?: string;
+  /** Raw inner SVG markup (wrapped in `<pattern>`) or a full `<pattern>`/`<linearGradient>`/`<radialGradient>` string. */
+  svg?: string;
+  /** Programmatic SVG element builder receiving the chart-scoped unique `id` and item `baseColor`. */
+  render?: (scopedId: string, baseColor: string) => SVGElement;
+}
+
+export type SvgFillDef =
+  | DotsPatternDef
+  | LinesPatternDef
+  | SquaresPatternDef
+  | CrosshatchPatternDef
+  | LinearGradientDef
+  | RadialGradientDef
+  | CustomPatternDef;
+
+export type FillTargetKind =
+  | 'item'
+  | 'area'
+  | 'node'
+  | 'link'
+  | 'arc'
+  | 'tile'
+  | 'cell'
+  | 'polygon'
+  | 'legend';
+
+export interface FillMatchContext {
+  id: string;
+  seriesId?: string;
+  key?: string;
+  category?: string;
+  index: number;
+  value?: number;
+  color: string;
+  chartType: string;
+  target?: FillTargetKind;
+  datum?: any;
+}
+
+export type FillMatcher =
+  | '*'
+  | string
+  | {
+      id?: string;
+      seriesId?: string;
+      key?: string;
+      category?: string;
+      target?: FillTargetKind;
+    }
+  | ((datum: any, ctx: FillMatchContext) => boolean);
+
+export interface FillRule {
+  match: FillMatcher;
+  id: string;
+}
+
+export type ChartStateKind = 'loading' | 'empty' | 'ready';
+export type ChartDisplayState = 'loading' | 'empty';
+
+export interface ChartStateChangeDetail {
+  state: ChartStateKind;
+  previousState: ChartStateKind | null;
+  chartType: string;
+}
+
 export interface ChartConfig<TData = any> {
   data?: TData;
   width?: number;
@@ -962,6 +1207,11 @@ export interface ChartConfig<TData = any> {
   autoSize?: boolean;
   margin?: Partial<ChartMargin>;
   title?: string;
+
+  // Shared <mc-chart-state> loading & empty overlay config
+  loading?: boolean;
+  loadingText?: string;
+  emptyText?: string;
 
   // Nivo-style layers list (built-in layer names or custom layer functions)
   layers?: LayerInput<TData>[];
@@ -989,10 +1239,15 @@ export interface ChartConfig<TData = any> {
   // Marker & Threshold layer config (Nivo markers + ECharts markLine/markArea + conditional threshold styling)
   markers?: MarkerConfig[];
 
-  // Universal <mc-label> config
+  // Shared SVG <defs> pattern & gradient registry + fill match rules (Issue #15)
+  defs?: SvgFillDef[];
+  fill?: FillRule[];
+
+  // Universal <mc-label> & <mc-truncate> overflow config
   label?: Partial<LabelStyleOverride> | Partial<LabelStyleOverride>[];
   labelMode?: LabelRenderMode;
   labelRenderer?: CustomLabelRenderer;
+  labelOverflow?: LabelOverflowStrategy | LabelOverflowConfig;
   enableLabels?: boolean;
 
   // Unified <mc-tooltip> config (one singleton <mc-tooltip> per chart)
@@ -1019,11 +1274,22 @@ export interface ChartConfig<TData = any> {
   onPointerUp?: ChartEventHandler<any>;
   onKeyDown?: ChartEventHandler<any>;
 
-  // Universal <mc-aria-layer> config + Nivo-style ARIA shorthands
+  // Universal <mc-aria-layer> config + interactivity / focus switches
   role?: string;
   ariaLabel?: string;
   ariaLabelledBy?: string;
   ariaDescribedBy?: string;
+  /**
+   * Master interactivity switch (default `true`).
+   * When `false`, renders a fully static chart: no `<mc-tooltip>` mounted,
+   * no hover/active styles or pointer cursors, no pointer/keyboard listeners or events,
+   * no `tabindex` (overrides `isFocusable`), and keeps `role="img"` + `aria-label` on the SVG.
+   */
+  isInteractive?: boolean;
+  /**
+   * Controls keyboard focusability when `isInteractive` is `true` (default `true`).
+   * Use `isInteractive: true, isFocusable: false` for mouse-only interactive charts.
+   */
   isFocusable?: boolean;
   barAriaLabel?: AriaItemLabelAccessor;
   pointAriaLabel?: AriaItemLabelAccessor;
@@ -1087,6 +1353,8 @@ export interface ChartRenderContext<TData = unknown> {
   viewConfig: ViewConfig;
   animationConfig: AnimationConfig;
   ariaConfig: AriaConfig;
+  /** Effective interactivity state (`false` renders a fully static chart with zero listeners/tooltips). */
+  isInteractive: boolean;
   legendConfig: ResolvedLegendConfig;
   /** Resolved marker lines and marker areas with pixel positions and matched threshold items */
   markers: ResolvedMarker[];
@@ -1143,6 +1411,10 @@ export interface ChartRenderContext<TData = unknown> {
     element: Element,
     registration: ChartEventTargetRegistration<TEventData>
   ) => Element;
+  /** Resolves a configured pattern/gradient `url(#scopedId)` for a chart item or legend swatch, falling back to `matchCtx.color`. */
+  resolveFill: (matchCtx: FillMatchContext) => string;
+  /** Resolves a def ID or `url(#id)` string (e.g. from marker threshold styles) into a chart-scoped `url(#mc-def-...)`. */
+  resolveDefUrl: (raw: string | undefined, baseColor: string) => string | undefined;
   state: Record<string, any>;
 }
 

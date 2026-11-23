@@ -30,6 +30,7 @@ export const SUNBURST_CHART_ENTRY: ChartCatalogEntry = {
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Modern Charts Module Hierarchy Sunburst',
+    isInteractive: true,
     isFocusable: true
   }),
   specificAttributes: [

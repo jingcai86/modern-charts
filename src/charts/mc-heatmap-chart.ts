@@ -49,6 +49,22 @@ export class MCHeatmapChart extends MCBaseChart<HeatmapRow[]> {
     return createDefaultScaleConfig('band', 'band');
   }
 
+  protected override hasPlottableData(data: HeatmapRow[] | null): boolean {
+    if (!Array.isArray(data) || data.length === 0) return false;
+    return data.some(
+      (r) =>
+        Array.isArray(r?.data) &&
+        r.data.some(
+          (c) =>
+            c != null &&
+            c.y !== null &&
+            c.y !== undefined &&
+            (c.y as unknown) !== '' &&
+            Number.isFinite(Number(c.y))
+        )
+    );
+  }
+
   protected prepareContext(ctx: ChartRenderContext<HeatmapRow[]>): void {
     const model = computeHeatmapChartModel(ctx, {
       cellPadding: this.getOption('cellPadding', 'cell-padding', 0.1) ?? 0.1,

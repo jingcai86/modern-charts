@@ -279,6 +279,8 @@ export function renderCartesianAxes(
         ? Math.max(40, Math.floor(ctx.innerWidth / xTicks.length) - 6)
         : 100;
 
+    let maxTickDrop = 16;
+
     xTicks.forEach((tick, idx) => {
       const x = getScalePosition(ctx.xScale, tick);
       if (!Number.isFinite(x)) return;
@@ -321,7 +323,16 @@ export function renderCartesianAxes(
         datum: { axis: 'x', value: tick }
       });
       if (xTickLabel) {
-        xTickLabel.setAttribute('tabindex', '0');
+        const suppressTruncatedFocus =
+          xTickLabel.getAttribute('data-truncated') === 'true' &&
+          !xTickLabel.classList.contains('mc-label--interactive');
+        if (
+          ctx.isInteractive !== false &&
+          ctx.ariaConfig.isFocusable &&
+          !suppressTruncatedFocus
+        ) {
+          xTickLabel.setAttribute('tabindex', '0');
+        }
         ctx.registerEventTarget(xTickLabel, {
           target: 'axis',
           category: 'axis',
@@ -329,23 +340,37 @@ export function renderCartesianAxes(
           data: tickData
         });
       }
+
+      const rotDeg = Number(xTickLabel?.getAttribute('data-applied-rotation') || 0);
+      if (rotDeg !== 0) {
+        const rad = Math.abs((rotDeg * Math.PI) / 180);
+        const estDrop = Math.ceil(maxTickWidth * Math.sin(rad) + 14 * Math.cos(rad));
+        if (estDrop > maxTickDrop) maxTickDrop = estDrop;
+      }
     });
 
     if (options.xTitle) {
+      const xTitleOffset = Math.max(
+        34,
+        Math.min(ctx.margin.bottom - 10, maxTickDrop + 18)
+      );
       const xTitleLabel = ctx.renderLabel(xAxisG, {
         id: 'x-axis-title',
         text: options.xTitle,
         x: ctx.innerWidth / 2,
-        y: ctx.innerHeight + 34,
+        y: ctx.innerHeight + xTitleOffset,
         type: 'axis-title',
         anchor: 'middle',
         baseline: 'middle',
+        maxWidth: Math.max(80, ctx.innerWidth),
         fontSize: ctx.theme.fontSize,
         fontWeight: 600,
         color: ctx.theme.textColor
       });
       if (xTitleLabel) {
-        xTitleLabel.setAttribute('tabindex', '0');
+        if (ctx.isInteractive !== false && ctx.ariaConfig.isFocusable) {
+          xTitleLabel.setAttribute('tabindex', '0');
+        }
         ctx.registerEventTarget(xTitleLabel, {
           target: 'axis',
           category: 'axis',
@@ -425,7 +450,16 @@ export function renderCartesianAxes(
         datum: { axis: 'y', value: tick }
       });
       if (yTickLabel) {
-        yTickLabel.setAttribute('tabindex', '0');
+        const suppressTruncatedFocus =
+          yTickLabel.getAttribute('data-truncated') === 'true' &&
+          !yTickLabel.classList.contains('mc-label--interactive');
+        if (
+          ctx.isInteractive !== false &&
+          ctx.ariaConfig.isFocusable &&
+          !suppressTruncatedFocus
+        ) {
+          yTickLabel.setAttribute('tabindex', '0');
+        }
         ctx.registerEventTarget(yTickLabel, {
           target: 'axis',
           category: 'axis',
@@ -445,12 +479,15 @@ export function renderCartesianAxes(
         anchor: 'middle',
         baseline: 'middle',
         rotation: -90,
+        maxWidth: Math.max(80, ctx.innerHeight),
         fontSize: ctx.theme.fontSize,
         fontWeight: 600,
         color: ctx.theme.textColor
       });
       if (yTitleLabel) {
-        yTitleLabel.setAttribute('tabindex', '0');
+        if (ctx.isInteractive !== false && ctx.ariaConfig.isFocusable) {
+          yTitleLabel.setAttribute('tabindex', '0');
+        }
         ctx.registerEventTarget(yTitleLabel, {
           target: 'axis',
           category: 'axis',

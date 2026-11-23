@@ -1,85 +1,50 @@
 import {
   prepareWithSegments,
-  layoutWithLines,
-  measureLineStats,
-  measureNaturalWidth,
   clearCache as clearPretextCache,
   type PreparedTextWithSegments
 } from '@chenglou/pretext';
+import {
+  ensureCanvasTextMeasurementSupport,
+  normalizeOverflowInput,
+  resolveLabelOverflowConfig,
+  truncateWithPretext
+} from './label-truncate';
+import { resolveElementAnchor } from './tooltip-anchor';
 import type {
   ChartTheme,
   CustomLabelRenderer,
   LabelDescriptor,
+  LabelOverflowConfig,
   LabelPadding,
   LabelStyleOverride,
-  MeasuredLabel
+  MeasuredLabel,
+  ResolvedLabelOverflowConfig,
+  TooltipConfig,
+  TooltipInput
 } from './types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const XHTML_NS = 'http://www.w3.org/1999/xhtml';
 
-function ensureCanvasTextMeasurementSupport(): void {
-  if (typeof HTMLCanvasElement === 'undefined') return;
-  try {
-    const probe = document.createElement('canvas');
-    const ctx = probe.getContext?.('2d');
-    if (ctx && typeof ctx.measureText === 'function') {
-      const m = ctx.measureText('M');
-      if (m && m.width > 0) return;
-    }
-  } catch {
-    // Fallback below
-  }
-
-  const estimateWidth = (text: string, font: string): number => {
-    const sizeMatch = font.match(/(\d+(?:\.\d+)?)px/);
-    const fontSize = sizeMatch ? parseFloat(sizeMatch[1]) : 12;
-    let total = 0;
-    for (const ch of text) {
-      const code = ch.charCodeAt(0);
-      if (ch === ' ') total += fontSize * 0.32;
-      else if ("ilI1|.,:;!'".includes(ch)) total += fontSize * 0.34;
-      else if ('mwMW@%'.includes(ch)) total += fontSize * 0.82;
-      else if (code > 0x2e80) total += fontSize * 1.0;
-      else total += fontSize * 0.58;
-    }
-    return total;
-  };
-
-  const origGetContext = HTMLCanvasElement.prototype.getContext;
-  (HTMLCanvasElement.prototype as any).getContext = function (
-    contextId: string,
-    options?: any
-  ) {
-    const existing = origGetContext
-      ? origGetContext.call(this, contextId as any, options)
-      : null;
-    if (contextId === '2d') {
-      const ctx2d = existing as CanvasRenderingContext2D | null;
-      if (ctx2d && typeof ctx2d.measureText === 'function') {
-        const test = ctx2d.measureText('M');
-        if (test && test.width > 0) return ctx2d;
-      }
-      const mockCtx: any = existing ?? { font: '12px sans-serif' };
-      if (!mockCtx.font) mockCtx.font = '12px sans-serif';
-      mockCtx.measureText = (str: string) => ({
-        width: estimateWidth(
-          String(str ?? ''),
-          mockCtx.font || '12px sans-serif'
-        )
-      });
-      return mockCtx;
-    }
-    return existing;
-  };
-}
-
 ensureCanvasTextMeasurementSupport();
+
+export interface LabelTooltipHandlers {
+  showTooltip: (
+    content: TooltipInput<LabelDescriptor>,
+    clientX: number,
+    clientY: number,
+    overrideConfig?: TooltipConfig<LabelDescriptor>
+  ) => void;
+  hideTooltip: () => void;
+  /** Controls whether truncated labels receive `tabindex="0"` and keyboard focus tooltips (default `true`). */
+  isFocusable?: boolean;
+}
 
 export class LabelEngine {
   private preparedCache = new Map<string, PreparedTextWithSegments>();
   private overrides: LabelStyleOverride[] = [];
   private customRenderer?: CustomLabelRenderer;
+  private tooltipHandlers?: LabelTooltipHandlers;
 
   public setOverrides(overrides: LabelStyleOverride[]): void {
     this.overrides = overrides;
@@ -91,6 +56,10 @@ export class LabelEngine {
 
   public setCustomRenderer(renderer?: CustomLabelRenderer): void {
     this.customRenderer = renderer;
+  }
+
+  public setTooltipHandlers(handlers?: LabelTooltipHandlers): void {
+    this.tooltipHandlers = handlers;
   }
 
   public clearCache(): void {
@@ -142,10 +111,76 @@ export class LabelEngine {
       if (ov.target === 'all' || ov.target === descriptor.type) {
         matchedOverride = ov;
         if (ov.renderMode) descriptor.renderMode = ov.renderMode;
-        if (ov.maxWidth !== undefined && descriptor.maxWidth === undefined) {
-          descriptor.maxWidth = ov.maxWidth;
-        } else if (ov.maxWidth !== undefined && ov.target === descriptor.type) {
-          descriptor.maxWidth = ov.maxWidth;
+        if (ov.maxWidth !== undefined) {
+          if (ov.target === descriptor.type || descriptor.maxWidth === undefined) {
+            descriptor.maxWidth = ov.maxWidth;
+          } else {
+            descriptor.maxWidth = Math.min(descriptor.maxWidth, ov.maxWidth);
+          }
+        }
+        if (ov.maxChars !== undefined) descriptor.maxChars = ov.maxChars;
+        if (ov.maxLines !== undefined) descriptor.maxLines = ov.maxLines;
+        if (ov.ellipsis !== undefined) descriptor.ellipsis = ov.ellipsis;
+        if (ov.maxRotation !== undefined) {
+          descriptor.maxRotation = ov.maxRotation;
+        }
+        if (ov.overflow !== undefined) {
+          const prevOverflow = normalizeOverflowInput(descriptor.overflow);
+          const nextOverflow = normalizeOverflowInput(ov.overflow);
+          const mergedOverflow: LabelOverflowConfig = {
+            ...prevOverflow,
+            ...nextOverflow
+          };
+          if (
+            nextOverflow.maxWidth !== undefined &&
+            descriptor.maxWidth !== undefined &&
+            ov.target !== descriptor.type
+          ) {
+            mergedOverflow.maxWidth = Math.min(
+              descriptor.maxWidth,
+              nextOverflow.maxWidth
+            );
+          }
+          if (
+            descriptor.enableTooltip === false &&
+            ov.target !== descriptor.type &&
+            nextOverflow.enableTooltip !== false
+          ) {
+            mergedOverflow.enableTooltip = false;
+          }
+          descriptor.overflow = mergedOverflow;
+          if (
+            nextOverflow.maxWidth !== undefined &&
+            (ov.target === descriptor.type || descriptor.maxWidth === undefined)
+          ) {
+            descriptor.maxWidth = nextOverflow.maxWidth;
+          } else if (
+            nextOverflow.maxWidth !== undefined &&
+            descriptor.maxWidth !== undefined
+          ) {
+            descriptor.maxWidth = Math.min(
+              descriptor.maxWidth,
+              nextOverflow.maxWidth
+            );
+          }
+        }
+        if (ov.enableTooltip !== undefined) {
+          if (
+            descriptor.enableTooltip === undefined ||
+            ov.target === descriptor.type ||
+            ov.enableTooltip === false
+          ) {
+            descriptor.enableTooltip = ov.enableTooltip;
+          }
+        }
+        if (ov.tooltip !== undefined) {
+          if (
+            descriptor.enableTooltip !== false ||
+            ov.target === descriptor.type ||
+            ov.tooltip === false
+          ) {
+            descriptor.tooltip = ov.tooltip;
+          }
         }
         if (ov.lineHeight !== undefined) descriptor.lineHeight = ov.lineHeight;
         if (ov.fontSize !== undefined) descriptor.fontSize = ov.fontSize;
@@ -262,9 +297,14 @@ export class LabelEngine {
       fontSize
     );
 
+    const overflow = resolveLabelOverflowConfig(options);
+    const explicitRotation = options.rotation ?? 0;
+
     if (text.length === 0 && iconExtraWidth === 0) {
       return {
         text: '',
+        originalText: '',
+        displayText: '',
         font,
         lines: [],
         lineCount: 0,
@@ -273,6 +313,9 @@ export class LabelEngine {
         naturalWidth: 0,
         lineHeight,
         truncated: false,
+        overflowTriggered: false,
+        appliedStrategy: overflow.strategy,
+        appliedRotation: explicitRotation,
         iconExtraWidth: 0,
         boxWidth: 0,
         boxHeight: 0
@@ -282,6 +325,8 @@ export class LabelEngine {
     if (text.length === 0) {
       return {
         text: '',
+        originalText: '',
+        displayText: '',
         font,
         lines: [],
         lineCount: 1,
@@ -290,68 +335,59 @@ export class LabelEngine {
         naturalWidth: iconExtraWidth,
         lineHeight,
         truncated: false,
+        overflowTriggered: false,
+        appliedStrategy: overflow.strategy,
+        appliedRotation: explicitRotation,
         iconExtraWidth,
         boxWidth: iconExtraWidth + padding.left + padding.right,
         boxHeight: Math.max(lineHeight, minIconHeight) + padding.top + padding.bottom
       };
     }
 
-    const prepared = this.getPrepared(text, font);
-    const naturalWidth = Math.ceil(measureNaturalWidth(prepared));
-    const maxWidth =
-      options.maxWidth && options.maxWidth > 0
+    const availWidth =
+      overflow.maxWidth !== undefined && overflow.maxWidth > 0
         ? Math.max(
-            24,
-            options.maxWidth - padding.left - padding.right - iconExtraWidth
+            12,
+            overflow.maxWidth - padding.left - padding.right - iconExtraWidth
           )
-        : Math.max(naturalWidth + 4, 1000);
+        : undefined;
+    const availHeight =
+      options.maxHeight && options.maxHeight > 0
+        ? Math.max(
+            lineHeight,
+            options.maxHeight - padding.top - padding.bottom
+          )
+        : undefined;
 
-    const layoutRes = layoutWithLines(prepared, maxWidth, lineHeight);
-    const stats = measureLineStats(prepared, maxWidth);
+    const truncRes = truncateWithPretext(text, {
+      font,
+      lineHeight,
+      availWidth,
+      maxHeight: availHeight,
+      explicitRotation: options.rotation,
+      overflow,
+      getPrepared: (t, f) => this.getPrepared(t, f)
+    });
 
-    let lines = layoutRes.lines.map((l) => ({
-      text: l.text,
-      width: Math.ceil(l.width)
-    }));
-    let truncated = false;
-
-    if (options.maxHeight && options.maxHeight > 0) {
-      const availHeight = Math.max(
-        lineHeight,
-        options.maxHeight - padding.top - padding.bottom
-      );
-      const maxLines = Math.max(1, Math.floor(availHeight / lineHeight));
-      if (lines.length > maxLines) {
-        lines = lines.slice(0, maxLines);
-        const last = lines[lines.length - 1];
-        last.text = last.text.replace(/\s*\S+$/, '') + '…';
-        truncated = true;
-      }
-    }
-
-    const width = Math.min(
-      maxWidth,
-      Math.ceil(
-        lines.length > 0
-          ? Math.max(
-              ...lines.map((l) => l.width),
-              Math.min(stats.maxLineWidth, maxWidth)
-            )
-          : 0
-      )
-    );
+    const lines = truncRes.lines;
+    const width = truncRes.width;
     const height = Math.max(lines.length * lineHeight, minIconHeight);
 
     return {
-      text,
+      text: truncRes.text,
+      originalText: truncRes.originalText,
+      displayText: truncRes.text,
       font,
       lines,
       lineCount: lines.length,
       width,
       height,
-      naturalWidth: naturalWidth + iconExtraWidth,
+      naturalWidth: truncRes.naturalWidth + iconExtraWidth,
       lineHeight,
-      truncated,
+      truncated: truncRes.truncated,
+      overflowTriggered: truncRes.overflowTriggered,
+      appliedStrategy: truncRes.appliedStrategy,
+      appliedRotation: truncRes.appliedRotation,
       iconExtraWidth,
       boxWidth: width + iconExtraWidth + padding.left + padding.right,
       boxHeight: height + padding.top + padding.bottom
@@ -378,6 +414,7 @@ export class LabelEngine {
       return null;
     }
 
+    const overflow = resolveLabelOverflowConfig(descriptor);
     const measured = this.measure(descriptor.text, descriptor, theme);
     if (
       measured.lineCount === 0 &&
@@ -385,6 +422,18 @@ export class LabelEngine {
       !descriptor.icon
     ) {
       return null;
+    }
+
+    // For auto-rotated hanging X-axis ticks, align anchor so text tilts cleanly away from the axis line
+    if (
+      measured.appliedRotation !== 0 &&
+      measured.overflowTriggered &&
+      descriptor.rotation === undefined &&
+      descriptor.type === 'axis-tick' &&
+      descriptor.baseline === 'hanging' &&
+      (descriptor.anchor ?? 'middle') === 'middle'
+    ) {
+      descriptor.anchor = measured.appliedRotation > 0 ? 'start' : 'end';
     }
 
     const defaultRender = (): SVGGElement => {
@@ -411,7 +460,7 @@ export class LabelEngine {
       );
       if (customNode === null) return null;
       if (customNode !== undefined) {
-        const wrapper = this.createGroupWrapper(descriptor);
+        const wrapper = this.createGroupWrapper(descriptor, measured);
         if (typeof customNode === 'string') {
           const trimmed = customNode.trim();
           if (trimmed.toLowerCase().startsWith('<foreignobject')) {
@@ -454,12 +503,14 @@ export class LabelEngine {
           );
           wrapper.appendChild(fo);
         }
+        this.decorateRenderedLabel(wrapper, descriptor, measured, overflow);
         parent.appendChild(wrapper);
         return wrapper;
       }
     }
 
     const renderedGroup = defaultRender();
+    this.decorateRenderedLabel(renderedGroup, descriptor, measured, overflow);
     parent.appendChild(renderedGroup);
     return renderedGroup;
   }
@@ -499,7 +550,10 @@ export class LabelEngine {
     fo.setAttribute('overflow', 'visible');
   }
 
-  private createGroupWrapper(descriptor: LabelDescriptor): SVGGElement {
+  private createGroupWrapper(
+    descriptor: LabelDescriptor,
+    measured?: MeasuredLabel
+  ): SVGGElement {
     const g = document.createElementNS(SVG_NS, 'g');
     const modeClass =
       descriptor.renderMode === 'foreignObject' ? 'mc-label-fo' : 'mc-label-svg';
@@ -518,7 +572,7 @@ export class LabelEngine {
 
     const x = Number.isFinite(descriptor.x) ? descriptor.x : 0;
     const y = Number.isFinite(descriptor.y) ? descriptor.y : 0;
-    const rotation = descriptor.rotation ?? 0;
+    const rotation = measured ? measured.appliedRotation : descriptor.rotation ?? 0;
     if (rotation !== 0) {
       g.setAttribute(
         'transform',
@@ -530,12 +584,164 @@ export class LabelEngine {
     return g;
   }
 
+  private decorateRenderedLabel(
+    group: SVGGElement,
+    descriptor: LabelDescriptor,
+    measured: MeasuredLabel,
+    overflow: ResolvedLabelOverflowConfig
+  ): void {
+    group.setAttribute('data-truncated', measured.truncated ? 'true' : 'false');
+    group.setAttribute('data-overflow-strategy', measured.appliedStrategy);
+    if (measured.appliedRotation !== 0) {
+      group.setAttribute(
+        'data-applied-rotation',
+        String(measured.appliedRotation)
+      );
+    }
+
+    if (!measured.truncated) {
+      return;
+    }
+
+    group.setAttribute('data-full-text', measured.originalText);
+    group.setAttribute('aria-label', measured.originalText);
+
+    if (!overflow.enableTooltip || !this.tooltipHandlers) {
+      return;
+    }
+
+    const handlers = this.tooltipHandlers;
+    const isFocusable = handlers.isFocusable !== false;
+    group.classList.add('mc-label--interactive');
+    if (isFocusable) {
+      group.setAttribute('tabindex', '0');
+    }
+
+    // Ensure SVG labels without a background pill still have an easy hit box
+    if (
+      !group.querySelector('foreignObject') &&
+      !group.querySelector('.mc-label-bg') &&
+      !group.querySelector('.mc-label-hit')
+    ) {
+      const anchor = descriptor.anchor ?? 'middle';
+      const baseline = descriptor.baseline ?? 'middle';
+      const padding: LabelPadding = descriptor.padding ?? {
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0
+      };
+      const hitW = Math.max(16, measured.boxWidth + 4);
+      const hitH = Math.max(14, measured.boxHeight + 4);
+      let rectX = -padding.left - 2;
+      if (anchor === 'middle') {
+        rectX = -hitW / 2;
+      } else if (anchor === 'end') {
+        rectX = -measured.width - measured.iconExtraWidth - padding.left - 2;
+      }
+      let rectY = -padding.top - 2;
+      if (baseline === 'middle' || baseline === 'central') {
+        rectY = -hitH / 2;
+      } else if (baseline !== 'hanging') {
+        rectY = -hitH + padding.bottom + 2;
+      }
+
+      const hitRect = document.createElementNS(SVG_NS, 'rect');
+      hitRect.setAttribute('class', 'mc-label-hit');
+      hitRect.setAttribute('x', String(rectX));
+      hitRect.setAttribute('y', String(rectY));
+      hitRect.setAttribute('width', String(hitW));
+      hitRect.setAttribute('height', String(hitH));
+      hitRect.setAttribute('rx', '3');
+      hitRect.setAttribute('fill', 'transparent');
+      group.insertBefore(hitRect, group.firstChild);
+    }
+
+    const foContainer = group.querySelector(
+      '.mc-fo-label'
+    ) as HTMLElement | null;
+    if (foContainer) {
+      foContainer.style.pointerEvents = 'auto';
+    }
+
+    const customTip = overflow.tooltip;
+    const tooltipOverride: TooltipConfig<LabelDescriptor> = {
+      enabled: true,
+      position: customTip?.position ?? 'item',
+      anchorGap: customTip?.anchorGap ?? 8,
+      offsetX: customTip?.offsetX,
+      offsetY: customTip?.offsetY,
+      className: customTip?.className,
+      formatter: customTip?.formatter,
+      renderer: customTip?.renderer,
+      templateHtml: customTip?.templateHtml
+    };
+
+    const showLabelTooltip = (
+      source: 'pointer' | 'keyboard',
+      clientX: number,
+      clientY: number
+    ): void => {
+      const fallbackAnchor = {
+        left: descriptor.x - measured.boxWidth / 2,
+        top: descriptor.y - measured.boxHeight / 2,
+        width: Math.max(16, measured.boxWidth),
+        height: Math.max(14, measured.boxHeight),
+        relative: true
+      };
+      handlers.showTooltip(
+        {
+          title: measured.originalText,
+          value: measured.originalText,
+          formattedValue: measured.originalText,
+          datum: {
+            ...descriptor,
+            text: measured.originalText,
+            meta: {
+              ...(descriptor.meta ?? {}),
+              truncated: true,
+              displayText: measured.displayText,
+              appliedStrategy: measured.appliedStrategy,
+              appliedRotation: measured.appliedRotation
+            }
+          },
+          source,
+          anchor: resolveElementAnchor(group, fallbackAnchor)
+        },
+        clientX,
+        clientY,
+        tooltipOverride
+      );
+    };
+
+    group.addEventListener('mouseenter', (e: MouseEvent) => {
+      showLabelTooltip('pointer', e.clientX, e.clientY);
+    });
+    group.addEventListener('mouseleave', () => {
+      handlers.hideTooltip();
+    });
+    if (isFocusable) {
+      group.addEventListener('focus', () => {
+        const r = group.getBoundingClientRect();
+        showLabelTooltip('keyboard', r.left + r.width / 2, r.top);
+      });
+      group.addEventListener('blur', () => {
+        handlers.hideTooltip();
+      });
+      group.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          handlers.hideTooltip();
+        }
+      });
+    }
+  }
+
   private renderSvgTextLabel(
     descriptor: LabelDescriptor,
     measured: MeasuredLabel,
     theme: ChartTheme
   ): SVGGElement {
-    const g = this.createGroupWrapper(descriptor);
+    const g = this.createGroupWrapper(descriptor, measured);
     const { fontSize, fontWeight, fontFamily } = this.buildFontString(
       descriptor,
       theme
@@ -643,9 +849,9 @@ export class LabelEngine {
     measured: MeasuredLabel,
     theme: ChartTheme
   ): SVGGElement {
-    const g = this.createGroupWrapper(descriptor);
+    const g = this.createGroupWrapper(descriptor, measured);
     const htmlContent = descriptor.templateHtml
-      ? this.interpolateTemplate(descriptor.templateHtml, descriptor)
+      ? this.interpolateTemplate(descriptor.templateHtml, descriptor, measured)
       : undefined;
 
     // Support raw <foreignObject> inside <template> directly!
@@ -771,7 +977,7 @@ export class LabelEngine {
         : null;
       if (textSpan) {
         textSpan.className = 'mc-fo-label-text';
-        textSpan.textContent = descriptor.text;
+        textSpan.textContent = measured.displayText;
       }
 
       if (iconNode && textSpan && descriptor.iconPosition === 'end') {
@@ -817,7 +1023,8 @@ export class LabelEngine {
 
   public interpolateTemplate(
     template: string,
-    descriptor: LabelDescriptor
+    descriptor: LabelDescriptor,
+    measured?: MeasuredLabel
   ): string {
     const datumObj =
       descriptor.datum && typeof descriptor.datum === 'object'
@@ -826,8 +1033,11 @@ export class LabelEngine {
     const metaObj = descriptor.meta ?? {};
     const iconStr =
       typeof descriptor.icon === 'string' ? descriptor.icon : '';
+    const displayText = measured ? measured.displayText : descriptor.text;
+    const originalText = measured ? measured.originalText : descriptor.text;
     return template.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, key: string) => {
-      if (key === 'text') return descriptor.text;
+      if (key === 'text') return displayText;
+      if (key === 'originalText' || key === 'fullText') return originalText;
       if (key === 'type') return descriptor.type;
       if (key === 'icon') return iconStr;
       if (key === 'id') return String(descriptor.id ?? datumObj.id ?? '');

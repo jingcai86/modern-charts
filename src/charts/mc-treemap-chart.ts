@@ -38,6 +38,17 @@ export class MCTreemapChart extends MCBaseChart<HierarchyNode> {
     return { top: 36, right: 20, bottom: 58, left: 20 };
   }
 
+  protected override hasPlottableData(data: HierarchyNode | null): boolean {
+    if (!data || typeof data !== 'object') return false;
+    const hasPositiveLeaf = (node: HierarchyNode): boolean => {
+      if (Array.isArray(node.children) && node.children.length > 0) {
+        return node.children.some((c) => c && hasPositiveLeaf(c));
+      }
+      return Number.isFinite(Number(node.value)) && Number(node.value) > 0;
+    };
+    return hasPositiveLeaf(data);
+  }
+
   protected prepareContext(ctx: ChartRenderContext<HierarchyNode>): void {
     const model = computeTreemapChartModel(ctx, {
       tilePadding: this.getOption('tilePadding', 'tile-padding', 4) ?? 4,

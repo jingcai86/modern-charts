@@ -121,11 +121,21 @@ interface SharedChartConfig<TData> {
   // Markers & Thresholds (<mc-marker-layer> / <mc-marker>) — bar, line, scatter
   markers?: MarkerConfig[];
 
-  // Universal Labels (<mc-label>, powered by @chenglou/pretext)
+  // Universal Labels & Truncation (<mc-label> & <mc-truncate>, powered by @chenglou/pretext)
   enableLabels?: boolean;
   labelMode?: 'svg' | 'foreignObject' | 'custom';
   label?: Partial<LabelStyleOverride> | Partial<LabelStyleOverride>[];
   labelRenderer?: CustomLabelRenderer;
+  labelOverflow?: 'truncate' | 'rotate' | 'both' | 'wrap' | 'none' | {
+    strategy?: 'truncate' | 'rotate' | 'both' | 'wrap' | 'none'; // default 'truncate'
+    maxWidth?: number;    // Pretext pixel width threshold
+    maxChars?: number;    // grapheme character count threshold
+    maxLines?: number;    // max lines for multi-line / 'wrap'
+    ellipsis?: string;    // default '…'
+    maxRotation?: number; // default 45 (supports negative e.g. -45) for 'rotate' | 'both'
+    enableTooltip?: boolean; // default true on truncated labels; set false to disable
+    tooltip?: boolean | TooltipConfig<LabelDescriptor>; // customizable full-text tooltip
+  };
 
   // Unified Tooltip (<mc-tooltip> — one reusable instance per chart)
   tooltip?: boolean | {
@@ -168,7 +178,8 @@ interface SharedChartConfig<TData> {
   ariaLabel?: string;
   ariaLabelledBy?: string;
   ariaDescribedBy?: string;
-  isFocusable?: boolean;
+  isInteractive?: boolean; // default true; false renders a fully static chart (no tooltips, listeners, hover, or tabindex; overrides isFocusable)
+  isFocusable?: boolean;   // default true; controls keyboard focus only when isInteractive is true (mouse-only: isInteractive: true, isFocusable: false)
   barAriaLabel?: string | ((item: AriaItemDescriptor) => string);
   pointAriaLabel?: string | ((item: AriaItemDescriptor) => string);
   arcAriaLabel?: string | ((item: AriaItemDescriptor) => string);
@@ -181,7 +192,7 @@ interface SharedChartConfig<TData> {
 
 ### Shared HTML Attributes (All `<mc-*-chart>` Elements)
 
-`width`, `height`, `auto-size`, `margin`, `theme-mode`, `palette`, `chart-title`, `layers`, `label-mode`, `animate`, `motion-config`, `aria-label`, `is-focusable`.
+`width`, `height`, `auto-size`, `margin`, `theme-mode`, `palette`, `chart-title`, `layers`, `label-mode`, `label-overflow`, `tooltip-position`, `animate`, `motion-config`, `aria-label`, `is-interactive`, `is-focusable`.
 
 ---
 
@@ -262,17 +273,23 @@ Note: When any marker defines an outside `annotation` (`left`, `right`, `top`, o
 
 ---
 
-## 4. Universal Labels (`<mc-label>` & `LabelEngine`)
+## 4. Universal Labels & Truncation (`<mc-label>`, `<mc-truncate>` & `LabelEngine`)
 
 Every text label in every chart (ticks, titles, bar/point/arc/cell values, markers, legends, center labels) renders via `@chenglou/pretext` with zero DOM reflow.
 
-Target types (`for` attribute on `<mc-label>` or `target` in `config.label`):
+When a label exceeds `maxWidth` or `maxChars`, overflow defaults to `'truncate'` (ellipsis with an automatic hover/keyboard tooltip revealing the full text, customizable via `tooltip` and disableable via `enableTooltip: false`). Clients can also select `'rotate'` (45° default max rotation, customizable including negative angles like `-45`), `'both'` (rotate + truncate), `'wrap'` (multi-line Pretext wrapping), or `'none'`.
+
+Target types (`for` attribute on `<mc-label>` / `<mc-truncate>` or `target` in `config.label`):
 `'all' | 'axis-tick' | 'axis-title' | 'data' | 'bar-outer' | 'arc' | 'arc-link' | 'cell' | 'radar-axis' | 'radar-point' | 'node' | 'link' | 'legend' | 'title' | 'center' | 'marker' | 'custom'`.
 
 ```html
 <mc-bar-chart>
   <mc-label for="data" mode="foreignObject" bg-color="#0f172a" color="#f8fafc" border-radius="6" padding="4" icon="✨"></mc-label>
+  <mc-truncate for="axis-tick" max-width="72" max-chars="14" strategy="both" max-rotation="-45"></mc-truncate>
 </mc-bar-chart>
+
+<!-- Reusable standalone component -->
+<mc-truncate text="Quarterly Cloud Infrastructure Analysis" max-width="120" max-chars="20"></mc-truncate>
 ```
 
 ---

@@ -101,7 +101,7 @@ export function renderLineSlicesLayer(
   model: LineChartModel,
   ctx: ChartRenderContext<LineSeries[]>
 ): void {
-  if (!model.enableSlices) return;
+  if (!model.enableSlices || ctx.isInteractive === false) return;
   if (model.series.length === 0 || model.series[0].points.length === 0) return;
 
   const firstPoints = model.series[0].points;

@@ -41,6 +41,17 @@ export class MCGaugeChart extends MCBaseChart<GaugeDatum> {
     return 'item';
   }
 
+  protected override hasPlottableData(data: GaugeDatum | null): boolean {
+    if (!data || typeof data !== 'object') return false;
+    const v = data.value;
+    return (
+      v !== null &&
+      v !== undefined &&
+      (v as unknown) !== '' &&
+      Number.isFinite(Number(v))
+    );
+  }
+
   protected prepareContext(ctx: ChartRenderContext<GaugeDatum>): void {
     const model = computeGaugeChartModel(ctx, {
       min: this.getOption('min', 'min'),

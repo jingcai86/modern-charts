@@ -18,11 +18,26 @@ export function renderPieArcItem(
   path.setAttribute('data-item-component', 'mc-arc-item');
   path.setAttribute('data-id', arc.data.id);
   path.setAttribute('d', arc.pathD);
-  path.setAttribute('fill', arc.color);
+  const pieFill =
+    ctx.resolveFill?.({
+      id: arc.data.id,
+      seriesId: arc.data.id,
+      category: arc.data.label || arc.data.id,
+      index: arc.index,
+      value: arc.value,
+      color: arc.color,
+      chartType: 'pie',
+      target: 'arc',
+      datum: arc.data
+    }) ?? arc.color;
+  path.setAttribute('fill', pieFill);
   path.setAttribute('stroke', ctx.theme.background);
   path.setAttribute('stroke-width', '1.5');
-  path.style.cursor = 'pointer';
-  path.style.transition = 'd 160ms ease, filter 160ms ease';
+  const isInteractive = ctx.isInteractive !== false;
+  if (isInteractive) {
+    path.style.cursor = 'pointer';
+    path.style.transition = 'd 160ms ease, filter 160ms ease';
+  }
 
   const pieCx =
     (ctx.state?.model as { cx?: number } | undefined)?.cx ?? ctx.innerWidth / 2;
@@ -88,30 +103,32 @@ export function renderPieArcItem(
     }
   });
 
-  path.addEventListener('mouseenter', (e) => {
-    path.setAttribute('d', arc.hoverPathD);
-    path.style.filter = 'brightness(1.08)';
-    ctx.showTooltip(
-      {
-        title: arc.data.label || arc.data.id,
-        label: 'Value',
-        seriesId: arc.data.id,
-        value: arc.value,
-        formattedValue: `${arc.value} (${arc.percentage.toFixed(1)}%)`,
-        color: arc.color,
-        percentage: arc.percentage,
-        anchor: getPieAnchor(),
-        datum: { ...arc.data, percentage: arc.percentage }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  path.addEventListener('mouseleave', () => {
-    path.setAttribute('d', arc.pathD);
-    path.style.filter = 'none';
-    ctx.hideTooltip();
-  });
+  if (isInteractive) {
+    path.addEventListener('mouseenter', (e) => {
+      path.setAttribute('d', arc.hoverPathD);
+      path.style.filter = 'brightness(1.08)';
+      ctx.showTooltip(
+        {
+          title: arc.data.label || arc.data.id,
+          label: 'Value',
+          seriesId: arc.data.id,
+          value: arc.value,
+          formattedValue: `${arc.value} (${arc.percentage.toFixed(1)}%)`,
+          color: arc.color,
+          percentage: arc.percentage,
+          anchor: getPieAnchor(),
+          datum: { ...arc.data, percentage: arc.percentage }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    path.addEventListener('mouseleave', () => {
+      path.setAttribute('d', arc.pathD);
+      path.style.filter = 'none';
+      ctx.hideTooltip();
+    });
+  }
 
   return path;
 }
@@ -131,9 +148,32 @@ export function renderSunburstArcItem(
   path.setAttribute('data-name', arc.name);
   path.setAttribute('data-depth', String(arc.depth));
   path.setAttribute('d', arc.pathD);
-  path.setAttribute('fill', arc.color);
-  path.style.cursor = interactive && arc.hasChildren ? 'pointer' : 'default';
-  path.style.transition = 'opacity 150ms ease, filter 150ms ease';
+  const sunburstFill =
+    ctx.resolveFill?.({
+      id: arc.name,
+      seriesId: arc.pathNames[0] || arc.name,
+      category: arc.pathNames[0] || arc.name,
+      index: arc.index,
+      value: arc.value,
+      color: arc.color,
+      chartType: 'sunburst',
+      target: 'arc',
+      datum: {
+        id: arc.name,
+        name: arc.name,
+        breadcrumb: arc.breadcrumb,
+        pathNames: arc.pathNames,
+        depth: arc.depth,
+        value: arc.value
+      }
+    }) ?? arc.color;
+  path.setAttribute('fill', sunburstFill);
+  const chartInteractive = ctx.isInteractive !== false;
+  path.style.cursor =
+    chartInteractive && interactive && arc.hasChildren ? 'pointer' : 'default';
+  if (chartInteractive) {
+    path.style.transition = 'opacity 150ms ease, filter 150ms ease';
+  }
 
   const sunCx =
     (ctx.state?.model as { cx?: number } | undefined)?.cx ?? ctx.innerWidth / 2;
@@ -182,41 +222,43 @@ export function renderSunburstArcItem(
     originY: 0
   });
 
-  path.addEventListener('mouseenter', (e) => {
-    path.style.filter = 'brightness(1.12)';
-    ctx.showTooltip(
-      {
-        title: arc.breadcrumb,
-        label: arc.name,
-        category: arc.pathNames[0] || arc.name,
-        value: arc.value,
-        formattedValue: `${arc.value} (${arc.percentage.toFixed(1)}%)`,
-        color: arc.color,
-        percentage: arc.percentage,
-        anchor: getSunburstAnchor(),
-        datum: {
-          name: arc.name,
-          breadcrumb: arc.breadcrumb,
-          pathNames: arc.pathNames,
-          depth: arc.depth,
+  if (chartInteractive) {
+    path.addEventListener('mouseenter', (e) => {
+      path.style.filter = 'brightness(1.12)';
+      ctx.showTooltip(
+        {
+          title: arc.breadcrumb,
+          label: arc.name,
+          category: arc.pathNames[0] || arc.name,
           value: arc.value,
-          percentage: arc.percentage
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  path.addEventListener('mouseleave', () => {
-    path.style.filter = 'none';
-    ctx.hideTooltip();
-  });
-
-  if (interactive && arc.hasChildren && onDrilldown) {
-    path.addEventListener('click', () => {
-      ctx.hideTooltip();
-      onDrilldown(arc.pathNames);
+          formattedValue: `${arc.value} (${arc.percentage.toFixed(1)}%)`,
+          color: arc.color,
+          percentage: arc.percentage,
+          anchor: getSunburstAnchor(),
+          datum: {
+            name: arc.name,
+            breadcrumb: arc.breadcrumb,
+            pathNames: arc.pathNames,
+            depth: arc.depth,
+            value: arc.value,
+            percentage: arc.percentage
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
     });
+    path.addEventListener('mouseleave', () => {
+      path.style.filter = 'none';
+      ctx.hideTooltip();
+    });
+
+    if (interactive && arc.hasChildren && onDrilldown) {
+      path.addEventListener('click', () => {
+        ctx.hideTooltip();
+        onDrilldown(arc.pathNames);
+      });
+    }
   }
 
   ctx.registerEventTarget(path, {
@@ -252,7 +294,18 @@ export function renderGaugeValueArcItem(
   path.setAttribute('class', 'mc-gauge-value-arc');
   path.setAttribute('data-item-component', 'mc-arc-item');
   path.setAttribute('d', model.valueArcPathD);
-  path.setAttribute('fill', ctx.theme.colors[0]);
+  const gaugeFill =
+    ctx.resolveFill?.({
+      id: model.label || 'gauge',
+      seriesId: model.label || 'gauge',
+      index: 0,
+      value: model.value,
+      color: ctx.theme.colors[0],
+      chartType: 'gauge',
+      target: 'arc',
+      datum: model.datum
+    }) ?? ctx.theme.colors[0];
+  path.setAttribute('fill', gaugeFill);
 
   const getGaugeAnchor = () =>
     resolveChartPointAnchor(
@@ -295,34 +348,36 @@ export function renderGaugeValueArcItem(
     originY: 0
   });
 
-  path.style.cursor = 'pointer';
-  path.addEventListener('mouseenter', (e) => {
-    path.style.filter = 'brightness(1.08)';
-    ctx.showTooltip(
-      {
-        title: model.label || 'Gauge Metric',
-        label: 'Value',
-        value: model.value,
-        formattedValue: `${model.value}${model.unit}`,
-        color: ctx.theme.colors[0],
-        anchor: getGaugeAnchor(),
-        datum: {
-          ...model.datum,
+  if (ctx.isInteractive !== false) {
+    path.style.cursor = 'pointer';
+    path.addEventListener('mouseenter', (e) => {
+      path.style.filter = 'brightness(1.08)';
+      ctx.showTooltip(
+        {
+          title: model.label || 'Gauge Metric',
+          label: 'Value',
           value: model.value,
-          min: model.min,
-          max: model.max,
-          unit: model.unit,
-          label: model.label
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  path.addEventListener('mouseleave', () => {
-    path.style.filter = 'none';
-    ctx.hideTooltip();
-  });
+          formattedValue: `${model.value}${model.unit}`,
+          color: ctx.theme.colors[0],
+          anchor: getGaugeAnchor(),
+          datum: {
+            ...model.datum,
+            value: model.value,
+            min: model.min,
+            max: model.max,
+            unit: model.unit,
+            label: model.label
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    path.addEventListener('mouseleave', () => {
+      path.style.filter = 'none';
+      ctx.hideTooltip();
+    });
+  }
 
   const gaugeRange = model.max - model.min;
   const gaugePct =

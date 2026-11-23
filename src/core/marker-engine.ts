@@ -653,11 +653,22 @@ export class MarkerEngine {
       'class',
       `mc-marker-annotation mc-marker-annotation--${ann.position}`
     );
+    const interactiveAnn = ctx.isInteractive !== false && ann.enableTooltip;
+    const focusableAnn = interactiveAnn && ctx.ariaConfig.isFocusable;
+
     annG.setAttribute('data-marker-id', marker.id);
     annG.setAttribute('data-annotation-position', ann.position);
-    annG.setAttribute('role', 'note');
-    if (ann.enableTooltip) {
-      annG.setAttribute('tabindex', '0');
+    if (ctx.isInteractive !== false) {
+      annG.setAttribute('role', 'note');
+      annG.setAttribute(
+        'aria-label',
+        ann.text || marker.label || `Marker annotation: ${marker.id}`
+      );
+    }
+    if (interactiveAnn) {
+      if (focusableAnn) {
+        annG.setAttribute('tabindex', '0');
+      }
       annG.setAttribute('pointer-events', 'auto');
       annG.style.pointerEvents = 'auto';
       annG.style.cursor = 'pointer';
@@ -666,10 +677,6 @@ export class MarkerEngine {
       annG.style.pointerEvents = 'none';
       annG.style.cursor = 'default';
     }
-    annG.setAttribute(
-      'aria-label',
-      ann.text || marker.label || `Marker annotation: ${marker.id}`
-    );
     annG.style.outline = 'none';
 
     const annFontSize = ann.fontSize ?? Math.max(10, ctx.theme.fontSize - 1);
@@ -693,6 +700,7 @@ export class MarkerEngine {
       ...(ann.borderRadius !== undefined ? { borderRadius: ann.borderRadius } : {}),
       ...(ann.labelPadding ? { padding: ann.labelPadding } : {}),
       ...(ann.renderer ? { renderer: ann.renderer } : {}),
+      enableTooltip: ann.enableTooltip ? false : undefined,
       icon: ann.icon,
       datum: marker
     };
@@ -701,7 +709,7 @@ export class MarkerEngine {
     }
 
     // Transparent hover hit-area so boxless annotation text/icons remain easy to hover
-    if (ann.enableTooltip) {
+    if (interactiveAnn) {
       const measured = ctx.measureText(annDescriptor.text, annDescriptor);
       const hitW = Math.max(18, measured.boxWidth + 8);
       const hitH = Math.max(18, measured.boxHeight + 6);
@@ -750,7 +758,7 @@ export class MarkerEngine {
       }
     });
 
-    if (ann.enableTooltip) {
+    if (interactiveAnn) {
       const valueDisplay =
         marker.type === 'area'
           ? `${marker.from ?? 0} – ${marker.to ?? 0}`
@@ -818,23 +826,25 @@ export class MarkerEngine {
       annG.addEventListener('mouseleave', () => {
         ctx.hideTooltip();
       });
-      annG.addEventListener('focus', () => {
-        const rect = annG.getBoundingClientRect();
-        ctx.showTooltip(
-          buildPayload('keyboard'),
-          rect.left + rect.width / 2,
-          rect.top,
-          { ...(ann.tooltipConfig ?? {}), position: 'item' }
-        );
-      });
-      annG.addEventListener('blur', () => {
-        ctx.hideTooltip();
-      });
-      annG.addEventListener('keydown', (e) => {
-        if ((e as KeyboardEvent).key === 'Escape') {
+      if (focusableAnn) {
+        annG.addEventListener('focus', () => {
+          const rect = annG.getBoundingClientRect();
+          ctx.showTooltip(
+            buildPayload('keyboard'),
+            rect.left + rect.width / 2,
+            rect.top,
+            { ...(ann.tooltipConfig ?? {}), position: 'item' }
+          );
+        });
+        annG.addEventListener('blur', () => {
           ctx.hideTooltip();
-        }
-      });
+        });
+        annG.addEventListener('keydown', (e) => {
+          if ((e as KeyboardEvent).key === 'Escape') {
+            ctx.hideTooltip();
+          }
+        });
+      }
     }
 
     parentG.appendChild(annG);

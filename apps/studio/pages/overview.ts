@@ -68,6 +68,72 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="128" y="30" width="52" height="7" rx="3.5" fill="currentColor" fill-opacity="0.72"/>
       <rect x="114" y="46" width="46" height="6" rx="3" fill="currentColor" fill-opacity="0.38"/>
     </svg>`,
+  truncation: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="26" y="22" width="168" height="22" rx="6" fill="#6366f1" fill-opacity="0.18" stroke="#818cf8" stroke-width="1.5"/>
+      <rect x="38" y="30" width="92" height="6" rx="3" fill="currentColor" fill-opacity="0.65"/>
+      <circle cx="142" cy="33" r="2.2" fill="#38bdf8"/>
+      <circle cx="150" cy="33" r="2.2" fill="#38bdf8"/>
+      <circle cx="158" cy="33" r="2.2" fill="#38bdf8"/>
+      <line x1="56" y1="68" x2="108" y2="54" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+      <line x1="118" y1="68" x2="170" y2="54" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+    </svg>`,
+  events: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <circle cx="66" cy="48" r="24" stroke="#38bdf8" stroke-opacity="0.35" stroke-width="1.5"/>
+      <circle cx="66" cy="48" r="14" stroke="#38bdf8" stroke-opacity="0.7" stroke-width="1.5"/>
+      <circle cx="66" cy="48" r="5" fill="#f59e0b"/>
+      <rect x="108" y="22" width="84" height="14" rx="5" fill="#6366f1" fill-opacity="0.24" stroke="#818cf8" stroke-width="1.2"/>
+      <rect x="108" y="42" width="84" height="14" rx="5" fill="#06b6d4" fill-opacity="0.22" stroke="#22d3ee" stroke-width="1.2"/>
+      <rect x="108" y="62" width="84" height="14" rx="5" fill="#10b981" fill-opacity="0.22" stroke="#34d399" stroke-width="1.2"/>
+    </svg>`,
+  accessibility: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="28" y="20" width="76" height="56" rx="10" fill="#10b981" fill-opacity="0.16" stroke="#34d399" stroke-width="1.6"/>
+      <rect x="40" y="46" width="14" height="20" rx="3" fill="#34d399"/>
+      <rect x="60" y="34" width="14" height="32" rx="3" fill="#06b6d4"/>
+      <rect x="80" y="40" width="14" height="26" rx="3" fill="#818cf8"/>
+      <rect x="118" y="20" width="74" height="56" rx="10" fill="currentColor" fill-opacity="0.06" stroke="#94a3b8" stroke-dasharray="4 3" stroke-width="1.5"/>
+      <rect x="130" y="46" width="14" height="20" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
+      <rect x="150" y="34" width="14" height="32" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
+      <rect x="170" y="40" width="14" height="26" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
+    </svg>`,
+  'dynamic-updates': `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <path d="M24 72 L196 72" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.4"/>
+      <path d="M28 60 L60 44 L92 52 L124 28 L156 38 L188 20" stroke="#38bdf8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="188" cy="20" r="5" fill="#10b981"/>
+      <circle cx="188" cy="20" r="10" stroke="#10b981" stroke-opacity="0.45" stroke-width="1.5"/>
+      <path d="M28 66 L60 58 L92 60 L124 46 L156 50 L188 40" stroke="#a855f7" stroke-width="2" stroke-dasharray="4 3" stroke-linecap="round"/>
+    </svg>`,
+  'chart-state': `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="28" y="16" width="164" height="64" rx="10" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-opacity="0.22" stroke-width="1.4" stroke-dasharray="4 4"/>
+      <circle cx="84" cy="48" r="14" stroke="#6366f1" stroke-opacity="0.25" stroke-width="3"/>
+      <path d="M84 34 A14 14 0 0 1 98 48" stroke="#6366f1" stroke-width="3" stroke-linecap="round"/>
+      <rect x="112" y="38" width="56" height="7" rx="3.5" fill="currentColor" fill-opacity="0.72"/>
+      <rect x="112" y="51" width="40" height="6" rx="3" fill="currentColor" fill-opacity="0.38"/>
+    </svg>`,
+  patterns: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <defs>
+        <pattern id="ov-pat-lines" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+          <rect width="6" height="6" fill="#6366f1"/>
+          <line x1="0" y1="3" x2="6" y2="3" stroke="white" stroke-opacity="0.5" stroke-width="1.6"/>
+        </pattern>
+        <pattern id="ov-pat-dots" width="7" height="7" patternUnits="userSpaceOnUse">
+          <rect width="7" height="7" fill="#06b6d4"/>
+          <circle cx="3.5" cy="3.5" r="1.4" fill="white" fill-opacity="0.65"/>
+        </pattern>
+        <linearGradient id="ov-pat-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f59e0b"/>
+          <stop offset="100%" stop-color="#ec4899"/>
+        </linearGradient>
+      </defs>
+      <rect x="34" y="26" width="38" height="52" rx="6" fill="url(#ov-pat-lines)"/>
+      <rect x="90" y="18" width="38" height="60" rx="6" fill="url(#ov-pat-dots)"/>
+      <rect x="146" y="34" width="38" height="44" rx="6" fill="url(#ov-pat-grad)"/>
+    </svg>`,
   'ai-context': `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
       <rect x="34" y="18" width="152" height="60" rx="10" fill="currentColor" fill-opacity="0.06" stroke="#a855f7" stroke-opacity="0.6" stroke-width="1.5"/>

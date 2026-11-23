@@ -19,9 +19,15 @@ function applyBarGeometry(rect: SVGRectElement, b: ComputedBarItemModel): void {
 function applyMatchStyleToRect(
   rect: SVGRectElement,
   style: MarkerMatchStyle,
-  fallbackColor: string
+  fallbackColor: string,
+  ctx: ChartRenderContext<any>
 ): void {
-  rect.setAttribute('fill', style.fill || style.color || fallbackColor);
+  const resolvedFill =
+    ctx.resolveDefUrl?.(style.fill, fallbackColor) ||
+    style.fill ||
+    style.color ||
+    fallbackColor;
+  rect.setAttribute('fill', resolvedFill);
   if (style.stroke) {
     rect.setAttribute('stroke', style.stroke);
     rect.setAttribute('stroke-width', String(style.strokeWidth ?? 1.8));
@@ -64,6 +70,27 @@ export function renderBarItem(
         b.threshold.isUnderThreshold ? ' mc-bar-rect--under-threshold' : ''
       }`
     : '';
+
+  const baseFill =
+    ctx.resolveFill?.({
+      id: b.id,
+      seriesId: b.key,
+      key: b.key,
+      category: b.indexValue,
+      index: b.index,
+      value: b.value,
+      color: b.originalColor,
+      chartType: 'bar',
+      target: 'item',
+      datum: {
+        id: b.key,
+        key: b.key,
+        indexValue: b.indexValue,
+        category: b.indexValue,
+        value: b.value,
+        ...b.datum
+      }
+    }) ?? b.originalColor;
 
   let hostEl: SVGElement;
   let ariaThresholdCoverage: 'none' | 'partial' | 'full' = 'none';
@@ -115,7 +142,7 @@ export function renderBarItem(
       baseRect.setAttribute('aria-hidden', 'true');
       baseRect.setAttribute('role', 'presentation');
       applyBarGeometry(baseRect, b);
-      baseRect.setAttribute('fill', b.originalColor);
+      baseRect.setAttribute('fill', baseFill);
       baseRect.setAttribute('clip-path', `url(#${baseClipId})`);
       group.appendChild(baseRect);
     }
@@ -138,7 +165,7 @@ export function renderBarItem(
       ovRect.setAttribute('role', 'presentation');
       ovRect.setAttribute('data-threshold-marker-id', overlay.marker.id);
       applyBarGeometry(ovRect, b);
-      applyMatchStyleToRect(ovRect, overlay.style, b.color);
+      applyMatchStyleToRect(ovRect, overlay.style, b.color, ctx);
       ovRect.setAttribute('clip-path', `url(#${overlayClipId})`);
       group.appendChild(ovRect);
     }
@@ -168,7 +195,7 @@ export function renderBarItem(
     applyBarGeometry(rect, b);
 
     if (applyFullMatch) {
-      applyMatchStyleToRect(rect, effectiveFullStyle, b.color);
+      applyMatchStyleToRect(rect, effectiveFullStyle, b.color, ctx);
       rect.setAttribute('data-threshold-matched', 'true');
       rect.setAttribute(
         'data-threshold-split',
@@ -184,14 +211,17 @@ export function renderBarItem(
           : b.threshold.matchedMarkerIds;
       rect.setAttribute('data-threshold-ids', ids.join(','));
     } else {
-      rect.setAttribute('fill', b.originalColor);
+      rect.setAttribute('fill', baseFill);
     }
 
     hostEl = rect;
   }
 
-  hostEl.style.cursor = 'pointer';
-  hostEl.style.transition = 'filter 140ms ease, opacity 140ms ease';
+  const interactive = ctx.isInteractive !== false;
+  if (interactive) {
+    hostEl.style.cursor = 'pointer';
+    hostEl.style.transition = 'filter 140ms ease, opacity 140ms ease';
+  }
 
   const thresholdIds =
     plan.matchedMarkerIds.length > 0
@@ -234,6 +264,7 @@ export function renderBarItem(
   });
 
   if (
+    interactive &&
     ariaThresholdCoverage === 'partial' &&
     !hostEl.hasAttribute('aria-description')
   ) {
@@ -302,43 +333,45 @@ export function renderBarItem(
     }
   });
 
-  hostEl.addEventListener('mouseenter', (e) => {
-    hostEl.style.filter = 'brightness(1.1)';
-    const badge =
-      ariaThresholdCoverage === 'partial'
-        ? `⚡ Crosses Threshold (${thresholdIds.join(', ')})`
-        : b.threshold.isUnderThreshold
-        ? `⚠ Under Threshold (${thresholdIds.join(', ')})`
-        : undefined;
-    ctx.showTooltip(
-      {
-        title: b.indexValue,
-        label: b.key,
-        seriesId: b.key,
-        category: b.indexValue,
-        value: b.value,
-        formattedValue: String(b.value),
-        color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
-        badge,
-        threshold: b.threshold,
-        anchor: resolveElementAnchor(hostEl, fallbackAnchor),
-        datum: {
-          key: b.key,
-          indexValue: b.indexValue,
+  if (interactive) {
+    hostEl.addEventListener('mouseenter', (e) => {
+      hostEl.style.filter = 'brightness(1.1)';
+      const badge =
+        ariaThresholdCoverage === 'partial'
+          ? `⚡ Crosses Threshold (${thresholdIds.join(', ')})`
+          : b.threshold.isUnderThreshold
+          ? `⚠ Under Threshold (${thresholdIds.join(', ')})`
+          : undefined;
+      ctx.showTooltip(
+        {
+          title: b.indexValue,
+          label: b.key,
+          seriesId: b.key,
+          category: b.indexValue,
           value: b.value,
-          thresholdCoverage: ariaThresholdCoverage,
-          matchedMarkerIds: thresholdIds,
-          ...b.datum
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  hostEl.addEventListener('mouseleave', () => {
-    hostEl.style.filter = 'none';
-    ctx.hideTooltip();
-  });
+          formattedValue: String(b.value),
+          color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
+          badge,
+          threshold: b.threshold,
+          anchor: resolveElementAnchor(hostEl, fallbackAnchor),
+          datum: {
+            key: b.key,
+            indexValue: b.indexValue,
+            value: b.value,
+            thresholdCoverage: ariaThresholdCoverage,
+            matchedMarkerIds: thresholdIds,
+            ...b.datum
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    hostEl.addEventListener('mouseleave', () => {
+      hostEl.style.filter = 'none';
+      ctx.hideTooltip();
+    });
+  }
 
   return hostEl;
 }

@@ -72,7 +72,9 @@ export function renderGaugeTicksLayer(
       datum: { value: tick.value }
     });
     if (tickG) {
-      tickG.setAttribute('tabindex', '0');
+      if (ctx.isInteractive !== false && ctx.ariaConfig.isFocusable) {
+        tickG.setAttribute('tabindex', '0');
+      }
       ctx.registerEventTarget(tickG, {
         target: 'axis',
         category: 'axis',

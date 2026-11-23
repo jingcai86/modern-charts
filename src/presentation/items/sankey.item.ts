@@ -19,7 +19,26 @@ export function renderSankeyLinkItem(
   ctx: ChartRenderContext<any>,
   defs?: Element | null
 ): SVGPathElement {
-  if (defs) {
+  const customLinkStroke =
+    ctx.resolveFill?.({
+      id: link.id,
+      seriesId: link.source.id,
+      category: link.target.id,
+      index: link.index,
+      value: link.value,
+      color: link.source.color,
+      chartType: 'sankey',
+      target: 'link',
+      datum: {
+        id: link.id,
+        source: link.source.id,
+        target: link.target.id,
+        value: link.value
+      }
+    }) ?? link.source.color;
+  const hasCustomLinkStroke = customLinkStroke !== link.source.color;
+
+  if (defs && !hasCustomLinkStroke) {
     const grad = document.createElementNS(SVG_NS, 'linearGradient');
     grad.setAttribute('id', link.gradientId);
     grad.setAttribute('gradientUnits', 'userSpaceOnUse');
@@ -47,12 +66,19 @@ export function renderSankeyLinkItem(
   path.setAttribute('fill', 'none');
   path.setAttribute(
     'stroke',
-    defs ? `url(#${link.gradientId})` : link.source.color
+    hasCustomLinkStroke
+      ? customLinkStroke
+      : defs
+        ? `url(#${link.gradientId})`
+        : link.source.color
   );
   path.setAttribute('stroke-width', String(link.width));
   path.setAttribute('stroke-opacity', String(link.opacity));
-  path.style.cursor = 'pointer';
-  path.style.transition = 'stroke-opacity 150ms ease';
+  const interactive = ctx.isInteractive !== false;
+  if (interactive) {
+    path.style.cursor = 'pointer';
+    path.style.transition = 'stroke-opacity 150ms ease';
+  }
 
   const midX = (link.source.x1 + link.target.x0) / 2;
   const midY = (link.sy + link.ty) / 2;
@@ -91,35 +117,37 @@ export function renderSankeyLinkItem(
     index: link.index
   });
 
-  path.addEventListener('mouseenter', (e) => {
-    path.setAttribute(
-      'stroke-opacity',
-      String(Math.min(0.9, link.opacity + 0.35))
-    );
-    ctx.showTooltip(
-      {
-        title: `${link.source.name} → ${link.target.name}`,
-        label: 'Flow',
-        value: link.value,
-        formattedValue: formatGroupedNumber(link.value),
-        color: link.source.color,
-        anchor: getLinkAnchor(),
-        datum: {
-          source: link.source.id,
-          sourceName: link.source.name,
-          target: link.target.id,
-          targetName: link.target.name,
-          value: link.value
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  path.addEventListener('mouseleave', () => {
-    path.setAttribute('stroke-opacity', String(link.opacity));
-    ctx.hideTooltip();
-  });
+  if (interactive) {
+    path.addEventListener('mouseenter', (e) => {
+      path.setAttribute(
+        'stroke-opacity',
+        String(Math.min(0.9, link.opacity + 0.35))
+      );
+      ctx.showTooltip(
+        {
+          title: `${link.source.name} → ${link.target.name}`,
+          label: 'Flow',
+          value: link.value,
+          formattedValue: formatGroupedNumber(link.value),
+          color: link.source.color,
+          anchor: getLinkAnchor(),
+          datum: {
+            source: link.source.id,
+            sourceName: link.source.name,
+            target: link.target.id,
+            targetName: link.target.name,
+            value: link.value
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    path.addEventListener('mouseleave', () => {
+      path.setAttribute('stroke-opacity', String(link.opacity));
+      ctx.hideTooltip();
+    });
+  }
 
   ctx.registerEventTarget(path, {
     target: 'sankeyLink',
@@ -158,8 +186,23 @@ export function renderSankeyNodeItem(
   rect.setAttribute('width', String(Math.max(4, node.x1 - node.x0)));
   rect.setAttribute('height', String(Math.max(4, node.y1 - node.y0)));
   rect.setAttribute('rx', '4');
-  rect.setAttribute('fill', node.color);
-  rect.style.cursor = 'pointer';
+  const nodeFill =
+    ctx.resolveFill?.({
+      id: node.id,
+      seriesId: node.id,
+      category: node.name,
+      index: node.index,
+      value: node.value,
+      color: node.color,
+      chartType: 'sankey',
+      target: 'node',
+      datum: node
+    }) ?? node.color;
+  rect.setAttribute('fill', nodeFill);
+  const interactive = ctx.isInteractive !== false;
+  if (interactive) {
+    rect.style.cursor = 'pointer';
+  }
 
   const fallbackAnchor = {
     left: ctx.margin.left + node.x0,
@@ -194,29 +237,31 @@ export function renderSankeyNodeItem(
     originY: node.y1
   });
 
-  rect.addEventListener('mouseenter', (e) => {
-    ctx.showTooltip(
-      {
-        title: node.name,
-        label: 'Total Flow',
-        value: node.value,
-        formattedValue: formatGroupedNumber(node.value),
-        color: node.color,
-        anchor: resolveElementAnchor(rect, fallbackAnchor),
-        datum: {
-          id: node.id,
-          name: node.name,
-          column: node.column,
-          value: node.value
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  rect.addEventListener('mouseleave', () => {
-    ctx.hideTooltip();
-  });
+  if (interactive) {
+    rect.addEventListener('mouseenter', (e) => {
+      ctx.showTooltip(
+        {
+          title: node.name,
+          label: 'Total Flow',
+          value: node.value,
+          formattedValue: formatGroupedNumber(node.value),
+          color: node.color,
+          anchor: resolveElementAnchor(rect, fallbackAnchor),
+          datum: {
+            id: node.id,
+            name: node.name,
+            column: node.column,
+            value: node.value
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    rect.addEventListener('mouseleave', () => {
+      ctx.hideTooltip();
+    });
+  }
 
   ctx.registerEventTarget(rect, {
     target: 'sankeyNode',

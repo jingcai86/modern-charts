@@ -33,6 +33,7 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Cluster Compute Utilization Heatmap',
+    isInteractive: true,
     isFocusable: true
   }),
   specificAttributes: [

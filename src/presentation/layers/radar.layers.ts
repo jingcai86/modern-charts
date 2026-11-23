@@ -89,7 +89,9 @@ export function renderRadarAxesLayer(
       datum: { axis: axisName }
     });
     if (axisLabelG) {
-      axisLabelG.setAttribute('tabindex', '0');
+      if (ctx.isInteractive !== false && ctx.ariaConfig.isFocusable) {
+        axisLabelG.setAttribute('tabindex', '0');
+      }
       ctx.registerEventTarget(axisLabelG, {
         target: 'axis',
         category: 'axis',
