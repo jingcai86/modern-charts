@@ -5,6 +5,10 @@ import { renderThemesGuide } from './themes';
 import { renderD3Guide } from './d3';
 import { renderCustomLabelsGuide } from './custom-labels';
 import { renderTooltipsGuide } from './tooltips';
+import { renderTruncationGuide } from './truncation';
+import { renderEventsGuide } from './events';
+import { renderAccessibilityGuide } from './accessibility';
+import { renderDynamicUpdatesGuide } from './dynamic-updates';
 import type { GuideId } from './types';
 
 export { GUIDES_CATALOG, type GuideId, type GuideMeta } from './types';
@@ -32,5 +36,13 @@ export function renderGuidePage(
       return renderCustomLabelsGuide(body, themeMode);
     case 'tooltips':
       return renderTooltipsGuide(body, themeMode);
+    case 'truncation':
+      return renderTruncationGuide(body, themeMode);
+    case 'events':
+      return renderEventsGuide(body, themeMode);
+    case 'accessibility':
+      return renderAccessibilityGuide(body, themeMode);
+    case 'dynamic-updates':
+      return renderDynamicUpdatesGuide(body, themeMode);
   }
 }

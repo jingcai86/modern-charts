@@ -3,7 +3,11 @@ export type GuideId =
   | 'themes'
   | 'd3'
   | 'custom-labels'
-  | 'tooltips';
+  | 'tooltips'
+  | 'truncation'
+  | 'events'
+  | 'accessibility'
+  | 'dynamic-updates';
 
 export interface GuideMeta {
   id: GuideId;
@@ -52,6 +56,38 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     shortLabel: 'Tooltips',
     icon: '💬',
     summary:
-      'One reusable <mc-tooltip> per chart with full structured data access, custom formatter/renderer callbacks, declarative <mc-tooltip> overrides, and CSS ::part() styling.'
+      'One reusable <mc-tooltip> per chart with item vs. follow positioning, custom formatter/renderer callbacks, declarative <mc-tooltip>, ::part() styling, and lifecycle events.'
+  },
+  {
+    id: 'truncation',
+    title: 'Label Truncation & Overflow (<mc-truncate>)',
+    shortLabel: 'Truncation',
+    icon: '✂️',
+    summary:
+      'Zero-reflow @chenglou/pretext truncation, character caps, ellipsis, 45°/-45° text rotation, and automatic full-text tooltips across axes, legends, and standalone <mc-truncate>.'
+  },
+  {
+    id: 'events',
+    title: 'Events & Interactions',
+    shortLabel: 'Events',
+    icon: '⚡',
+    summary:
+      'Listen to composed chart events across items, axes, legends, markers, titles, zoom controls, and empty canvas with a live interactive event log.'
+  },
+  {
+    id: 'accessibility',
+    title: 'Accessibility & ARIA',
+    shortLabel: 'Accessibility',
+    icon: '♿',
+    summary:
+      'Default W3C ARIA roles, customizable screen-reader labels, Tab/Arrow keyboard navigation, polite live announcements, hidden data-table fallback, and reduced-motion support.'
+  },
+  {
+    id: 'dynamic-updates',
+    title: 'Dynamic Updates & Streaming',
+    shortLabel: 'Dynamic Updates',
+    icon: '🔄',
+    summary:
+      'Update data and config at runtime: live 1-second sliding-window streaming, randomize/add/remove mutations, batched setConfig(), resize behavior, and React/Vue snippets.'
   }
 ];
