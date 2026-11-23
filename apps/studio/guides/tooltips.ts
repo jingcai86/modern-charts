@@ -467,7 +467,10 @@ chart.config = {
   ...config,
   tooltip: {
     position: 'item',  // or 'follow'
-    anchorGap: 10      // gap in px above/below anchored item
+    anchorGap: 10,     // gap in px above/below anchored item
+    offsetX: 14,       // horizontal pointer offset in 'follow' mode
+    offsetY: 14,       // vertical pointer offset in 'follow' mode
+    className: 'my-custom-tooltip'
   }
 };
 
@@ -476,12 +479,71 @@ chart.config = {
 
 // 3. Declarative <mc-tooltip> child
 // <mc-heatmap-chart>
-//   <mc-tooltip position="item" anchor-gap="8"></mc-tooltip>
+//   <mc-tooltip position="item" anchor-gap="8" offset-x="12" offset-y="12"></mc-tooltip>
 // </mc-heatmap-chart>
+
+// 4. Listen to composed DOM tooltip lifecycle events
+chart.addEventListener('mc-tooltip-show', (e) => console.log('show:', e.detail));
+chart.addEventListener('mc-tooltip-hide', () => console.log('hide'));
       `,
-      'Tooltip Positioning Modes (item vs. follow)'
+      'Tooltip Positioning Modes & Lifecycle Events'
     )
   );
+
+  // Live mc-tooltip-show / mc-tooltip-hide Event Log Strip inside Example 4
+  const tipEventBar = document.createElement('div');
+  tipEventBar.className = 'inspector-box';
+  tipEventBar.style.marginTop = '12px';
+  tipEventBar.innerHTML = `
+    <div class="inspector-title">Live <code>mc-tooltip-show</code> / <code>mc-tooltip-hide</code> Event Monitor (hover or Tab through bars above):</div>
+    <div class="inspector-readout" id="guide-tooltip-event-readout">Waiting for tooltip event...</div>
+  `;
+  ex4.appendChild(tipEventBar);
+
+  const tipEventReadout = tipEventBar.querySelector(
+    '#guide-tooltip-event-readout'
+  ) as HTMLElement;
+  bar4.addEventListener('mc-tooltip-show', (e: Event) => {
+    const p = (e as CustomEvent<TooltipPayload>).detail;
+    tipEventReadout.textContent = `mc-tooltip-show → mode="${p.positionMode}" | source="${
+      p.source ?? 'pointer'
+    }" | series="${p.seriesId ?? p.label ?? ''}" | category="${
+      p.category ?? ''
+    }" | value=${p.formattedValue ?? p.value ?? ''}`;
+  });
+  bar4.addEventListener('mc-tooltip-hide', () => {
+    tipEventReadout.textContent = 'mc-tooltip-hide → tooltip dismissed';
+  });
+
+  // Section 5: TooltipConfig & TooltipPayload Reference Table
+  const apiRef = document.createElement('section');
+  apiRef.className = 'panel-card guide-section';
+  apiRef.innerHTML = `
+    <h2 class="guide-section-title">API Reference: <code>TooltipConfig</code> &amp; <code>TooltipPayload</code></h2>
+    <div class="guide-table-wrap">
+      <table class="guide-table">
+        <thead>
+          <tr>
+            <th>Option / Field</th>
+            <th>Type</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>tooltip.enabled</code></td><td><code>boolean</code></td><td><code>true</code></td><td>Show or hide the unified chart tooltip singleton.</td></tr>
+          <tr><td><code>tooltip.position</code></td><td><code>'item' | 'follow'</code></td><td>Per-chart default</td><td>Anchor cleanly above/below active items (<code>'item'</code>) or follow the pointer (<code>'follow'</code>). Keyboard focus always uses <code>'item'</code>.</td></tr>
+          <tr><td><code>tooltip.anchorGap</code></td><td><code>number</code></td><td><code>10</code></td><td>Pixel gap between the anchored item and tooltip surface in <code>'item'</code> mode.</td></tr>
+          <tr><td><code>tooltip.offsetX / offsetY</code></td><td><code>number</code></td><td><code>14</code></td><td>Horizontal and vertical pixel offset from cursor in <code>'follow'</code> mode.</td></tr>
+          <tr><td><code>tooltip.className</code></td><td><code>string</code></td><td>—</td><td>Extra CSS class name(s) applied to the internal <code>&lt;mc-tooltip&gt;</code> host.</td></tr>
+          <tr><td><code>tooltip.formatter</code></td><td><code>(payload) =&gt; string | null</code></td><td>—</td><td>Returns custom HTML/text string (or <code>null</code> to suppress).</td></tr>
+          <tr><td><code>tooltip.renderer</code></td><td><code>(payload, defaultRender) =&gt; Node | string | null</code></td><td>—</td><td>Full DOM renderer; call <code>defaultRender()</code> to extend default structured markup.</td></tr>
+          <tr><td><code>TooltipPayload</code></td><td><code>object</code></td><td>—</td><td>Provides <code>chartType</code>, <code>title</code>, <code>label</code>, <code>seriesId</code>, <code>category</code>, <code>value</code>, <code>formattedValue</code>, <code>color</code>, <code>percentage</code>, <code>badge</code>, <code>items[]</code>, <code>threshold</code>, <code>datum</code>, <code>data</code>, <code>positionMode</code>, <code>source</code>, <code>clientX</code>, <code>clientY</code>, and <code>anchor</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+  container.appendChild(apiRef);
 
   return mounted;
 }
