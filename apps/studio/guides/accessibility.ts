@@ -7,42 +7,188 @@ export function renderAccessibilityGuide(
 ): MCBaseChart<any>[] {
   const mounted: MCBaseChart<any>[] = [];
 
-  // Intro: W3C ARIA & Accessibility Overview
+  // Intro: W3C ARIA, Accessibility & Static Charts Overview
   const intro = document.createElement('section');
   intro.className = 'panel-card guide-section';
   intro.innerHTML = `
-    <h2 class="panel-title">Accessibility, Keyboard Navigation &amp; Static Charts (<code>isInteractive</code> / <code>isFocusable</code>)</h2>
+    <h2 class="panel-title">Accessibility, W3C ARIA &amp; Static Charts (<code>&lt;mc-aria-layer&gt;</code> &amp; <code>isInteractive</code>)</h2>
     <p class="guide-prose">
-      Every chart in <code>modern-charts</code> ships with built-in W3C ARIA roles, screen-reader descriptions,
-      keyboard navigation (<code>Tab</code>, Arrow keys, <code>Home</code>/<code>End</code>, <code>Enter</code>/<code>Space</code>),
-      <code>prefers-reduced-motion</code> awareness, and a hidden accessible HTML data-table fallback — plus a
-      dedicated <code>isInteractive</code> switch for fully static charts.
+      Every chart in <code>modern-charts</code> ships with accessible SVG landmarks, customizable screen-reader
+      labels, full keyboard navigation (<code>Tab</code>, Arrow keys, <code>Home</code>/<code>End</code>, <code>Enter</code>/<code>Space</code>),
+      automatic <code>prefers-reduced-motion</code> support, and a visually hidden semantic HTML <code>&lt;table&gt;</code>
+      fallback — plus a dedicated <code>isInteractive</code> master switch for fully static charts.
     </p>
     <div class="guide-pillars-grid">
       <div class="guide-pillar-card">
         <h3>1. Roles &amp; Screen-Reader Labels</h3>
-        <p>The chart SVG uses <code>role="img"</code> with <code>&lt;title&gt;</code>, <code>&lt;desc&gt;</code>, and <code>aria-label</code>. Interactive items receive <code>role="graphics-symbol"</code> and customizable label accessors (<code>barAriaLabel</code>, <code>arcAriaLabel</code>, <code>aria.itemLabel</code>).</p>
+        <p>The SVG root uses <code>role="img"</code> wired via <code>&lt;title&gt;</code>, <code>&lt;desc&gt;</code>, and <code>aria-label</code>. Interactive items receive <code>role="graphics-symbol"</code> and customizable accessors (<code>barAriaLabel</code>, <code>arcAriaLabel</code>, <code>pointAriaLabel</code>).</p>
       </div>
       <div class="guide-pillar-card">
         <h3>2. Keyboard Navigation &amp; Announcements</h3>
-        <p>When <code>isInteractive: true</code> and <code>isFocusable: true</code>, every item gets <code>tabindex="0"</code>, roving Arrow/Home/End navigation, item-anchored focus tooltips, and polite <code>aria-live="polite"</code> announcements.</p>
+        <p>When <code>isInteractive: true</code> and <code>isFocusable: true</code> (default), every data item receives <code>tabindex="0"</code>, roving <code>Arrow</code>/<code>Home</code>/<code>End</code> navigation, item-anchored focus tooltips, and polite <code>aria-live="polite"</code> announcements.</p>
       </div>
       <div class="guide-pillar-card">
         <h3>3. Reduced Motion &amp; Data-Table Fallback</h3>
-        <p>Entry animations honor <code>prefers-reduced-motion: reduce</code> automatically. Set <code>aria.includeDataTable: true</code> (enabled by default) to expose a visually hidden semantic <code>&lt;table&gt;</code> of all chart items for assistive tech.</p>
+        <p>Entry and layer animations respect <code>prefers-reduced-motion: reduce</code> automatically. <code>aria.includeDataTable: true</code> (default) exposes a visually hidden semantic <code>&lt;table&gt;</code> of all chart items for assistive tech.</p>
       </div>
     </div>
   `;
   container.appendChild(intro);
 
-  // Section 1: Static Charts (isInteractive vs isFocusable) — Live Interactive Demo
+  // Example 1: Live Keyboard Focus, Screen-Reader Announcement & Data-Table Fallback Preview
+  const ex1 = document.createElement('section');
+  ex1.className = 'panel-card guide-section';
+  ex1.innerHTML = `
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">Example 1: Keyboard Navigation, Live Screen-Reader Output &amp; Data-Table Fallback</h2>
+        <p class="guide-prose" style="margin:4px 0 0;">
+          Click inside the chart and press <strong>Tab</strong> followed by <strong>ArrowLeft / ArrowRight / Home / End</strong>
+          (or <strong>Enter</strong>) to inspect the exact screen-reader announcement and generated accessible HTML table below.
+        </p>
+      </div>
+      <div class="guide-controls-row" style="flex-wrap:wrap;gap:12px;">
+        <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="a11y-focusable-chk" checked />
+          <code>isFocusable</code>
+        </label>
+        <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="a11y-table-chk" checked />
+          <code>aria.includeDataTable</code>
+        </label>
+        <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="a11y-reduced-chk" />
+          Simulate Reduced Motion (<code>animate: false</code>)
+        </label>
+      </div>
+    </div>
+
+    <div class="guide-example-grid">
+      <div class="guide-chart-stage" id="guide-a11y-chart-1"></div>
+      <div id="guide-a11y-code-1"></div>
+    </div>
+
+    <div class="inspector-box" style="margin-top:12px;">
+      <div class="inspector-title">Screen-Reader Live Region (<code>role="status" aria-live="polite"</code>):</div>
+      <div class="inspector-readout" id="a11y-live-preview">
+        Press Tab onto the bars above to see live screen-reader announcements...
+      </div>
+    </div>
+
+    <details style="margin-top:10px;border:1px solid var(--border-subtle);border-radius:10px;padding:10px 14px;background:var(--bg-code);">
+      <summary style="cursor:pointer;font-size:0.82rem;font-weight:600;color:var(--pill-cyan-fg);">
+        Inspect Generated Accessible HTML Data Table Fallback (<code>.mc-aria-table-container</code>)
+      </summary>
+      <div id="a11y-table-preview" style="margin-top:10px;overflow-x:auto;font-size:0.82rem;"></div>
+    </details>
+  `;
+  container.appendChild(ex1);
+
+  const bar = document.createElement('mc-bar-chart') as MCBaseChart<any>;
+  ex1.querySelector('#guide-a11y-chart-1')!.appendChild(bar);
+  mounted.push(bar);
+
+  const chkA11yFocusable = ex1.querySelector('#a11y-focusable-chk') as HTMLInputElement;
+  const chkTable = ex1.querySelector('#a11y-table-chk') as HTMLInputElement;
+  const chkReduced = ex1.querySelector('#a11y-reduced-chk') as HTMLInputElement;
+  const livePreview = ex1.querySelector('#a11y-live-preview') as HTMLElement;
+  const tablePreview = ex1.querySelector('#a11y-table-preview') as HTMLElement;
+  const code1 = ex1.querySelector('#guide-a11y-code-1') as HTMLElement;
+
+  const sampleData = [
+    { quarter: 'Q1', Cloud: 142, Edge: 88 },
+    { quarter: 'Q2', Cloud: 176, Edge: 112 },
+    { quarter: 'Q3', Cloud: 198, Edge: 126 },
+    { quarter: 'Q4', Cloud: 244, Edge: 158 }
+  ];
+
+  bar.addEventListener('mc-aria-focus', (e: Event) => {
+    const d = (e as CustomEvent).detail ?? {};
+    livePreview.textContent = `Announced: "${d.label}${
+      d.description ? `. ${d.description}` : ''
+    }" (tabindex="0", role="graphics-symbol")`;
+  });
+
+  bar.addEventListener('mc-item-activate', (e: Event) => {
+    const d = (e as CustomEvent).detail ?? {};
+    livePreview.textContent = `Activated via keyboard: "${d.label}"`;
+  });
+
+  const renderA11yChart = () => {
+    const isFocusable = chkA11yFocusable.checked;
+    const includeDataTable = chkTable.checked;
+    const animate = !chkReduced.checked;
+
+    bar.setConfig({
+      data: sampleData,
+      autoSize: true,
+      themeMode,
+      palette: 'ocean',
+      title: 'Quarterly Revenue (Keyboard & Screen-Reader Ready)',
+      ariaLabel: 'Quarterly Cloud and Edge revenue comparison',
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      isFocusable,
+      animate,
+      barAriaLabel: (item) =>
+        `${item.seriesId} revenue in ${item.category}: $${item.value}M (${item.index + 1} of ${item.total})`,
+      aria: {
+        description:
+          'Grouped bar chart comparing Cloud and Edge revenue from Q1 to Q4.',
+        includeDataTable,
+        announceOnFocus: true
+      },
+      borderRadius: 6,
+      margin: { top: 44, right: 24, bottom: 72, left: 52 },
+      layers: ['grid', 'axes', 'bars', 'labels', 'legends']
+    });
+
+    const generatedTable = bar.shadowRoot?.querySelector(
+      '.mc-aria-table-container table'
+    );
+    if (generatedTable) {
+      tablePreview.replaceChildren(generatedTable.cloneNode(true));
+    } else {
+      tablePreview.innerHTML =
+        '<p style="color:var(--text-muted);margin:0;">Data table fallback disabled (<code>aria.includeDataTable: false</code>).</p>';
+    }
+
+    code1.innerHTML = '';
+    code1.appendChild(
+      createCodeBlock(
+        `
+chart.config = {
+  data: quarterlyData,
+  ariaLabel: 'Quarterly Cloud and Edge revenue comparison',
+  isFocusable: ${isFocusable},
+  animate: ${animate}, // honors prefers-reduced-motion automatically
+  barAriaLabel: (item) =>
+    \`\${item.seriesId} revenue in \${item.category}: $\${item.value}M (\${item.index + 1} of \${item.total})\`,
+  aria: {
+    description: 'Grouped bar chart comparing Cloud and Edge revenue from Q1 to Q4.',
+    includeDataTable: ${includeDataTable},
+    announceOnFocus: true
+  }
+};
+        `,
+        'W3C ARIA, Keyboard Focus & Data-Table Fallback'
+      )
+    );
+  };
+
+  chkA11yFocusable.addEventListener('change', renderA11yChart);
+  chkTable.addEventListener('change', renderA11yChart);
+  chkReduced.addEventListener('change', renderA11yChart);
+  renderA11yChart();
+
+  // Example 2: Static Charts (isInteractive vs isFocusable) — Live Interactive Demo
   const staticSection = document.createElement('section');
   staticSection.className = 'panel-card guide-section';
   staticSection.id = 'static-charts';
   staticSection.innerHTML = `
     <div class="panel-header">
       <div>
-        <h2 class="panel-title">Static Charts: <code>isInteractive</code> vs. <code>isFocusable</code></h2>
+        <h2 class="panel-title">Example 2: Static Charts (<code>isInteractive</code> vs. <code>isFocusable</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Use <code>isInteractive: false</code> (or HTML attribute <code>is-interactive="false"</code>) for thumbnails,
           print/PDF exports, report snapshots, or dense dashboards. <code>isInteractive</code> is the master switch:
@@ -84,7 +230,7 @@ export function renderAccessibilityGuide(
   const chkInteractive = staticSection.querySelector(
     '#chk-is-interactive'
   ) as HTMLInputElement;
-  const chkFocusable = staticSection.querySelector(
+  const chkStaticFocusable = staticSection.querySelector(
     '#chk-is-focusable'
   ) as HTMLInputElement;
   const domBadge = staticSection.querySelector(
@@ -97,20 +243,13 @@ export function renderAccessibilityGuide(
     staticSection.querySelectorAll<HTMLButtonElement>('[data-mode-preset]')
   );
 
-  const demoData = [
-    { quarter: 'Q1', Cloud: 142, Edge: 88 },
-    { quarter: 'Q2', Cloud: 168, Edge: 104 },
-    { quarter: 'Q3', Cloud: 196, Edge: 122 },
-    { quarter: 'Q4', Cloud: 248, Edge: 156 }
-  ];
-
   let interactiveVal = true;
   let focusableVal = true;
 
   const updateStaticDemo = () => {
     chkInteractive.checked = interactiveVal;
-    chkFocusable.checked = focusableVal;
-    chkFocusable.disabled = !interactiveVal;
+    chkStaticFocusable.checked = focusableVal;
+    chkStaticFocusable.disabled = !interactiveVal;
 
     const activePreset = !interactiveVal
       ? 'static'
@@ -122,10 +261,10 @@ export function renderAccessibilityGuide(
     );
 
     staticChart.setConfig({
-      data: demoData,
+      data: sampleData,
       autoSize: true,
       themeMode,
-      palette: 'ocean',
+      palette: 'modern',
       title: !interactiveVal
         ? 'Static Chart (isInteractive: false)'
         : focusableVal
@@ -199,51 +338,69 @@ chart.isInteractive = ${!interactiveVal};
     updateStaticDemo();
   });
 
-  chkFocusable.addEventListener('change', () => {
-    focusableVal = chkFocusable.checked;
+  chkStaticFocusable.addEventListener('change', () => {
+    focusableVal = chkStaticFocusable.checked;
     updateStaticDemo();
   });
 
   updateStaticDemo();
 
-  // Section 2: Comparison Table & Screen-Reader / Keyboard Reference
+  // Section 3: Option Matrix & Keyboard Reference Tables
   const refSection = document.createElement('section');
   refSection.className = 'panel-card guide-section';
   refSection.innerHTML = `
-    <h2 class="panel-title">Option Matrix: <code>isInteractive</code> × <code>isFocusable</code></h2>
-    <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;font-size:0.86rem;">
+    <h2 class="panel-title">Option Matrix (<code>isInteractive</code> × <code>isFocusable</code>) &amp; Keyboard Shortcuts</h2>
+    <div class="guide-table-wrap">
+      <table class="guide-table">
         <thead>
-          <tr style="border-bottom:1px solid var(--border-subtle);text-align:left;">
-            <th style="padding:8px 10px;">Configuration</th>
-            <th style="padding:8px 10px;"><code>&lt;mc-tooltip&gt;</code> &amp; Hover</th>
-            <th style="padding:8px 10px;">Keyboard Focus &amp; <code>tabindex</code></th>
-            <th style="padding:8px 10px;">Chart SVG ARIA</th>
-            <th style="padding:8px 10px;">Best Use Case</th>
+          <tr>
+            <th>Configuration</th>
+            <th><code>&lt;mc-tooltip&gt;</code> &amp; Hover</th>
+            <th>Keyboard Focus &amp; <code>tabindex</code></th>
+            <th>Chart SVG ARIA</th>
+            <th>Best Use Case</th>
           </tr>
         </thead>
         <tbody>
-          <tr style="border-bottom:1px solid var(--border-subtle);">
-            <td style="padding:8px 10px;"><code>isInteractive: true, isFocusable: true</code> <em>(default)</em></td>
-            <td style="padding:8px 10px;">Enabled</td>
-            <td style="padding:8px 10px;">Enabled (Tab + Arrow/Home/End)</td>
-            <td style="padding:8px 10px;"><code>role="img"</code> + focusable items + data table</td>
-            <td style="padding:8px 10px;">Standard interactive web dashboards</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border-subtle);">
-            <td style="padding:8px 10px;"><code>isInteractive: true, isFocusable: false</code></td>
-            <td style="padding:8px 10px;">Enabled</td>
-            <td style="padding:8px 10px;">Disabled (0 <code>tabindex</code>)</td>
-            <td style="padding:8px 10px;"><code>role="img"</code> + semantic item labels</td>
-            <td style="padding:8px 10px;">Mouse-only interactive widgets inside dense tab orders</td>
+          <tr>
+            <td><code>isInteractive: true, isFocusable: true</code> <em>(default)</em></td>
+            <td>Enabled</td>
+            <td>Enabled (Tab + Arrow/Home/End)</td>
+            <td><code>role="img"</code> + focusable items + data table</td>
+            <td>Standard interactive web dashboards</td>
           </tr>
           <tr>
-            <td style="padding:8px 10px;"><code>isInteractive: false</code> <em>(overrides <code>isFocusable</code>)</em></td>
-            <td style="padding:8px 10px;">Not mounted, 0 listeners</td>
-            <td style="padding:8px 10px;">Disabled (0 <code>tabindex</code>)</td>
-            <td style="padding:8px 10px;"><code>role="img"</code> + <code>aria-label</code> only (item roles removed)</td>
-            <td style="padding:8px 10px;">Thumbnails, print/PDF exports, email/report snapshots</td>
+            <td><code>isInteractive: true, isFocusable: false</code></td>
+            <td>Enabled</td>
+            <td>Disabled (0 <code>tabindex</code>)</td>
+            <td><code>role="img"</code> + semantic item labels</td>
+            <td>Mouse-only interactive widgets inside dense tab orders</td>
           </tr>
+          <tr>
+            <td><code>isInteractive: false</code> <em>(overrides <code>isFocusable</code>)</em></td>
+            <td>Not mounted, 0 listeners</td>
+            <td>Disabled (0 <code>tabindex</code>)</td>
+            <td><code>role="img"</code> + <code>aria-label</code> only (item roles removed)</td>
+            <td>Thumbnails, print/PDF exports, email/report snapshots</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="guide-table-wrap">
+      <table class="guide-table">
+        <thead>
+          <tr>
+            <th>Key / Option</th>
+            <th>Behavior</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Tab</code> / <code>Shift + Tab</code></td><td>Moves focus into and out of focusable chart items, legends, and truncated labels (when <code>isInteractive: true</code> and <code>isFocusable: true</code>).</td></tr>
+          <tr><td><code>ArrowRight</code> / <code>ArrowDown</code> / <code>ArrowLeft</code> / <code>ArrowUp</code></td><td>Navigates sequentially between rendered chart data items, showing an item-anchored tooltip and polite live announcement.</td></tr>
+          <tr><td><code>Home</code> / <code>End</code></td><td>Jumps directly to the first or last focusable item in the chart.</td></tr>
+          <tr><td><code>Enter</code> / <code>Space</code></td><td>Activates the focused item, emitting <code>mc-item-activate</code> and synthesizing a click.</td></tr>
+          <tr><td><code>Escape</code></td><td>Dismisses the active keyboard-focused tooltip cleanly.</td></tr>
+          <tr><td><code>prefers-reduced-motion: reduce</code></td><td>Automatically disables entry animations and CSS layer reveal transitions (can also be set explicitly via <code>animate: false</code>).</td></tr>
         </tbody>
       </table>
     </div>

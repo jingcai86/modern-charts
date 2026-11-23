@@ -68,6 +68,25 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="128" y="30" width="52" height="7" rx="3.5" fill="currentColor" fill-opacity="0.72"/>
       <rect x="114" y="46" width="46" height="6" rx="3" fill="currentColor" fill-opacity="0.38"/>
     </svg>`,
+  truncation: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="26" y="22" width="168" height="22" rx="6" fill="#6366f1" fill-opacity="0.18" stroke="#818cf8" stroke-width="1.5"/>
+      <rect x="38" y="30" width="92" height="6" rx="3" fill="currentColor" fill-opacity="0.65"/>
+      <circle cx="142" cy="33" r="2.2" fill="#38bdf8"/>
+      <circle cx="150" cy="33" r="2.2" fill="#38bdf8"/>
+      <circle cx="158" cy="33" r="2.2" fill="#38bdf8"/>
+      <line x1="56" y1="68" x2="108" y2="54" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+      <line x1="118" y1="68" x2="170" y2="54" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+    </svg>`,
+  events: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <circle cx="66" cy="48" r="24" stroke="#38bdf8" stroke-opacity="0.35" stroke-width="1.5"/>
+      <circle cx="66" cy="48" r="14" stroke="#38bdf8" stroke-opacity="0.7" stroke-width="1.5"/>
+      <circle cx="66" cy="48" r="5" fill="#f59e0b"/>
+      <rect x="108" y="22" width="84" height="14" rx="5" fill="#6366f1" fill-opacity="0.24" stroke="#818cf8" stroke-width="1.2"/>
+      <rect x="108" y="42" width="84" height="14" rx="5" fill="#06b6d4" fill-opacity="0.22" stroke="#22d3ee" stroke-width="1.2"/>
+      <rect x="108" y="62" width="84" height="14" rx="5" fill="#10b981" fill-opacity="0.22" stroke="#34d399" stroke-width="1.2"/>
+    </svg>`,
   accessibility: `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
       <rect x="28" y="20" width="76" height="56" rx="10" fill="#10b981" fill-opacity="0.16" stroke="#34d399" stroke-width="1.6"/>
@@ -78,6 +97,14 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="130" y="46" width="14" height="20" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
       <rect x="150" y="34" width="14" height="32" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
       <rect x="170" y="40" width="14" height="26" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
+    </svg>`,
+  'dynamic-updates': `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <path d="M24 72 L196 72" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.4"/>
+      <path d="M28 60 L60 44 L92 52 L124 28 L156 38 L188 20" stroke="#38bdf8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="188" cy="20" r="5" fill="#10b981"/>
+      <circle cx="188" cy="20" r="10" stroke="#10b981" stroke-opacity="0.45" stroke-width="1.5"/>
+      <path d="M28 66 L60 58 L92 60 L124 46 L156 50 L188 40" stroke="#a855f7" stroke-width="2" stroke-dasharray="4 3" stroke-linecap="round"/>
     </svg>`,
   'chart-state': `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
