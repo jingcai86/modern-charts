@@ -32,7 +32,10 @@ export function renderScatterNodeItem(
       String(node.threshold.isUnderThreshold)
     );
   }
-  circle.style.cursor = 'pointer';
+  const interactive = ctx.isInteractive !== false;
+  if (interactive) {
+    circle.style.cursor = 'pointer';
+  }
 
   const fallbackAnchor = {
     left: ctx.margin.left + node.px - node.radius,
@@ -71,42 +74,44 @@ export function renderScatterNodeItem(
     originY: node.py
   });
 
-  circle.addEventListener('mouseenter', (e) => {
-    circle.setAttribute('fill-opacity', '0.96');
-    const items = [
-      { label: 'X', value: node.xValue, color: node.color },
-      { label: 'Y', value: node.yValue, color: node.color }
-    ];
-    if (node.sizeValue !== 1) {
-      items.push({ label: 'Size', value: node.sizeValue, color: node.color });
-    }
-    ctx.showTooltip(
-      {
-        title: node.label || node.seriesId,
-        seriesId: node.seriesId,
-        value: node.yValue,
-        formattedValue: `(${node.xValue}, ${node.yValue})`,
-        color: node.color,
-        items,
-        threshold: node.threshold,
-        anchor: resolveElementAnchor(circle, fallbackAnchor),
-        datum: {
+  if (interactive) {
+    circle.addEventListener('mouseenter', (e) => {
+      circle.setAttribute('fill-opacity', '0.96');
+      const items = [
+        { label: 'X', value: node.xValue, color: node.color },
+        { label: 'Y', value: node.yValue, color: node.color }
+      ];
+      if (node.sizeValue !== 1) {
+        items.push({ label: 'Size', value: node.sizeValue, color: node.color });
+      }
+      ctx.showTooltip(
+        {
+          title: node.label || node.seriesId,
           seriesId: node.seriesId,
-          label: node.label,
-          x: node.xValue,
-          y: node.yValue,
-          size: node.sizeValue,
-          isUnderThreshold: node.threshold.isUnderThreshold
-        }
-      },
-      (e as MouseEvent).clientX,
-      (e as MouseEvent).clientY
-    );
-  });
-  circle.addEventListener('mouseleave', () => {
-    circle.setAttribute('fill-opacity', '0.74');
-    ctx.hideTooltip();
-  });
+          value: node.yValue,
+          formattedValue: `(${node.xValue}, ${node.yValue})`,
+          color: node.color,
+          items,
+          threshold: node.threshold,
+          anchor: resolveElementAnchor(circle, fallbackAnchor),
+          datum: {
+            seriesId: node.seriesId,
+            label: node.label,
+            x: node.xValue,
+            y: node.yValue,
+            size: node.sizeValue,
+            isUnderThreshold: node.threshold.isUnderThreshold
+          }
+        },
+        (e as MouseEvent).clientX,
+        (e as MouseEvent).clientY
+      );
+    });
+    circle.addEventListener('mouseleave', () => {
+      circle.setAttribute('fill-opacity', '0.74');
+      ctx.hideTooltip();
+    });
+  }
 
   return circle;
 }

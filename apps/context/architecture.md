@@ -170,7 +170,8 @@ interface SharedChartConfig<TData> {
   ariaLabel?: string;
   ariaLabelledBy?: string;
   ariaDescribedBy?: string;
-  isFocusable?: boolean;
+  isInteractive?: boolean; // default true; false renders a fully static chart (no tooltips, listeners, hover, or tabindex; overrides isFocusable)
+  isFocusable?: boolean;   // default true; controls keyboard focus only when isInteractive is true (mouse-only: isInteractive: true, isFocusable: false)
   barAriaLabel?: string | ((item: AriaItemDescriptor) => string);
   pointAriaLabel?: string | ((item: AriaItemDescriptor) => string);
   arcAriaLabel?: string | ((item: AriaItemDescriptor) => string);
@@ -183,7 +184,7 @@ interface SharedChartConfig<TData> {
 
 ### Shared HTML Attributes (All `<mc-*-chart>` Elements)
 
-`width`, `height`, `auto-size`, `margin`, `theme-mode`, `palette`, `chart-title`, `layers`, `label-mode`, `label-overflow`, `tooltip-position`, `animate`, `motion-config`, `aria-label`, `is-focusable`.
+`width`, `height`, `auto-size`, `margin`, `theme-mode`, `palette`, `chart-title`, `layers`, `label-mode`, `label-overflow`, `tooltip-position`, `animate`, `motion-config`, `aria-label`, `is-interactive`, `is-focusable`.
 
 ---
 

@@ -30,6 +30,7 @@ export const TREEMAP_CHART_ENTRY: ChartCatalogEntry = {
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Package Size Treemap',
+    isInteractive: true,
     isFocusable: true
   }),
   specificAttributes: [

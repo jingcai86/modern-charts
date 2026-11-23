@@ -36,6 +36,7 @@ export function generateWebComponentHtmlSnippet(
     `  motion-config="${motion}"`,
     `  label-mode="${labelMode}"`,
     `  aria-label="${config.ariaLabel ?? entry.title}"`,
+    `  is-interactive="${config.isInteractive !== false}"`,
     `  is-focusable="${config.isFocusable !== false}"`,
     `></${entry.tagName}>`,
     ``,
@@ -181,6 +182,7 @@ const STANDARD_HTML_ATTR_TO_CONFIG: Record<
   'motion-config': { path: 'motionConfig', type: 'string' },
   'label-mode': { path: 'labelMode', type: 'string' },
   'aria-label': { path: 'ariaLabel', type: 'string' },
+  'is-interactive': { path: 'isInteractive', type: 'boolean' },
   'is-focusable': { path: 'isFocusable', type: 'boolean' }
 };
 

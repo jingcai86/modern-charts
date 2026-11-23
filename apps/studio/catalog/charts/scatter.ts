@@ -61,6 +61,7 @@ export const SCATTER_CHART_ENTRY: ChartCatalogEntry = {
       }
     ],
     ariaLabel: 'Performance vs Bundle Size Scatter Plot',
+    isInteractive: true,
     isFocusable: true
   }),
   specificAttributes: [
