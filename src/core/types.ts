@@ -930,11 +930,22 @@ export interface ChartConfig<TData = any> {
   // Unified SVG <mc-legend> config (shared across categorical charts)
   legend?: boolean | LegendConfig;
 
-  // Universal <mc-aria-layer> config + Nivo-style ARIA shorthands
+  // Universal <mc-aria-layer> config + interactivity / focus switches
   role?: string;
   ariaLabel?: string;
   ariaLabelledBy?: string;
   ariaDescribedBy?: string;
+  /**
+   * Master interactivity switch (default `true`).
+   * When `false`, renders a fully static chart: no `<mc-tooltip>` mounted,
+   * no hover/active styles or pointer cursors, no pointer/keyboard listeners or events,
+   * no `tabindex` (overrides `isFocusable`), and keeps `role="img"` + `aria-label` on the SVG.
+   */
+  isInteractive?: boolean;
+  /**
+   * Controls keyboard focusability when `isInteractive` is `true` (default `true`).
+   * Use `isInteractive: true, isFocusable: false` for mouse-only interactive charts.
+   */
   isFocusable?: boolean;
   barAriaLabel?: AriaItemLabelAccessor;
   pointAriaLabel?: AriaItemLabelAccessor;
@@ -998,6 +1009,8 @@ export interface ChartRenderContext<TData = unknown> {
   viewConfig: ViewConfig;
   animationConfig: AnimationConfig;
   ariaConfig: AriaConfig;
+  /** Effective interactivity state (`false` renders a fully static chart with zero listeners/tooltips). */
+  isInteractive: boolean;
   legendConfig: ResolvedLegendConfig;
   /** Resolved marker lines and marker areas with pixel positions and matched threshold items */
   markers: ResolvedMarker[];

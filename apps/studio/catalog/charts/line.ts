@@ -83,6 +83,7 @@ export const LINE_CHART_ENTRY: ChartCatalogEntry = {
       }
     ],
     ariaLabel: 'Monthly AI Inference Throughput Line Chart',
+    isInteractive: true,
     isFocusable: true
   }),
   specificAttributes: [

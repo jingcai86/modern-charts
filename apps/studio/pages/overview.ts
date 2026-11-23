@@ -68,6 +68,17 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="128" y="30" width="52" height="7" rx="3.5" fill="currentColor" fill-opacity="0.72"/>
       <rect x="114" y="46" width="46" height="6" rx="3" fill="currentColor" fill-opacity="0.38"/>
     </svg>`,
+  accessibility: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="28" y="20" width="76" height="56" rx="10" fill="#10b981" fill-opacity="0.16" stroke="#34d399" stroke-width="1.6"/>
+      <rect x="40" y="46" width="14" height="20" rx="3" fill="#34d399"/>
+      <rect x="60" y="34" width="14" height="32" rx="3" fill="#06b6d4"/>
+      <rect x="80" y="40" width="14" height="26" rx="3" fill="#818cf8"/>
+      <rect x="118" y="20" width="74" height="56" rx="10" fill="currentColor" fill-opacity="0.06" stroke="#94a3b8" stroke-dasharray="4 3" stroke-width="1.5"/>
+      <rect x="130" y="46" width="14" height="20" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
+      <rect x="150" y="34" width="14" height="32" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
+      <rect x="170" y="40" width="14" height="26" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
+    </svg>`,
   'chart-state': `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
       <rect x="28" y="16" width="164" height="64" rx="10" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-opacity="0.22" stroke-width="1.4" stroke-dasharray="4 4"/>

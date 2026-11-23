@@ -98,18 +98,6 @@ baseChartTemplate.innerHTML = `
       <slot name="loading" slot="loading"></slot>
       <slot name="empty" slot="empty"></slot>
     </mc-chart-state>
-    <mc-tooltip
-      class="mc-tooltip"
-      part="tooltip-host"
-      exportparts="tooltip, container: tooltip-container, header: tooltip-header, body: tooltip-body, row: tooltip-row, swatch: tooltip-swatch, label: tooltip-label, value: tooltip-value, badge: tooltip-badge"
-      hidden
-    ></mc-tooltip>
-    <mc-tooltip
-      class="mc-legend-tooltip"
-      part="legend-tooltip-host"
-      exportparts="tooltip: legend-tooltip, container: legend-tooltip-container, header: legend-tooltip-header, body: legend-tooltip-body, row: legend-tooltip-row, swatch: legend-tooltip-swatch, label: legend-tooltip-label, value: legend-tooltip-value, badge: legend-tooltip-badge"
-      hidden
-    ></mc-tooltip>
     <div class="mc-aria-live visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="mc-aria-table-container visually-hidden"></div>
     <div class="mc-internal-subcomponents" hidden>
@@ -234,6 +222,11 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
           outline-offset: 2px;
         }
 
+        .mc-chart-container--static,
+        .mc-chart-container--static * {
+          cursor: default !important;
+        }
+
         @keyframes mc-layer-reveal {
           from {
             opacity: 0;
@@ -339,6 +332,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       'animate',
       'motion-config',
       'aria-label',
+      'is-interactive',
       'is-focusable',
       'tooltip-position',
       'loading',
@@ -360,6 +354,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   #currentChartState: ChartStateKind | null = null;
   #suppressAttributeRender = false;
   #isStreamingLayers = false;
+  #tooltipMoveHandler: ((e: MouseEvent) => void) | null = null;
 
   protected labelEngine = new LabelEngine();
   protected animationEngine = new AnimationEngine();
@@ -527,10 +522,29 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     return true;
   }
 
+  get isInteractive(): boolean {
+    return this.resolveIsInteractive();
+  }
+  set isInteractive(val: boolean) {
+    this._config.isInteractive = Boolean(val);
+    if (this._isConnected) {
+      this.render();
+    }
+  }
+
+  get isFocusable(): boolean {
+    return this.resolveAriaConfig().isFocusable;
+  }
+  set isFocusable(val: boolean) {
+    this._config.isFocusable = Boolean(val);
+    if (this._isConnected) {
+      this.render();
+    }
+  }
+
   connectedCallback(): void {
     this._isConnected = true;
     this.#setupControlsListeners();
-    this.#setupTooltipPointerTracking();
     this.#setupStateSlotListeners();
     this.#setupChildObservers();
     this.#syncAutoSizeObserver();
@@ -551,6 +565,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
   disconnectedCallback(): void {
     this._isConnected = false;
+    this.#syncTooltipPointerTracking(false);
     this.#teardownAutoSizeObserver();
     if (this.#viewController) {
       this.#viewController.destroy();
@@ -584,6 +599,18 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this._config.loadingText = newVal ?? undefined;
     } else if (name === 'empty-text') {
       this._config.emptyText = newVal ?? undefined;
+    } else if (name === 'is-interactive') {
+      if (newVal === null) {
+        delete this._config.isInteractive;
+      } else {
+        this._config.isInteractive = newVal !== 'false';
+      }
+    } else if (name === 'is-focusable') {
+      if (newVal === null) {
+        delete this._config.isFocusable;
+      } else {
+        this._config.isFocusable = newVal !== 'false';
+      }
     }
     if (this._isConnected && !this.#suppressAttributeRender) {
       this.render();
@@ -1315,6 +1342,16 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     return config;
   }
 
+  public resolveIsInteractive(): boolean {
+    if (this._config.isInteractive !== undefined) {
+      return this._config.isInteractive !== false;
+    }
+    if (this.hasAttribute('is-interactive')) {
+      return this.getAttribute('is-interactive') !== 'false';
+    }
+    return true;
+  }
+
   public resolveViewConfig(): ViewConfig {
     let config: ViewConfig = {
       enabled: false,
@@ -1328,6 +1365,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       initialPanX: 0,
       initialPanY: 0
     };
+    if (!this.resolveIsInteractive()) {
+      return config;
+    }
     if (this._config.view) {
       const zoomable = this._config.view.zoomable ?? true;
       const pannable = this._config.view.pannable ?? true;
@@ -1387,9 +1427,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       config.labelledBy = this._config.ariaLabelledBy;
     if (this._config.ariaDescribedBy)
       config.describedBy = this._config.ariaDescribedBy;
-    if (this._config.isFocusable !== undefined)
+    if (this._config.isFocusable !== undefined) {
       config.isFocusable = this._config.isFocusable;
-    if (this.hasAttribute('is-focusable')) {
+    } else if (this.hasAttribute('is-focusable')) {
       config.isFocusable = this.getAttribute('is-focusable') !== 'false';
     }
     if (this.hasAttribute('aria-label')) {
@@ -1416,6 +1456,11 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
     if (this._customAriaConfig) {
       config = { ...config, ...this._customAriaConfig };
+    }
+
+    // Master switch: static charts (isInteractive = false) are never focusable
+    if (!this.resolveIsInteractive()) {
+      config.isFocusable = false;
     }
 
     return config;
@@ -1759,6 +1804,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (!svg || !rootGroup || !viewportGroup) return;
 
     const dims = this.resolveDimensions();
+    const isInteractive = this.resolveIsInteractive();
     const theme = this.resolveTheme();
     const scaleConfig = this.resolveScaleConfig();
     const viewConfig = this.resolveViewConfig();
@@ -1767,13 +1813,28 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     const legendConfig = this.resolveLegendConfig();
     const labelOverrides = this.resolveLabelOverrides();
 
+    const containerEl = this.shadowRoot.querySelector(
+      '.mc-chart-container'
+    ) as HTMLDivElement | null;
+    if (containerEl) {
+      containerEl.classList.toggle('mc-chart-container--static', !isInteractive);
+    }
+    this.#setCustomState('static', !isInteractive);
+    this.#syncInteractiveTooltips(isInteractive);
+    this.#syncTooltipPointerTracking(isInteractive);
+
     this.labelEngine.setOverrides(labelOverrides);
     this.labelEngine.setCustomRenderer(this.labelRenderer);
-    this.labelEngine.setTooltipHandlers({
-      showTooltip: (content, clientX, clientY, overrideConfig) =>
-        this.showTooltip(content, clientX, clientY, theme, overrideConfig),
-      hideTooltip: () => this.hideTooltip()
-    });
+    this.labelEngine.setTooltipHandlers(
+      isInteractive
+        ? {
+            showTooltip: (content, clientX, clientY, overrideConfig) =>
+              this.showTooltip(content, clientX, clientY, theme, overrideConfig),
+            hideTooltip: () => this.hideTooltip(),
+            isFocusable: ariaConfig.isFocusable
+          }
+        : undefined
+    );
 
     svg.setAttribute('width', String(dims.width));
     svg.setAttribute('height', String(dims.height));
@@ -1790,7 +1851,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (descEl) {
       descEl.textContent =
         ariaConfig.description ||
-        `Interactive ${this.chartType} chart with accessible focusable items`;
+        (isInteractive
+          ? `Interactive ${this.chartType} chart with accessible focusable items`
+          : `Static ${this.chartType} chart visualization`);
     }
     if (ariaConfig.label) {
       svg.setAttribute('aria-label', ariaConfig.label);
@@ -1840,7 +1903,11 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (defs) defs.innerHTML = '';
 
     if (controlsEl) {
-      controlsEl.hidden = !(viewConfig.enabled && viewConfig.showControls);
+      controlsEl.hidden = !(
+        isInteractive &&
+        viewConfig.enabled &&
+        viewConfig.showControls
+      );
     }
 
     this.#syncStateOverlay('ready', theme);
@@ -1862,6 +1929,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       viewConfig,
       animationConfig,
       ariaConfig,
+      isInteractive,
       legendConfig,
       markers: [],
       thresholds: initialThresholdCtrl,
@@ -1889,6 +1957,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         return this.labelEngine.measure(text, options, theme);
       },
       decorateAriaItem: (element: SVGElement, item: AriaItemDescriptor) => {
+        if (!isInteractive) {
+          return element;
+        }
         const decorated = this.ariaEngine.decorateItem(
           element,
           item,
@@ -1994,7 +2065,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
     if (ariaTableContainer) {
       ariaTableContainer.innerHTML =
-        ariaConfig.enabled && ariaConfig.includeDataTable
+        isInteractive && ariaConfig.enabled && ariaConfig.includeDataTable
           ? this.ariaEngine.buildAccessibleDataTableHtml(
               effectiveTitle,
               this._decoratedAriaItems
@@ -2013,6 +2084,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     description?: string,
     element?: SVGElement
   ): void {
+    if (!this.resolveIsInteractive()) return;
     const ariaConfig = this.resolveAriaConfig();
     if (ariaConfig.announceOnFocus) {
       const liveEl = this.shadowRoot?.querySelector(
@@ -2170,9 +2242,11 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
   /**
    * Returns the dedicated singleton legend `<mc-tooltip>` instance owned by this
-   * chart (separate from the chart data item tooltip).
+   * chart (separate from the chart data item tooltip), or `null` when static (`isInteractive = false`).
    */
   public getLegendTooltipElement(): MCTooltipElement | null {
+    if (!this.resolveIsInteractive()) return null;
+    this.#syncInteractiveTooltips(true);
     return (
       (this.shadowRoot?.querySelector(
         '.mc-legend-tooltip'
@@ -2186,6 +2260,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     clientY: number,
     theme?: ChartTheme
   ): void {
+    if (!this.resolveIsInteractive()) return;
     const tooltip = this.getLegendTooltipElement();
     const container = this.shadowRoot?.querySelector(
       '.mc-chart-container'
@@ -2299,9 +2374,11 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
   /**
    * Returns the single internal `<mc-tooltip>` Web Component instance owned by
-   * this chart (one per chart for performance).
+   * this chart (one per chart for performance), or `null` when static (`isInteractive = false`).
    */
   public getTooltipElement(): MCTooltipElement | null {
+    if (!this.resolveIsInteractive()) return null;
+    this.#syncInteractiveTooltips(true);
     return (
       (this.shadowRoot?.querySelector('.mc-tooltip') as MCTooltipElement | null) ??
       null
@@ -2315,6 +2392,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     theme?: ChartTheme,
     overrideConfig?: TooltipConfig<any>
   ): void {
+    if (!this.resolveIsInteractive()) return;
     const tooltip = this.getTooltipElement();
     const container = this.shadowRoot?.querySelector(
       '.mc-chart-container'
@@ -2525,14 +2603,67 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     }
   }
 
-  #setupTooltipPointerTracking(): void {
+  #syncInteractiveTooltips(isInteractive: boolean): void {
+    const container = this.shadowRoot?.querySelector(
+      '.mc-chart-container'
+    ) as HTMLDivElement | null;
+    if (!container) return;
+
+    const existingTip = container.querySelector(
+      ':scope > mc-tooltip.mc-tooltip'
+    );
+    const existingLegendTip = container.querySelector(
+      ':scope > mc-tooltip.mc-legend-tooltip'
+    );
+
+    if (!isInteractive) {
+      existingTip?.remove();
+      existingLegendTip?.remove();
+      return;
+    }
+
+    const insertBefore = container.querySelector('.mc-aria-live');
+    if (!existingTip) {
+      const tip = document.createElement('mc-tooltip');
+      tip.className = 'mc-tooltip';
+      tip.setAttribute('part', 'tooltip-host');
+      tip.setAttribute(
+        'exportparts',
+        'tooltip, container: tooltip-container, header: tooltip-header, body: tooltip-body, row: tooltip-row, swatch: tooltip-swatch, label: tooltip-label, value: tooltip-value, badge: tooltip-badge'
+      );
+      tip.hidden = true;
+      container.insertBefore(tip, insertBefore);
+    }
+
+    if (!existingLegendTip) {
+      const legendTip = document.createElement('mc-tooltip');
+      legendTip.className = 'mc-legend-tooltip';
+      legendTip.setAttribute('part', 'legend-tooltip-host');
+      legendTip.setAttribute(
+        'exportparts',
+        'tooltip: legend-tooltip, container: legend-tooltip-container, header: legend-tooltip-header, body: legend-tooltip-body, row: legend-tooltip-row, swatch: legend-tooltip-swatch, label: legend-tooltip-label, value: legend-tooltip-value, badge: legend-tooltip-badge'
+      );
+      legendTip.hidden = true;
+      container.insertBefore(legendTip, insertBefore);
+    }
+  }
+
+  #syncTooltipPointerTracking(isInteractive: boolean): void {
     const svg = this.shadowRoot?.querySelector(
       '.mc-chart-svg'
     ) as SVGSVGElement | null;
-    if (!svg || (svg as any).__mcTooltipMoveBound) return;
-    (svg as any).__mcTooltipMoveBound = true;
+    if (!svg) return;
 
-    svg.addEventListener('mousemove', (e: MouseEvent) => {
+    if (!isInteractive) {
+      if (this.#tooltipMoveHandler) {
+        svg.removeEventListener('mousemove', this.#tooltipMoveHandler);
+        this.#tooltipMoveHandler = null;
+      }
+      return;
+    }
+
+    if (this.#tooltipMoveHandler) return;
+    this.#tooltipMoveHandler = (e: MouseEvent) => {
       const tooltip = this.getTooltipElement();
       if (!tooltip || tooltip.hidden) return;
       if (
@@ -2550,7 +2681,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         e.clientY,
         container.getBoundingClientRect()
       );
-    });
+    };
+    svg.addEventListener('mousemove', this.#tooltipMoveHandler);
   }
 
   #setupControlsListeners(): void {

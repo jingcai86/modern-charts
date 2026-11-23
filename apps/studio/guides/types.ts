@@ -4,6 +4,7 @@ export type GuideId =
   | 'd3'
   | 'custom-labels'
   | 'tooltips'
+  | 'accessibility'
   | 'chart-state';
 
 export interface GuideMeta {
@@ -54,6 +55,14 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '💬',
     summary:
       'One reusable <mc-tooltip> per chart with full structured data access, custom formatter/renderer callbacks, declarative <mc-tooltip> overrides, and CSS ::part() styling.'
+  },
+  {
+    id: 'accessibility',
+    title: 'Accessibility & Static Charts',
+    shortLabel: 'Accessibility',
+    icon: '♿',
+    summary:
+      'Configure W3C ARIA roles, keyboard navigation, reduced-motion, and fully static charts via isInteractive vs. isFocusable.'
   },
   {
     id: 'chart-state',

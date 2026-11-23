@@ -5,6 +5,7 @@ import { renderThemesGuide } from './themes';
 import { renderD3Guide } from './d3';
 import { renderCustomLabelsGuide } from './custom-labels';
 import { renderTooltipsGuide } from './tooltips';
+import { renderAccessibilityGuide } from './accessibility';
 import { renderChartStateGuide } from './chart-state';
 import type { GuideId } from './types';
 
@@ -33,6 +34,8 @@ export function renderGuidePage(
       return renderCustomLabelsGuide(body, themeMode);
     case 'tooltips':
       return renderTooltipsGuide(body, themeMode);
+    case 'accessibility':
+      return renderAccessibilityGuide(body, themeMode);
     case 'chart-state':
       return renderChartStateGuide(body, themeMode);
   }

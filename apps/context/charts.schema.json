@@ -15,9 +15,12 @@
     "chart-title",
     "layers",
     "label-mode",
+    "label-overflow",
+    "tooltip-position",
     "animate",
     "motion-config",
     "aria-label",
+    "is-interactive",
     "is-focusable"
   ],
   "palettes": ["modern", "nivo", "echarts", "emerald", "sunset", "ocean", "cyber"],
