@@ -59,6 +59,26 @@ export class MCScatterChart extends MCBaseChart<ScatterSeries[]> {
     return 'item';
   }
 
+  protected override hasPlottableData(data: ScatterSeries[] | null): boolean {
+    if (!Array.isArray(data) || data.length === 0) return false;
+    return data.some(
+      (s) =>
+        Array.isArray(s?.data) &&
+        s.data.some(
+          (pt) =>
+            pt != null &&
+            pt.x !== null &&
+            pt.x !== undefined &&
+            pt.y !== null &&
+            pt.y !== undefined &&
+            (pt.x as unknown) !== '' &&
+            (pt.y as unknown) !== '' &&
+            Number.isFinite(Number(pt.x)) &&
+            Number.isFinite(Number(pt.y))
+        )
+    );
+  }
+
   protected prepareContext(ctx: ChartRenderContext<ScatterSeries[]>): void {
     const model = computeScatterChartModel(ctx, {
       minNodeSize: this.getOption('minNodeSize', 'min-node-size', 6) ?? 6,

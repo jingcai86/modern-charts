@@ -3,7 +3,8 @@ export type GuideId =
   | 'themes'
   | 'd3'
   | 'custom-labels'
-  | 'tooltips';
+  | 'tooltips'
+  | 'chart-state';
 
 export interface GuideMeta {
   id: GuideId;
@@ -53,5 +54,13 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '💬',
     summary:
       'One reusable <mc-tooltip> per chart with full structured data access, custom formatter/renderer callbacks, declarative <mc-tooltip> overrides, and CSS ::part() styling.'
+  },
+  {
+    id: 'chart-state',
+    title: 'Loading & Empty States (<mc-chart-state>)',
+    shortLabel: 'Chart States',
+    icon: '⏳',
+    summary:
+      'Shared minimal <mc-chart-state> overlay across all 10 charts with automatic empty detection, loading/empty slots, CSS ::part() hooks, and mc-state-change events.'
   }
 ];

@@ -867,6 +867,15 @@ export interface ResolvedLegendConfig {
  * `<mc-theme-layer>`, `<mc-scale-layer>`, `<mc-view-layer>`, `<mc-animation-layer>`,
  * `<mc-aria-layer>`, `<mc-marker-layer>`, `<mc-label>`, and the `layers` rendering pipeline.
  */
+export type ChartStateKind = 'loading' | 'empty' | 'ready';
+export type ChartDisplayState = 'loading' | 'empty';
+
+export interface ChartStateChangeDetail {
+  state: ChartStateKind;
+  previousState: ChartStateKind | null;
+  chartType: string;
+}
+
 export interface ChartConfig<TData = any> {
   data?: TData;
   width?: number;
@@ -874,6 +883,11 @@ export interface ChartConfig<TData = any> {
   autoSize?: boolean;
   margin?: Partial<ChartMargin>;
   title?: string;
+
+  // Shared <mc-chart-state> loading & empty overlay config
+  loading?: boolean;
+  loadingText?: string;
+  emptyText?: string;
 
   // Nivo-style layers list (built-in layer names or custom layer functions)
   layers?: LayerInput<TData>[];

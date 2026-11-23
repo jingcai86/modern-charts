@@ -24,6 +24,8 @@ import type {
   ChartMargin,
   ChartPaletteName,
   ChartRenderContext,
+  ChartStateChangeDetail,
+  ChartStateKind,
   ChartTheme,
   CustomLabelRenderer,
   ItemAnimationSpec,
@@ -62,6 +64,11 @@ import {
   MCTooltipElement,
   normalizeTooltipPosition
 } from '../components/mc-tooltip';
+import {
+  DEFAULT_EMPTY_TEXT,
+  DEFAULT_LOADING_TEXT,
+  MCChartStateElement
+} from '../components/mc-chart-state';
 import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -82,6 +89,15 @@ baseChartTemplate.innerHTML = `
       <button type="button" class="mc-view-btn" data-zoom="out" aria-label="Zoom out">−</button>
       <button type="button" class="mc-view-btn" data-zoom="reset" aria-label="Reset zoom">Reset</button>
     </div>
+    <mc-chart-state
+      class="mc-chart-state"
+      part="state-host"
+      exportparts="state, state-indicator, state-message"
+      hidden
+    >
+      <slot name="loading" slot="loading"></slot>
+      <slot name="empty" slot="empty"></slot>
+    </mc-chart-state>
     <mc-tooltip
       class="mc-tooltip"
       part="tooltip-host"
@@ -324,7 +340,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       'motion-config',
       'aria-label',
       'is-focusable',
-      'tooltip-position'
+      'tooltip-position',
+      'loading',
+      'loading-text',
+      'empty-text'
     ];
   }
 
@@ -338,6 +357,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     destroy: () => void;
   } | null = null;
   #streamTimer: ReturnType<typeof setTimeout> | null = null;
+  #currentChartState: ChartStateKind | null = null;
+  #suppressAttributeRender = false;
+  #isStreamingLayers = false;
 
   protected labelEngine = new LabelEngine();
   protected animationEngine = new AnimationEngine();
@@ -427,10 +449,89 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     }
   }
 
+  get loading(): boolean {
+    if (this.hasAttribute('loading')) {
+      return this.getAttribute('loading') !== 'false';
+    }
+    return Boolean(this._config.loading);
+  }
+  set loading(val: boolean) {
+    const next = Boolean(val);
+    this._config.loading = next;
+    if (next) {
+      if (
+        !this.hasAttribute('loading') ||
+        this.getAttribute('loading') === 'false'
+      ) {
+        this.setAttribute('loading', '');
+      } else if (this._isConnected) {
+        this.render();
+      }
+    } else if (this.hasAttribute('loading')) {
+      this.removeAttribute('loading');
+    } else if (this._isConnected) {
+      this.render();
+    }
+  }
+
+  get loadingText(): string {
+    return (
+      this._config.loadingText ??
+      this.getAttribute('loading-text') ??
+      DEFAULT_LOADING_TEXT
+    );
+  }
+  set loadingText(val: string | undefined) {
+    this._config.loadingText = val;
+    if (this._isConnected) {
+      this.render();
+    }
+  }
+
+  get emptyText(): string {
+    return (
+      this._config.emptyText ??
+      this.getAttribute('empty-text') ??
+      DEFAULT_EMPTY_TEXT
+    );
+  }
+  set emptyText(val: string | undefined) {
+    this._config.emptyText = val;
+    if (this._isConnected) {
+      this.render();
+    }
+  }
+
+  get chartState(): ChartStateKind {
+    if (this.#currentChartState) return this.#currentChartState;
+    if (this.loading) return 'loading';
+    return this.hasPlottableData(this._data) ? 'ready' : 'empty';
+  }
+
+  public getStateElement(): MCChartStateElement | null {
+    return (
+      (this.shadowRoot?.querySelector(
+        '.mc-chart-state'
+      ) as MCChartStateElement | null) ?? null
+    );
+  }
+
+  /**
+   * Returns `true` when `data` contains at least one plottable value.
+   * Individual chart subclasses override this for chart-specific schemas.
+   */
+  protected hasPlottableData(data: TData | null): boolean {
+    if (data === null || data === undefined) return false;
+    if (Array.isArray(data)) return data.length > 0;
+    if (typeof data === 'object') return Object.keys(data as object).length > 0;
+    return true;
+  }
+
   connectedCallback(): void {
     this._isConnected = true;
     this.#setupControlsListeners();
     this.#setupTooltipPointerTracking();
+    this.#setupStateSlotListeners();
     this.#setupChildObservers();
     this.#syncAutoSizeObserver();
 
@@ -477,8 +578,14 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this.#parseDataAttribute(newVal);
     } else if (name === 'auto-size') {
       this.#syncAutoSizeObserver();
+    } else if (name === 'loading') {
+      this._config.loading = newVal !== null && newVal !== 'false';
+    } else if (name === 'loading-text') {
+      this._config.loadingText = newVal ?? undefined;
+    } else if (name === 'empty-text') {
+      this._config.emptyText = newVal ?? undefined;
     }
-    if (this._isConnected) {
+    if (this._isConnected && !this.#suppressAttributeRender) {
       this.render();
     }
   }
@@ -504,10 +611,20 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (this._config.labelRenderer !== undefined) {
       this._labelRenderer = this._config.labelRenderer;
     }
-    if (this._config.autoSize !== undefined) {
-      if (this._config.autoSize) this.setAttribute('auto-size', '');
-      else this.removeAttribute('auto-size');
-      this.#syncAutoSizeObserver();
+    const prevSuppress = this.#suppressAttributeRender;
+    this.#suppressAttributeRender = true;
+    try {
+      if (this._config.autoSize !== undefined) {
+        if (this._config.autoSize) this.setAttribute('auto-size', '');
+        else this.removeAttribute('auto-size');
+        this.#syncAutoSizeObserver();
+      }
+      if (this._config.loading !== undefined) {
+        if (this._config.loading) this.setAttribute('loading', '');
+        else this.removeAttribute('loading');
+      }
+    } finally {
+      this.#suppressAttributeRender = prevSuppress;
     }
     this.#syncInternalSubComponentsFromConfig();
     if (this._isConnected) {
@@ -895,8 +1012,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       layersToStream ??
       (this._customLayers ? [...this._customLayers] : [...this.defaultLayers]);
 
+    this.#isStreamingLayers = true;
     this.#setCustomState('streaming', true);
-    if (this.#internals) this.#internals.ariaBusy = 'true';
+    this.#syncAriaBusy();
 
     this._renderedLayerSet.clear();
     this._customLayers = [];
@@ -912,8 +1030,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       });
     }
 
+    this.#isStreamingLayers = false;
     this.#setCustomState('streaming', false);
-    if (this.#internals) this.#internals.ariaBusy = 'false';
+    this.#syncAriaBusy();
   }
 
   public getActiveLayers(): string[] {
@@ -1683,23 +1802,48 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       'transform',
       `translate(${dims.margin.left}, ${dims.margin.top})`
     );
-    rootGroup.innerHTML = '';
-    this._decoratedAriaItems = [];
 
     const defs = this.shadowRoot.querySelector('.mc-chart-defs');
+    const isLoading = this.loading;
+    const hasData = this.hasPlottableData(this._data);
+
+    if (isLoading) {
+      this.hideTooltip();
+      this.hideLegendTooltip();
+      if (controlsEl) controlsEl.hidden = true;
+      if (this._data === null || !hasData) {
+        rootGroup.innerHTML = '';
+        if (defs) defs.innerHTML = '';
+        this._decoratedAriaItems = [];
+        if (ariaTableContainer) ariaTableContainer.innerHTML = '';
+        this.#setCustomState('rendered', false);
+      }
+      this.#applyChartState('loading', theme);
+      return;
+    }
+
+    if (this._data === null || !hasData) {
+      this.hideTooltip();
+      this.hideLegendTooltip();
+      if (controlsEl) controlsEl.hidden = true;
+      rootGroup.innerHTML = '';
+      if (defs) defs.innerHTML = '';
+      this._decoratedAriaItems = [];
+      if (ariaTableContainer) ariaTableContainer.innerHTML = '';
+      this.#setCustomState('rendered', false);
+      this.#applyChartState('empty', theme);
+      return;
+    }
+
+    rootGroup.innerHTML = '';
+    this._decoratedAriaItems = [];
     if (defs) defs.innerHTML = '';
 
     if (controlsEl) {
       controlsEl.hidden = !(viewConfig.enabled && viewConfig.showControls);
     }
 
-    if (!this._data) {
-      this.#setCustomState('empty', true);
-      this.#setCustomState('rendered', false);
-      return;
-    }
-
-    this.#setCustomState('empty', false);
+    this.#syncStateOverlay('ready', theme);
 
     const colorScale = createOrdinalColorScale(theme);
     const initialThresholdCtrl = this.markerEngine.createThresholdContext([]);
@@ -1860,6 +2004,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
     this.#configureViewZoom(svg, viewportGroup, viewConfig, dims);
     this.#setCustomState('rendered', true);
+    this.#commitChartState('ready');
   }
 
   #handleAriaItemFocus(
@@ -2497,6 +2642,94 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     } catch {
       // Ignore malformed partial JSON while streaming
     }
+  }
+
+  #setupStateSlotListeners(): void {
+    const stateEl = this.getStateElement();
+    if (!stateEl || (stateEl as any).__mcStateSlotsBound) return;
+    (stateEl as any).__mcStateSlotsBound = true;
+
+    const slots = stateEl.querySelectorAll('slot[name="loading"], slot[name="empty"]');
+    slots.forEach((slot) => {
+      slot.addEventListener('slotchange', () => {
+        if (typeof stateEl.sync === 'function') {
+          stateEl.sync();
+        }
+      });
+    });
+  }
+
+  #syncAriaBusy(): void {
+    const busy = this.loading || this.#isStreamingLayers;
+    if (busy) {
+      if (this.getAttribute('aria-busy') !== 'true') {
+        this.setAttribute('aria-busy', 'true');
+      }
+    } else if (this.hasAttribute('aria-busy')) {
+      this.removeAttribute('aria-busy');
+    }
+    if (this.#internals) {
+      this.#internals.ariaBusy = busy ? 'true' : 'false';
+    }
+  }
+
+  #syncStateOverlay(nextState: ChartStateKind, theme: ChartTheme): void {
+    this.#setCustomState('loading', nextState === 'loading');
+    this.#setCustomState('empty', nextState === 'empty');
+    this.#syncAriaBusy();
+
+    const stateEl = this.getStateElement();
+    if (!stateEl) return;
+
+    const isDark = theme.mode === 'dark';
+    stateEl.style.setProperty(
+      '--_mc-state-bg',
+      isDark ? 'rgba(15, 23, 42, 0.78)' : 'rgba(255, 255, 255, 0.84)'
+    );
+    stateEl.style.setProperty(
+      '--_mc-state-color',
+      theme.mutedTextColor || (isDark ? '#cbd5e1' : '#475569')
+    );
+    stateEl.style.setProperty(
+      '--_mc-state-spinner-color',
+      theme.colors?.[0] || '#6366f1'
+    );
+
+    if (nextState === 'ready') {
+      stateEl.hidden = true;
+      return;
+    }
+
+    stateEl.loadingText = this.loadingText;
+    stateEl.emptyText = this.emptyText;
+    stateEl.state = nextState;
+    stateEl.hidden = false;
+    if (typeof stateEl.sync === 'function') {
+      stateEl.sync();
+    }
+  }
+
+  #commitChartState(nextState: ChartStateKind): void {
+    if (this.#currentChartState === nextState) return;
+    const previousState = this.#currentChartState;
+    this.#currentChartState = nextState;
+    const detail: ChartStateChangeDetail = {
+      state: nextState,
+      previousState,
+      chartType: this.chartType
+    };
+    this.dispatchEvent(
+      new CustomEvent<ChartStateChangeDetail>('mc-state-change', {
+        bubbles: true,
+        composed: true,
+        detail
+      })
+    );
+  }
+
+  #applyChartState(nextState: ChartStateKind, theme: ChartTheme): void {
+    this.#syncStateOverlay(nextState, theme);
+    this.#commitChartState(nextState);
   }
 
   #setCustomState(stateName: string, active: boolean): void {
