@@ -796,15 +796,26 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       subs.scaleLayer &&
       typeof subs.scaleLayer.applyFromConfig === 'function'
     ) {
+      const isInternal = subs.scaleLayer.hasAttribute('data-internal');
       const def = this.getDefaultScaleConfig();
-      subs.scaleLayer.applyFromConfig({
-        x: { ...def.x, ...(cfg.scales?.x ?? {}), ...(cfg.xScale ?? {}) },
-        y: { ...def.y, ...(cfg.scales?.y ?? {}), ...(cfg.yScale ?? {}) },
-        color: {
-          ...(cfg.scales?.color ?? {}),
-          ...(cfg.colorScheme ? { scheme: cfg.colorScheme } : {})
-        }
-      });
+      const xExplicit = { ...(cfg.scales?.x ?? {}), ...(cfg.xScale ?? {}) };
+      const yExplicit = { ...(cfg.scales?.y ?? {}), ...(cfg.yScale ?? {}) };
+      if (
+        isInternal ||
+        Object.keys(xExplicit).length > 0 ||
+        Object.keys(yExplicit).length > 0 ||
+        cfg.scales?.color !== undefined ||
+        cfg.colorScheme !== undefined
+      ) {
+        subs.scaleLayer.applyFromConfig({
+          x: (isInternal ? { ...def.x, ...xExplicit } : xExplicit) as any,
+          y: (isInternal ? { ...def.y, ...yExplicit } : yExplicit) as any,
+          color: {
+            ...(cfg.scales?.color ?? {}),
+            ...(cfg.colorScheme ? { scheme: cfg.colorScheme } : {})
+          }
+        });
+      }
     }
 
     if (
@@ -1179,12 +1190,41 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     height = Math.max(140, Math.round(height));
 
     const margin = { ...this.resolveMargin() };
+    this.expandMarginForAxes(margin);
     this.expandMarginForMarkerAnnotations(margin);
     this.expandMarginForLegend(margin);
     const innerWidth = Math.max(40, width - margin.left - margin.right);
     const innerHeight = Math.max(40, height - margin.top - margin.bottom);
 
     return { width, height, innerWidth, innerHeight, margin };
+  }
+
+  private expandMarginForAxes(margin: ChartMargin): void {
+    if (!this.defaultLayers.includes('axes')) return;
+    const scaleCfg = this.resolveScaleConfig();
+    const xPos = scaleCfg.x?.position ?? 'bottom';
+    const yPos = scaleCfg.y?.position ?? 'left';
+    const hasXTitle = Boolean(
+      scaleCfg.x?.title ||
+        this._config.xTitle ||
+        this.getAttribute('x-title')
+    );
+    const hasYTitle = Boolean(
+      scaleCfg.y?.title ||
+        this._config.yTitle ||
+        this.getAttribute('y-title')
+    );
+    const hasChartTitle = Boolean(this.chartTitle);
+
+    if (xPos === 'top' || xPos === 'both') {
+      const topNeeded =
+        (hasChartTitle ? 28 : 8) + (hasXTitle ? 44 : 28);
+      margin.top = Math.max(margin.top, topNeeded);
+    }
+    if (yPos === 'right' || yPos === 'both') {
+      const rightNeeded = hasYTitle ? 68 : 52;
+      margin.right = Math.max(margin.right, rightNeeded);
+    }
   }
 
   /**
@@ -1678,7 +1718,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       ctx.xScale,
       ctx.yScale,
       ctx.innerWidth,
-      ctx.innerHeight
+      ctx.innerHeight,
+      ctx.data
     );
     const thresholdCtrl =
       this.markerEngine.createThresholdContext(resolvedMarkers);
@@ -1693,6 +1734,38 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     };
     ctx.evaluateThresholds = thresholdCtrl.evaluate;
     this._recordMatchedThresholdItem = thresholdCtrl.recordMatchedItem;
+
+    if (Array.isArray(ctx.state?.cells)) {
+      for (const cell of ctx.state.cells) {
+        if (!cell || cell.isEmpty || !Number.isFinite(cell.value)) continue;
+        const evalRes = thresholdCtrl.evaluate(
+          cell.value,
+          cell,
+          'y',
+          cell.color
+        );
+        if (evalRes.matched) {
+          if (evalRes.effectiveColor) {
+            cell.color = evalRes.effectiveColor;
+          }
+          thresholdCtrl.recordMatchedItem(
+            {
+              id: `${cell.rowId}-${cell.colId}`,
+              seriesId: cell.rowId,
+              category: cell.colId,
+              value: cell.value,
+              px: cell.x,
+              py: cell.y,
+              width: cell.width,
+              height: cell.height,
+              originalColor: cell.color,
+              datum: cell
+            },
+            evalRes
+          );
+        }
+      }
+    }
   }
 
   public resolveLabelOverrides(): LabelStyleOverride[] {
@@ -1942,6 +2015,27 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         }
       }
       sequence.push(entry);
+    }
+
+    if (
+      this.resolveMarkersConfig().length > 0 &&
+      !sequence.some((s) => s.name === 'markers') &&
+      !this._customLayers &&
+      !this._config.layers
+    ) {
+      const markerEntry = {
+        name: 'markers',
+        input: 'markers' as LayerInput<TData>,
+        render: builtInRenderers.markers
+      };
+      const labelIdx = sequence.findIndex(
+        (s) => s.name === 'labels' || s.name === 'legends'
+      );
+      if (labelIdx >= 0) {
+        sequence.splice(labelIdx, 0, markerEntry);
+      } else {
+        sequence.push(markerEntry);
+      }
     }
 
     return sequence;

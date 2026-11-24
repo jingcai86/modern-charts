@@ -148,7 +148,14 @@ export function computeBarChartModel(
   const outerLabels = createDefaultBarOuterLabelConfig(input.outerLabels);
 
   const categories = rows.map((r) => String(r[indexBy] ?? ''));
-  const numericValues: number[] = [0];
+  const valScaleType =
+    isHorizontal &&
+    (ctx.scaleConfig.x.type === 'log' ||
+      ctx.scaleConfig.x.type === 'symlog' ||
+      ctx.scaleConfig.x.type === 'sqrt')
+      ? ctx.scaleConfig.x.type
+      : ctx.scaleConfig.y.type || 'linear';
+  const numericValues: number[] = valScaleType === 'log' ? [] : [0];
 
   rows.forEach((r) => {
     if (isStacked) {
@@ -188,7 +195,7 @@ export function computeBarChartModel(
 
   if (isHorizontal) {
     ctx.xScale = buildAxisScale(
-      { ...ctx.scaleConfig.y, type: 'linear', ...valAxisOverrides },
+      { ...ctx.scaleConfig.y, type: valScaleType, ...valAxisOverrides },
       numericValues,
       [0, ctx.innerWidth]
     );
@@ -204,7 +211,7 @@ export function computeBarChartModel(
       [0, ctx.innerWidth]
     );
     ctx.yScale = buildAxisScale(
-      { ...ctx.scaleConfig.y, ...valAxisOverrides },
+      { ...ctx.scaleConfig.y, type: valScaleType, ...valAxisOverrides },
       numericValues,
       [ctx.innerHeight, 0]
     );
@@ -216,7 +223,12 @@ export function computeBarChartModel(
   const rawRects: Omit<ComputedBarItemModel, 'index' | 'total'>[] = [];
   const bandScale = isHorizontal ? ctx.yScale : ctx.xScale;
   const valScale = isHorizontal ? ctx.xScale : ctx.yScale;
-  const zeroPos = Number(valScale(0));
+  const rawZero = valScaleType === 'log' ? NaN : Number(valScale(0));
+  const domainBounds =
+    typeof valScale.domain === 'function' ? valScale.domain() : [1, 100];
+  const zeroPos = Number.isFinite(rawZero)
+    ? rawZero
+    : Number(valScale(domainBounds[0] ?? 1));
   const bandwidth =
     typeof bandScale.bandwidth === 'function' ? bandScale.bandwidth() : 32;
   const innerPad =

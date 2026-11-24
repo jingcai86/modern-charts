@@ -204,8 +204,14 @@ export function computeLineChartModel(
         xTotals.set(key, prev + Number(pt.y));
       });
     });
-    allY.push(0, ...Array.from(xTotals.values()));
-  } else if (ctx.scaleConfig.y.min === 'auto') {
+    if (ctx.scaleConfig.y.type !== 'log') {
+      allY.push(0);
+    }
+    allY.push(...Array.from(xTotals.values()));
+  } else if (
+    ctx.scaleConfig.y.min === 'auto' &&
+    ctx.scaleConfig.y.type !== 'log'
+  ) {
     const minVal = allY.length > 0 ? Math.min(...allY) : 0;
     if (minVal >= 0) allY.push(0);
   }
