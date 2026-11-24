@@ -10,15 +10,15 @@ function scoreBadge(score) {
   return `${icon} **${pct}** / 100`;
 }
 
-export function buildLighthouseMarkdown() {
-  const rawManifestEnv = (process.env.LHCI_MANIFEST_PATH || '').trim();
+export function buildLighthouseMarkdown(env = process.env) {
+  const rawManifestEnv = (env.LHCI_MANIFEST_PATH || '').trim();
   const manifestPath = '.lighthouseci/manifest.json';
   let summary = null;
   let reportUrl = '';
 
-  if (process.env.LHCI_LINKS) {
+  if (env.LHCI_LINKS) {
     try {
-      const linksObj = JSON.parse(process.env.LHCI_LINKS);
+      const linksObj = JSON.parse(env.LHCI_LINKS);
       reportUrl = Object.values(linksObj)[0] || '';
     } catch {
       reportUrl = '';

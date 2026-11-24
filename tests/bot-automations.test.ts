@@ -38,28 +38,28 @@ describe('GitHub Actions Bot Automations', () => {
   });
 
   it('parses inline LHCI manifest JSON and formats 0-100 Lighthouse scores', () => {
-    process.env.LHCI_MANIFEST_PATH = JSON.stringify([
-      {
-        url: 'http://localhost:40793/index.html',
-        isRepresentativeRun: true,
-        summary: {
-          performance: 0.62,
-          accessibility: 0.93,
-          'best-practices': 0.96,
-          seo: 0.9
+    const markdown = buildLighthouseMarkdown({
+      LHCI_MANIFEST_PATH: JSON.stringify([
+        {
+          url: 'http://localhost:40793/index.html',
+          isRepresentativeRun: true,
+          summary: {
+            performance: 0.62,
+            accessibility: 0.93,
+            'best-practices': 0.96,
+            seo: 0.9
+          }
         }
-      }
-    ]);
-    process.env.LHCI_LINKS = JSON.stringify({
-      'http://localhost:40793/index.html': 'https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/example.html'
+      ]),
+      LHCI_LINKS: JSON.stringify({
+        'http://localhost:40793/index.html':
+          'https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/example.html'
+      })
     });
-    const markdown = buildLighthouseMarkdown();
     expect(markdown).toContain('🟠 **62** / 100');
     expect(markdown).toContain('🟢 **93** / 100');
     expect(markdown).toContain('🟢 **96** / 100');
     expect(markdown).toContain('🟢 **90** / 100');
     expect(markdown).toContain('View Full Lighthouse HTML Report');
-    delete process.env.LHCI_MANIFEST_PATH;
-    delete process.env.LHCI_LINKS;
   });
 });
