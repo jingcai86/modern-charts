@@ -100,4 +100,18 @@ describe('Chart Detail Page Layout — Event Inspector beside HTML Markup', () =
       });
     }
   });
+
+  it('unifies top-right Studio dropdowns (#nav-pages-trigger, #global-palette-select, #global-appearance-select) with matching branded-select styling', async () => {
+    const fsModule = 'node:fs';
+    const { readFileSync } = await import(/* @vite-ignore */ fsModule);
+    const html = readFileSync('apps/studio/index.html', 'utf8');
+    const css = readFileSync('apps/studio/styles/layout.css', 'utf8');
+
+    expect(html).toContain('id="global-palette-select" name="palette" class="studio-select"');
+    expect(html).toContain('id="global-appearance-select" name="appearance" class="studio-select"');
+    expect(css).toContain('appearance: base-select');
+    expect(css).toContain('select::picker(select)');
+    expect(css).toContain('select::picker-icon');
+    expect(css).toContain('select option::checkmark');
+  });
 });
