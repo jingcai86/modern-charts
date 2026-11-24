@@ -56,7 +56,7 @@ export function renderDynamicUpdatesGuide(
         <button type="button" id="btn-stream-step">+ Push 1 Point</button>
         <button type="button" id="btn-stream-reset">↻ Reset</button>
         <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
-          <input type="checkbox" id="chk-stream-animate" />
+          <input type="checkbox" id="chk-stream-animate" checked />
           <code>animate</code>
         </label>
         <span id="stream-window-badge" class="comp-pill">Window: 8/12 · Latest: t8</span>
@@ -116,6 +116,7 @@ export function renderDynamicUpdatesGuide(
     title: `Live Telemetry Feed (${WINDOW_SIZE}-Sample Sliding Window)`,
     palette: 'antd',
     animate: chkStreamAnim.checked,
+    motionConfig: 'default',
     enableArea: true,
     areaOpacity: 0.16,
     curve: 'monotoneX',
@@ -161,7 +162,7 @@ export function renderDynamicUpdatesGuide(
     },
     onReset: () => {
       stopStream();
-      chkStreamAnim.checked = false;
+      chkStreamAnim.checked = true;
       streamSeries = makeInitialSeries();
       const resetCfg = buildStreamConfig();
       applyStreamConfig(resetCfg);

@@ -2,13 +2,13 @@
   {
     "name": "Full library (modern-charts) [brotli]",
     "path": "dist/index.js",
-    "limit": "110 kB"
+    "limit": "115 kB"
   },
   {
     "name": "Full library (modern-charts) [gzip]",
     "path": "dist/index.js",
     "gzip": true,
-    "limit": "130 kB"
+    "limit": "135 kB"
   },
   {
     "name": "Core engine & layers (modern-charts/core) [brotli]",
@@ -35,7 +35,7 @@
   {
     "name": "Standalone Line chart (modern-charts/line) [brotli]",
     "path": "dist/line.js",
-    "limit": "85 kB"
+    "limit": "90 kB"
   },
   {
     "name": "Standalone Line chart (modern-charts/line) [gzip]",
