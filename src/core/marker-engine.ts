@@ -118,7 +118,7 @@ function resolveStatPresetValue(
     const sum = pool.reduce((a, b) => a + b, 0);
     return Number((sum / pool.length).toFixed(2));
   }
-  const sorted = [...pool].sort((a, b) => a - b);
+  const sorted = pool.toSorted((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 1
     ? sorted[mid]

@@ -3,5 +3,7 @@ dist/
 dist-examples/
 coverage/
 .lighthouseci/
+mwg-report.json
+ai-context-report.json
 .DS_Store
 *.log
