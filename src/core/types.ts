@@ -1381,6 +1381,11 @@ export interface ChartConfig<TData = any> {
 
   // Chart-specific options
   keys?: string[];
+  padding?: number;
+  innerPadding?: number;
+  barMaxWidth?: number;
+  barMinHeight?: number;
+  reverse?: boolean;
   indexBy?: string;
   groupMode?: 'grouped' | 'stacked';
   layout?: 'vertical' | 'horizontal';
