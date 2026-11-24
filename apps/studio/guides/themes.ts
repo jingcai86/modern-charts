@@ -218,7 +218,7 @@ export function renderThemesGuide(
         <h2 class="panel-title">Example 2: Single-Color Light-to-Dark Generator (<code>generateColorPalette</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Pass any brand color to <code>generateColorPalette(baseColor, count = 20)</code> (or directly to <code>config.palette</code>).
-          Your seed color is anchored as the exact <strong>middle value</strong>, generating at least <strong>20 colors from light to dark</strong>.
+          Your seed color is anchored as the exact <strong>middle value</strong>, generating a smooth light-to-dark scale (default <strong>20 colors</strong>, customizable from 5 to 50).
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:10px;">
@@ -229,7 +229,7 @@ export function renderThemesGuide(
         </label>
         <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
           Colors: <strong id="gen-count-val">20</strong>
-          <input type="range" id="gen-count-slider" min="20" max="30" step="1" value="20" style="vertical-align:middle;margin-left:6px;" />
+          <input type="range" id="gen-count-slider" min="5" max="50" step="1" value="20" style="vertical-align:middle;margin-left:6px;" />
         </label>
         <button type="button" data-seed-preset="#2563eb">#2563eb</button>
         <button type="button" data-seed-preset="#10b981">#10b981</button>
@@ -237,7 +237,7 @@ export function renderThemesGuide(
         <button type="button" data-seed-preset="#fa8c16">#fa8c16</button>
       </div>
     </div>
-    <div id="gen-swatch-strip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(36px,1fr));gap:4px;"></div>
+    <div id="gen-swatch-strip" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(28px,1fr));gap:4px;"></div>
     <div class="guide-example-grid">
       <div class="guide-chart-stage" id="guide-gen-chart"></div>
       <div id="guide-gen-code"></div>
@@ -261,13 +261,17 @@ export function renderThemesGuide(
   let seedColor = '#2563eb';
   let genCount = 20;
 
-  const getSampleIndices = (len: number): [number, number, number, number, number] => [
-    2,
-    Math.floor(len * 0.28),
-    Math.floor((len - 1) / 2),
-    Math.floor(len * 0.72),
-    len - 2
-  ];
+  const getSampleIndices = (len: number): [number, number, number, number, number] => {
+    if (len <= 5) return [0, 1, 2, 3, Math.min(4, len - 1)];
+    const mid = Math.floor((len - 1) / 2);
+    return [
+      Math.max(0, Math.round(len * 0.1)),
+      Math.max(1, Math.round(len * 0.28)),
+      mid,
+      Math.min(len - 2, Math.round(len * 0.72)),
+      Math.min(len - 1, Math.round(len * 0.9))
+    ];
+  };
 
   const renderUsageSnippet = (seed: string, count: number, ramp: string[]) => {
     const [i0, i1, midIdx, i3, i4] = getSampleIndices(ramp.length);

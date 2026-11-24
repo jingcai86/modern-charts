@@ -160,14 +160,14 @@ function parseColorToRgb(raw: string): [number, number, number] | null {
 }
 
 /**
- * Generates an ordered light-to-dark color palette of at least 20 colors
+ * Generates an ordered light-to-dark color palette (defaulting to 20 colors)
  * treating `baseColor` as the exact middle anchor value (`Math.floor((total - 1) / 2)`).
  *
  * Accepts `#RGB`, `#RRGGBB`, `rgb(...)`, or `hsl(...)` strings.
  */
 export function generateColorPalette(baseColor: string, count = 20): string[] {
   const total = Math.max(
-    20,
+    2,
     Math.floor(Number.isFinite(count) ? count : 20)
   );
   const rgb = parseColorToRgb(baseColor) ?? [37, 99, 235]; // fallback #2563eb

@@ -70,11 +70,16 @@ describe('Design-System Palettes & Single-Color Light-to-Dark Generator (Issue #
     expect(hexLuminance(ramp[0])).toBeGreaterThan(210);
     expect(hexLuminance(ramp[ramp.length - 1])).toBeLessThan(65);
 
-    // Enforces minimum of 20 colors even when count < 20, and supports larger counts
-    expect(generateColorPalette('#10b981', 8).length).toBe(20);
-    const ramp25 = generateColorPalette('#e91e63', 25);
-    expect(ramp25.length).toBe(25);
-    expect(ramp25[12]).toBe('#e91e63');
+    // Supports custom counts from small (e.g. 5) up to large (e.g. 50) with exact midpoint
+    const ramp5 = generateColorPalette('#10b981', 5);
+    expect(ramp5.length).toBe(5);
+    expect(ramp5[2]).toBe('#10b981');
+    expect(hexLuminance(ramp5[0])).toBeGreaterThan(hexLuminance(ramp5[2]));
+    expect(hexLuminance(ramp5[2])).toBeGreaterThan(hexLuminance(ramp5[4]));
+
+    const ramp50 = generateColorPalette('#e91e63', 50);
+    expect(ramp50.length).toBe(50);
+    expect(ramp50[24]).toBe('#e91e63');
   });
 
   it('supports #RGB, #RRGGBB, rgb(), and hsl() seed color formats in generateColorPalette and resolvePaletteColors', () => {
