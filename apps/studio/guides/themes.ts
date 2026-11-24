@@ -2,9 +2,14 @@ import {
   DEFAULT_PALETTE,
   PALETTES,
   generateColorPalette,
+  generateGradientPalette,
+  resolveGradientAngles,
   type BuiltInPaletteName,
   type ChartPaletteName,
   type ChartTheme,
+  type GradientDirection,
+  type GradientStop,
+  type LinearGradientDef,
   type MCBaseChart,
   type ThemeModePreference
 } from '../../../src/index';
@@ -425,7 +430,447 @@ chart.config = {
     });
   });
 
-  // Example 3: Fully Custom Brand Themes
+  // Example 3: Directional Gradient Generator (generateGradientPalette & config.gradient)
+  const gradCard = document.createElement('section');
+  gradCard.className = 'panel-card guide-section';
+  gradCard.innerHTML = `
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">Example 3: Directional Gradient Generator (<code>generateGradientPalette</code> &amp; <code>gradient</code>)</h2>
+        <p class="guide-prose" style="margin:4px 0 0;">
+          Generate smooth SVG linear gradients from any <strong>theme palette</strong>, <strong>custom <code>colors[]</code> array</strong>,
+          or <strong>single seed color</strong> (auto-expanded light → dark just like <code>generateColorPalette</code>).
+          Automatically adapts to <strong>vertical vs. horizontal</strong> layouts and <strong>flips direction on negative bars</strong>
+          so both positive and negative items radiate outward from the zero axis.
+        </p>
+      </div>
+      <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
+        <button type="button" data-grad-source="theme" class="btn-primary">Theme Palette</button>
+        <button type="button" data-grad-source="seed">Single Color</button>
+        <button type="button" data-grad-source="array">Custom colors[]</button>
+        <span style="width:1px;height:20px;background:var(--border-subtle);margin:0 2px;"></span>
+        <button type="button" data-grad-layout="vertical" class="btn-primary">Vertical Bars</button>
+        <button type="button" data-grad-layout="horizontal">Horizontal Bars</button>
+      </div>
+    </div>
+    <div class="guide-controls-row" style="flex-wrap:wrap;gap:10px;align-items:center;">
+      <label id="grad-palette-wrap" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+        Palette:
+        <select id="grad-palette-select" style="font-size:0.8rem;padding:4px 8px;border-radius:6px;border:1px solid var(--border-subtle);background:var(--bg-code);color:var(--text-main);">
+          <option value="shadcn" selected>shadcn (20 colors)</option>
+          <option value="material">material (20 colors)</option>
+          <option value="bootstrap">bootstrap (20 colors)</option>
+          <option value="antd">antd (20 colors)</option>
+        </select>
+      </label>
+      <label id="grad-seed-wrap" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:none;align-items:center;gap:6px;">
+        Seed Color:
+        <input type="color" id="grad-seed-picker" value="#2563eb" style="width:30px;height:24px;border:none;background:transparent;cursor:pointer;" />
+        <input type="text" id="grad-seed-text" value="#2563eb" aria-label="Gradient seed color hex" style="width:84px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.78rem;padding:4px 6px;border-radius:6px;border:1px solid var(--border-subtle);background:var(--bg-code);color:var(--text-main);" />
+        <span style="margin-left:4px;">Count: <strong id="grad-count-val">20</strong></span>
+        <input type="range" id="grad-count-slider" min="5" max="50" step="1" value="20" style="vertical-align:middle;" />
+      </label>
+      <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+        Direction:
+        <select id="grad-direction-select" style="font-size:0.8rem;padding:4px 8px;border-radius:6px;border:1px solid var(--border-subtle);background:var(--bg-code);color:var(--text-main);">
+          <option value="auto" selected>Auto (matches layout)</option>
+          <option value="vertical">Vertical (0° / 180°)</option>
+          <option value="horizontal">Horizontal (270° / 90°)</option>
+          <option value="left-to-right">Left → Right (90° / 270°)</option>
+          <option value="bottom-to-top">Bottom → Top (180° / 0°)</option>
+          <option value="diagonal">Diagonal (45° / 225°)</option>
+        </select>
+      </label>
+      <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="grad-reverse-neg" checked />
+        Flip negative bar direction
+      </label>
+      <span id="grad-angle-badge" style="font-size:0.75rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-muted);padding:3px 8px;border-radius:6px;border:1px solid var(--border-subtle);background:var(--bg-code);"></span>
+    </div>
+    <div id="grad-swatch-strip" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(32px,1fr));gap:4px;"></div>
+    <div class="guide-example-grid">
+      <div class="guide-chart-stage" id="guide-grad-chart"></div>
+      <div id="guide-grad-code"></div>
+    </div>
+    <div id="guide-grad-usage"></div>
+  `;
+  container.appendChild(gradCard);
+
+  const gradChartEl = document.createElement('mc-bar-chart') as MCBaseChart<any>;
+  gradCard.querySelector('#guide-grad-chart')!.appendChild(gradChartEl);
+  mounted.push(gradChartEl);
+
+  const gradPaletteWrap = gradCard.querySelector('#grad-palette-wrap') as HTMLElement;
+  const gradPaletteSelect = gradCard.querySelector('#grad-palette-select') as HTMLSelectElement;
+  const gradSeedWrap = gradCard.querySelector('#grad-seed-wrap') as HTMLElement;
+  const gradSeedPicker = gradCard.querySelector('#grad-seed-picker') as HTMLInputElement;
+  const gradSeedText = gradCard.querySelector('#grad-seed-text') as HTMLInputElement;
+  const gradCountSlider = gradCard.querySelector('#grad-count-slider') as HTMLInputElement;
+  const gradCountVal = gradCard.querySelector('#grad-count-val') as HTMLElement;
+  const gradDirectionSelect = gradCard.querySelector('#grad-direction-select') as HTMLSelectElement;
+  const gradReverseNeg = gradCard.querySelector('#grad-reverse-neg') as HTMLInputElement;
+  const gradAngleBadge = gradCard.querySelector('#grad-angle-badge') as HTMLElement;
+  const gradSwatchStrip = gradCard.querySelector('#grad-swatch-strip') as HTMLElement;
+  const gradCodeHost = gradCard.querySelector('#guide-grad-code') as HTMLElement;
+  const gradUsageHost = gradCard.querySelector('#guide-grad-usage') as HTMLElement;
+
+  type GradSourceMode = 'theme' | 'seed' | 'array';
+  let gradSourceMode: GradSourceMode = 'theme';
+  let gradPaletteName: BuiltInPaletteName = DEFAULT_PALETTE;
+  let gradSeedColor = '#2563eb';
+  let gradCount = 20;
+  let gradCustomColors = ['#2563eb', '#10b981', '#f59e0b'];
+  let gradLayout: 'vertical' | 'horizontal' = 'vertical';
+  let gradDirection: GradientDirection = 'auto';
+  let gradFlipNegative = true;
+
+  const divergingBarData = [
+    { q: 'Q1', Operating: 128, 'Net Cash': -48, Variance: 62 },
+    { q: 'Q2', Operating: 94, 'Net Cash': 76, Variance: -54 },
+    { q: 'Q3', Operating: -64, 'Net Cash': 112, Variance: 85 },
+    { q: 'Q4', Operating: 146, 'Net Cash': -38, Variance: -72 }
+  ];
+
+  const describeAngle = (deg: number): string => {
+    if (deg === 0) return '0° top→bottom';
+    if (deg === 180) return '180° bottom→top';
+    if (deg === 270) return '270° right→left';
+    if (deg === 90) return '90° left→right';
+    if (deg === 45) return '45° diagonal';
+    if (deg === 225) return '225° rev-diagonal';
+    return `${deg}°`;
+  };
+
+  const gradientDefToCss = (def: LinearGradientDef, cssDeg: number): string => {
+    const stops = (def.colors ?? []).map((entry) => {
+      if (typeof entry === 'string') return entry;
+      const stop = entry as GradientStop;
+      return `${stop.color} ${typeof stop.offset === 'number' ? `${stop.offset}%` : stop.offset}`;
+    });
+    return `linear-gradient(${cssDeg}deg, ${stops.join(', ')})`;
+  };
+
+  const renderGradSwatchStrip = (
+    gradients: LinearGradientDef[],
+    posAngle: number,
+    highlightMid: boolean
+  ) => {
+    // Convert PatternEngine angle (0 = top->bottom, 270 = right->left) to CSS linear-gradient angle
+    const cssDeg = (posAngle + 180) % 360;
+    const midIdx = Math.floor((gradients.length - 1) / 2);
+    const frag = document.createDocumentFragment();
+    gradients.forEach((gradDef, idx) => {
+      const cell = document.createElement('div');
+      cell.style.cssText =
+        'display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;';
+      const box = document.createElement('div');
+      const isMid = highlightMid && idx === midIdx;
+      const midStop = gradDef.colors?.[1];
+      const baseHex =
+        typeof midStop === 'object' && midStop ? midStop.color : gradDef.id;
+      box.title = `${gradDef.id}: ${baseHex}${isMid ? ' (midpoint seed)' : ''}`;
+      box.style.cssText = `width:100%;height:28px;border-radius:5px;background:${gradientDefToCss(
+        gradDef,
+        cssDeg
+      )};border:${
+        isMid ? '2px solid var(--text-main)' : '1px solid rgba(148,163,184,0.28)'
+      };box-sizing:border-box;`;
+      const cap = document.createElement('span');
+      cap.style.cssText =
+        'font-size:0.62rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-muted);';
+      cap.textContent = isMid ? 'MID' : String(idx + 1);
+      cell.append(box, cap);
+      frag.appendChild(cell);
+    });
+    gradSwatchStrip.replaceChildren(frag);
+  };
+
+  const renderGradUsageSnippet = () => {
+    const dirLiteral = `'${gradDirection}'`;
+    const sourceExpr =
+      gradSourceMode === 'theme'
+        ? `'${gradPaletteName}'`
+        : gradSourceMode === 'seed'
+          ? `'${gradSeedColor}'`
+          : `[${gradCustomColors.map((c) => `'${c}'`).join(', ')}]`;
+    const countLine = gradSourceMode === 'seed' ? `\n  count: ${gradCount},` : '';
+
+    const snippet = `
+import { generateGradientPalette } from 'modern-charts';
+
+// 1. Programmatic utility — works with theme palette names, a single seed color, or colors[]:
+const grad = generateGradientPalette(${sourceExpr}, {${countLine}
+  direction: ${dirLiteral},       // 'auto' | 'vertical' | 'horizontal' | 'left-to-right' | 'diagonal' | deg
+  layout: '${gradLayout}',       // used when direction is 'auto'
+  reverseOnNegative: ${gradFlipNegative}, // flips gradient +180° when datum.value < 0
+  intensity: 0.3,
+  endOpacity: 0.72
+});
+
+// Spread { colors, defs, fill } directly into chart.config:
+chart.config = {
+  data,
+  layout: '${gradLayout}',
+  ...grad
+};
+
+// 2. Zero-import shorthand — set gradient directly on chart.config (or HTML attribute):
+// chart.config = {
+//   data,
+//   layout: '${gradLayout}',
+//   ${gradSourceMode === 'array' ? `colors: ${sourceExpr}` : `palette: ${sourceExpr}`},
+//   gradient: { direction: ${dirLiteral}, reverseOnNegative: ${gradFlipNegative} }
+// };
+// <mc-bar-chart palette="${gradSourceMode === 'seed' ? gradSeedColor : gradPaletteName}" layout="${gradLayout}" gradient="auto"></mc-bar-chart>
+`;
+    gradUsageHost.replaceChildren(
+      createCodeBlock(snippet, 'How to Use generateGradientPalette() & config.gradient')
+    );
+  };
+
+  const buildGradChartConfig = () => {
+    const cfg: Record<string, any> = {
+      title: `Directional Gradients (${gradLayout}, ${gradDirection}${
+        gradFlipNegative ? ', flip negative' : ''
+      })`,
+      layout: gradLayout,
+      indexBy: 'q',
+      keys: ['Operating', 'Net Cash', 'Variance'],
+      gradient: {
+        direction: gradDirection,
+        reverseOnNegative: gradFlipNegative,
+        intensity: 0.3,
+        endOpacity: 0.72
+      },
+      data: divergingBarData.map((r) => ({ ...r }))
+    };
+
+    if (gradSourceMode === 'theme') {
+      cfg.palette = gradPaletteName;
+    } else if (gradSourceMode === 'seed') {
+      const ramp = generateColorPalette(gradSeedColor, gradCount);
+      const mid = Math.floor((ramp.length - 1) / 2);
+      const lightIdx = Math.max(0, Math.round(ramp.length * 0.22));
+      const deepIdx = Math.min(ramp.length - 1, Math.round(ramp.length * 0.78));
+      cfg.palette = gradSeedColor;
+      cfg.colors = [ramp[lightIdx], ramp[mid], ramp[deepIdx]];
+      cfg.gradient.count = gradCount;
+    } else {
+      cfg.colors = [...gradCustomColors];
+    }
+
+    return cfg;
+  };
+
+  const syncGradControlVisibility = () => {
+    gradPaletteWrap.style.display = gradSourceMode === 'theme' ? 'inline-flex' : 'none';
+    gradSeedWrap.style.display = gradSourceMode === 'seed' ? 'inline-flex' : 'none';
+    gradCard.querySelectorAll<HTMLButtonElement>('[data-grad-source]').forEach((b) => {
+      b.classList.toggle('btn-primary', b.dataset.gradSource === gradSourceMode);
+    });
+    gradCard.querySelectorAll<HTMLButtonElement>('[data-grad-layout]').forEach((b) => {
+      b.classList.toggle('btn-primary', b.dataset.gradLayout === gradLayout);
+    });
+  };
+
+  const applyGradConfig = (cfg: Record<string, any>) => {
+    const activeLayout: 'vertical' | 'horizontal' =
+      cfg.layout === 'horizontal' ? 'horizontal' : 'vertical';
+    const rawGrad = cfg.gradient;
+    const activeDir: GradientDirection | number =
+      typeof rawGrad === 'string' || typeof rawGrad === 'number'
+        ? rawGrad
+        : rawGrad && typeof rawGrad === 'object' && rawGrad.direction !== undefined
+          ? rawGrad.direction
+          : 'auto';
+    const activeFlip =
+      rawGrad && typeof rawGrad === 'object' && rawGrad.reverseOnNegative !== undefined
+        ? Boolean(rawGrad.reverseOnNegative)
+        : true;
+    const activeIntensity =
+      rawGrad && typeof rawGrad === 'object' && typeof rawGrad.intensity === 'number'
+        ? rawGrad.intensity
+        : 0.3;
+    const activeEndOpacity =
+      rawGrad && typeof rawGrad === 'object' && typeof rawGrad.endOpacity === 'number'
+        ? rawGrad.endOpacity
+        : 0.72;
+
+    const { positiveAngle, negativeAngle } = resolveGradientAngles(
+      activeDir,
+      activeLayout
+    );
+    gradAngleBadge.textContent = activeFlip
+      ? `Pos: ${describeAngle(positiveAngle)} · Neg: ${describeAngle(negativeAngle)}`
+      : `All bars: ${describeAngle(positiveAngle)}`;
+
+    const previewSource =
+      gradSourceMode === 'seed'
+        ? typeof cfg.palette === 'string'
+          ? cfg.palette
+          : gradSeedColor
+        : Array.isArray(cfg.colors) && cfg.colors.length > 0
+          ? cfg.colors
+          : typeof cfg.palette === 'string'
+            ? cfg.palette
+            : gradPaletteName;
+    const previewGenerated = generateGradientPalette(previewSource, {
+      count: gradCount,
+      direction: activeDir,
+      layout: activeLayout,
+      reverseOnNegative: activeFlip,
+      intensity: activeIntensity,
+      endOpacity: activeEndOpacity
+    });
+    renderGradSwatchStrip(
+      previewGenerated.gradients,
+      positiveAngle,
+      gradSourceMode === 'seed'
+    );
+    renderGradUsageSnippet();
+
+    gradChartEl.setConfig({
+      autoSize: true,
+      themeMode,
+      groupMode: 'grouped',
+      borderRadius: 5,
+      markers: [
+        {
+          id: 'zero-axis',
+          type: 'line',
+          axis: activeLayout === 'horizontal' ? 'x' : 'y',
+          value: 0,
+          stroke: 'rgba(148, 163, 184, 0.55)',
+          strokeWidth: 1.5,
+          strokeDasharray: '4 3'
+        }
+      ],
+      margin:
+        activeLayout === 'horizontal'
+          ? { top: 44, right: 42, bottom: 68, left: 56 }
+          : { top: 44, right: 20, bottom: 68, left: 48 },
+      ...cfg
+    });
+  };
+
+  syncGradControlVisibility();
+  const initialGradCfg = buildGradChartConfig();
+  applyGradConfig(initialGradCfg);
+
+  const gradEditor = createLiveConfigEditor({
+    title: 'Directional Gradient Config (Live)',
+    initialConfig: initialGradCfg,
+    hint: 'Edit layout ("vertical" | "horizontal"), gradient.direction, reverseOnNegative, palette, colors[], or negative data values.',
+    onConfigChange: (nextCfg) => {
+      if (nextCfg.layout === 'vertical' || nextCfg.layout === 'horizontal') {
+        gradLayout = nextCfg.layout;
+        syncGradControlVisibility();
+      }
+      if (nextCfg.gradient && typeof nextCfg.gradient === 'object') {
+        if (typeof nextCfg.gradient.direction === 'string') {
+          gradDirection = nextCfg.gradient.direction as GradientDirection;
+          gradDirectionSelect.value = gradDirection;
+        }
+        if (typeof nextCfg.gradient.reverseOnNegative === 'boolean') {
+          gradFlipNegative = nextCfg.gradient.reverseOnNegative;
+          gradReverseNeg.checked = gradFlipNegative;
+        }
+      }
+      if (Array.isArray(nextCfg.colors) && nextCfg.colors.length > 0 && gradSourceMode === 'array') {
+        gradCustomColors = [...nextCfg.colors];
+      }
+      if (typeof nextCfg.palette === 'string' && gradSourceMode === 'seed') {
+        const val = nextCfg.palette.trim();
+        if (/^#[0-9a-fA-F]{3,6}$/.test(val) || /^(rgb|hsl)a?\(/i.test(val)) {
+          gradSeedColor = val;
+          gradSeedText.value = gradSeedColor;
+          if (/^#[0-9a-fA-F]{6}$/.test(gradSeedColor)) gradSeedPicker.value = gradSeedColor;
+        }
+      }
+      applyGradConfig(nextCfg);
+    },
+    onReset: () => {
+      gradSourceMode = 'theme';
+      gradPaletteName = DEFAULT_PALETTE;
+      gradSeedColor = '#2563eb';
+      gradCount = 20;
+      gradCustomColors = ['#2563eb', '#10b981', '#f59e0b'];
+      gradLayout = 'vertical';
+      gradDirection = 'auto';
+      gradFlipNegative = true;
+      gradPaletteSelect.value = gradPaletteName;
+      gradSeedPicker.value = gradSeedColor;
+      gradSeedText.value = gradSeedColor;
+      gradCountSlider.value = '20';
+      gradCountVal.textContent = '20';
+      gradDirectionSelect.value = gradDirection;
+      gradReverseNeg.checked = true;
+      syncGradControlVisibility();
+      const resetCfg = buildGradChartConfig();
+      applyGradConfig(resetCfg);
+      gradEditor.syncConfig(resetCfg);
+    }
+  });
+  gradCodeHost.appendChild(gradEditor.element);
+
+  const updateGradFromControls = () => {
+    gradCountVal.textContent = String(gradCount);
+    syncGradControlVisibility();
+    const nextCfg = buildGradChartConfig();
+    applyGradConfig(nextCfg);
+    gradEditor.syncConfig(nextCfg);
+  };
+
+  gradCard.querySelectorAll<HTMLButtonElement>('[data-grad-source]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      gradSourceMode = btn.dataset.gradSource as GradSourceMode;
+      updateGradFromControls();
+    });
+  });
+
+  gradCard.querySelectorAll<HTMLButtonElement>('[data-grad-layout]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      gradLayout = btn.dataset.gradLayout as 'vertical' | 'horizontal';
+      updateGradFromControls();
+    });
+  });
+
+  gradPaletteSelect.addEventListener('change', () => {
+    gradPaletteName = gradPaletteSelect.value as BuiltInPaletteName;
+    updateGradFromControls();
+  });
+
+  gradSeedPicker.addEventListener('input', () => {
+    gradSeedColor = gradSeedPicker.value;
+    gradSeedText.value = gradSeedColor;
+    updateGradFromControls();
+  });
+
+  gradSeedText.addEventListener('input', () => {
+    const val = gradSeedText.value.trim();
+    if (/^#[0-9a-fA-F]{3,6}$/.test(val) || /^(rgb|hsl)a?\(/i.test(val)) {
+      gradSeedColor = val;
+      if (/^#[0-9a-fA-F]{6}$/.test(val)) gradSeedPicker.value = val;
+      updateGradFromControls();
+    }
+  });
+
+  gradCountSlider.addEventListener('input', () => {
+    gradCount = Number(gradCountSlider.value);
+    updateGradFromControls();
+  });
+
+  gradDirectionSelect.addEventListener('change', () => {
+    gradDirection = gradDirectionSelect.value as GradientDirection;
+    updateGradFromControls();
+  });
+
+  gradReverseNeg.addEventListener('change', () => {
+    gradFlipNegative = gradReverseNeg.checked;
+    updateGradFromControls();
+  });
+
+  // Example 4: Fully Custom Brand Themes
   const customThemes: Record<
     string,
     {
@@ -496,7 +941,7 @@ chart.config = {
   ex3.innerHTML = `
     <div class="panel-header">
       <div>
-        <h2 class="panel-title">Example 3: Crafting Your Own Custom Brand Theme</h2>
+        <h2 class="panel-title">Example 4: Crafting Your Own Custom Brand Theme</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Pass a partial <code>theme</code> object and custom <code>colors</code> array to override typography, surfaces, grid dash patterns, axes, and tooltips — edit any token below to preview live.
         </p>
@@ -615,6 +1060,7 @@ chart.config = {
         <tbody>
           <tr><td><code>palette</code></td><td><code>'shadcn' | 'material' | 'bootstrap' | 'antd' | string</code></td><td>20-color design-system palette name or a seed color string (e.g. <code>'#2563eb'</code>) auto-expanded into a 20-color light-to-dark ramp.</td></tr>
           <tr><td><code>colors</code></td><td><code>string[]</code></td><td>Explicit series color array (e.g. <code>generateColorPalette('#2563eb', 20)</code>). Overrides <code>palette</code>.</td></tr>
+          <tr><td><code>gradient</code></td><td><code>boolean | GradientDirection | ChartGradientConfig</code></td><td>Auto-generates directional SVG linear gradients from <code>palette</code>, <code>colors[]</code>, or a seed color — adapting to vertical/horizontal layouts and flipping direction on negative bars (<code>reverseOnNegative: true</code>).</td></tr>
           <tr><td><code>background</code></td><td><code>string</code></td><td>Chart SVG canvas background fill.</td></tr>
           <tr><td><code>textColor</code> / <code>mutedTextColor</code></td><td><code>string</code></td><td>Titles, data labels, and secondary axis tick labels.</td></tr>
           <tr><td><code>fontFamily</code> / <code>fontSize</code></td><td><code>string | number</code></td><td>Base font passed to both SVG labels and <code>@chenglou/pretext</code> measurement.</td></tr>

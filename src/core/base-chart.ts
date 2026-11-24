@@ -15,7 +15,12 @@ import { createDefaultLegendConfig } from './legend-engine';
 import { MarkerEngine, resolveMarkerAnnotation } from './marker-engine';
 import { PatternEngine } from './pattern-engine';
 import { createDefaultScaleConfig } from './scale-manager';
-import { createDefaultTheme, createOrdinalColorScale } from './theme';
+import {
+  createDefaultTheme,
+  createOrdinalColorScale,
+  generateGradientPalette,
+  resolvePaletteColors
+} from './theme';
 import { resolveElementAnchor } from './tooltip-anchor';
 import type {
   AnimationConfig,
@@ -27,6 +32,7 @@ import type {
   ChartEventName,
   ChartEventsConfig,
   ChartEventTargetRegistration,
+  ChartGradientConfig,
   ChartMargin,
   ChartPaletteName,
   ChartRenderContext,
@@ -36,6 +42,7 @@ import type {
   CustomLabelRenderer,
   FillMatchContext,
   FillRule,
+  GradientDirection,
   ItemAnimationSpec,
   LabelDescriptor,
   LabelOverflowConfig,
@@ -339,6 +346,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       'margin',
       'theme-mode',
       'palette',
+      'gradient',
       'chart-title',
       'layers',
       'label-mode',
@@ -1329,6 +1337,20 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       theme.colors = this._config.colors;
     }
 
+    const gradCfg = this.resolveGradientConfig();
+    if (gradCfg?.colors) {
+      theme.colors = Array.isArray(gradCfg.colors)
+        ? gradCfg.colors.length > 0
+          ? [...gradCfg.colors]
+          : theme.colors
+        : resolvePaletteColors(gradCfg.colors, gradCfg.count);
+    } else if (
+      gradCfg?.count &&
+      !(this._config.colors && this._config.colors.length > 0)
+    ) {
+      theme.colors = resolvePaletteColors(theme.palette, gradCfg.count);
+    }
+
     if (this._config.labelMode) {
       theme.labelRenderMode = this._config.labelMode as 'svg' | 'foreignObject';
     } else if (this.hasAttribute('label-mode')) {
@@ -1514,7 +1536,44 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     return config;
   }
 
-  public resolvePatternDefsAndRules(): {
+  public resolveGradientConfig(): ChartGradientConfig | null {
+    const raw = this._config.gradient;
+    if (raw === false) return null;
+    if (raw === true) {
+      return { enabled: true, direction: 'auto', reverseOnNegative: true };
+    }
+    if (typeof raw === 'string') {
+      return {
+        enabled: true,
+        direction: raw as GradientDirection,
+        reverseOnNegative: true
+      };
+    }
+    if (raw && typeof raw === 'object') {
+      if (raw.enabled === false) return null;
+      return {
+        enabled: true,
+        direction: 'auto',
+        reverseOnNegative: true,
+        ...raw
+      };
+    }
+
+    const attr = this.getAttribute('gradient');
+    if (attr === null || attr === 'false' || attr === '0') return null;
+    const trimmed = attr.trim();
+    if (trimmed === '' || trimmed === 'true' || trimmed === '1') {
+      return { enabled: true, direction: 'auto', reverseOnNegative: true };
+    }
+    const asNum = Number(trimmed);
+    return {
+      enabled: true,
+      direction: Number.isFinite(asNum) ? asNum : (trimmed as GradientDirection),
+      reverseOnNegative: true
+    };
+  }
+
+  public resolvePatternDefsAndRules(theme?: ChartTheme): {
     defs: SvgFillDef[];
     fill: FillRule[];
   } {
@@ -1534,6 +1593,25 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       if (def) defs.push(def);
       const rule = typeof el.toFillRule === 'function' ? el.toFillRule() : null;
       if (rule) fill.push(rule);
+    }
+
+    const gradCfg = this.resolveGradientConfig();
+    if (gradCfg) {
+      const layout: 'vertical' | 'horizontal' =
+        this._config.layout === 'horizontal' ||
+        this.getAttribute('layout') === 'horizontal'
+          ? 'horizontal'
+          : 'vertical';
+      const activeColors =
+        gradCfg.colors ?? (theme ?? this.resolveTheme()).colors;
+      const generated = generateGradientPalette(activeColors, {
+        ...gradCfg,
+        direction: gradCfg.direction ?? 'auto',
+        layout,
+        idPrefix: gradCfg.idPrefix ?? 'mc-auto-grad'
+      });
+      defs.push(...generated.defs);
+      fill.push(...generated.fill);
     }
 
     return { defs, fill };
@@ -2005,7 +2083,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
     this.#syncStateOverlay('ready', theme);
 
-    const { defs: fillDefs, fill: fillRules } = this.resolvePatternDefsAndRules();
+    const { defs: fillDefs, fill: fillRules } =
+      this.resolvePatternDefsAndRules(theme);
     this.patternEngine.prepare(defs, fillDefs, fillRules);
 
     const colorScale = createOrdinalColorScale(theme);

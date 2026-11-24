@@ -210,8 +210,29 @@ export function renderBarLabelsLayer(
         return;
       }
 
-      const labelX = b.x + b.width / 2;
-      const labelY = fitsInside ? b.y + b.height / 2 : Math.max(10, b.y - 10);
+      let labelX = b.x + b.width / 2;
+      let labelY = b.y + b.height / 2;
+      let anchor: 'start' | 'middle' | 'end' = 'middle';
+      let maxWidth = Math.max(36, b.width + 12);
+
+      if (!fitsInside) {
+        if (b.isHorizontal) {
+          labelY = b.y + b.height / 2;
+          if (b.value < 0) {
+            labelX = b.x - 6;
+            anchor = 'end';
+            maxWidth = Math.max(36, labelX + ctx.margin.left - 6);
+          } else {
+            labelX = b.x + b.width + 6;
+            anchor = 'start';
+            maxWidth = Math.max(36, ctx.innerWidth - labelX + ctx.margin.right - 6);
+          }
+        } else if (b.value < 0) {
+          labelY = b.y + b.height + 10;
+        } else {
+          labelY = Math.max(10, b.y - 10);
+        }
+      }
 
       ctx.renderLabel(ctx.layerGroup, {
         id: `bar-label-${idx}`,
@@ -219,9 +240,9 @@ export function renderBarLabelsLayer(
         x: labelX,
         y: labelY,
         type: 'data',
-        anchor: 'middle',
+        anchor,
         baseline: 'middle',
-        maxWidth: Math.max(36, b.width + 12),
+        maxWidth,
         fontSize: Math.max(10, ctx.theme.fontSize - 1),
         fontWeight: 600,
         color:
