@@ -101,7 +101,7 @@
   {
     "name": "Standalone Scatter chart (modern-charts/scatter) [brotli]",
     "path": "dist/scatter.js",
-    "limit": "80 kB"
+    "limit": "85 kB"
   },
   {
     "name": "Standalone Scatter chart (modern-charts/scatter) [gzip]",
