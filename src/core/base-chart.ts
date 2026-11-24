@@ -796,15 +796,26 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       subs.scaleLayer &&
       typeof subs.scaleLayer.applyFromConfig === 'function'
     ) {
+      const isInternal = subs.scaleLayer.hasAttribute('data-internal');
       const def = this.getDefaultScaleConfig();
-      subs.scaleLayer.applyFromConfig({
-        x: { ...def.x, ...(cfg.scales?.x ?? {}), ...(cfg.xScale ?? {}) },
-        y: { ...def.y, ...(cfg.scales?.y ?? {}), ...(cfg.yScale ?? {}) },
-        color: {
-          ...(cfg.scales?.color ?? {}),
-          ...(cfg.colorScheme ? { scheme: cfg.colorScheme } : {})
-        }
-      });
+      const xExplicit = { ...(cfg.scales?.x ?? {}), ...(cfg.xScale ?? {}) };
+      const yExplicit = { ...(cfg.scales?.y ?? {}), ...(cfg.yScale ?? {}) };
+      if (
+        isInternal ||
+        Object.keys(xExplicit).length > 0 ||
+        Object.keys(yExplicit).length > 0 ||
+        cfg.scales?.color !== undefined ||
+        cfg.colorScheme !== undefined
+      ) {
+        subs.scaleLayer.applyFromConfig({
+          x: (isInternal ? { ...def.x, ...xExplicit } : xExplicit) as any,
+          y: (isInternal ? { ...def.y, ...yExplicit } : yExplicit) as any,
+          color: {
+            ...(cfg.scales?.color ?? {}),
+            ...(cfg.colorScheme ? { scheme: cfg.colorScheme } : {})
+          }
+        });
+      }
     }
 
     if (
@@ -1179,12 +1190,41 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     height = Math.max(140, Math.round(height));
 
     const margin = { ...this.resolveMargin() };
+    this.expandMarginForAxes(margin);
     this.expandMarginForMarkerAnnotations(margin);
     this.expandMarginForLegend(margin);
     const innerWidth = Math.max(40, width - margin.left - margin.right);
     const innerHeight = Math.max(40, height - margin.top - margin.bottom);
 
     return { width, height, innerWidth, innerHeight, margin };
+  }
+
+  private expandMarginForAxes(margin: ChartMargin): void {
+    if (!this.defaultLayers.includes('axes')) return;
+    const scaleCfg = this.resolveScaleConfig();
+    const xPos = scaleCfg.x?.position ?? 'bottom';
+    const yPos = scaleCfg.y?.position ?? 'left';
+    const hasXTitle = Boolean(
+      scaleCfg.x?.title ||
+        this._config.xTitle ||
+        this.getAttribute('x-title')
+    );
+    const hasYTitle = Boolean(
+      scaleCfg.y?.title ||
+        this._config.yTitle ||
+        this.getAttribute('y-title')
+    );
+    const hasChartTitle = Boolean(this.chartTitle);
+
+    if (xPos === 'top' || xPos === 'both') {
+      const topNeeded =
+        (hasChartTitle ? 28 : 8) + (hasXTitle ? 44 : 28);
+      margin.top = Math.max(margin.top, topNeeded);
+    }
+    if (yPos === 'right' || yPos === 'both') {
+      const rightNeeded = hasYTitle ? 68 : 52;
+      margin.right = Math.max(margin.right, rightNeeded);
+    }
   }
 
   /**
