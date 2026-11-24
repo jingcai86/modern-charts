@@ -3,7 +3,11 @@ import type {
   MCBaseChart,
   ThemeModePreference
 } from '../../../src/index';
-import { createCodeBlock } from './shared';
+import {
+  createLiveConfigEditor,
+  createLiveCssEditor,
+  createLiveHtmlEditor
+} from './shared';
 
 export function renderChartStateGuide(
   container: HTMLElement,
@@ -11,7 +15,7 @@ export function renderChartStateGuide(
 ): MCBaseChart<any>[] {
   const mounted: MCBaseChart<any>[] = [];
 
-  // Scoped demo styles showcasing ::part() and --mc-state-* custom properties
+  // Base animation helpers for custom loading dots in Example 2
   const demoStyle = document.createElement('style');
   demoStyle.textContent = `
     .cs-custom-dots {
@@ -35,32 +39,6 @@ export function renderChartStateGuide(
     @media (prefers-reduced-motion: reduce) {
       .cs-custom-dots span { animation: none; opacity: 0.8; }
     }
-
-    mc-pie-chart.cs-preset-glass {
-      --mc-state-bg: rgba(30, 27, 75, 0.78);
-      --mc-state-color: #e0e7ff;
-      --mc-state-spinner-color: #a78bfa;
-      --mc-state-spinner-size: 32px;
-      --mc-state-font: 600 13px/1.4 ui-sans-serif, system-ui, sans-serif;
-    }
-    mc-pie-chart.cs-preset-glass::part(state) {
-      backdrop-filter: blur(6px);
-      border-radius: 12px;
-    }
-    mc-pie-chart.cs-preset-glass::part(state-message) {
-      letter-spacing: 0.02em;
-    }
-
-    mc-pie-chart.cs-preset-amber {
-      --mc-state-bg: rgba(254, 243, 199, 0.92);
-      --mc-state-color: #92400e;
-      --mc-state-spinner-color: #d97706;
-      --mc-state-spinner-size: 28px;
-    }
-    mc-pie-chart.cs-preset-amber::part(state-message) {
-      font-weight: 700;
-    }
-
     .cs-example-grid {
       grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     }
@@ -115,8 +93,7 @@ export function renderChartStateGuide(
       <div>
         <h2 class="panel-title">Example 1: State Transitions &amp; <code>mc-state-change</code></h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Toggle between <code>ready</code>, <code>loading</code>, automatic <code>empty</code> (<code>data = []</code>),
-          and custom text overrides.
+          Toggle preset buttons or edit <code>loading</code>, <code>loadingText</code>, <code>emptyText</code>, and <code>data</code> directly in the live JSON editor.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -151,56 +128,70 @@ export function renderChartStateGuide(
     { quarter: 'Q4', Cloud: 228, Edge: 148 }
   ];
 
-  const applyEx1 = (mode: 'ready' | 'loading' | 'empty' | 'custom-text') => {
-    ex1.querySelectorAll<HTMLButtonElement>('[data-cs-mode]').forEach((b) =>
-      b.classList.toggle('btn-primary', b.dataset.csMode === mode)
-    );
+  const buildEx1Config = (mode: 'ready' | 'loading' | 'empty' | 'custom-text') => ({
+    title: 'Quarterly Revenue ($M)',
+    loading: mode === 'loading' || mode === 'custom-text',
+    loadingText: mode === 'custom-text' ? 'Fetching Q4 metrics…' : 'Loading…',
+    emptyText: mode === 'custom-text' ? 'No metrics for selected range' : 'No data',
+    data: mode === 'empty' ? [] : sampleBar
+  });
+
+  const applyEx1Config = (cfg: Record<string, any>) => {
     bar1.setConfig({
-      data: mode === 'empty' ? [] : sampleBar,
-      loading: mode === 'loading' || mode === 'custom-text',
-      loadingText:
-        mode === 'custom-text' ? 'Fetching Q4 metrics…' : undefined,
-      emptyText:
-        mode === 'custom-text' ? 'No metrics for selected range' : undefined,
       autoSize: true,
       themeMode,
       palette: 'modern',
-      title: 'Quarterly Revenue ($M)',
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge'],
-      borderRadius: 6
+      borderRadius: 6,
+      ...cfg
     });
   };
-  applyEx1('ready');
+
+  const syncEx1Buttons = (mode: string) => {
+    ex1
+      .querySelectorAll<HTMLButtonElement>('[data-cs-mode]')
+      .forEach((b) => b.classList.toggle('btn-primary', b.dataset.csMode === mode));
+  };
+
+  const initialEx1Cfg = buildEx1Config('ready');
+  applyEx1Config(initialEx1Cfg);
+
+  const editor1 = createLiveConfigEditor({
+    title: 'Loading, Empty & mc-state-change Config (Live)',
+    initialConfig: initialEx1Cfg,
+    hint: 'Set loading: true, change loadingText / emptyText, or clear data: [] to test state transitions live.',
+    onConfigChange: (nextCfg) => {
+      const inferredMode = nextCfg.loading
+        ? nextCfg.loadingText && nextCfg.loadingText !== 'Loading…'
+          ? 'custom-text'
+          : 'loading'
+        : !Array.isArray(nextCfg.data) || nextCfg.data.length === 0
+        ? 'empty'
+        : 'ready';
+      syncEx1Buttons(inferredMode);
+      applyEx1Config(nextCfg);
+    },
+    onReset: () => {
+      syncEx1Buttons('ready');
+      const resetCfg = buildEx1Config('ready');
+      applyEx1Config(resetCfg);
+      editor1.syncConfig(resetCfg);
+    }
+  });
+  ex1.querySelector('#cs-code-1')!.appendChild(editor1.element);
 
   ex1.querySelectorAll<HTMLButtonElement>('[data-cs-mode]').forEach((btn) => {
-    btn.addEventListener('click', () =>
-      applyEx1(btn.dataset.csMode as 'ready' | 'loading' | 'empty' | 'custom-text')
-    );
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.csMode as 'ready' | 'loading' | 'empty' | 'custom-text';
+      syncEx1Buttons(mode);
+      const nextCfg = buildEx1Config(mode);
+      applyEx1Config(nextCfg);
+      editor1.syncConfig(nextCfg);
+    });
   });
 
-  ex1.querySelector('#cs-code-1')!.appendChild(
-    createCodeBlock(
-      `
-// Toggle loading state or assign empty data:
-chart.loading = true; // sets aria-busy="true", shows "Loading…"
-chart.config = {
-  data: [],
-  loading: false,
-  loadingText: 'Fetching Q4 metrics…',
-  emptyText: 'No data'
-};
-
-// Listen for composed state transitions:
-chart.addEventListener('mc-state-change', (e) => {
-  console.log(e.detail.state); // 'loading' | 'empty' | 'ready'
-});
-      `,
-      'Loading, Empty & mc-state-change'
-    )
-  );
-
-  // Example 2: Custom Slots (slot="loading" and slot="empty")
+  // Example 2: Custom Slots (slot="loading" and slot="empty") — Live Declarative HTML Editor
   const ex2 = document.createElement('section');
   ex2.className = 'panel-card guide-section';
   ex2.style.minWidth = '0';
@@ -209,8 +200,7 @@ chart.addEventListener('mc-state-change', (e) => {
       <div>
         <h2 class="panel-title">Example 2: Custom <code>slot="loading"</code> &amp; <code>slot="empty"</code></h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Provide light DOM children with <code>slot="loading"</code> or <code>slot="empty"</code> to replace the default
-          content with custom spinners, illustrations, or action buttons.
+          Edit the declarative <code>slot="loading"</code> and <code>slot="empty"</code> HTML directly on the right (or toggle the state buttons) to update the chart overlay live.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -227,26 +217,6 @@ chart.addEventListener('mc-state-change', (e) => {
   container.appendChild(ex2);
 
   const line2 = document.createElement('mc-line-chart') as MCBaseChart<any>;
-  const loadingSlotEl = document.createElement('div');
-  loadingSlotEl.setAttribute('slot', 'loading');
-  loadingSlotEl.style.cssText =
-    'display:flex;flex-direction:column;align-items:center;gap:6px;';
-  loadingSlotEl.innerHTML = `
-    <div class="cs-custom-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-    <strong style="font-size:0.86rem;">Syncing telemetry stream…</strong>
-  `;
-
-  const emptySlotEl = document.createElement('div');
-  emptySlotEl.setAttribute('slot', 'empty');
-  emptySlotEl.style.cssText =
-    'display:flex;flex-direction:column;align-items:center;gap:8px;';
-  emptySlotEl.innerHTML = `
-    <div style="font-size:0.86rem;font-weight:600;">Nothing to show for this date range</div>
-    <button type="button" id="cs-restore-btn" class="btn-primary" style="font-size:0.78rem;">Restore Sample Data</button>
-  `;
-
-  line2.appendChild(loadingSlotEl);
-  line2.appendChild(emptySlotEl);
   ex2.querySelector('#cs-chart-2')!.appendChild(line2);
   mounted.push(line2);
 
@@ -263,10 +233,32 @@ chart.addEventListener('mc-state-change', (e) => {
     }
   ];
 
-  const applyEx2 = (mode: 'loading' | 'empty' | 'ready') => {
-    ex2.querySelectorAll<HTMLButtonElement>('[data-slot-mode]').forEach((b) =>
-      b.classList.toggle('btn-primary', b.dataset.slotMode === mode)
-    );
+  let activeSlotMode: 'loading' | 'empty' | 'ready' = 'loading';
+
+  const buildEx2Markup = (mode: 'loading' | 'empty' | 'ready') => `<mc-line-chart${
+    mode === 'loading' ? ' loading' : ''
+  }>
+  <div slot="loading" style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+    <div class="cs-custom-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+    <strong style="font-size:0.86rem;">Syncing telemetry stream…</strong>
+  </div>
+  <div slot="empty" style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+    <div style="font-size:0.86rem;font-weight:600;">Nothing to show for this date range</div>
+    <button type="button" data-cs-restore="true" class="btn-primary" style="font-size:0.78rem;">Restore Sample Data</button>
+  </div>
+</mc-line-chart>`;
+
+  const syncSlotButtons = (mode: 'loading' | 'empty' | 'ready') => {
+    ex2
+      .querySelectorAll<HTMLButtonElement>('[data-slot-mode]')
+      .forEach((b) =>
+        b.classList.toggle('btn-primary', b.dataset.slotMode === mode)
+      );
+  };
+
+  const applyEx2State = (mode: 'loading' | 'empty' | 'ready') => {
+    activeSlotMode = mode;
+    syncSlotButtons(mode);
     line2.setConfig({
       data: mode === 'empty' ? [{ id: 'Requests/s', data: [] }] : sampleLine,
       loading: mode === 'loading',
@@ -278,36 +270,48 @@ chart.addEventListener('mc-state-change', (e) => {
       areaOpacity: 0.16
     });
   };
-  applyEx2('loading');
+
+  const editor2 = createLiveHtmlEditor({
+    title: 'Custom loading & empty Slots (Live)',
+    chartTag: 'mc-line-chart',
+    initialMarkup: buildEx2Markup('loading'),
+    hint: 'Edit the loading/empty slot text, styles, or toggle the loading attribute on <mc-line-chart>.',
+    onMarkupApply: ({ chartAttrs, children }) => {
+      line2.replaceChildren(...children);
+      line2
+        .querySelector('[data-cs-restore]')
+        ?.addEventListener('click', () => {
+          applyEx2State('ready');
+          editor2.setValue(buildEx2Markup('ready'));
+        });
+
+      const hasLoadingAttr =
+        'loading' in chartAttrs && chartAttrs.loading !== 'false';
+      const nextMode: 'loading' | 'empty' | 'ready' = hasLoadingAttr
+        ? 'loading'
+        : activeSlotMode === 'empty'
+        ? 'empty'
+        : 'ready';
+      applyEx2State(nextMode);
+    },
+    onReset: () => {
+      const markup = buildEx2Markup('loading');
+      editor2.setValue(markup);
+      editor2.applyCurrent();
+    }
+  });
+  editor2.applyCurrent();
+  ex2.querySelector('#cs-code-2')!.appendChild(editor2.element);
 
   ex2.querySelectorAll<HTMLButtonElement>('[data-slot-mode]').forEach((btn) => {
-    btn.addEventListener('click', () =>
-      applyEx2(btn.dataset.slotMode as 'loading' | 'empty' | 'ready')
-    );
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.slotMode as 'loading' | 'empty' | 'ready';
+      applyEx2State(mode);
+      editor2.setValue(buildEx2Markup(mode));
+    });
   });
-  emptySlotEl
-    .querySelector('#cs-restore-btn')!
-    .addEventListener('click', () => applyEx2('ready'));
 
-  ex2.querySelector('#cs-code-2')!.appendChild(
-    createCodeBlock(
-      `
-<mc-line-chart loading>
-  <div slot="loading">
-    <my-spinner></my-spinner>
-    <span>Syncing telemetry stream…</span>
-  </div>
-  <div slot="empty">
-    <p>Nothing to show for this date range</p>
-    <button onclick="restoreData()">Restore Sample Data</button>
-  </div>
-</mc-line-chart>
-      `,
-      'Custom loading & empty Slots'
-    )
-  );
-
-  // Example 3: CSS ::part() & --mc-state-* Custom Properties
+  // Example 3: Live CSS ::part() & --mc-state-* Custom Properties
   const ex3 = document.createElement('section');
   ex3.className = 'panel-card guide-section';
   ex3.style.minWidth = '0';
@@ -316,7 +320,7 @@ chart.addEventListener('mc-state-change', (e) => {
       <div>
         <h2 class="panel-title">Example 3: Styling via CSS <code>::part()</code> &amp; <code>--mc-state-*</code></h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Customize overlay surface, spinner color/size, and typography without touching Shadow DOM internals.
+          Pick a preset or edit any <code>--mc-state-*</code> variable and <code>::part(state*)</code> rule on the right to restyle the overlay live.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -338,7 +342,7 @@ chart.addEventListener('mc-state-change', (e) => {
   container.appendChild(ex3);
 
   const pie3 = document.createElement('mc-pie-chart') as MCBaseChart<any>;
-  pie3.classList.add('cs-preset-glass');
+  pie3.classList.add('cs-live-target');
   ex3.querySelector('#cs-chart-3')!.appendChild(pie3);
   mounted.push(pie3);
 
@@ -347,6 +351,45 @@ chart.addEventListener('mc-state-change', (e) => {
     { id: 'Storage', value: 290 },
     { id: 'Network', value: 185 }
   ];
+
+  const cssPresets: Record<string, string> = {
+    default: `/* Default chart state overlay tokens */
+mc-pie-chart {
+  --mc-state-spinner-size: 24px;
+}
+
+mc-pie-chart::part(state-message) {
+  font-weight: 500;
+}`,
+    glass: `mc-pie-chart {
+  --mc-state-bg: rgba(30, 27, 75, 0.78);
+  --mc-state-color: #e0e7ff;
+  --mc-state-font: 600 13px/1.4 system-ui, sans-serif;
+  --mc-state-spinner-color: #a78bfa;
+  --mc-state-spinner-size: 32px;
+}
+
+mc-pie-chart::part(state) {
+  backdrop-filter: blur(6px);
+  border-radius: 12px;
+}
+
+mc-pie-chart::part(state-message) {
+  letter-spacing: 0.02em;
+}`,
+    amber: `mc-pie-chart {
+  --mc-state-bg: rgba(254, 243, 199, 0.92);
+  --mc-state-color: #92400e;
+  --mc-state-spinner-color: #d97706;
+  --mc-state-spinner-size: 28px;
+}
+
+mc-pie-chart::part(state-message) {
+  font-weight: 700;
+}`
+  };
+
+  let activeCssPreset = 'glass';
 
   const selState3 = ex3.querySelector('#cs-preset-state') as HTMLSelectElement;
   const applyEx3 = () => {
@@ -366,44 +409,33 @@ chart.addEventListener('mc-state-change', (e) => {
   applyEx3();
 
   selState3.addEventListener('change', applyEx3);
+
+  const cssEditor3 = createLiveCssEditor({
+    title: 'CSS ::part() & --mc-state-* Styling (Live)',
+    scopeKey: 'guide-chart-state-ex3-css',
+    hostSelector: 'mc-pie-chart',
+    scopedSelector: 'mc-pie-chart.cs-live-target',
+    initialCss: cssPresets[activeCssPreset],
+    hint: 'Edit --mc-state-bg, --mc-state-spinner-color, --mc-state-spinner-size, or ::part(state*) live.',
+    onReset: () => {
+      cssEditor3.setValue(cssPresets[activeCssPreset]);
+      cssEditor3.applyCurrent();
+    }
+  });
+  ex3.querySelector('#cs-code-3')!.appendChild(cssEditor3.element);
+
   ex3.querySelectorAll<HTMLButtonElement>('[data-cs-preset]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const preset = btn.dataset.csPreset!;
+      activeCssPreset = btn.dataset.csPreset!;
       ex3
         .querySelectorAll<HTMLButtonElement>('[data-cs-preset]')
         .forEach((b) =>
-          b.classList.toggle('btn-primary', b.dataset.csPreset === preset)
+          b.classList.toggle('btn-primary', b.dataset.csPreset === activeCssPreset)
         );
-      pie3.classList.remove('cs-preset-glass', 'cs-preset-amber');
-      if (preset === 'glass') pie3.classList.add('cs-preset-glass');
-      if (preset === 'amber') pie3.classList.add('cs-preset-amber');
+      cssEditor3.setValue(cssPresets[activeCssPreset]);
+      cssEditor3.applyCurrent();
     });
   });
-
-  ex3.querySelector('#cs-code-3')!.appendChild(
-    createCodeBlock(
-      `
-mc-pie-chart {
-  --mc-state-bg: rgba(30, 27, 75, 0.78);
-  --mc-state-color: #e0e7ff;
-  --mc-state-font: 600 13px/1.4 system-ui, sans-serif;
-  --mc-state-spinner-color: #a78bfa;
-  --mc-state-spinner-size: 32px;
-}
-
-mc-pie-chart::part(state) {
-  backdrop-filter: blur(6px);
-}
-mc-pie-chart::part(state-indicator) {
-  /* targets spinner (loading) or icon (empty) */
-}
-mc-pie-chart::part(state-message) {
-  letter-spacing: 0.02em;
-}
-      `,
-      'CSS ::part() & --mc-state-* Styling'
-    )
-  );
 
   return mounted;
 }

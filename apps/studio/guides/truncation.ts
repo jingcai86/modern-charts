@@ -3,7 +3,7 @@ import type {
   MCBaseChart,
   ThemeModePreference
 } from '../../../src/index';
-import { createCodeBlock, escapeHtml } from './shared';
+import { createLiveConfigEditor, escapeHtml } from './shared';
 
 export function renderTruncationGuide(
   container: HTMLElement,
@@ -56,7 +56,7 @@ export function renderTruncationGuide(
         <h2 class="panel-title">Example 1: Long Axis Categories, Rotation &amp; Full-Text Tooltips</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Hover or keyboard-<strong>Tab</strong> onto any truncated X-axis tick below to inspect the full label text.
-          Switch strategies between <code>truncate</code>, <code>rotate</code>, <code>both</code>, and <code>wrap</code>.
+          Use the controls or edit <code>data</code> and <code>label.overflow</code> directly in the live JSON editor.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:6px;">
@@ -120,135 +120,152 @@ export function renderTruncationGuide(
     { dept: 'Real-Time Data Streaming Pipelines', Spend: 198 }
   ];
 
-  const renderEx1 = () => {
+  const stratBtns = Array.from(
+    ex1.querySelectorAll<HTMLButtonElement>('[data-trunc-strat]')
+  );
+  const mwSlider = ex1.querySelector('#tr-mw-slider') as HTMLInputElement;
+  const mwVal = ex1.querySelector('#tr-mw-val') as HTMLElement;
+  const mcSlider = ex1.querySelector('#tr-mc-slider') as HTMLInputElement;
+  const mcVal = ex1.querySelector('#tr-mc-val') as HTMLElement;
+  const rotSlider = ex1.querySelector('#tr-rot-slider') as HTMLInputElement;
+  const rotVal = ex1.querySelector('#tr-rot-val') as HTMLElement;
+  const ellSelect = ex1.querySelector('#tr-ellipsis-select') as HTMLSelectElement;
+  const tipToggle = ex1.querySelector('#tr-tip-toggle') as HTMLInputElement;
+
+  const syncEx1Controls = () => {
+    stratBtns.forEach((b) =>
+      b.classList.toggle('btn-primary', b.dataset.truncStrat === strategy)
+    );
+    mwSlider.value = String(maxWidth);
+    mwVal.textContent = `${maxWidth}px`;
+    mcSlider.value = String(maxChars);
+    mcVal.textContent = maxChars > 0 ? String(maxChars) : 'off';
+    rotSlider.value = String(maxRotation);
+    rotVal.textContent = `${maxRotation}°`;
+    if (['…', '...', '→'].includes(ellipsis)) ellSelect.value = ellipsis;
+    tipToggle.checked = enableTooltip;
+  };
+
+  const buildEx1Config = () => {
     const overflow: Record<string, any> = {
       strategy,
       maxWidth,
-      maxRotation,
       ellipsis,
+      maxRotation,
       enableTooltip
     };
     if (maxChars > 0) overflow.maxChars = maxChars;
 
-    bar1.setConfig({
-      data: longDeptData,
-      autoSize: true,
-      themeMode,
-      palette: 'modern',
+    return {
       title: `Long Category Labels — strategy="${strategy}"`,
       indexBy: 'dept',
       keys: ['Spend'],
-      borderRadius: 6,
-      margin: {
-        top: 44,
-        right: 24,
-        bottom: strategy === 'rotate' || strategy === 'both' ? 114 : 74,
-        left: 52
-      },
+      data: longDeptData,
       label: {
         target: 'axis-tick',
         maxWidth,
         overflow
-      },
-      layers: ['grid', 'axes', 'bars', 'labels']
-    });
-
-    code1.innerHTML = '';
-    code1.appendChild(
-      createCodeBlock(
-        `
-// Scope overflow rules to axis ticks (or set chart-wide labelOverflow):
-chart.config = {
-  data: longDeptData,
-  indexBy: 'dept',
-  keys: ['Spend'],
-  label: {
-    target: 'axis-tick',
-    maxWidth: ${maxWidth},
-    overflow: {
-      strategy: '${strategy}',
-      maxWidth: ${maxWidth},${maxChars > 0 ? `\n      maxChars: ${maxChars},` : ''}
-      ellipsis: '${ellipsis}',
-      maxRotation: ${maxRotation},
-      enableTooltip: ${enableTooltip}
-    }
-  }
-};
-
-// Declarative equivalent inside any <mc-*-chart>:
-// <mc-bar-chart>
-//   <mc-truncate for="axis-tick" strategy="${strategy}" max-width="${maxWidth}"${
-          maxChars > 0 ? `\n//     max-chars="${maxChars}"` : ''
-        }
-//     ellipsis="${ellipsis}" max-rotation="${maxRotation}" enable-tooltip="${enableTooltip}">
-//   </mc-truncate>
-// </mc-bar-chart>
-        `,
-        'Axis & Label Truncation Config'
-      )
-    );
+      }
+    };
   };
-  renderEx1();
 
-  const stratBtns = Array.from(
-    ex1.querySelectorAll<HTMLButtonElement>('[data-trunc-strat]')
-  );
+  const applyEx1Config = (cfg: Record<string, any>) => {
+    const strat = cfg.label?.overflow?.strategy ?? strategy;
+    bar1.setConfig({
+      autoSize: true,
+      themeMode,
+      palette: 'modern',
+      borderRadius: 6,
+      margin: {
+        top: 44,
+        right: 24,
+        bottom: strat === 'rotate' || strat === 'both' ? 114 : 74,
+        left: 52
+      },
+      layers: ['grid', 'axes', 'bars', 'labels'],
+      ...cfg
+    });
+  };
+
+  const initialEx1Cfg = buildEx1Config();
+  applyEx1Config(initialEx1Cfg);
+
+  const editor1 = createLiveConfigEditor({
+    title: 'Axis & Label Truncation Config (Live)',
+    initialConfig: initialEx1Cfg,
+    hint: 'Edit strategy, maxWidth, maxChars, ellipsis, maxRotation, or category strings live.',
+    onConfigChange: (nextCfg) => {
+      const ov = nextCfg.label?.overflow;
+      if (ov) {
+        if (ov.strategy) strategy = ov.strategy;
+        if (typeof ov.maxWidth === 'number') maxWidth = ov.maxWidth;
+        if (typeof ov.maxChars === 'number') maxChars = ov.maxChars;
+        if (typeof ov.maxRotation === 'number') maxRotation = ov.maxRotation;
+        if (typeof ov.ellipsis === 'string') ellipsis = ov.ellipsis;
+        if (typeof ov.enableTooltip === 'boolean') enableTooltip = ov.enableTooltip;
+        syncEx1Controls();
+      }
+      applyEx1Config(nextCfg);
+    },
+    onReset: () => {
+      strategy = 'truncate';
+      maxWidth = 78;
+      maxChars = 0;
+      maxRotation = -45;
+      ellipsis = '…';
+      enableTooltip = true;
+      syncEx1Controls();
+      const resetCfg = buildEx1Config();
+      applyEx1Config(resetCfg);
+      editor1.syncConfig(resetCfg);
+    }
+  });
+  code1.appendChild(editor1.element);
+
+  const updateEx1FromControls = () => {
+    syncEx1Controls();
+    const nextCfg = buildEx1Config();
+    applyEx1Config(nextCfg);
+    editor1.syncConfig(nextCfg);
+  };
+
   stratBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       strategy = btn.dataset.truncStrat as LabelOverflowStrategy;
-      stratBtns.forEach((b) =>
-        b.classList.toggle('btn-primary', b.dataset.truncStrat === strategy)
-      );
-      renderEx1();
+      updateEx1FromControls();
     });
   });
-
-  const mwSlider = ex1.querySelector('#tr-mw-slider') as HTMLInputElement;
-  const mwVal = ex1.querySelector('#tr-mw-val') as HTMLElement;
   mwSlider.addEventListener('input', () => {
     maxWidth = Number(mwSlider.value);
-    mwVal.textContent = `${maxWidth}px`;
-    renderEx1();
+    updateEx1FromControls();
   });
-
-  const mcSlider = ex1.querySelector('#tr-mc-slider') as HTMLInputElement;
-  const mcVal = ex1.querySelector('#tr-mc-val') as HTMLElement;
   mcSlider.addEventListener('input', () => {
     maxChars = Number(mcSlider.value);
-    mcVal.textContent = maxChars > 0 ? String(maxChars) : 'off';
-    renderEx1();
+    updateEx1FromControls();
   });
-
-  const rotSlider = ex1.querySelector('#tr-rot-slider') as HTMLInputElement;
-  const rotVal = ex1.querySelector('#tr-rot-val') as HTMLElement;
   rotSlider.addEventListener('input', () => {
     maxRotation = Number(rotSlider.value);
-    rotVal.textContent = `${maxRotation}°`;
-    renderEx1();
+    updateEx1FromControls();
   });
-
-  const ellSelect = ex1.querySelector('#tr-ellipsis-select') as HTMLSelectElement;
   ellSelect.addEventListener('change', () => {
     ellipsis = ellSelect.value;
-    renderEx1();
+    updateEx1FromControls();
   });
-
-  const tipToggle = ex1.querySelector('#tr-tip-toggle') as HTMLInputElement;
   tipToggle.addEventListener('change', () => {
     enableTooltip = tipToggle.checked;
-    renderEx1();
+    updateEx1FromControls();
   });
 
-  // Example 2: Legend Truncation + Standalone <mc-truncate> Component
+  // Example 2: Legend Truncation & Pie Arc Links
   const ex2 = document.createElement('section');
   ex2.className = 'panel-card guide-section';
   ex2.innerHTML = `
     <div class="panel-header">
       <div>
-        <h2 class="panel-title">Example 2: Truncated Legends, Pie Arc Links &amp; Standalone <code>&lt;mc-truncate&gt;</code></h2>
+        <h2 class="panel-title">Example 2: Truncated Legends &amp; Pie Arc Links</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Set <code>legend.maxItemWidth</code> to bound long series names in legends (hovering any legend reveals the full name via its dedicated legend tooltip),
-          or reuse <code>&lt;mc-truncate&gt;</code> standalone anywhere in your application UI.
+          Set <code>legend.maxItemWidth</code> and <code>label.maxWidth</code> to bound long series names in legends and pie link labels —
+          edit either value or segment names in the live JSON editor below.
         </p>
       </div>
     </div>
@@ -256,102 +273,58 @@ chart.config = {
       <div class="guide-chart-stage" id="guide-trunc-chart-2"></div>
       <div id="guide-trunc-code-2"></div>
     </div>
-    <div style="margin-top:14px;padding:14px 16px;border:1px solid var(--border-subtle);border-radius:10px;display:flex;flex-wrap:wrap;align-items:center;gap:14px;">
-      <span style="font-size:0.82rem;font-weight:600;color:var(--text-muted);">Standalone <code>&lt;mc-truncate&gt;</code> (hover or Tab):</span>
-      <mc-truncate
-        text="North America Enterprise Cloud Infrastructure &amp; Multi-Region Storage"
-        max-width="170"
-        font-size="13"
-        font-weight="600"
-      ></mc-truncate>
-      <mc-truncate
-        text="🚀 Asia-Pacific Edge Compute Telemetry"
-        max-chars="18"
-        ellipsis="..."
-        font-size="13"
-        font-weight="600"
-      ></mc-truncate>
-    </div>
   `;
-  const safeThemeMode: ThemeModePreference =
-    themeMode === 'light' || themeMode === 'dark' || themeMode === 'system'
-      ? themeMode
-      : 'system';
-  ex2.querySelectorAll('mc-truncate').forEach((el) => {
-    el.setAttribute('theme-mode', safeThemeMode);
-  });
   container.appendChild(ex2);
 
   const pie2 = document.createElement('mc-pie-chart') as MCBaseChart<any>;
   ex2.querySelector('#guide-trunc-chart-2')!.appendChild(pie2);
   mounted.push(pie2);
 
-  pie2.setConfig({
+  const initialPie2Cfg = {
+    title: 'Truncated Pie Link Labels & Legend Items',
+    palette: 'emerald',
+    innerRadius: 0.52,
     data: [
       { id: 'North America Cloud Infrastructure', value: 420 },
       { id: 'Europe Edge Analytics Platform', value: 315 },
       { id: 'Asia-Pacific Real-Time AI Inference', value: 268 },
       { id: 'Latin America Core Telemetry Mesh', value: 145 }
     ],
-    autoSize: true,
-    themeMode,
-    palette: 'emerald',
-    title: 'Truncated Pie Link Labels & Legend Items',
-    innerRadius: 0.52,
     legend: {
       enabled: true,
-      position: 'bottom',
+      position: 'bottom' as const,
       maxItemWidth: 105,
       enableTooltip: true
     },
     label: {
-      target: 'arc-link',
+      target: 'arc-link' as const,
       maxWidth: 105,
       overflow: {
-        strategy: 'truncate',
+        strategy: 'truncate' as const,
         tooltip: {
-          formatter: (p) =>
+          formatter: (p: any) =>
             `<strong>Full Segment:</strong> ${escapeHtml(String(p.title ?? ''))}`
         }
       }
     }
+  };
+
+  const applyPie2 = (cfg: Record<string, any>) => {
+    pie2.setConfig({
+      autoSize: true,
+      themeMode,
+      ...cfg
+    });
+  };
+  applyPie2(initialPie2Cfg);
+
+  const editor2 = createLiveConfigEditor({
+    title: 'Legend & Pie Arc-Link Truncation Config (Live)',
+    initialConfig: initialPie2Cfg,
+    hint: 'Edit legend.maxItemWidth, label.maxWidth, legend.position, or segment names live.',
+    onConfigChange: applyPie2
   });
-
-  ex2.querySelector('#guide-trunc-code-2')!.appendChild(
-    createCodeBlock(
-      `
-// Truncate pie arc-link labels AND legend items with custom full-text tooltips:
-pieChart.config = {
-  data: regionalSegments,
-  legend: {
-    enabled: true,
-    position: 'bottom',
-    maxItemWidth: 105,
-    enableTooltip: true // full name shown in dedicated legend tooltip
-  },
-  label: {
-    target: 'arc-link',
-    maxWidth: 105,
-    overflow: {
-      strategy: 'truncate',
-      tooltip: {
-        formatter: (p) => \`<strong>Full Segment:</strong> \${p.title}\`
-      }
-    }
-  }
-};
-
-// Standalone reusable <mc-truncate> anywhere in HTML:
-// <mc-truncate
-//   text="North America Enterprise Cloud Infrastructure"
-//   max-width="170"
-//   max-chars="24"
-//   enable-tooltip="true"
-// ></mc-truncate>
-      `,
-      'Legend Truncation & Standalone <mc-truncate>'
-    )
-  );
+  ex2.querySelector('#guide-trunc-code-2')!.appendChild(editor2.element);
 
   return mounted;
 }

@@ -1,5 +1,5 @@
 import type { MCBaseChart, ThemeModePreference } from '../../../src/index';
-import { createCodeBlock } from './shared';
+import { createLiveConfigEditor } from './shared';
 
 export function renderEventsGuide(
   container: HTMLElement,
@@ -68,16 +68,16 @@ export function renderEventsGuide(
   `;
   container.appendChild(intro);
 
-  // Example 1: Live Event-Log Demo
+  // Example 1: Live Event-Log Demo + Live Editable Config
   const ex1 = document.createElement('section');
   ex1.className = 'panel-card guide-section';
   ex1.innerHTML = `
     <div class="panel-header">
       <div>
-        <h2 class="panel-title">Live Interactive Event Log</h2>
+        <h2 class="panel-title">Live Interactive Event Log &amp; Editable Chart Config</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Hover bars, hover legend items, hover the SLA marker annotation, press <strong>Tab + Enter</strong> on items,
-          click the zoom buttons (<code>+</code> / <code>−</code> / <code>Reset</code>), or click the chart to watch composed DOM events stream in real time.
+          Hover bars, click axis labels or empty canvas, hover legends or the SLA marker, press <strong>Tab + Enter</strong>,
+          or edit <code>data</code>, <code>markers</code>, <code>view</code>, and <code>isInteractive</code> in the live JSON editor below.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -163,72 +163,59 @@ export function renderEventsGuide(
       pushLog(
         `mc-event (click)`,
         `target="${d.target}" category="${d.category}" data=${
-          d.data === undefined ? 'undefined' : JSON.stringify(d.data.id ?? d.data.label ?? d.data.value ?? 'ok')
+          d.data === undefined
+            ? 'undefined'
+            : JSON.stringify(d.data.id ?? d.data.label ?? d.data.value ?? 'ok')
         }`
       );
     }
   });
 
-  bar.setConfig({
-    data: [
-      { quarter: 'Q1', Cloud: 142, Edge: 96 },
-      { quarter: 'Q2', Cloud: 178, Edge: 118 },
-      { quarter: 'Q3', Cloud: 196, Edge: 134 },
-      { quarter: 'Q4', Cloud: 235, Edge: 162 }
-    ],
-    autoSize: true,
-    themeMode,
-    palette: 'modern',
+  const initialEventsCfg = {
     title: 'Interactive Event Playground',
+    palette: 'modern',
     indexBy: 'quarter',
     keys: ['Cloud', 'Edge'],
+    isInteractive: true,
+    isFocusable: true,
     borderRadius: 6,
     view: { zoomable: true, pannable: true, showControls: true },
     markers: [
       {
         id: 'target-sla',
-        axis: 'y',
+        axis: 'y' as const,
         value: 150,
         label: 'Target 150',
         stroke: '#f43f5e',
-        annotation: { text: 'SLA 150', position: 'right' }
+        annotation: { text: 'SLA 150', position: 'right' as const }
       }
     ],
-    margin: { top: 44, right: 64, bottom: 72, left: 52 },
-    layers: ['grid', 'axes', 'bars', 'markers', 'labels', 'legends']
+    data: [
+      { quarter: 'Q1', Cloud: 142, Edge: 96 },
+      { quarter: 'Q2', Cloud: 178, Edge: 118 },
+      { quarter: 'Q3', Cloud: 196, Edge: 134 },
+      { quarter: 'Q4', Cloud: 235, Edge: 162 }
+    ]
+  };
+
+  const applyEventsCfg = (cfg: Record<string, any>) => {
+    bar.setConfig({
+      autoSize: true,
+      themeMode,
+      margin: { top: 44, right: 64, bottom: 72, left: 52 },
+      layers: ['grid', 'axes', 'bars', 'markers', 'labels', 'legends'],
+      ...cfg
+    });
+  };
+  applyEventsCfg(initialEventsCfg);
+
+  const editor1 = createLiveConfigEditor({
+    title: 'Interactive Event Playground Config (Live)',
+    initialConfig: initialEventsCfg,
+    hint: 'Edit data, markers, view.zoomable, or toggle isInteractive: false and watch the live event log respond.',
+    onConfigChange: applyEventsCfg
   });
-
-  ex1.querySelector('#guide-events-code-1')!.appendChild(
-    createCodeBlock(
-      `
-const chart = document.querySelector('mc-bar-chart');
-
-// 1. Standard composed DOM events (work across Shadow DOM boundaries)
-chart.addEventListener('mc-tooltip-show', (e) => {
-  const { seriesId, category, value, datum, source } = e.detail;
-  console.log('Hovered/focused:', seriesId, category, value, datum, source);
-});
-
-chart.addEventListener('mc-legend-tooltip-show', (e) => {
-  console.log('Legend item:', e.detail.title);
-});
-
-chart.addEventListener('mc-aria-focus', (e) => {
-  console.log('Keyboard focused:', e.detail.label, e.detail.item);
-});
-
-chart.addEventListener('mc-item-activate', (e) => {
-  console.log('Activated via Enter/Space:', e.detail.item);
-});
-
-chart.addEventListener('mc-zoom', (e) => {
-  const { k, x, y } = e.detail;
-  console.log('Zoom transform:', k, x, y);
-});
-      `,
-      'Listening to Composed Chart DOM Events'
-    )
-  );
+  ex1.querySelector('#guide-events-code-1')!.appendChild(editor1.element);
 
   return mounted;
 }

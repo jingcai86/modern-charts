@@ -1,5 +1,9 @@
-import type { MCBaseChart, ChartRenderContext, ThemeModePreference } from '../../../src/index';
-import { createCodeBlock } from './shared';
+import type {
+  ChartRenderContext,
+  MCBaseChart,
+  ThemeModePreference
+} from '../../../src/index';
+import { createLiveConfigEditor } from './shared';
 
 export function renderCustomLayersGuide(
   container: HTMLElement,
@@ -46,6 +50,7 @@ export function renderCustomLayersGuide(
         <p class="guide-prose" style="margin:4px 0 0;">
           A custom layer function computes the series mean and peak point directly from <code>ctx.data</code>,
           positions elements with <code>ctx.xScale</code> / <code>ctx.yScale</code>, and renders a Pretext-measured callout via <code>ctx.renderLabel()</code>.
+          Edit <code>data</code> values or reorder <code>layers</code> in the live editor to watch the peak &amp; mean recalculate immediately.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -82,8 +87,11 @@ export function renderCustomLayersGuide(
       const points = ctx.data?.[0]?.data ?? [];
       if (!points.length || !ctx.xScale || !ctx.yScale) return;
 
-      const avg = points.reduce((sum, p) => sum + p.y, 0) / points.length;
-      const peak = points.reduce((best, p) => (p.y > best.y ? p : best), points[0]);
+      const avg = points.reduce((sum, p) => sum + Number(p.y), 0) / points.length;
+      const peak = points.reduce(
+        (best, p) => (Number(p.y) > Number(best.y) ? p : best),
+        points[0]
+      );
 
       const avgY = ctx.yScale(avg);
       const peakX = ctx.xScale(peak.x);
@@ -91,7 +99,7 @@ export function renderCustomLayersGuide(
 
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-      // Shaded +/- 10% band around the mean
+      // Shaded +/- 12% band around the mean
       const bandTop = ctx.yScale(avg * 1.12);
       const bandBot = ctx.yScale(avg * 0.88);
       const band = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -161,7 +169,7 @@ export function renderCustomLayersGuide(
   mounted.push(chart1);
 
   let customLayerPlacement: 'front' | 'back' | 'hidden' = 'front';
-  const applyChart1 = () => {
+  const buildChart1Config = () => {
     const layers =
       customLayerPlacement === 'front'
         ? ['grid', 'axes', 'areas', 'lines', 'points', peakAndMeanLayer, 'legends']
@@ -169,21 +177,29 @@ export function renderCustomLayersGuide(
         ? ['grid', peakAndMeanLayer, 'axes', 'areas', 'lines', 'points', 'legends']
         : ['grid', 'axes', 'areas', 'lines', 'points', 'legends'];
 
-    chart1.setConfig({
+    return {
       data: lineData,
-      autoSize: true,
-      themeMode,
-      palette: 'modern',
       title: 'Weekly API Traffic with Custom Layer',
+      palette: 'modern',
       enableArea: true,
       areaOpacity: 0.14,
       curve: 'monotoneX',
       yScale: { type: 'linear', min: 0, max: 115 },
-      margin: { top: 44, right: 28, bottom: 60, left: 52 },
       layers
+    };
+  };
+
+  const applyChart1Config = (cfg: Record<string, any>) => {
+    chart1.setConfig({
+      autoSize: true,
+      themeMode,
+      margin: { top: 44, right: 28, bottom: 60, left: 52 },
+      ...cfg
     });
   };
-  applyChart1();
+
+  const initialCfg1 = buildChart1Config();
+  applyChart1Config(initialCfg1);
 
   const btnFront = ex1.querySelector('#btn-layer-pos-front') as HTMLButtonElement;
   const btnBack = ex1.querySelector('#btn-layer-pos-back') as HTMLButtonElement;
@@ -196,66 +212,47 @@ export function renderCustomLayersGuide(
       customLayerPlacement === 'hidden' ? 'Show Custom Layer' : 'Hide Custom Layer';
   };
 
+  const editor1 = createLiveConfigEditor({
+    title: 'Named Custom Layer Config (Live)',
+    initialConfig: initialCfg1,
+    layerRegistry: { 'peak-and-mean': peakAndMeanLayer },
+    hint: 'Edit data values, yScale, or reorder { "name": "peak-and-mean" } inside layers[].',
+    onConfigChange: (nextCfg) => {
+      applyChart1Config(nextCfg);
+    },
+    onReset: () => {
+      customLayerPlacement = 'front';
+      syncButtons();
+      const resetCfg = buildChart1Config();
+      applyChart1Config(resetCfg);
+      editor1.syncConfig(resetCfg);
+    }
+  });
+  ex1.querySelector('#guide-custom-layer-code-1')!.appendChild(editor1.element);
+
   btnFront.addEventListener('click', () => {
     customLayerPlacement = 'front';
     syncButtons();
-    applyChart1();
+    const nextCfg = buildChart1Config();
+    applyChart1Config(nextCfg);
+    editor1.syncConfig(nextCfg);
   });
   btnBack.addEventListener('click', () => {
     customLayerPlacement = 'back';
     syncButtons();
-    applyChart1();
+    const nextCfg = buildChart1Config();
+    applyChart1Config(nextCfg);
+    editor1.syncConfig(nextCfg);
   });
   btnToggle.addEventListener('click', () => {
     customLayerPlacement = customLayerPlacement === 'hidden' ? 'front' : 'hidden';
     syncButtons();
-    applyChart1();
+    const nextCfg = buildChart1Config();
+    applyChart1Config(nextCfg);
+    editor1.syncConfig(nextCfg);
   });
 
-  ex1.querySelector('#guide-custom-layer-code-1')!.appendChild(
-    createCodeBlock(
-      `
-const peakAndMeanLayer = {
-  name: 'peak-and-mean',
-  render(ctx) {
-    const points = ctx.data[0].data;
-    const avg = points.reduce((s, p) => s + p.y, 0) / points.length;
-    const peak = points.reduce((b, p) => (p.y > b.y ? p : b), points[0]);
-
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-
-    // Position using the chart's computed scales
-    const avgY = ctx.yScale(avg);
-    const peakX = ctx.xScale(peak.x);
-    const peakY = ctx.yScale(peak.y);
-
-    // Draw mean line, halo ring, and Pretext-measured pill badge
-    ctx.renderLabel(g, {
-      text: \`★ Peak: \${peak.y}K (\${peak.x})\`,
-      x: peakX + 18,
-      y: peakY - 4,
-      type: 'custom',
-      color: '#ffffff',
-      background: '#f43f5e',
-      borderRadius: 6,
-      padding: { top: 3, right: 8, bottom: 3, left: 8 }
-    });
-
-    return g;
-  }
-};
-
-chart.config = {
-  data: lineData,
-  // Control z-order simply by positioning peakAndMeanLayer in the array
-  layers: ['grid', 'axes', 'areas', 'lines', 'points', peakAndMeanLayer, 'legends']
-};
-      `,
-      'Named Custom Layer (TypeScript)'
-    )
-  );
-
-  // Live Example 2: Threshold-Aware Custom Layer + Declarative <mc-custom-layer>
+  // Live Example 2: Threshold-Aware Custom Layer
   const ex2 = document.createElement('section');
   ex2.className = 'panel-card guide-section';
   ex2.innerHTML = `
@@ -264,7 +261,8 @@ chart.config = {
         <h2 class="panel-title">Example 2: Reading Threshold Matches Inside a Custom Layer</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Custom layers receive <code>ctx.thresholds.matchedItems</code> with each matched bar's pixel coordinates
-          (<code>px</code>, <code>py</code>, <code>width</code>, <code>value</code>), letting you attach custom warning badges or callouts automatically.
+          (<code>px</code>, <code>py</code>, <code>width</code>, <code>value</code>), letting you attach custom warning badges automatically.
+          Edit <code>markers[0].value</code> or regional <code>Uptime</code> numbers in the editor to see badges move live.
         </p>
       </div>
     </div>
@@ -283,42 +281,43 @@ chart.config = {
     { region: 'SA-East', Uptime: 99.1 }
   ];
 
-  const slaAlertLayer = (ctx: ChartRenderContext<any>) => {
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    for (const item of ctx.thresholds.matchedItems) {
-      if (item.px == null || item.py == null) continue;
-      const cx = item.px + (item.width ?? 0) / 2;
-      ctx.renderLabel(g, {
-        text: `⚠ SLA Breach (${item.value}%)`,
-        x: cx,
-        y: Math.max(18, item.py - 14),
-        type: 'custom',
-        anchor: 'middle',
-        fontSize: 10,
-        fontWeight: 700,
-        color: '#ffffff',
-        background: '#dc2626',
-        borderRadius: 5,
-        padding: { top: 2, right: 6, bottom: 2, left: 6 }
-      });
+  const slaAlertLayer = {
+    name: 'sla-alerts',
+    render(ctx: ChartRenderContext<any>) {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      for (const item of ctx.thresholds.matchedItems) {
+        if (item.px == null || item.py == null) continue;
+        const cx = item.px + (item.width ?? 0) / 2;
+        ctx.renderLabel(g, {
+          text: `⚠ SLA Breach (${item.value}%)`,
+          x: cx,
+          y: Math.max(18, item.py - 14),
+          type: 'custom',
+          anchor: 'middle',
+          fontSize: 10,
+          fontWeight: 700,
+          color: '#ffffff',
+          background: '#dc2626',
+          borderRadius: 5,
+          padding: { top: 2, right: 6, bottom: 2, left: 6 }
+        });
+      }
+      return g;
     }
-    return g;
   };
 
   const chart2 = document.createElement('mc-bar-chart') as MCBaseChart<any>;
   ex2.querySelector('#guide-custom-layer-chart-2')!.appendChild(chart2);
   mounted.push(chart2);
-  chart2.setConfig({
+
+  const initialCfg2 = {
     data: barData,
-    autoSize: true,
-    themeMode,
-    palette: 'emerald',
     title: 'Regional SLA Uptime (%) — Threshold-Aware Layer',
+    palette: 'emerald',
     indexBy: 'region',
     keys: ['Uptime'],
     borderRadius: 6,
     yScale: { type: 'linear', min: 94, max: 101 },
-    margin: { top: 44, right: 24, bottom: 52, left: 52 },
     markers: [
       {
         id: 'sla-floor',
@@ -332,49 +331,28 @@ chart.config = {
       }
     ],
     layers: ['grid', 'axes', 'bars', 'markers', slaAlertLayer]
-  });
+  };
 
-  ex2.querySelector('#guide-custom-layer-code-2')!.appendChild(
-    createCodeBlock(
-      `
-// Declarative HTML alternative with <mc-custom-layer>
-// <mc-bar-chart id="sla-chart">
-//   <mc-chart-layer name="grid"></mc-chart-layer>
-//   <mc-chart-layer name="axes"></mc-chart-layer>
-//   <mc-chart-layer name="bars"></mc-chart-layer>
-//   <mc-custom-layer id="alerts" name="sla-alerts"></mc-custom-layer>
-// </mc-bar-chart>
-
-const slaAlertLayer = (ctx) => {
-  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-
-  // Inspect items flagged by any <mc-marker> threshold rule
-  for (const item of ctx.thresholds.matchedItems) {
-    const cx = item.px + (item.width ?? 0) / 2;
-    ctx.renderLabel(g, {
-      text: \`⚠ SLA Breach (\${item.value}%)\`,
-      x: cx,
-      y: Math.max(18, item.py - 14),
-      type: 'custom',
-      anchor: 'middle',
-      color: '#ffffff',
-      background: '#dc2626',
-      borderRadius: 5,
-      padding: { top: 2, right: 6, bottom: 2, left: 6 }
+  const applyChart2Config = (cfg: Record<string, any>) => {
+    chart2.setConfig({
+      autoSize: true,
+      themeMode,
+      margin: { top: 44, right: 24, bottom: 52, left: 52 },
+      ...cfg
     });
-  }
-  return g;
-};
+  };
+  applyChart2Config(initialCfg2);
 
-barChart.config = {
-  data: barData,
-  markers: [{ axis: 'y', value: 98.5, condition: 'below', matchStyle: { fill: '#ef4444' } }],
-  layers: ['grid', 'axes', 'bars', 'markers', slaAlertLayer]
-};
-      `,
-      'Threshold-Aware Custom Layer'
-    )
-  );
+  const editor2 = createLiveConfigEditor({
+    title: 'Threshold-Aware Custom Layer Config (Live)',
+    initialConfig: initialCfg2,
+    layerRegistry: { 'sla-alerts': slaAlertLayer },
+    hint: 'Change markers[0].value (e.g. 99.5) or Uptime numbers to trigger SLA breach badges live.',
+    onConfigChange: (nextCfg) => {
+      applyChart2Config(nextCfg);
+    }
+  });
+  ex2.querySelector('#guide-custom-layer-code-2')!.appendChild(editor2.element);
 
   // Context Reference Table
   const refCard = document.createElement('section');
@@ -404,4 +382,3 @@ barChart.config = {
 
   return mounted;
 }
-
