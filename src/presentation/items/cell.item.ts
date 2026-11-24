@@ -156,12 +156,15 @@ export function renderHeatmapCellItem(
  */
 export function renderTreemapTileItem(
   leaf: ComputedTreemapLeafModel,
-  ctx: ChartRenderContext<any>
+  ctx: ChartRenderContext<any>,
+  interactiveDrilldown?: boolean,
+  onDrilldown?: (pathNames: string[]) => void
 ): SVGRectElement {
   const rect = document.createElementNS(SVG_NS, 'rect');
   rect.setAttribute('class', 'mc-treemap-tile');
   rect.setAttribute('data-item-component', 'mc-cell-item');
   rect.setAttribute('data-name', leaf.name);
+  rect.setAttribute('data-category', leaf.category);
   rect.setAttribute('x', String(leaf.x0));
   rect.setAttribute('y', String(leaf.y0));
   rect.setAttribute('width', String(leaf.width));
@@ -185,6 +188,9 @@ export function renderTreemapTileItem(
       }
     }) ?? leaf.color;
   rect.setAttribute('fill', tileFill);
+  if (leaf.opacity !== undefined && leaf.opacity < 1) {
+    rect.setAttribute('fill-opacity', String(leaf.opacity));
+  }
   const interactive = ctx.isInteractive !== false;
   if (interactive) {
     rect.style.cursor = 'pointer';
@@ -250,6 +256,17 @@ export function renderTreemapTileItem(
       rect.style.filter = 'none';
       ctx.hideTooltip();
     });
+    if (
+      interactiveDrilldown &&
+      onDrilldown &&
+      leaf.drillPathNames &&
+      leaf.drillPathNames.length > 0
+    ) {
+      rect.addEventListener('click', () => {
+        ctx.hideTooltip();
+        onDrilldown(leaf.drillPathNames);
+      });
+    }
   }
 
   ctx.registerEventTarget(rect, {

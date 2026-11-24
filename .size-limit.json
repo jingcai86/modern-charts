@@ -2,13 +2,13 @@
   {
     "name": "Full library (modern-charts) [brotli]",
     "path": "dist/index.js",
-    "limit": "115 kB"
+    "limit": "120 kB"
   },
   {
     "name": "Full library (modern-charts) [gzip]",
     "path": "dist/index.js",
     "gzip": true,
-    "limit": "135 kB"
+    "limit": "145 kB"
   },
   {
     "name": "Core engine & layers (modern-charts/core) [brotli]",
@@ -112,7 +112,7 @@
   {
     "name": "Standalone Treemap chart (modern-charts/treemap) [brotli]",
     "path": "dist/treemap.js",
-    "limit": "80 kB"
+    "limit": "85 kB"
   },
   {
     "name": "Standalone Treemap chart (modern-charts/treemap) [gzip]",

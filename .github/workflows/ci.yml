@@ -52,10 +52,8 @@ jobs:
         run: npm run build
 
       - name: Verify bundle size limit
-        uses: andresz1/size-limit-action@v1
-        if: matrix.node-version == 22 && github.event_name == 'pull_request'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        if: matrix.node-version == 22
+        run: npm run size
 
       - name: Build demo site
         run: npm run build:examples
