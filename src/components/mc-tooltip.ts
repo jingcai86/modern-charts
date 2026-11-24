@@ -1,3 +1,5 @@
+import { createChartI18n } from '../core/i18n';
+import type { ChartI18n } from '../core/i18n';
 import type {
   ChartTheme,
   TooltipAnchorRect,
@@ -121,7 +123,7 @@ function getTooltipStyleSheet(): CSSStyleSheet | null {
 
       .mc-tooltip-value {
         font-weight: 700;
-        margin-left: 6px;
+        margin-inline-start: 6px;
         font-variant-numeric: tabular-nums;
       }
 
@@ -136,6 +138,12 @@ function getTooltipStyleSheet(): CSSStyleSheet | null {
   return sharedTooltipSheet;
 }
 
+function formatValue(value: unknown, i18n: ChartI18n): string {
+  return typeof value === 'number'
+    ? i18n.formatNumber(value, { useGrouping: false })
+    : String(value ?? '');
+}
+
 function escapeHtml(raw: string): string {
   return raw
     .replace(/&/g, '&amp;')
@@ -145,7 +153,7 @@ function escapeHtml(raw: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function resolveTemplateValue(payload: TooltipPayload, key: string): string {
+function resolveTemplateValue(payload: TooltipPayload, key: string, i18n: ChartI18n): string {
   if (key === 'chartType') return String(payload.chartType ?? '');
   if (key === 'title') return String(payload.title ?? '');
   if (key === 'label') return String(payload.label ?? '');
@@ -153,11 +161,11 @@ function resolveTemplateValue(payload: TooltipPayload, key: string): string {
   if (key === 'category') return String(payload.category ?? '');
   if (key === 'value') return String(payload.value ?? '');
   if (key === 'formattedValue')
-    return String(payload.formattedValue ?? payload.value ?? '');
+    return payload.formattedValue ?? formatValue(payload.value, i18n);
   if (key === 'color') return String(payload.color ?? '');
   if (key === 'percentage')
     return payload.percentage !== undefined
-      ? `${payload.percentage.toFixed(1)}%`
+      ? i18n.formatPercent(payload.percentage / 100, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
       : '';
   if (key === 'badge') return String(payload.badge ?? '');
   if (key.startsWith('datum.') && payload.datum && typeof payload.datum === 'object') {
@@ -176,10 +184,11 @@ function resolveTemplateValue(payload: TooltipPayload, key: string): string {
 
 function interpolateTooltipTemplate(
   template: string,
-  payload: TooltipPayload
+  payload: TooltipPayload,
+  i18n: ChartI18n
 ): string {
-  return template.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, key: string) =>
-    escapeHtml(resolveTemplateValue(payload, key))
+  return template.replace(/\{\{\s*([\p{ID_Continue}$._\u200c\u200d-]+)\s*\}\}/gu, (_, key: string) =>
+    escapeHtml(resolveTemplateValue(payload, key, i18n))
   );
 }
 
@@ -204,6 +213,7 @@ export class MCTooltipElement extends HTMLElement {
     'class-name'
   ];
 
+  #i18n?: ChartI18n;
   #formatter?: (payload: TooltipPayload) => string | null | undefined;
   #renderer?: TooltipRenderer;
   #lastPayload: TooltipPayload | null = null;
@@ -366,6 +376,7 @@ export class MCTooltipElement extends HTMLElement {
   public buildDefaultContent(payload: TooltipPayload): HTMLElement {
     const wrapper = document.createElement('div');
     wrapper.className = 'mc-tooltip-default-content';
+    const i18n = this.#i18n ?? createChartI18n();
 
     if (payload.items && payload.items.length > 0) {
       for (const item of payload.items) {
@@ -396,7 +407,7 @@ export class MCTooltipElement extends HTMLElement {
         const valText =
           item.formattedValue !== undefined
             ? item.formattedValue
-            : String(item.value ?? '');
+            : formatValue(item.value, i18n);
         val.textContent = item.badge ? `${valText} ${item.badge}` : valText;
 
         row.append(left, val);
@@ -436,7 +447,7 @@ export class MCTooltipElement extends HTMLElement {
       val.textContent =
         payload.formattedValue !== undefined
           ? payload.formattedValue
-          : String(payload.value ?? '');
+          : formatValue(payload.value, i18n);
 
       row.append(left, val);
       wrapper.appendChild(row);
@@ -463,8 +474,12 @@ export class MCTooltipElement extends HTMLElement {
     payload: TooltipPayload,
     theme: ChartTheme,
     containerRect: DOMRect,
-    config: TooltipConfig = {}
+    config: TooltipConfig = {},
+    i18n: ChartI18n = createChartI18n()
   ): boolean {
+    this.#i18n = i18n;
+    this.lang = i18n.locale;
+    this.dir = i18n.direction;
     if (config.enabled === false) {
       this.hide();
       return false;
@@ -569,7 +584,7 @@ export class MCTooltipElement extends HTMLElement {
       headerEl.hidden = true;
       headerEl.textContent = '';
       bodyEl.hidden = false;
-      bodyEl.innerHTML = interpolateTooltipTemplate(config.templateHtml, payload);
+      bodyEl.innerHTML = interpolateTooltipTemplate(config.templateHtml, payload, i18n);
     } else {
       this.#renderStructured(payload, headerEl, bodyEl);
     }

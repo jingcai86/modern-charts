@@ -1,3 +1,4 @@
+import { physicalTextAnchor } from '../../core/i18n';
 import type { ChartRenderContext, HeatmapRow } from '../../core/types';
 import type { HeatmapChartModel } from '../../models/heatmap.model';
 import { renderHeatmapCellItem } from '../items/cell.item';
@@ -30,7 +31,7 @@ export function renderHeatmapCellLabelsLayer(
     }
     ctx.renderLabel(ctx.layerGroup, {
       id: `heatmap-label-${idx}`,
-      text: String(cell.value),
+      text: ctx.i18n.formatNumber(cell.value, { useGrouping: false }),
       x: cell.x + cell.width / 2,
       y: cell.y + cell.height / 2,
       type: 'cell',
@@ -93,11 +94,11 @@ export function renderHeatmapLegendLayer(
 
   ctx.renderLabel(ctx.layerGroup, {
     id: 'heatmap-legend-min',
-    text: String(model.minVal),
+    text: ctx.i18n.formatNumber(model.minVal, { useGrouping: false }),
     x: startX - 6,
     y: startY + barH / 2,
     type: 'legend',
-    anchor: 'end',
+    anchor: physicalTextAnchor('end', ctx.i18n.direction),
     baseline: 'middle',
     fontSize: 10,
     color: ctx.theme.mutedTextColor
@@ -105,11 +106,11 @@ export function renderHeatmapLegendLayer(
 
   ctx.renderLabel(ctx.layerGroup, {
     id: 'heatmap-legend-max',
-    text: String(model.maxVal),
+    text: ctx.i18n.formatNumber(model.maxVal, { useGrouping: false }),
     x: startX + barW + 6,
     y: startY + barH / 2,
     type: 'legend',
-    anchor: 'start',
+    anchor: physicalTextAnchor('start', ctx.i18n.direction),
     baseline: 'middle',
     fontSize: 10,
     color: ctx.theme.mutedTextColor

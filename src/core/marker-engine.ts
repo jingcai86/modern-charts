@@ -1,4 +1,5 @@
 import { getScalePosition } from './scale-manager';
+import { createChartI18n, physicalTextAnchor } from './i18n';
 import type {
   ChartRenderContext,
   CustomLabelRenderer,
@@ -577,6 +578,7 @@ export class MarkerEngine {
   ): void {
     const ann = resolveMarkerAnnotation(marker);
     if (!ann) return;
+    const i18n = ctx.i18n ?? createChartI18n();
 
     const isArea = marker.type === 'area';
     const minP = bounds.minP ?? bounds.posPx ?? 0;
@@ -662,7 +664,7 @@ export class MarkerEngine {
       annG.setAttribute('role', 'note');
       annG.setAttribute(
         'aria-label',
-        ann.text || marker.label || `Marker annotation: ${marker.id}`
+        ann.text || marker.label || i18n.message('markerAnnotation', { label: marker.id })
       );
     }
     if (interactiveAnn) {
@@ -736,7 +738,10 @@ export class MarkerEngine {
       annG.appendChild(hitRect);
     }
 
-    ctx.renderLabel(annG, annDescriptor);
+    ctx.renderLabel(annG, {
+      ...annDescriptor,
+      anchor: physicalTextAnchor(annDescriptor.anchor ?? 'middle', i18n.direction)
+    });
 
     ctx.registerEventTarget(annG, {
       target: 'marker',
@@ -759,29 +764,35 @@ export class MarkerEngine {
     });
 
     if (interactiveAnn) {
+      const formatValue = (value: number | string): string => typeof value === 'number'
+        ? i18n.formatNumber(value, { useGrouping: false, maximumFractionDigits: 20 })
+        : value;
       const valueDisplay =
         marker.type === 'area'
           ? `${marker.from ?? 0} – ${marker.to ?? 0}`
           : marker.value ?? '';
+      const formattedValue = marker.type === 'area'
+        ? `${formatValue(marker.from ?? 0)} – ${formatValue(marker.to ?? 0)}`
+        : formatValue(marker.value ?? '');
       const conditionBadge =
         typeof marker.condition === 'string'
-          ? `Condition: ${marker.condition}${
+          ? i18n.message('condition', { condition: `${marker.condition}${
               marker.type === 'area'
-                ? ` (${marker.from ?? 0}–${marker.to ?? 0})`
+                ? ` (${formatValue(marker.from ?? 0)}–${formatValue(marker.to ?? 0)})`
                 : marker.value !== undefined
-                ? ` ${marker.value}`
+                ? ` ${formatValue(marker.value)}`
                 : ''
-            }`
+            }` })
           : undefined;
 
       const buildPayload = (source: 'pointer' | 'keyboard' = 'pointer') => {
         const r = annG.getBoundingClientRect();
         return {
           title: ann.text || marker.label || marker.id,
-          label: marker.type === 'area' ? 'Area Marker' : 'Line Marker',
+          label: marker.type === 'area' ? i18n.messages.areaMarker : i18n.messages.lineMarker,
           seriesId: marker.id,
           value: valueDisplay,
-          formattedValue: ann.tooltipText ?? String(valueDisplay),
+          formattedValue: ann.tooltipText ?? formattedValue,
           color: accent,
           badge: conditionBadge,
           datum: marker,
@@ -923,7 +934,7 @@ export class MarkerEngine {
             x: placement.x,
             y: placement.y,
             type: 'marker',
-            anchor: placement.anchor,
+            anchor: physicalTextAnchor(placement.anchor, ctx.i18n?.direction ?? 'ltr'),
             baseline: placement.baseline,
             fontSize: ls?.fontSize ?? Math.max(10, ctx.theme.fontSize - 1),
             fontWeight: ls?.fontWeight ?? 600,
@@ -993,7 +1004,7 @@ export class MarkerEngine {
             x: placement.x,
             y: placement.y,
             type: 'marker',
-            anchor: placement.anchor,
+            anchor: physicalTextAnchor(placement.anchor, ctx.i18n?.direction ?? 'ltr'),
             baseline: placement.baseline,
             fontSize: ls?.fontSize ?? Math.max(10, ctx.theme.fontSize - 1),
             fontWeight: ls?.fontWeight ?? 600,

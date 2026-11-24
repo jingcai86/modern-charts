@@ -23,6 +23,14 @@
     "is-interactive",
     "is-focusable"
   ],
+  "sharedConfigOptions": {
+    "i18n": {
+      "locale": "BCP 47 language tag; default en-US",
+      "timeZone": "Intl timezone identifier (for example UTC); default runtime local timezone",
+      "direction": ["ltr", "rtl"],
+      "messages": "Partial<ChartMessages>; shared translatable strings with {{name}} placeholders"
+    }
+  },
   "palettes": ["shadcn", "material", "bootstrap", "antd"],
   "motionPresets": ["default", "gentle", "wobbly", "stiff", "slow", "molasses", "elastic", "bounce"],
   "labelTargets": [

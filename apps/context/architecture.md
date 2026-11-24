@@ -44,6 +44,9 @@ interface SharedChartConfig<TData> {
   autoSize?: boolean; // default true (ResizeObserver); set false to use snapshot size + .resize()
   margin?: { top?: number; right?: number; bottom?: number; left?: number };
   title?: string;
+  // Shared Intl formatters and translatable built-in messages; defaults: en-US, local timezone, ltr.
+  // configureI18n(...) sets global defaults; config.i18n overrides them per chart.
+  i18n?: { locale?: string; timeZone?: string; direction?: 'ltr' | 'rtl'; messages?: Partial<ChartMessages> };
 
   // Composable Layer Pipeline (built-in names or custom functions/objects)
   layers?: Array<
@@ -308,7 +311,7 @@ chart.config = {
     {
       name: 'avg-callout',
       render: (ctx) => {
-        // Available on ctx: innerWidth, innerHeight, xScale, yScale, colorScale,
+        // Available on ctx: i18n (formatNumber/formatDate/formatPercent/message), innerWidth, innerHeight, xScale, yScale, colorScale,
         // theme, data, markers, thresholds, layerGroup, svg, d3, renderLabel,
         // measureText, animateItem, decorateAriaItem, showTooltip, hideTooltip, state
         const y = ctx.yScale(150);

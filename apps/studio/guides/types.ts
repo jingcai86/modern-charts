@@ -7,6 +7,7 @@ export type GuideId =
   | 'truncation'
   | 'events'
   | 'accessibility'
+  | 'i18n'
   | 'dynamic-updates'
   | 'chart-state'
   | 'patterns';
@@ -83,6 +84,14 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '♿',
     summary:
       'W3C ARIA roles, screen-reader labels, Tab/Arrow keyboard navigation, polite live announcements, hidden data-table fallback, reduced-motion, and static charts via isInteractive vs. isFocusable.'
+  },
+  {
+    id: 'i18n',
+    title: 'Internationalization (i18n)',
+    shortLabel: 'Internationalization',
+    icon: '🌐',
+    summary:
+      'Format numbers, dates, percentages, and currency; set chart timezones; translate built-in and ARIA messages; and preview RTL labels and legends with live editable examples.'
   },
   {
     id: 'dynamic-updates',

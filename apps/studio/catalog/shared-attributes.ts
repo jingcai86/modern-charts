@@ -71,6 +71,39 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     defaultValue: 56
   },
 
+  // Internationalization
+  {
+    configPath: 'i18n.locale',
+    attrName: 'config only',
+    category: 'Internationalization',
+    control: 'text',
+    description:
+      'BCP 47 locale for chart numbers and dates, such as en-US, de-DE, or ar-EG. Clear to restore the default.',
+    defaultValue: 'en-US'
+  },
+  {
+    configPath: 'i18n.timeZone',
+    attrName: 'config only',
+    category: 'Internationalization',
+    control: 'text',
+    description:
+      'IANA time zone for date labels, such as America/Los_Angeles or Asia/Tokyo. Leave blank to use the runtime time zone.',
+    defaultValue: ''
+  },
+  {
+    configPath: 'i18n.direction',
+    attrName: 'config only',
+    category: 'Internationalization',
+    control: 'select',
+    options: [
+      { label: 'ltr (left to right)', value: 'ltr' },
+      { label: 'rtl (right to left)', value: 'rtl' }
+    ],
+    description:
+      'Text direction for chart labels, legends, and tooltips.',
+    defaultValue: 'ltr'
+  },
+
   // Theme Layer
   {
     configPath: 'themeMode',

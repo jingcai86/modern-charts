@@ -80,18 +80,18 @@ export function showScatterNodeTooltip(
     relative: true
   };
   const items = [
-    { label: 'X', value: node.xValue, color: node.color },
-    { label: 'Y', value: node.yValue, color: node.color }
+    { label: ctx.i18n.messages.x, value: node.xValue, color: node.color },
+    { label: ctx.i18n.messages.y, value: node.yValue, color: node.color }
   ];
   if (node.sizeValue !== 1) {
-    items.push({ label: 'Size', value: node.sizeValue, color: node.color });
+    items.push({ label: ctx.i18n.messages.size, value: node.sizeValue, color: node.color });
   }
   ctx.showTooltip(
     {
       title: node.label || node.seriesId,
       seriesId: node.seriesId,
       value: node.yValue,
-      formattedValue: `(${node.xValue}, ${node.yValue})`,
+      formattedValue: `(${ctx.i18n.formatNumber(node.xValue, { useGrouping: false })}, ${ctx.i18n.formatNumber(node.yValue, { useGrouping: false })})`,
       color: node.color,
       items,
       threshold: node.threshold,
@@ -206,7 +206,7 @@ export function renderScatterNodeItem(
     seriesId: node.seriesId,
     category: `x=${node.xValue}`,
     value: node.yValue,
-    formattedValue: `(${node.xValue}, ${node.yValue})`,
+    formattedValue: `(${ctx.i18n.formatNumber(node.xValue, { useGrouping: false })}, ${ctx.i18n.formatNumber(node.yValue, { useGrouping: false })})`,
     color: node.color,
     anchor: fallbackAnchor,
     datum: {

@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../../core/format';
 import { renderLegendLayer } from '../../core/scale-manager';
 import { resolveChartPointAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext, LineSeries } from '../../core/types';
@@ -78,7 +79,7 @@ export function renderLinePointLabelsLayer(
       if (pt.defined === false) return;
       ctx.renderLabel(ctx.layerGroup, {
         id: `point-label-${s.id}-${pt.pointIndex}`,
-        text: pt.label,
+        text: pt.raw.label !== undefined ? pt.label : ctx.i18n.formatNumber(pt.yValue, { useGrouping: false }),
         x: pt.px,
         y: pt.py - 14,
         type: 'data',
@@ -176,7 +177,7 @@ export function renderLineSlicesLayer(
             id: s.id,
             label: s.id,
             value: p.yValue,
-            formattedValue: String(p.yValue),
+            formattedValue: ctx.i18n.formatNumber(p.yValue, { useGrouping: false }),
             color: p.color,
             badge: p.threshold.isUnderThreshold ? '⚠' : undefined,
             datum: {
@@ -204,8 +205,8 @@ export function renderLineSlicesLayer(
 
       ctx.showTooltip(
         {
-          title: String(pt.xValue),
-          category: String(pt.xValue),
+          title: formatDisplayValue(ctx.scaleConfig.x.type === 'time' ? new Date(pt.xValue) : pt.xValue, ctx.i18n),
+          category: formatDisplayValue(ctx.scaleConfig.x.type === 'time' ? new Date(pt.xValue) : pt.xValue, ctx.i18n),
           items,
           anchor: resolveChartPointAnchor(ctx, pt.px, topPy, 12, 12),
           datum: {

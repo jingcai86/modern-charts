@@ -12,6 +12,7 @@
 4. **Never invent unsupported layer names** — use only the exact `defaultLayers` listed per chart (plus custom layer functions `(ctx) => SVGElement | string | void` or `{ name, render }`).
 5. **Match the exact `data` shape** for the chosen chart (see matrix below and per-chart specs in `charts/*.md`).
 6. **Progressive AI streaming**: Call `chart.streamLayers()` (or append `<mc-chart-layer name="...">` children sequentially) to animate layers onto the canvas step-by-step during LLM streaming responses.
+7. **Internationalization**: import `configureI18n` from `modern-charts/core` for global defaults, or set `config.i18n = { locale, timeZone, direction, messages }` per chart. Defaults are en-US, runtime local timezone, ltr, and English messages. Custom layers use `ctx.i18n` formatNumber/formatDate/formatPercent/message helpers; numeric data and scales keep their original values. Use `timeZone: 'UTC'` for reproducible date labels.
 
 ## Chart Selection Matrix (All 10 Charts)
 

@@ -7,6 +7,8 @@ import {
 import { AriaEngine, createDefaultAriaConfig } from './aria-engine';
 import { EventEngine } from './event-engine';
 import { LabelEngine } from './label-engine';
+import { createChartI18n, subscribeI18n } from './i18n';
+import type { ChartI18n } from './i18n';
 import {
   normalizeOverflowInput,
   normalizeOverflowStrategy
@@ -81,11 +83,7 @@ import {
   normalizeTooltipPosition
 } from '../components/mc-tooltip';
 import { MCDefElement } from '../components/mc-def';
-import {
-  DEFAULT_EMPTY_TEXT,
-  DEFAULT_LOADING_TEXT,
-  MCChartStateElement
-} from '../components/mc-chart-state';
+import { MCChartStateElement } from '../components/mc-chart-state';
 import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -376,6 +374,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   #currentChartState: ChartStateKind | null = null;
   #suppressAttributeRender = false;
   #isStreamingLayers = false;
+  #unsubscribeI18n?: () => void;
+  #lastI18n?: ChartI18n;
   #tooltipMoveHandler: ((e: MouseEvent) => void) | null = null;
 
   protected labelEngine = new LabelEngine();
@@ -498,7 +498,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     return (
       this._config.loadingText ??
       this.getAttribute('loading-text') ??
-      DEFAULT_LOADING_TEXT
+      this.resolveI18n().messages.loading
     );
   }
   set loadingText(val: string | undefined) {
@@ -512,7 +512,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     return (
       this._config.emptyText ??
       this.getAttribute('empty-text') ??
-      DEFAULT_EMPTY_TEXT
+      this.resolveI18n().messages.empty
     );
   }
   set emptyText(val: string | undefined) {
@@ -569,6 +569,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
   connectedCallback(): void {
     this._isConnected = true;
+    this.#unsubscribeI18n?.();
+    this.#unsubscribeI18n = subscribeI18n(() => this.render());
     this.#setupControlsListeners();
     this.#setupStateSlotListeners();
     this.#setupChildObservers();
@@ -590,6 +592,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
   disconnectedCallback(): void {
     this._isConnected = false;
+    this.#unsubscribeI18n?.();
+    this.#unsubscribeI18n = undefined;
     this.cancelTransitions(true);
     this.eventEngine.detach();
     this.#syncTooltipPointerTracking(false);
@@ -642,6 +646,11 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (this._isConnected && !this.#suppressAttributeRender) {
       this.render();
     }
+  }
+
+  /** Resolves global defaults and this chart's locale, timezone, direction, and messages. */
+  public resolveI18n(): ChartI18n {
+    return createChartI18n(this._config.i18n);
   }
 
   get config(): ChartConfig<TData> {
@@ -1973,6 +1982,18 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     } else {
       this.eventEngine.detach();
     }
+    const i18n = this.resolveI18n();
+    const previousI18n = this.#lastI18n;
+    if (previousI18n && (
+      previousI18n.locale !== i18n.locale || previousI18n.timeZone !== i18n.timeZone ||
+      previousI18n.direction !== i18n.direction ||
+      (Object.keys(i18n.messages) as Array<keyof typeof i18n.messages>)
+        .some((key) => previousI18n.messages[key] !== i18n.messages[key])
+    )) {
+      this.hideTooltip();
+      this.hideLegendTooltip();
+    }
+    this.#lastI18n = i18n;
     const theme = this.resolveTheme();
     const scaleConfig = this.resolveScaleConfig();
     const viewConfig = this.resolveViewConfig();
@@ -1986,11 +2007,14 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     ) as HTMLDivElement | null;
     if (containerEl) {
       containerEl.classList.toggle('mc-chart-container--static', !isInteractive);
+      containerEl.lang = i18n.locale;
+      containerEl.dir = i18n.direction;
     }
     this.#setCustomState('static', !isInteractive);
     this.#syncInteractiveTooltips(isInteractive);
     this.#syncTooltipPointerTracking(isInteractive);
 
+    this.labelEngine.setDirection(i18n.direction);
     this.labelEngine.setOverrides(labelOverrides);
     this.labelEngine.setCustomRenderer(this.labelRenderer);
     this.labelEngine.setTooltipHandlers(
@@ -2008,11 +2032,21 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     svg.setAttribute('height', String(dims.height));
     svg.setAttribute('viewBox', `0 0 ${dims.width} ${dims.height}`);
     svg.style.background = theme.background;
+    svg.setAttribute('lang', i18n.locale);
+    svg.setAttribute('direction', i18n.direction);
+
+    for (const [zoom, key] of [
+      ['in', 'zoomIn'], ['out', 'zoomOut'], ['reset', 'resetZoom']
+    ] as const) {
+      const button = controlsEl?.querySelector(`[data-zoom="${zoom}"]`);
+      button?.setAttribute('aria-label', i18n.messages[key]);
+      if (zoom === 'reset' && button) button.textContent = i18n.messages.resetZoomLabel;
+    }
 
     const effectiveTitle =
       ariaConfig.label ||
       this.chartTitle ||
-      `Modern Charts ${this.chartType} visualization`;
+      i18n.message('chartTitle', { chartType: this.chartType });
     if (titleEl) {
       titleEl.textContent = effectiveTitle;
     }
@@ -2020,8 +2054,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       descEl.textContent =
         ariaConfig.description ||
         (isInteractive
-          ? `Interactive ${this.chartType} chart with accessible focusable items`
-          : `Static ${this.chartType} chart visualization`);
+          ? i18n.message('chartDescription', { chartType: this.chartType })
+          : i18n.message('chartDescriptionStatic', { chartType: this.chartType }));
     }
     if (ariaConfig.label) {
       svg.setAttribute('aria-label', ariaConfig.label);
@@ -2100,6 +2134,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       innerHeight: dims.innerHeight,
       margin: dims.margin,
       theme,
+      i18n,
       scaleConfig,
       viewConfig,
       animationConfig,
@@ -2148,7 +2183,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
               this.#handleAriaItemActivate(activatedItem, label, el),
             navigateRelative: (currentEl, delta) =>
               this.#navigateAriaItems(currentEl, delta)
-          }
+          },
+          i18n
         );
         this._decoratedAriaItems.push({
           item,
@@ -2199,7 +2235,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         {
           id: 'chart-title',
           text: this.chartTitle,
-          x: 0,
+          x: i18n.direction === 'rtl' ? dims.innerWidth : 0,
           y: -Math.max(12, dims.margin.top * 0.5),
           type: 'title',
           anchor: 'start',
@@ -2267,7 +2303,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         isInteractive && ariaConfig.enabled && ariaConfig.includeDataTable
           ? this.ariaEngine.buildAccessibleDataTableHtml(
               effectiveTitle,
-              this._decoratedAriaItems
+              this._decoratedAriaItems,
+              i18n
             )
           : '';
     }
@@ -2302,6 +2339,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     );
 
     if (element) {
+      const i18n = this.resolveI18n();
+      const formattedValue = typeof item.value === 'number'
+        ? i18n.formatNumber(item.value, { useGrouping: false })
+        : String(item.value ?? '');
       const anchor = item.anchor ?? resolveElementAnchor(element);
       const container = this.shadowRoot?.querySelector(
         '.mc-chart-container'
@@ -2326,16 +2367,16 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
               ? item.seriesId
               : item.source && item.target
               ? `${item.source} → ${item.target}`
-              : item.label || 'Value',
+              : item.label || i18n.messages.value,
           seriesId: item.seriesId,
           category: item.category,
           value: item.value,
           formattedValue:
             item.formattedValue ??
             (item.percentage !== undefined && item.value !== undefined
-              ? `${item.value} (${item.percentage.toFixed(1)}%)`
+              ? `${formattedValue} (${i18n.formatPercent(item.percentage / 100, { minimumFractionDigits: 1, maximumFractionDigits: 1 })})`
               : item.value !== undefined
-              ? String(item.value)
+              ? formattedValue
               : undefined),
           color: item.color,
           percentage: item.percentage,
@@ -2497,7 +2538,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         offsetX: 10,
         offsetY: -36,
         ...legendConfig.tooltip
-      });
+      }, this.resolveI18n());
       if (shown) {
         this.dispatchEvent(
           new CustomEvent('mc-legend-tooltip-show', {
@@ -2628,7 +2669,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     const rect = container.getBoundingClientRect();
 
     if (typeof tooltip.show === 'function') {
-      const shown = tooltip.show(payload, activeTheme, rect, tooltipConfig);
+      const shown = tooltip.show(payload, activeTheme, rect, tooltipConfig, this.resolveI18n());
       if (shown) {
         this.dispatchEvent(
           new CustomEvent('mc-tooltip-show', {

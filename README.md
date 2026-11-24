@@ -134,6 +134,40 @@ npm install modern-charts
 </script>
 ```
 
+### Internationalization
+
+All chart types share a framework-neutral i18n service, exported from `modern-charts` and `modern-charts/core`. Configure application defaults once, or override them in an individual chart's `config.i18n`:
+
+```js
+import { configureI18n } from 'modern-charts/core';
+import 'modern-charts/bar';
+
+configureI18n({
+  locale: 'de-DE',
+  timeZone: 'Europe/Berlin',
+  messages: {
+    loading: 'Wird geladen…',
+    empty: 'Keine Daten',
+    zoomIn: 'Vergrößern',
+    tableValue: 'Wert',
+    ariaBarCategory: '{{label}} in {{category}}: {{value}}'
+  }
+});
+
+chart.config = {
+  ...chart.config,
+  i18n: { locale: 'ar-EG', direction: 'rtl', timeZone: 'UTC' }
+};
+```
+
+Defaults are `en-US`, the runtime's local timezone, left-to-right direction, and English messages. Set `timeZone: 'UTC'` for identical date labels across machines. Direction is explicit; selecting an Arabic or Hebrew locale alone does not change it. RTL positions text and legends while preserving data and scale order.
+
+`configureI18n()` replaces the global overrides and refreshes connected charts; `configureI18n({})` restores defaults. Per-chart settings take precedence, and partial message overrides fall back to global messages and then English. `ChartMessages` lists all translation keys. Message templates use `{{name}}` placeholders; existing custom ARIA callbacks, label renderers, tooltips, and loading/empty text overrides still take precedence.
+
+Numbers, percentages, and date ticks use `Intl` with the resolved chart settings. Custom layers receive `ctx.i18n.formatNumber(value, options)`, `formatPercent(ratio, options)`, `formatDate(date, options)`, and `message(key, values)`. For example, `ctx.i18n.formatPercent(0.25)` formats 25 percent. Raw chart data, event payload values, and SVG coordinates keep their original values. `createChartI18n(overrides)` exposes the same formatters outside a chart.
+
+Studio's **Internationalization** controls let you preview locale, timezone, and direction for each chart. The [Internationalization guide](https://jingcai86.github.io/modern-charts/#/guide/i18n) includes live editable examples for number formats, timezones, translated messages, and RTL, plus shared-service setup code. Studio interface copy and documentation remain English; application message catalogs and translations of user-provided titles, series names, and categories belong to the host application.
+
 ### 3. Per-Chart Subpath Imports (Tree-Shaking)
 
 Import individual chart entry points so bundlers tree-shake unused charts and D3 modules, and only the required custom elements are registered:

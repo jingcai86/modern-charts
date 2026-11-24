@@ -1,4 +1,5 @@
 import { buildMarkerLegendItems } from './marker-engine';
+import { createChartI18n } from './i18n';
 import type {
   ChartRenderContext,
   ChartTheme,
@@ -150,7 +151,8 @@ export function computeLegendLayout(
     text: string,
     options?: { type?: 'legend'; fontSize?: number; maxWidth?: number }
   ) => MeasuredLabel,
-  theme: ChartTheme
+  theme: ChartTheme,
+  direction: 'ltr' | 'rtl' = 'ltr'
 ): ComputedLegendLayout {
   const fontSize = config.fontSize ?? Math.max(10, theme.fontSize - 1);
   const swatchSize = config.swatchSize;
@@ -247,6 +249,11 @@ export function computeLegendLayout(
       cursorY += rowHeight + (rowIndex < rows.length - 1 ? config.rowGap : 0);
     });
 
+    if (direction === 'rtl') {
+      for (const item of positioned) {
+        item.x = 2 * pad.left + usableWidth - item.x - item.width;
+      }
+    }
     const contentHeight = cursorY;
     return {
       position: config.position,
@@ -321,6 +328,11 @@ export function computeLegendLayout(
   });
 
   const contentWidth = cursorX;
+  if (direction === 'rtl') {
+    for (const item of positioned) {
+      item.x = 2 * pad.left + contentWidth - item.x - item.width;
+    }
+  }
   return {
     position: config.position,
     items: positioned,
@@ -361,7 +373,9 @@ export function renderUnifiedLegendLayer(
 
   if (!cfg.enabled) return;
 
+  const i18n = ctx.i18n ?? createChartI18n();
   const isVertical = cfg.position === 'left' || cfg.position === 'right';
+  const direction = i18n.direction;
   const availableWidth = isVertical ? ctx.margin[cfg.position] : ctx.innerWidth;
   const availableHeight = ctx.innerHeight;
 
@@ -371,7 +385,8 @@ export function renderUnifiedLegendLayer(
     availableWidth,
     availableHeight,
     (text, opts) => ctx.measureText(text, opts),
-    ctx.theme
+    ctx.theme,
+    direction
   );
 
   // Position the legend group relative to rootGroup (which is translated by margin.left, margin.top)
@@ -405,9 +420,10 @@ export function renderUnifiedLegendLayer(
 
   const legendG = document.createElementNS(SVG_NS, 'g');
   legendG.setAttribute('class', `mc-legend mc-legend--${cfg.position}`);
+  legendG.setAttribute('direction', direction);
   if (interactive) {
     legendG.setAttribute('role', 'list');
-    legendG.setAttribute('aria-label', 'Chart legend');
+    legendG.setAttribute('aria-label', i18n.messages.legend);
   }
   legendG.setAttribute('data-legend-position', cfg.position);
   legendG.setAttribute('data-legend-wrap', String(cfg.wrap));
@@ -433,7 +449,7 @@ export function renderUnifiedLegendLayer(
       if (focusable) {
         itemG.setAttribute('tabindex', '0');
       }
-      itemG.setAttribute('aria-label', `Legend: ${item.label}`);
+      itemG.setAttribute('aria-label', i18n.message('legendItem', { label: item.label }));
     }
     itemG.setAttribute('data-legend-id', item.id);
     itemG.setAttribute('data-legend-kind', item.kind ?? 'series');
@@ -479,6 +495,7 @@ export function renderUnifiedLegendLayer(
 
     const itemSwatchWidth =
       item.swatch === 'line' ? Math.max(layout.swatchSize, 16) : layout.swatchSize;
+    const swatchX = direction === 'rtl' ? width - itemSwatchWidth : 0;
 
     const swatchFill =
       item.kind === 'marker'
@@ -498,8 +515,8 @@ export function renderUnifiedLegendLayer(
     if (item.swatch === 'line') {
       const lineSwatch = document.createElementNS(SVG_NS, 'line');
       lineSwatch.setAttribute('class', 'mc-legend-swatch mc-legend-swatch--line');
-      lineSwatch.setAttribute('x1', '0');
-      lineSwatch.setAttribute('x2', String(itemSwatchWidth));
+      lineSwatch.setAttribute('x1', String(swatchX));
+      lineSwatch.setAttribute('x2', String(swatchX + itemSwatchWidth));
       lineSwatch.setAttribute('y1', '0');
       lineSwatch.setAttribute('y2', '0');
       lineSwatch.setAttribute('stroke', item.color);
@@ -512,7 +529,7 @@ export function renderUnifiedLegendLayer(
     } else if (item.swatch === 'area') {
       const areaSwatch = document.createElementNS(SVG_NS, 'rect');
       areaSwatch.setAttribute('class', 'mc-legend-swatch mc-legend-swatch--area');
-      areaSwatch.setAttribute('x', '0');
+      areaSwatch.setAttribute('x', String(swatchX));
       areaSwatch.setAttribute('y', String(-halfSwatch));
       areaSwatch.setAttribute('width', String(itemSwatchWidth));
       areaSwatch.setAttribute('height', String(layout.swatchSize));
@@ -528,7 +545,7 @@ export function renderUnifiedLegendLayer(
     } else {
       const swatch = document.createElementNS(SVG_NS, 'rect');
       swatch.setAttribute('class', 'mc-legend-swatch');
-      swatch.setAttribute('x', '0');
+      swatch.setAttribute('x', String(swatchX));
       swatch.setAttribute('y', String(-halfSwatch));
       swatch.setAttribute('width', String(itemSwatchWidth));
       swatch.setAttribute('height', String(layout.swatchSize));
@@ -540,7 +557,9 @@ export function renderUnifiedLegendLayer(
     ctx.renderLabel(itemG, {
       id: `legend-${index}`,
       text: item.label,
-      x: itemSwatchWidth + layout.swatchGap,
+      x: direction === 'rtl'
+        ? swatchX - layout.swatchGap
+        : itemSwatchWidth + layout.swatchGap,
       y: 0,
       type: 'legend',
       anchor: 'start',
@@ -554,24 +573,28 @@ export function renderUnifiedLegendLayer(
 
     const isMarker = item.kind === 'marker';
     const markerTypeLabel =
-      item.meta?.markerType === 'area' ? 'Area Marker' : 'Line Marker';
+      item.meta?.markerType === 'area' ? i18n.messages.areaMarker : i18n.messages.lineMarker;
     const markerConditionBadge =
       isMarker && item.meta?.condition
-        ? `Condition: ${item.meta.condition}`
+        ? i18n.message('condition', { condition: item.meta.condition })
         : undefined;
+    const formatValue = (value: unknown): string => typeof value === 'number'
+      ? i18n.formatNumber(value, { useGrouping: false, maximumFractionDigits: 20 })
+      : String(value ?? '');
+    const formattedValue = item.tooltipText ?? (isMarker && item.meta?.markerType === 'area'
+      ? `${formatValue(item.meta.from ?? 0)} – ${formatValue(item.meta.to ?? 0)}`
+      : item.value !== undefined ? formatValue(item.value) : item.label);
 
     const buildLegendTooltipPayload = () => ({
       title: item.label,
       label: isMarker
         ? markerTypeLabel
         : item.value !== undefined
-        ? 'Value'
-        : 'Series',
+        ? i18n.messages.value
+        : i18n.messages.series,
       seriesId: item.id,
       value: item.value !== undefined ? item.value : item.label,
-      formattedValue:
-        item.tooltipText ??
-        (item.value !== undefined ? String(item.value) : item.label),
+      formattedValue,
       color: item.color,
       badge: markerConditionBadge,
       datum: {

@@ -115,7 +115,7 @@ export function computeTreemapChartModel(
   const activeRootData =
     focusPath.length > 0 ? findFocusNode(rawRoot, focusPath) : rawRoot;
   const isDrilledDown = focusPath.length > 0;
-  const breadcrumbText = [rawRoot.name || 'Root', ...focusPath].join(' › ');
+  const breadcrumbText = [rawRoot.name || ctx.i18n.messages.root, ...focusPath].join(' › ');
   const breadcrumbHeight = isDrilledDown ? 28 : 0;
 
   const tileMethod: TreemapTileMethod =

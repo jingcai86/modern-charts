@@ -1,3 +1,4 @@
+import { physicalTextAnchor } from '../../core/i18n';
 import { formatGroupedNumber } from '../../core/format';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, PieDatum } from '../../core/types';
@@ -32,7 +33,7 @@ export function renderPieArcLabelsLayer(
     if (arc.endAngle - arc.startAngle < 0.25) return;
     ctx.renderLabel(g, {
       id: `arc-label-${idx}`,
-      text: `${Math.round(arc.percentage)}%`,
+      text: ctx.i18n.formatPercent(Math.round(arc.percentage) / 100, { maximumFractionDigits: 0 }),
       x: arc.centroid[0],
       y: arc.centroid[1],
       type: 'arc',
@@ -79,11 +80,11 @@ export function renderPieArcLinkLabelsLayer(
 
     const linkLabelG = ctx.renderLabel(g, {
       id: `arc-link-label-${idx}`,
-      text: `${arc.data.label || arc.data.id} (${arc.value})`,
+      text: `${arc.data.label || arc.data.id} (${ctx.i18n.formatNumber(arc.value, { useGrouping: false })})`,
       x: p2[0] + (arc.isRightSide ? 6 : -6),
       y: p2[1],
       type: 'arc-link',
-      anchor: arc.isRightSide ? 'start' : 'end',
+      anchor: physicalTextAnchor(arc.isRightSide ? 'start' : 'end', ctx.i18n.direction),
       baseline: 'middle',
       maxWidth: 115,
       fontSize: Math.max(11, ctx.theme.fontSize - 1),
@@ -103,7 +104,7 @@ export function renderPieArcLinkLabelsLayer(
         data: {
           id: arc.data.id,
           labelType: 'arc-link',
-          text: `${arc.data.label || arc.data.id} (${arc.value})`,
+          text: `${arc.data.label || arc.data.id} (${ctx.i18n.formatNumber(arc.value, { useGrouping: false })})`,
           datum: arc.data,
           index: idx,
           count: model.arcs.length
@@ -123,7 +124,7 @@ export function renderPieCenterLayer(
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
-  const text = model.centerLabel || `Total\n${formatGroupedNumber(model.total)}`;
+  const text = model.centerLabel || `${ctx.i18n.messages.total}\n${formatGroupedNumber(model.total, ctx.i18n)}`;
   ctx.renderLabel(g, {
     id: 'pie-center-label',
     text,

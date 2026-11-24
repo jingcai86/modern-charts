@@ -4,26 +4,27 @@ import { isUnsafePathKey, setByPath } from './object-path';
 
 const MAX_PARSE_DEPTH = 64;
 
-function isJsIdentifierStart(code: number): boolean {
-  return (
-    (code >= 65 && code <= 90) || // A-Z
-    (code >= 97 && code <= 122) || // a-z
-    code === 95 || // _
-    code === 36 // $
-  );
+const JS_IDENTIFIER_START = /^[$_\p{ID_Start}]$/u;
+const JS_IDENTIFIER_PART = /^[$_\u200c\u200d\p{ID_Continue}]$/u;
+
+function isJsIdentifierStart(code: number | undefined): boolean {
+  return code !== undefined && JS_IDENTIFIER_START.test(String.fromCodePoint(code));
 }
 
-function isJsIdentifierPart(code: number): boolean {
-  return isJsIdentifierStart(code) || (code >= 48 && code <= 57); // 0-9
+function isJsIdentifierPart(code: number | undefined): boolean {
+  return code !== undefined && JS_IDENTIFIER_PART.test(String.fromCodePoint(code));
 }
 
 function isValidJsIdentifier(key: string): boolean {
-  if (key.length === 0) return false;
-  if (!isJsIdentifierStart(key.charCodeAt(0))) return false;
-  for (let i = 1; i < key.length; i++) {
-    if (!isJsIdentifierPart(key.charCodeAt(i))) return false;
+  let first = true;
+  for (const char of key) {
+    const code = char.codePointAt(0);
+    if (first ? !isJsIdentifierStart(code) : !isJsIdentifierPart(code)) {
+      return false;
+    }
+    first = false;
   }
-  return true;
+  return !first;
 }
 
 function formatJsString(str: string): string {
@@ -116,7 +117,7 @@ export function formatConfigAssignment(
 /**
  * Pure, linear-time recursive-descent parser for JS config object literals
  * (e.g. `chart.config = { palette: 'shadcn', data: [...] };`).
- * Supports unquoted identifier keys, single/double-quoted strings, trailing commas,
+ * Supports unquoted Unicode identifier keys, single/double-quoted strings, trailing commas,
  * and `//` or `/* *\/` comments — with zero `eval` or `new Function`.
  */
 export function parseConfigObjectLiteral(source: string): any {
@@ -167,12 +168,15 @@ export function parseConfigObjectLiteral(source: string): any {
 
   const readIdentifier = (): string => {
     const start = pos;
-    if (pos >= len || !isJsIdentifierStart(source.charCodeAt(pos))) {
+    const first = source.codePointAt(pos);
+    if (!isJsIdentifierStart(first)) {
       return '';
     }
-    pos++;
-    while (pos < len && isJsIdentifierPart(source.charCodeAt(pos))) {
-      pos++;
+    pos += first! > 0xffff ? 2 : 1;
+    while (pos < len) {
+      const next = source.codePointAt(pos);
+      if (!isJsIdentifierPart(next)) break;
+      pos += next! > 0xffff ? 2 : 1;
     }
     return source.slice(start, pos);
   };
@@ -412,7 +416,7 @@ export function parseConfigObjectLiteral(source: string): any {
       const ch = source[pos];
       if (ch === '"' || ch === "'") {
         key = parseString(ch);
-      } else if (isJsIdentifierStart(source.charCodeAt(pos))) {
+      } else if (isJsIdentifierStart(source.codePointAt(pos))) {
         key = readIdentifier();
       } else if (source.charCodeAt(pos) >= 48 && source.charCodeAt(pos) <= 57) {
         key = String(parseNumber());
@@ -463,7 +467,7 @@ export function parseConfigObjectLiteral(source: string): any {
     ) {
       return parseNumber();
     }
-    if (isJsIdentifierStart(source.charCodeAt(pos))) {
+    if (isJsIdentifierStart(source.codePointAt(pos))) {
       const word = readIdentifier();
       if (word === 'true') return true;
       if (word === 'false') return false;
@@ -625,7 +629,8 @@ export function extractTagAttributes(
   tagName: string
 ): Record<string, string> {
   const attrs: Record<string, string> = {};
-  const lower = markup.toLowerCase();
+  // HTML tag names fold ASCII only; Unicode case conversion can change source offsets.
+  const lower = markup.replace(/[A-Z]/g, (char) => char.toLowerCase());
   const openToken = `<${tagName.toLowerCase()}`;
   let idx = lower.indexOf(openToken);
   while (idx !== -1) {

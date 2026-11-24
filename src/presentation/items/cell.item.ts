@@ -83,7 +83,7 @@ export function renderHeatmapCellItem(
     seriesId: cell.rowId,
     category: cell.colId,
     value: cell.value,
-    formattedValue: String(cell.value),
+    formattedValue: ctx.i18n.formatNumber(cell.value, { useGrouping: false }),
     color: cell.color,
     anchor: fallbackAnchor,
     datum: {
@@ -108,11 +108,11 @@ export function renderHeatmapCellItem(
       ctx.showTooltip(
         {
           title: `${cell.rowId} × ${cell.colId}`,
-          label: 'Value',
+          label: ctx.i18n.messages.value,
           seriesId: cell.rowId,
           category: cell.colId,
           value: cell.value,
-          formattedValue: String(cell.value),
+          formattedValue: ctx.i18n.formatNumber(cell.value, { useGrouping: false }),
           color: cell.color,
           anchor: resolveElementAnchor(node, fallbackAnchor),
           datum: {
@@ -216,7 +216,7 @@ export function renderTreemapTileItem(
     label: leaf.name,
     category: leaf.category,
     value: leaf.value,
-    formattedValue: String(leaf.value),
+    formattedValue: ctx.i18n.formatNumber(leaf.value, { useGrouping: false }),
     color: leaf.color,
     anchor: fallbackAnchor,
     datum: {
@@ -239,10 +239,10 @@ export function renderTreemapTileItem(
       ctx.showTooltip(
         {
           title: `${leaf.category} › ${leaf.name}`,
-          label: 'Value',
+          label: ctx.i18n.messages.value,
           category: leaf.category,
           value: leaf.value,
-          formattedValue: formatGroupedNumber(leaf.value),
+          formattedValue: formatGroupedNumber(leaf.value, ctx.i18n),
           color: leaf.color,
           anchor: resolveElementAnchor(rect, fallbackAnchor),
           datum: {

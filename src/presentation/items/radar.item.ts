@@ -108,7 +108,7 @@ export function renderRadarDotItem(
     seriesId: pt.seriesKey,
     category: pt.axis,
     value: pt.value,
-    formattedValue: String(pt.value),
+    formattedValue: ctx.i18n.formatNumber(pt.value, { useGrouping: false }),
     color: pt.color,
     anchor: fallbackAnchor,
     datum: {
@@ -135,7 +135,7 @@ export function renderRadarDotItem(
           seriesId: pt.seriesKey,
           category: pt.axis,
           value: pt.value,
-          formattedValue: String(pt.value),
+          formattedValue: ctx.i18n.formatNumber(pt.value, { useGrouping: false }),
           color: pt.color,
           anchor: resolveElementAnchor(dot, fallbackAnchor),
           datum: {
