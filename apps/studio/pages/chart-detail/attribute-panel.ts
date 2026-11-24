@@ -66,7 +66,7 @@ export function createAttributePanel(opts: {
     <div class="attributes-section-header">
       <div>
         <h2 class="panel-title">
-          All Customizable Attributes &amp; Config Properties (${allAttributes.length})
+          Attributes &amp; Config (${allAttributes.length})
         </h2>
         <p class="attributes-section-description">
           Chart-specific options come first, followed by common settings shared across charts. Changes update the live chart and <code>chart.config</code> immediately.
