@@ -30,11 +30,25 @@ export function renderSankeyLabelsLayer(
   ctx: ChartRenderContext<SankeyData>
 ): void {
   if (!model.enableLabels) return;
+  const isVertical = model.layout === 'vertical';
 
   model.nodes.forEach((node) => {
-    const isLeftHalf = node.x0 < ctx.innerWidth / 2;
-    const lx = isLeftHalf ? node.x1 + 8 : node.x0 - 8;
-    const ly = (node.y0 + node.y1) / 2;
+    let lx: number;
+    let ly: number;
+    let anchor: 'start' | 'middle' | 'end';
+    let maxWidth = 145;
+
+    if (isVertical) {
+      lx = (node.x0 + node.x1) / 2;
+      ly = (node.y0 + node.y1) / 2;
+      anchor = 'middle';
+      maxWidth = Math.max(76, Math.min(180, node.x1 - node.x0 + 28));
+    } else {
+      const isLeftHalf = node.x0 < ctx.innerWidth / 2;
+      lx = isLeftHalf ? node.x1 + 8 : node.x0 - 8;
+      ly = (node.y0 + node.y1) / 2;
+      anchor = isLeftHalf ? 'start' : 'end';
+    }
 
     ctx.renderLabel(ctx.layerGroup, {
       id: `sankey-label-${node.id}`,
@@ -42,9 +56,9 @@ export function renderSankeyLabelsLayer(
       x: lx,
       y: ly,
       type: 'node',
-      anchor: isLeftHalf ? 'start' : 'end',
+      anchor,
       baseline: 'middle',
-      maxWidth: 145,
+      maxWidth,
       fontSize: ctx.theme.fontSize,
       fontWeight: 600,
       color: ctx.theme.textColor,

@@ -2,7 +2,9 @@ import { MCBaseChart } from '../core/base-chart';
 import type {
   ChartMargin,
   ChartRenderContext,
-  SankeyData
+  SankeyAlign,
+  SankeyData,
+  SankeyFocusMode
 } from '../core/types';
 import {
   computeSankeyChartModel,
@@ -22,8 +24,13 @@ import {
 export class MCSankeyChart extends MCBaseChart<SankeyData> {
   static observedAttributes = [
     ...MCBaseChart.baseObservedAttributes,
+    'layout',
+    'align',
     'node-width',
     'node-padding',
+    'border-radius',
+    'curveness',
+    'focus-mode',
     'link-opacity',
     'enable-labels'
   ];
@@ -40,6 +47,25 @@ export class MCSankeyChart extends MCBaseChart<SankeyData> {
     return { top: 36, right: 36, bottom: 58, left: 36 };
   }
 
+  get layout(): 'horizontal' | 'vertical' {
+    const val = this.getOption('layout', 'layout', 'horizontal');
+    return val === 'vertical' ? 'vertical' : 'horizontal';
+  }
+  set layout(val: 'horizontal' | 'vertical') {
+    this._config.layout = val;
+    this.setAttribute('layout', val);
+  }
+
+  get align(): SankeyAlign {
+    return (
+      (this.getOption('align', 'align', 'justify') as SankeyAlign) || 'justify'
+    );
+  }
+  set align(val: SankeyAlign) {
+    this._config.align = val;
+    this.setAttribute('align', val);
+  }
+
   protected override hasPlottableData(data: SankeyData | null): boolean {
     if (!data || typeof data !== 'object') return false;
     const hasNodes = Array.isArray(data.nodes) && data.nodes.length > 0;
@@ -49,8 +75,18 @@ export class MCSankeyChart extends MCBaseChart<SankeyData> {
 
   protected prepareContext(ctx: ChartRenderContext<SankeyData>): void {
     const model = computeSankeyChartModel(ctx, {
+      layout: this.layout,
+      align: this.align,
       nodeWidth: this.getOption('nodeWidth', 'node-width', 18) ?? 18,
       nodePadding: this.getOption('nodePadding', 'node-padding', 16) ?? 16,
+      borderRadius: this.getOption('borderRadius', 'border-radius', 4) ?? 4,
+      curveness: this.getOption('curveness', 'curveness', 0.5) ?? 0.5,
+      focusMode:
+        (this.getOption(
+          'focusMode',
+          'focus-mode',
+          'adjacency'
+        ) as SankeyFocusMode) ?? 'adjacency',
       linkOpacity: this.getOption('linkOpacity', 'link-opacity', 0.42) ?? 0.42,
       enableLabels:
         this.getOption('enableLabels', 'enable-labels', true) !== false

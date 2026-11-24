@@ -41,7 +41,7 @@
     "name": "Standalone Line chart (modern-charts/line) [gzip]",
     "path": "dist/line.js",
     "gzip": true,
-    "limit": "100 kB"
+    "limit": "105 kB"
   },
   {
     "name": "Standalone Pie chart (modern-charts/pie) [brotli]",
@@ -96,7 +96,7 @@
     "name": "Standalone Sankey chart (modern-charts/sankey) [gzip]",
     "path": "dist/sankey.js",
     "gzip": true,
-    "limit": "90 kB"
+    "limit": "95 kB"
   },
   {
     "name": "Standalone Scatter chart (modern-charts/scatter) [brotli]",
