@@ -175,7 +175,12 @@ export function renderLineAreaItem(
       group.appendChild(ovPath);
     }
 
-    ctx.animateItem(group, { type: 'area-fade', index: series.index });
+    if (ctx.state?.lineTransitions?.has(series.id)) {
+      group.setAttribute('data-animated', 'true');
+      group.setAttribute('data-transition-mode', 'morph');
+    } else {
+      ctx.animateItem(group, { type: 'area-fade', index: series.index });
+    }
     return group;
   }
 
@@ -209,7 +214,12 @@ export function renderLineAreaItem(
     path.setAttribute('fill', gradId ? `url(#${gradId})` : effectiveColor);
     if (!gradId) path.setAttribute('fill-opacity', String(series.areaOpacity));
   }
-  ctx.animateItem(path, { type: 'area-fade', index: series.index });
+  if (ctx.state?.lineTransitions?.has(series.id)) {
+    path.setAttribute('data-animated', 'true');
+    path.setAttribute('data-transition-mode', 'morph');
+  } else {
+    ctx.animateItem(path, { type: 'area-fade', index: series.index });
+  }
   return path;
 }
 
@@ -308,7 +318,12 @@ export function renderLinePathItem(
       group.appendChild(ovPath);
     }
 
-    ctx.animateItem(group, { type: 'line-draw', index: series.index });
+    if (ctx.state?.lineTransitions?.has(series.id)) {
+      group.setAttribute('data-animated', 'true');
+      group.setAttribute('data-transition-mode', 'morph');
+    } else {
+      ctx.animateItem(group, { type: 'line-draw', index: series.index });
+    }
     ctx.registerEventTarget(group, {
       target: 'lineSeries',
       category: 'item',
@@ -376,7 +391,12 @@ export function renderLinePathItem(
   path.setAttribute('stroke-linecap', 'round');
   path.setAttribute('stroke-linejoin', 'round');
 
-  ctx.animateItem(path, { type: 'line-draw', index: series.index });
+  if (ctx.state?.lineTransitions?.has(series.id)) {
+    path.setAttribute('data-animated', 'true');
+    path.setAttribute('data-transition-mode', 'morph');
+  } else {
+    ctx.animateItem(path, { type: 'line-draw', index: series.index });
+  }
   ctx.registerEventTarget(path, {
     target: 'lineSeries',
     category: 'item',
@@ -490,12 +510,17 @@ export function renderLinePointItem(
     }
   });
 
-  ctx.animateItem(circle, {
-    type: 'point-pop',
-    index: pt.globalIndex,
-    originX: pt.px,
-    originY: pt.py
-  });
+  if (ctx.state?.lineTransitions?.has(pt.seriesId)) {
+    circle.setAttribute('data-animated', 'true');
+    circle.setAttribute('data-transition-mode', 'morph');
+  } else {
+    ctx.animateItem(circle, {
+      type: 'point-pop',
+      index: pt.globalIndex,
+      originX: pt.px,
+      originY: pt.py
+    });
+  }
 
   ctx.registerEventTarget(circle, {
     target: 'linePoint',

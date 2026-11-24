@@ -582,6 +582,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
   disconnectedCallback(): void {
     this._isConnected = false;
+    this.cancelTransitions(true);
     this.eventEngine.detach();
     this.#syncTooltipPointerTracking(false);
     this.#teardownAutoSizeObserver();
@@ -1850,7 +1851,11 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     return sequence;
   }
 
+  protected cancelTransitions(_clearSnapshot = false): void {}
+
   protected prepareContext(_ctx: ChartRenderContext<TData>): void {}
+
+  protected afterRender(_ctx: ChartRenderContext<TData>): void {}
 
   public render(): void {
     if (!this.shadowRoot) return;
@@ -1956,6 +1961,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     const hasData = this.hasPlottableData(this._data);
 
     if (isLoading) {
+      this.cancelTransitions(this._data === null || !hasData);
       this.hideTooltip();
       this.hideLegendTooltip();
       if (controlsEl) controlsEl.hidden = true;
@@ -1971,6 +1977,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     }
 
     if (this._data === null || !hasData) {
+      this.cancelTransitions(true);
       this.hideTooltip();
       this.hideLegendTooltip();
       if (controlsEl) controlsEl.hidden = true;
@@ -1983,6 +1990,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       return;
     }
 
+    this.cancelTransitions(false);
     rootGroup.innerHTML = '';
     this._decoratedAriaItems = [];
     if (defs) defs.innerHTML = '';
@@ -2172,6 +2180,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
         );
       }
     });
+
+    this.afterRender(ctx);
 
     if (ariaTableContainer) {
       ariaTableContainer.innerHTML =
