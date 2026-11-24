@@ -8,7 +8,11 @@ import {
   type MCBaseChart,
   type ThemeModePreference
 } from '../../../src/index';
-import { createLiveConfigEditor, escapeHtml } from './shared';
+import {
+  createCodeBlock,
+  createLiveConfigEditor,
+  escapeHtml
+} from './shared';
 
 const PALETTE_LABELS: Record<BuiltInPaletteName, { label: string; subtitle: string }> = {
   shadcn: { label: 'shadcn / ui', subtitle: 'Tailwind / Radix (20 colors)' },
@@ -238,6 +242,7 @@ export function renderThemesGuide(
       <div class="guide-chart-stage" id="guide-gen-chart"></div>
       <div id="guide-gen-code"></div>
     </div>
+    <div id="guide-gen-usage"></div>
   `;
   container.appendChild(genCard);
 
@@ -251,9 +256,49 @@ export function renderThemesGuide(
   const countVal = genCard.querySelector('#gen-count-val') as HTMLElement;
   const swatchStrip = genCard.querySelector('#gen-swatch-strip') as HTMLElement;
   const genCodeHost = genCard.querySelector('#guide-gen-code') as HTMLElement;
+  const genUsageHost = genCard.querySelector('#guide-gen-usage') as HTMLElement;
 
   let seedColor = '#2563eb';
   let genCount = 20;
+
+  const getSampleIndices = (len: number): [number, number, number, number, number] => [
+    2,
+    Math.floor(len * 0.28),
+    Math.floor((len - 1) / 2),
+    Math.floor(len * 0.72),
+    len - 2
+  ];
+
+  const renderUsageSnippet = (seed: string, count: number, ramp: string[]) => {
+    const [i0, i1, midIdx, i3, i4] = getSampleIndices(ramp.length);
+    const snippet = `
+import { generateColorPalette } from 'modern-charts';
+
+// 1. Generate ${ramp.length} colors ordered light → dark (exact midpoint at index ${midIdx} = '${ramp[midIdx]}')
+const ramp = generateColorPalette('${seed}', ${count});
+// ramp[0]  = '${ramp[0]}' (lightest)
+// ramp[${midIdx}]  = '${ramp[midIdx]}' (exact seed color)
+// ramp[${ramp.length - 1}] = '${ramp[ramp.length - 1]}' (darkest)
+
+// A) Use all ${ramp.length} colors directly (great for charts with many slices/series):
+chart.config = { data, colors: ramp };
+
+// B) Or pick evenly spaced stops when you have 5 series:
+chart.config = {
+  data,
+  indexBy: 'tier',
+  keys: ['Light', 'Soft', 'Mid (Seed)', 'Rich', 'Deep'],
+  colors: [ramp[${i0}], ramp[${i1}], ramp[${midIdx}], ramp[${i3}], ramp[${i4}]]
+};
+
+// 2. Zero-import shorthand — pass any seed color directly to palette:
+// chart.config = { data, palette: '${seed}' };
+// <mc-bar-chart palette="${seed}"></mc-bar-chart>
+`;
+    genUsageHost.replaceChildren(
+      createCodeBlock(snippet, 'How to Use generateColorPalette() & palette Shorthand')
+    );
+  };
 
   const renderSwatchStrip = (colors: string[]) => {
     const midIdx = Math.floor((colors.length - 1) / 2);
@@ -280,19 +325,11 @@ export function renderThemesGuide(
   const buildGenConfig = (seed: string, count: number) => {
     const generated = generateColorPalette(seed, count);
     const stepKeys = ['Light', 'Soft', 'Mid (Seed)', 'Rich', 'Deep'];
-    const sampleIdx = [
-      2,
-      Math.floor(generated.length * 0.28),
-      Math.floor((generated.length - 1) / 2),
-      Math.floor(generated.length * 0.72),
-      generated.length - 2
-    ];
+    const sampleIdx = getSampleIndices(generated.length);
     return {
-      seedColor: seed,
-      count: generated.length,
       title: `Generated ${generated.length}-Color Scale (Midpoint: ${seed})`,
+      palette: seed,
       colors: sampleIdx.map((i) => generated[i]),
-      allGeneratedColors: generated,
       indexBy: 'tier',
       keys: stepKeys,
       data: [
@@ -304,19 +341,18 @@ export function renderThemesGuide(
   };
 
   const applyGenConfig = (cfg: Record<string, any>) => {
-    const nextSeed = typeof cfg.seedColor === 'string' ? cfg.seedColor : seedColor;
-    const nextCount = typeof cfg.count === 'number' ? Math.max(20, Math.min(30, cfg.count)) : genCount;
-    const ramp = generateColorPalette(nextSeed, nextCount);
+    const nextSeed = typeof cfg.palette === 'string' ? cfg.palette : seedColor;
+    const ramp = generateColorPalette(nextSeed, genCount);
     renderSwatchStrip(ramp);
+    renderUsageSnippet(nextSeed, genCount, ramp);
 
-    const { seedColor: _s, count: _c, allGeneratedColors: _all, ...chartCfg } = cfg;
     genChartEl.setConfig({
       autoSize: true,
       themeMode,
       groupMode: 'grouped',
       borderRadius: 5,
       margin: { top: 44, right: 20, bottom: 68, left: 48 },
-      ...chartCfg
+      ...cfg
     });
   };
 
@@ -324,26 +360,19 @@ export function renderThemesGuide(
   applyGenConfig(initialGenCfg);
 
   const genEditor = createLiveConfigEditor({
-    title: 'generateColorPalette(seedColor, count) Config (Live)',
+    title: 'Live Chart Config (real chart.config)',
     initialConfig: initialGenCfg,
-    hint: 'Change seedColor (hex/rgb/hsl) or count (>=20) to regenerate the full light-to-dark scale live.',
+    hint: 'Edit palette (any hex/rgb/hsl seed), colors[], or data — or delete colors[] to use palette directly.',
     onConfigChange: (nextCfg) => {
-      if (typeof nextCfg.seedColor === 'string') {
-        seedColor = nextCfg.seedColor;
-        seedText.value = seedColor;
-        if (/^#[0-9a-fA-F]{6}$/.test(seedColor)) seedPicker.value = seedColor;
+      if (typeof nextCfg.palette === 'string') {
+        const val = nextCfg.palette.trim();
+        if (/^#[0-9a-fA-F]{3,6}$/.test(val) || /^(rgb|hsl)a?\(/i.test(val)) {
+          seedColor = val;
+          seedText.value = seedColor;
+          if (/^#[0-9a-fA-F]{6}$/.test(seedColor)) seedPicker.value = seedColor;
+        }
       }
-      if (typeof nextCfg.count === 'number') {
-        genCount = Math.max(20, Math.min(30, Math.floor(nextCfg.count)));
-        countSlider.value = String(genCount);
-        countVal.textContent = String(genCount);
-      }
-      const regenerated = buildGenConfig(seedColor, genCount);
-      applyGenConfig({
-        ...nextCfg,
-        colors: regenerated.colors,
-        allGeneratedColors: regenerated.allGeneratedColors
-      });
+      applyGenConfig(nextCfg);
     },
     onReset: () => {
       seedColor = '#2563eb';
