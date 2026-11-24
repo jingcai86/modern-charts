@@ -1,3 +1,4 @@
+import { createChartI18n, type ChartI18n, type ChartMessages } from './i18n';
 import type {
   AriaConfig,
   AriaItemDescriptor,
@@ -16,45 +17,60 @@ export function createDefaultAriaConfig(): AriaConfig {
   };
 }
 
-const DEFAULT_ROLE_DESCRIPTIONS: Record<AriaItemDescriptor['type'], string> = {
-  bar: 'bar',
-  point: 'data point',
-  series: 'data series',
-  arc: 'pie slice',
-  cell: 'heatmap cell',
-  'radar-point': 'radar point',
-  'radar-polygon': 'radar series',
-  'sunburst-arc': 'hierarchy arc',
-  'sankey-node': 'flow node',
-  'sankey-link': 'flow link',
-  'scatter-node': 'scatter point',
-  'treemap-tile': 'treemap tile',
-  'gauge-arc': 'gauge metric'
+const ROLE_MESSAGE_KEYS: Record<AriaItemDescriptor['type'], keyof ChartMessages> = {
+  bar: 'ariaRoleBar',
+  point: 'ariaRolePoint',
+  series: 'ariaRoleSeries',
+  arc: 'ariaRoleArc',
+  cell: 'ariaRoleCell',
+  'radar-point': 'ariaRoleRadarPoint',
+  'radar-polygon': 'ariaRoleRadarPolygon',
+  'sunburst-arc': 'ariaRoleSunburstArc',
+  'sankey-node': 'ariaRoleSankeyNode',
+  'sankey-link': 'ariaRoleSankeyLink',
+  'scatter-node': 'ariaRoleScatterNode',
+  'treemap-tile': 'ariaRoleTreemapTile',
+  'gauge-arc': 'ariaRoleGaugeArc'
 };
+
+function formatItemValue(value: unknown, i18n: ChartI18n): string {
+  return typeof value === 'number'
+    ? i18n.formatNumber(value, { useGrouping: false })
+    : String(value ?? '');
+}
+
+function formatItemPercentage(value: number, i18n: ChartI18n): string {
+  return i18n.formatPercent(value / 100, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+    useGrouping: false
+  });
+}
 
 export class AriaEngine {
   public interpolateAriaTemplate(
     template: string,
-    item: AriaItemDescriptor
+    item: AriaItemDescriptor,
+    i18n: ChartI18n = createChartI18n()
   ): string {
     const datumObj = item.datum ?? {};
-    return template.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, key: string) => {
+    return template.replace(/\{\{\s*([\p{ID_Continue}$._\u200c\u200d-]+)\s*\}\}/gu, (_, key: string) => {
       if (key === 'id') return String(item.id ?? '');
       if (key === 'type') return String(item.type ?? '');
-      if (key === 'index') return String(item.index ?? 0);
-      if (key === 'number') return String((item.index ?? 0) + 1);
-      if (key === 'total') return String(item.total ?? '');
+      if (key === 'index') return formatItemValue(item.index ?? 0, i18n);
+      if (key === 'number') return formatItemValue((item.index ?? 0) + 1, i18n);
+      if (key === 'total') return formatItemValue(item.total, i18n);
       if (key === 'label') return String(item.label ?? item.id ?? '');
-      if (key === 'value') return String(item.value ?? '');
+      if (key === 'value') return formatItemValue(item.value, i18n);
       if (key === 'formattedValue')
-        return String(item.formattedValue ?? item.value ?? '');
+        return item.formattedValue ?? formatItemValue(item.value, i18n);
       if (key === 'category' || key === 'indexValue')
         return String(item.category ?? datumObj.indexValue ?? '');
       if (key === 'seriesId' || key === 'key')
         return String(item.seriesId ?? datumObj.key ?? item.id ?? '');
       if (key === 'percentage')
         return item.percentage !== undefined
-          ? `${item.percentage.toFixed(1)}%`
+          ? formatItemPercentage(item.percentage, i18n)
           : '';
       if (key === 'source') return String(item.source ?? '');
       if (key === 'target') return String(item.target ?? '');
@@ -65,65 +81,66 @@ export class AriaEngine {
 
   public resolveAccessor(
     accessor: AriaItemLabelAccessor | undefined,
-    item: AriaItemDescriptor
+    item: AriaItemDescriptor,
+    i18n: ChartI18n = createChartI18n()
   ): string | undefined {
     if (!accessor) return undefined;
     if (typeof accessor === 'function') {
       return accessor(item);
     }
     if (typeof accessor === 'string') {
-      return this.interpolateAriaTemplate(accessor, item);
+      return this.interpolateAriaTemplate(accessor, item, i18n);
     }
     return undefined;
   }
 
-  public buildDefaultItemLabel(item: AriaItemDescriptor): string {
-    const valStr =
-      item.formattedValue !== undefined
-        ? item.formattedValue
-        : item.value !== undefined
-        ? String(item.value)
-        : '';
-
+  public buildDefaultItemLabel(
+    item: AriaItemDescriptor,
+    i18n: ChartI18n = createChartI18n()
+  ): string {
+    const value = item.formattedValue ?? formatItemValue(item.value, i18n);
+    const label = item.label || item.id;
+    const category = item.category;
+    const values = { label, value, category };
     switch (item.type) {
       case 'bar':
-        return `${item.seriesId || item.id}${
-          item.category ? ` in ${item.category}` : ''
-        }: ${valStr}`;
+        return i18n.message(category ? 'ariaBarCategory' : 'ariaLabelValue', {
+          ...values, label: item.seriesId || item.id
+        });
       case 'point':
       case 'scatter-node':
-        return `${item.seriesId || item.id}${
-          item.category ? `, ${item.category}` : ''
-        }: ${valStr}`;
+        return i18n.message(category ? 'ariaPointCategory' : 'ariaLabelValue', {
+          ...values, label: item.seriesId || item.id
+        });
       case 'arc':
       case 'sunburst-arc':
-        return `${item.label || item.id}: ${valStr}${
-          item.percentage !== undefined
-            ? ` (${item.percentage.toFixed(1)}%)`
-            : ''
-        }`;
+        return i18n.message(item.percentage !== undefined ? 'ariaArcPercentage' : 'ariaLabelValue', {
+          ...values,
+          percentage: item.percentage !== undefined ? formatItemPercentage(item.percentage, i18n) : ''
+        });
       case 'cell':
       case 'treemap-tile':
-        return `${item.label || item.id}${
-          item.category ? ` (${item.category})` : ''
-        }: ${valStr}`;
+        return i18n.message(category ? 'ariaCellCategory' : 'ariaLabelValue', values);
       case 'radar-point':
-        return `${item.seriesId || item.id}, ${item.category || item.label}: ${valStr}`;
+        return i18n.message('ariaPointCategory', {
+          ...values, label: item.seriesId || item.id, category: category || item.label
+        });
       case 'sankey-node':
-        return `${item.label || item.id}: total flow ${valStr}`;
+        return i18n.message('ariaSankeyNode', values);
       case 'sankey-link':
-        return `${item.source} to ${item.target}: flow ${valStr}`;
+        return i18n.message('ariaSankeyLink', { ...values, source: item.source, target: item.target });
       case 'gauge-arc':
-        return `${item.label || 'Gauge'}: ${valStr}`;
+        return i18n.message('ariaLabelValue', { ...values, label: item.label || i18n.message('gauge') });
       default:
-        return `${item.label || item.id}${valStr ? `: ${valStr}` : ''}`;
+        return value ? i18n.message('ariaLabelValue', values) : label;
     }
   }
 
   public resolveItemLabel(
     item: AriaItemDescriptor,
     ariaConfig: AriaConfig,
-    chartConfig: ChartConfig<any>
+    chartConfig: ChartConfig<any>,
+    i18n: ChartI18n = createChartI18n(chartConfig.i18n)
   ): string {
     // 1. Check Nivo-style type-specific shorthand callbacks in chartConfig
     let typeSpecificAccessor: AriaItemLabelAccessor | undefined;
@@ -154,15 +171,15 @@ export class AriaEngine {
       typeSpecificAccessor = chartConfig.linkAriaLabel;
     }
 
-    const fromTypeSpecific = this.resolveAccessor(typeSpecificAccessor, item);
+    const fromTypeSpecific = this.resolveAccessor(typeSpecificAccessor, item, i18n);
     if (fromTypeSpecific) return fromTypeSpecific;
 
     // 2. Check universal ariaConfig.itemLabel
-    const fromUniversal = this.resolveAccessor(ariaConfig.itemLabel, item);
+    const fromUniversal = this.resolveAccessor(ariaConfig.itemLabel, item, i18n);
     if (fromUniversal) return fromUniversal;
 
     // 3. Fallback to accessible default
-    return this.buildDefaultItemLabel(item);
+    return this.buildDefaultItemLabel(item, i18n);
   }
 
   /**
@@ -189,7 +206,8 @@ export class AriaEngine {
         element: SVGElement
       ) => void;
       navigateRelative?: (currentEl: SVGElement, delta: number | 'first' | 'last') => void;
-    } = {}
+    } = {},
+    i18n: ChartI18n = createChartI18n(chartConfig.i18n)
   ): SVGElement {
     if (!ariaConfig.enabled) return element;
 
@@ -223,14 +241,13 @@ export class AriaEngine {
       typeof ariaConfig.itemRoleDescription === 'function'
         ? ariaConfig.itemRoleDescription(item)
         : ariaConfig.itemRoleDescription ||
-          DEFAULT_ROLE_DESCRIPTIONS[item.type] ||
-          'chart item';
+          i18n.message(ROLE_MESSAGE_KEYS[item.type] || 'ariaRoleItem');
     element.setAttribute('aria-roledescription', roleDesc);
 
-    const label = this.resolveItemLabel(item, ariaConfig, chartConfig);
+    const label = this.resolveItemLabel(item, ariaConfig, chartConfig, i18n);
     element.setAttribute('aria-label', label);
 
-    const description = this.resolveAccessor(ariaConfig.itemDescription, item);
+    const description = this.resolveAccessor(ariaConfig.itemDescription, item, i18n);
     if (description) {
       element.setAttribute('aria-description', description);
     }
@@ -316,7 +333,8 @@ export class AriaEngine {
    */
   public buildAccessibleDataTableHtml(
     chartTitle: string,
-    items: { item: AriaItemDescriptor; label: string }[]
+    items: { item: AriaItemDescriptor; label: string }[],
+    i18n: ChartI18n = createChartI18n()
   ): string {
     if (items.length === 0) return '';
     const rowsHtml = items
@@ -326,16 +344,16 @@ export class AriaEngine {
           `<tr><th scope="row">${this.escapeHtml(
             item.seriesId || item.label || item.id
           )}</th><td>${this.escapeHtml(
-            item.category || item.type
+            item.category || i18n.message(ROLE_MESSAGE_KEYS[item.type])
           )}</td><td>${this.escapeHtml(
-            String(item.formattedValue ?? item.value ?? '')
+            item.formattedValue ?? formatItemValue(item.value, i18n)
           )}</td><td>${this.escapeHtml(label)}</td></tr>`
       )
       .join('');
 
     return `<table class="mc-aria-table"><caption>${this.escapeHtml(
-      chartTitle || 'Chart Data Summary'
-    )}</caption><thead><tr><th scope="col">Series / Item</th><th scope="col">Category</th><th scope="col">Value</th><th scope="col">Summary</th></tr></thead><tbody>${rowsHtml}</tbody></table>`;
+      chartTitle || i18n.message('tableCaption')
+    )}</caption><thead><tr><th scope="col">${this.escapeHtml(i18n.message('tableSeries'))}</th><th scope="col">${this.escapeHtml(i18n.message('tableCategory'))}</th><th scope="col">${this.escapeHtml(i18n.message('tableValue'))}</th><th scope="col">${this.escapeHtml(i18n.message('tableSummary'))}</th></tr></thead><tbody>${rowsHtml}</tbody></table>`;
   }
 
   private escapeHtml(str: string): string {

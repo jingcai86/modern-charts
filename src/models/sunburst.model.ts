@@ -259,7 +259,7 @@ export function computeSunburstChartModel(
       .map((a) => a.data.name);
     const pathNames = [...input.focusPath, ...ancestors];
     const pathKey = pathNames.join('/');
-    const breadcrumb = [rawRoot.name || 'Root', ...pathNames].join(' › ');
+    const breadcrumb = [rawRoot.name || ctx.i18n.messages.root, ...pathNames].join(' › ');
 
     return {
       index,

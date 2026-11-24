@@ -111,7 +111,7 @@ export function renderGaugeTicksLayer(
 
     const tickG = ctx.renderLabel(g, {
       id: `gauge-tick-${tick.index}`,
-      text: String(tick.value),
+      text: ctx.i18n.formatNumber(tick.value, { useGrouping: false }),
       x: tick.x,
       y: tick.y,
       type: 'axis-tick',
@@ -133,7 +133,7 @@ export function renderGaugeTicksLayer(
           axis: 'radial',
           part: 'tick',
           value: tick.value,
-          label: String(tick.value),
+          label: ctx.i18n.formatNumber(tick.value, { useGrouping: false }),
           index: tick.index,
           count: model.ticks.length
         }
@@ -168,8 +168,8 @@ export function renderGaugeCenterLayer(
 
   const valueText =
     model.series && model.series.length > 1
-      ? model.series.map((s) => `${s.value}${s.unit}`).join(' / ')
-      : `${model.value}${model.unit}`;
+      ? model.series.map((s) => `${ctx.i18n.formatNumber(s.value, { useGrouping: false })}${s.unit}`).join(' / ')
+      : `${ctx.i18n.formatNumber(model.value, { useGrouping: false })}${model.unit}`;
 
   ctx.renderLabel(g, {
     id: 'gauge-value-label',

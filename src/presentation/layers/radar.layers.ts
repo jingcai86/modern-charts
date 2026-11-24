@@ -1,3 +1,4 @@
+import { physicalTextAnchor } from '../../core/i18n';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, RadarDatum } from '../../core/types';
 import type { RadarChartModel } from '../../models/radar.model';
@@ -137,7 +138,7 @@ export function renderRadarAxesLayer(
       x: lx,
       y: ly,
       type: 'radar-axis',
-      anchor,
+      anchor: physicalTextAnchor(anchor, ctx.i18n.direction),
       baseline: 'middle',
       maxWidth: 96,
       fontSize: ctx.theme.fontSize,
@@ -213,7 +214,7 @@ export function renderRadarDotLabelsLayer(
     s.points.forEach((pt, idx) => {
       ctx.renderLabel(g, {
         id: `radar-pt-${s.key}-${idx}`,
-        text: String(pt.value),
+        text: ctx.i18n.formatNumber(pt.value, { useGrouping: false }),
         x: pt.x,
         y: pt.y - 11,
         type: 'radar-point',

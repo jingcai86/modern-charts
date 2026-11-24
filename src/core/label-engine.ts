@@ -41,10 +41,21 @@ export interface LabelTooltipHandlers {
 }
 
 export class LabelEngine {
+  private direction: 'ltr' | 'rtl' = 'ltr';
   private preparedCache = new Map<string, PreparedTextWithSegments>();
   private overrides: LabelStyleOverride[] = [];
   private customRenderer?: CustomLabelRenderer;
   private tooltipHandlers?: LabelTooltipHandlers;
+
+  /** Sets the writing direction used by logical start/end label anchors. */
+  public setDirection(direction: 'ltr' | 'rtl'): void {
+    this.direction = direction;
+  }
+
+  private physicalAnchor(anchor: LabelDescriptor['anchor'] = 'middle'): 'left' | 'center' | 'right' {
+    if (anchor === 'middle') return 'center';
+    return (anchor === 'start') === (this.direction === 'ltr') ? 'left' : 'right';
+  }
 
   public setOverrides(overrides: LabelStyleOverride[]): void {
     this.overrides = overrides;
@@ -433,7 +444,9 @@ export class LabelEngine {
       descriptor.baseline === 'hanging' &&
       (descriptor.anchor ?? 'middle') === 'middle'
     ) {
-      descriptor.anchor = measured.appliedRotation > 0 ? 'start' : 'end';
+      descriptor.anchor = (measured.appliedRotation > 0) === (this.direction === 'ltr')
+        ? 'start'
+        : 'end';
     }
 
     const defaultRender = (): SVGGElement => {
@@ -522,7 +535,7 @@ export class LabelEngine {
   ): void {
     const boxW = Math.max(28, measured.boxWidth + 16);
     const boxH = Math.max(20, measured.boxHeight + 8);
-    const anchor = descriptor.anchor ?? 'middle';
+    const anchor = this.physicalAnchor(descriptor.anchor);
     const baseline = descriptor.baseline ?? 'middle';
 
     if (!fo.hasAttribute('width')) {
@@ -534,7 +547,7 @@ export class LabelEngine {
     if (!fo.hasAttribute('x')) {
       const w = Number(fo.getAttribute('width')) || boxW;
       const offsetX =
-        anchor === 'middle' ? -w / 2 : anchor === 'end' ? -w : 0;
+        anchor === 'center' ? -w / 2 : anchor === 'right' ? -w : 0;
       fo.setAttribute('x', String(Math.round(offsetX)));
     }
     if (!fo.hasAttribute('y')) {
@@ -547,6 +560,8 @@ export class LabelEngine {
           : 0;
       fo.setAttribute('y', String(Math.round(offsetY)));
     }
+    fo.setAttribute('direction', this.direction);
+    fo.style.direction = this.direction;
     fo.setAttribute('overflow', 'visible');
   }
 
@@ -566,6 +581,7 @@ export class LabelEngine {
     g.setAttribute('part', `label label-${descriptor.type}`);
     g.setAttribute('data-label-type', descriptor.type);
     g.setAttribute('data-label-mode', descriptor.renderMode ?? 'svg');
+    g.setAttribute('direction', this.direction);
     if (descriptor.id) {
       g.setAttribute('data-label-id', descriptor.id);
     }
@@ -623,7 +639,7 @@ export class LabelEngine {
       !group.querySelector('.mc-label-bg') &&
       !group.querySelector('.mc-label-hit')
     ) {
-      const anchor = descriptor.anchor ?? 'middle';
+      const anchor = this.physicalAnchor(descriptor.anchor);
       const baseline = descriptor.baseline ?? 'middle';
       const padding: LabelPadding = descriptor.padding ?? {
         top: 0,
@@ -634,9 +650,9 @@ export class LabelEngine {
       const hitW = Math.max(16, measured.boxWidth + 4);
       const hitH = Math.max(14, measured.boxHeight + 4);
       let rectX = -padding.left - 2;
-      if (anchor === 'middle') {
+      if (anchor === 'center') {
         rectX = -hitW / 2;
-      } else if (anchor === 'end') {
+      } else if (anchor === 'right') {
         rectX = -measured.width - measured.iconExtraWidth - padding.left - 2;
       }
       let rectY = -padding.top - 2;
@@ -747,6 +763,7 @@ export class LabelEngine {
       theme
     );
     const anchor = descriptor.anchor ?? 'middle';
+    const physicalAnchor = this.physicalAnchor(anchor);
     const baseline = descriptor.baseline ?? 'middle';
     const padding: LabelPadding = descriptor.padding ?? {
       top: descriptor.background ? 3 : 0,
@@ -769,9 +786,9 @@ export class LabelEngine {
       const rect = document.createElementNS(SVG_NS, 'rect');
       rect.setAttribute('class', 'mc-label-bg');
       let rectX = -padding.left;
-      if (anchor === 'middle') {
+      if (physicalAnchor === 'center') {
         rectX = -measured.boxWidth / 2;
-      } else if (anchor === 'end') {
+      } else if (physicalAnchor === 'right') {
         rectX = -measured.width - measured.iconExtraWidth - padding.left;
       }
       let rectY = -padding.top;
@@ -796,6 +813,8 @@ export class LabelEngine {
     const textEl = document.createElementNS(SVG_NS, 'text');
     textEl.setAttribute('class', 'mc-label-text');
     textEl.setAttribute('text-anchor', anchor);
+    textEl.setAttribute('direction', this.direction);
+    textEl.setAttribute('unicode-bidi', 'isolate');
     textEl.setAttribute('fill', descriptor.color ?? theme.textColor);
     textEl.setAttribute('font-size', `${fontSize}px`);
     textEl.setAttribute('font-weight', String(fontWeight));
@@ -889,6 +908,7 @@ export class LabelEngine {
       theme
     );
     const anchor = descriptor.anchor ?? 'middle';
+    const physicalAnchor = this.physicalAnchor(anchor);
     const baseline = descriptor.baseline ?? 'middle';
 
     const hasBoxStyle = Boolean(descriptor.background || descriptor.borderColor);
@@ -898,8 +918,8 @@ export class LabelEngine {
     const boxH = Math.max(hasBoxStyle ? 20 : 16, measured.boxHeight + extraH);
 
     let offsetX = 0;
-    if (anchor === 'middle') offsetX = -boxW / 2;
-    else if (anchor === 'end') offsetX = -boxW;
+    if (physicalAnchor === 'center') offsetX = -boxW / 2;
+    else if (physicalAnchor === 'right') offsetX = -boxW;
 
     let offsetY = 0;
     if (baseline === 'middle' || baseline === 'central') offsetY = -boxH / 2;
@@ -909,6 +929,8 @@ export class LabelEngine {
     fo.setAttribute('y', String(Math.round(offsetY)));
     fo.setAttribute('width', String(Math.ceil(boxW)));
     fo.setAttribute('height', String(Math.ceil(boxH)));
+    fo.setAttribute('direction', this.direction);
+    fo.style.direction = this.direction;
     fo.setAttribute('overflow', 'visible');
 
     const container = document.createElementNS(
@@ -916,6 +938,7 @@ export class LabelEngine {
       'div'
     ) as HTMLDivElement;
     container.setAttribute('xmlns', XHTML_NS);
+    container.setAttribute('dir', this.direction);
     container.className = `mc-fo-label mc-fo-label--${descriptor.type}`;
     const justify =
       anchor === 'middle'
@@ -923,8 +946,7 @@ export class LabelEngine {
         : anchor === 'end'
         ? 'flex-end'
         : 'flex-start';
-    const textAlign =
-      anchor === 'middle' ? 'center' : anchor === 'end' ? 'right' : 'left';
+    const textAlign = anchor === 'middle' ? 'center' : anchor;
     const iconGap = descriptor.iconGap ?? 5;
 
     const styles: string[] = [
@@ -933,6 +955,7 @@ export class LabelEngine {
       `gap: ${iconGap}px`,
       `justify-content: ${justify}`,
       `text-align: ${textAlign}`,
+      `direction: ${this.direction}`,
       'width: 100%',
       'height: 100%',
       'box-sizing: border-box',
@@ -1034,7 +1057,7 @@ export class LabelEngine {
       typeof descriptor.icon === 'string' ? descriptor.icon : '';
     const displayText = measured ? measured.displayText : descriptor.text;
     const originalText = measured ? measured.originalText : descriptor.text;
-    return template.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, key: string) => {
+    return template.replace(/\{\{\s*([\p{ID_Continue}$._\u200c\u200d-]+)\s*\}\}/gu, (_, key: string) => {
       if (key === 'text') return displayText;
       if (key === 'originalText' || key === 'fullText') return originalText;
       if (key === 'type') return descriptor.type;

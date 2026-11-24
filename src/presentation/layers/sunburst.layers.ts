@@ -109,7 +109,7 @@ export function renderSunburstCenterLayer(
 
   const title = model.isDrilledDown
     ? `↩ ${model.activeRootName}`
-    : `${model.activeRootName}\n${formatGroupedNumber(model.total)}`;
+    : `${model.activeRootName}\n${formatGroupedNumber(model.total, ctx.i18n)}`;
 
   ctx.renderLabel(g, {
     id: 'sunburst-center-label',

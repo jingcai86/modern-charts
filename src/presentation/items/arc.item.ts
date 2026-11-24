@@ -66,7 +66,7 @@ export function renderPieArcItem(
     id: arc.data.id,
     label: arc.data.label || arc.data.id,
     value: arc.value,
-    formattedValue: String(arc.value),
+    formattedValue: ctx.i18n.formatNumber(arc.value, { useGrouping: false }),
     percentage: arc.percentage,
     color: arc.color,
     anchor: {
@@ -117,10 +117,10 @@ export function renderPieArcItem(
       ctx.showTooltip(
         {
           title: arc.data.label || arc.data.id,
-          label: 'Value',
+          label: ctx.i18n.messages.value,
           seriesId: arc.data.id,
           value: arc.value,
-          formattedValue: `${arc.value} (${arc.percentage.toFixed(1)}%)`,
+          formattedValue: `${ctx.i18n.formatNumber(arc.value, { useGrouping: false })} (${ctx.i18n.formatPercent(arc.percentage / 100, { minimumFractionDigits: 1, maximumFractionDigits: 1 })})`,
           color: arc.color,
           percentage: arc.percentage,
           anchor: getPieAnchor(),
@@ -204,7 +204,7 @@ export function renderSunburstArcItem(
     label: arc.breadcrumb,
     category: arc.pathNames[0] || arc.name,
     value: arc.value,
-    formattedValue: String(arc.value),
+    formattedValue: ctx.i18n.formatNumber(arc.value, { useGrouping: false }),
     percentage: arc.percentage,
     color: arc.color,
     anchor: {
@@ -270,7 +270,7 @@ export function renderSunburstArcItem(
           label: arc.name,
           category: arc.pathNames[0] || arc.name,
           value: arc.value,
-          formattedValue: `${arc.value} (${arc.percentage.toFixed(1)}%)`,
+          formattedValue: `${ctx.i18n.formatNumber(arc.value, { useGrouping: false })} (${ctx.i18n.formatPercent(arc.percentage / 100, { minimumFractionDigits: 1, maximumFractionDigits: 1 })})`,
           color: arc.color,
           percentage: arc.percentage,
           anchor: getSunburstAnchor(),
@@ -383,9 +383,9 @@ export function renderGaugeValueArcItem(
     index: itemIndex,
     total: itemTotal,
     id: itemId,
-    label: itemLabel || 'Gauge Metric',
+    label: itemLabel || ctx.i18n.messages.gaugeMetric,
     value: itemVal,
-    formattedValue: `${itemVal}${itemUnit}`,
+    formattedValue: `${ctx.i18n.formatNumber(itemVal, { useGrouping: false })}${itemUnit}`,
     color: itemColor,
     anchor: {
       left: ctx.margin.left + model.cx - 10,
@@ -420,10 +420,10 @@ export function renderGaugeValueArcItem(
       path.style.filter = 'brightness(1.08)';
       ctx.showTooltip(
         {
-          title: itemLabel || 'Gauge Metric',
-          label: 'Value',
+          title: itemLabel || ctx.i18n.messages.gaugeMetric,
+          label: ctx.i18n.messages.value,
           value: itemVal,
-          formattedValue: `${itemVal}${itemUnit}`,
+          formattedValue: `${ctx.i18n.formatNumber(itemVal, { useGrouping: false })}${itemUnit}`,
           color: itemColor,
           anchor: getGaugeAnchor(),
           datum: {
@@ -453,7 +453,7 @@ export function renderGaugeValueArcItem(
     category: 'item',
     id: itemId,
     data: {
-      label: itemLabel || 'Gauge Metric',
+      label: itemLabel || ctx.i18n.messages.gaugeMetric,
       value: itemVal,
       min: itemMin,
       max: itemMax,
@@ -588,7 +588,7 @@ export function renderGaugeNeedleItem(
     category: 'item',
     id: 'gauge-needle',
     data: {
-      label: model.label || 'Gauge Metric',
+      label: model.label || ctx.i18n.messages.gaugeMetric,
       value: model.value,
       min: model.min,
       max: model.max,

@@ -25,7 +25,8 @@ export interface ChartAttributeSpec {
     | 'Tooltip (<mc-tooltip>)'
     | 'Universal Label (<mc-label>)'
     | 'Accessibility (<mc-aria-layer>)'
-    | 'Sizing & Layout';
+    | 'Sizing & Layout'
+    | 'Internationalization';
   control: AttributeControlType;
   description: string;
   defaultValue: any;

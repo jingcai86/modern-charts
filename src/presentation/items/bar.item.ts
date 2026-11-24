@@ -245,7 +245,7 @@ export function renderBarItem(
     seriesId: b.key,
     category: b.indexValue,
     value: b.value,
-    formattedValue: String(b.value),
+    formattedValue: ctx.i18n.formatNumber(b.value, { useGrouping: false }),
     color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
     anchor: fallbackAnchor,
     datum: {
@@ -254,7 +254,7 @@ export function renderBarItem(
       indexValue: b.indexValue,
       category: b.indexValue,
       value: b.value,
-      formattedValue: String(b.value),
+      formattedValue: ctx.i18n.formatNumber(b.value, { useGrouping: false }),
       isUnderThreshold: b.threshold.isUnderThreshold,
       thresholdMatched: ariaThresholdCoverage !== 'none',
       thresholdCoverage: ariaThresholdCoverage,
@@ -338,9 +338,9 @@ export function renderBarItem(
       hostEl.style.filter = 'brightness(1.1)';
       const badge =
         ariaThresholdCoverage === 'partial'
-          ? `⚡ Crosses Threshold (${thresholdIds.join(', ')})`
+          ? `⚡ ${ctx.i18n.messages.crossesThreshold} (${thresholdIds.join(', ')})`
           : b.threshold.isUnderThreshold
-          ? `⚠ Under Threshold (${thresholdIds.join(', ')})`
+          ? `⚠ ${ctx.i18n.messages.underThreshold} (${thresholdIds.join(', ')})`
           : undefined;
       ctx.showTooltip(
         {
@@ -349,7 +349,7 @@ export function renderBarItem(
           seriesId: b.key,
           category: b.indexValue,
           value: b.value,
-          formattedValue: String(b.value),
+          formattedValue: ctx.i18n.formatNumber(b.value, { useGrouping: false }),
           color: ariaThresholdCoverage === 'full' ? b.color : b.originalColor,
           badge,
           threshold: b.threshold,

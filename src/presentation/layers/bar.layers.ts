@@ -1,3 +1,4 @@
+import { physicalTextAnchor } from '../../core/i18n';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type {
   BarDatum,
@@ -6,12 +7,6 @@ import type {
 } from '../../core/types';
 import type { BarChartModel } from '../../models/bar.model';
 import { renderBarItem } from '../items/bar.item';
-
-function formatNumericValue(value: number): string {
-  if (!Number.isFinite(value)) return String(value);
-  if (Number.isInteger(value)) return String(value);
-  return String(Math.round(value * 100) / 100);
-}
 
 /**
  * Dumb Presentation Layer for Bar Items (`bars` layer).
@@ -61,7 +56,7 @@ export function renderBarOuterLabelsLayer(
 
     const text = cfg.formatter
       ? cfg.formatter(outerDatum)
-      : formatNumericValue(item.value);
+      : ctx.i18n.formatNumber(Math.round(item.value * 100) / 100, { useGrouping: false });
 
     const maxWidth =
       cfg.maxWidth ??
@@ -195,7 +190,7 @@ export function renderBarLabelsLayer(
 
   if (model.enableLabels) {
     model.bars.forEach((b, idx) => {
-      const text = String(b.value);
+      const text = ctx.i18n.formatNumber(b.value, { useGrouping: false });
       const measured = ctx.measureText(text, {
         fontSize: Math.max(10, ctx.theme.fontSize - 1),
         icon: b.threshold.style.icon
@@ -240,7 +235,7 @@ export function renderBarLabelsLayer(
         x: labelX,
         y: labelY,
         type: 'data',
-        anchor,
+        anchor: physicalTextAnchor(anchor, ctx.i18n.direction),
         baseline: 'middle',
         maxWidth,
         fontSize: Math.max(10, ctx.theme.fontSize - 1),

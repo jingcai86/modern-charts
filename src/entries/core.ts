@@ -1,6 +1,8 @@
 import { registerCoreComponents } from '../core/registry';
 
 // Core Engine
+export * from '../core/i18n';
+export * from '../core/format';
 export * from '../core/types';
 export * from '../core/theme';
 export * from '../core/label-truncate';

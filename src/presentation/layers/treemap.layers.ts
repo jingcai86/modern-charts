@@ -1,3 +1,4 @@
+import { physicalTextAnchor } from '../../core/i18n';
 import { formatGroupedNumber } from '../../core/format';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, HierarchyNode } from '../../core/types';
@@ -40,7 +41,7 @@ export function renderTreemapTilesLayer(
       x: 12,
       y: (model.breadcrumbHeight - 4) / 2,
       type: 'title',
-      anchor: 'start',
+      anchor: physicalTextAnchor('start', ctx.i18n.direction),
       baseline: 'middle',
       maxWidth: Math.max(80, ctx.innerWidth - 28),
       fontSize: Math.max(11, ctx.theme.fontSize - 1),
@@ -108,11 +109,11 @@ export function renderTreemapLabelsLayer(
       if (parent.width < 44 || parent.headerHeight < 14) return;
       ctx.renderLabel(ctx.layerGroup, {
         id: `treemap-parent-label-${idx}`,
-        text: `${parent.name} (${formatGroupedNumber(parent.value)})`,
+        text: `${parent.name} (${formatGroupedNumber(parent.value, ctx.i18n)})`,
         x: parent.x0 + 8,
         y: parent.y0 + parent.headerHeight / 2,
         type: 'title',
-        anchor: 'start',
+        anchor: physicalTextAnchor('start', ctx.i18n.direction),
         baseline: 'middle',
         maxWidth: Math.max(32, parent.width - 16),
         maxHeight: Math.max(12, parent.headerHeight - 2),

@@ -94,6 +94,19 @@ export function createAttributePanel(opts: {
       } else {
         config.markers = buildMarkersForVirtualState(entry, vState);
       }
+    } else if (
+      spec.configPath === 'i18n.locale' ||
+      spec.configPath === 'i18n.timeZone'
+    ) {
+      const value = String(rawVal).trim();
+      if (value) {
+        setByPath(config, spec.configPath, value);
+      } else {
+        const i18n = getByPath(config, 'i18n');
+        if (i18n && typeof i18n === 'object') {
+          delete i18n[spec.configPath.split('.')[1]];
+        }
+      }
     } else if (spec.configPath === 'tooltip.position' && rawVal === '') {
       if (config.tooltip && typeof config.tooltip === 'object') {
         delete config.tooltip.position;
@@ -298,12 +311,39 @@ export function createAttributePanel(opts: {
         textInput.value = String(currentVal ?? '');
 
         textInput.addEventListener('input', () => {
+          const isLocale = spec.configPath === 'i18n.locale';
+          const isTimeZone = spec.configPath === 'i18n.timeZone';
+          if (isLocale || isTimeZone) {
+            const value = textInput.value.trim();
+            let validationMessage = '';
+            if (value) {
+              try {
+                if (isLocale) {
+                  Intl.getCanonicalLocales(value);
+                } else {
+                  new Intl.DateTimeFormat('en-US', { timeZone: value });
+                }
+              } catch {
+                validationMessage = isLocale
+                  ? 'Enter a valid locale, such as en-US or ar-EG.'
+                  : 'Enter a valid IANA time zone, such as Europe/Berlin.';
+              }
+            }
+            textInput.setCustomValidity(validationMessage);
+            if (validationMessage) {
+              textInput.setAttribute('aria-invalid', 'true');
+              return;
+            }
+            textInput.removeAttribute('aria-invalid');
+          }
           setAttributeValue(spec, textInput.value);
         });
 
         controlSyncCallbacks.set(spec.configPath, () => {
           const v = getAttributeValue(spec);
           textInput.value = String(v ?? '');
+          textInput.setCustomValidity('');
+          textInput.removeAttribute('aria-invalid');
         });
 
         controlCell.appendChild(textInput);

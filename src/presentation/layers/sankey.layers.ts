@@ -1,3 +1,4 @@
+import { physicalTextAnchor } from '../../core/i18n';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, SankeyData } from '../../core/types';
 import type { SankeyChartModel } from '../../models/sankey.model';
@@ -52,11 +53,11 @@ export function renderSankeyLabelsLayer(
 
     ctx.renderLabel(ctx.layerGroup, {
       id: `sankey-label-${node.id}`,
-      text: `${node.name} (${node.value})`,
+      text: `${node.name} (${ctx.i18n.formatNumber(node.value, { useGrouping: false })})`,
       x: lx,
       y: ly,
       type: 'node',
-      anchor,
+      anchor: physicalTextAnchor(anchor, ctx.i18n.direction),
       baseline: 'middle',
       maxWidth,
       fontSize: ctx.theme.fontSize,

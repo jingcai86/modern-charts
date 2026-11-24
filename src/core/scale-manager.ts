@@ -8,6 +8,7 @@ import {
   type ContinuousNumericScale
 } from './scales';
 import { formatAxisDate, formatAxisNumber } from './format';
+import { physicalTextAnchor } from './i18n';
 import { renderUnifiedLegendLayer } from './legend-engine';
 import type {
   ChartRenderContext,
@@ -247,9 +248,9 @@ export function renderCartesianAxes(
   const enableY = options.enableYAxis ?? true;
   const formatVal = (v: any, fmt?: (val: any) => string): string => {
     if (fmt) return fmt(v);
-    if (v instanceof Date) return formatAxisDate(v);
+    if (v instanceof Date) return formatAxisDate(v, ctx.i18n);
     if (typeof v === 'number') {
-      return formatAxisNumber(v);
+      return formatAxisNumber(v, ctx.i18n);
     }
     return String(v);
   };
@@ -442,7 +443,7 @@ export function renderCartesianAxes(
         x: -10,
         y,
         type: 'axis-tick',
-        anchor: 'end',
+        anchor: physicalTextAnchor('end', ctx.i18n?.direction ?? 'ltr'),
         baseline: 'middle',
         maxWidth: Math.max(40, ctx.margin.left - 14),
         fontSize: Math.max(10, ctx.theme.fontSize - 1),

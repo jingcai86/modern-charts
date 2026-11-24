@@ -1,3 +1,4 @@
+import { formatDisplayValue } from '../../core/format';
 import {
   allocateUniqueSvgId,
   computePartialClipPlan,
@@ -511,9 +512,9 @@ export function renderLinePointItem(
     id: pt.id,
     label: `${pt.seriesId} ${pt.xValue}`,
     seriesId: pt.seriesId,
-    category: String(pt.xValue),
+    category: formatDisplayValue(ctx.scaleConfig.x.type === 'time' ? new Date(pt.xValue) : pt.xValue, ctx.i18n),
     value: pt.yValue,
-    formattedValue: String(pt.yValue),
+    formattedValue: ctx.i18n.formatNumber(pt.yValue, { useGrouping: false }),
     color: pt.color,
     anchor: fallbackAnchor,
     datum: {
@@ -575,14 +576,14 @@ export function renderLinePointItem(
       ctx.showTooltip(
         {
           title: pt.seriesId,
-          label: String(pt.xValue),
+          label: formatDisplayValue(ctx.scaleConfig.x.type === 'time' ? new Date(pt.xValue) : pt.xValue, ctx.i18n),
           seriesId: pt.seriesId,
-          category: String(pt.xValue),
+          category: formatDisplayValue(ctx.scaleConfig.x.type === 'time' ? new Date(pt.xValue) : pt.xValue, ctx.i18n),
           value: pt.yValue,
-          formattedValue: String(pt.yValue),
+          formattedValue: ctx.i18n.formatNumber(pt.yValue, { useGrouping: false }),
           color: pt.color,
           badge: pt.threshold.isUnderThreshold
-            ? `⚠ Under Threshold (${pt.threshold.matchedMarkerIds.join(', ')})`
+            ? `⚠ ${ctx.i18n.messages.underThreshold} (${pt.threshold.matchedMarkerIds.join(', ')})`
             : undefined,
           threshold: pt.threshold,
           anchor: resolveElementAnchor(node, fallbackAnchor),

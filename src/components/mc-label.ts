@@ -97,6 +97,7 @@ function getLabelStyleSheet(): CSSStyleSheet | null {
  */
 export class MCLabelElement extends HTMLElement {
   static observedAttributes = [
+    'dir',
     'for',
     'text',
     'mode',
@@ -539,6 +540,11 @@ export class MCLabelElement extends HTMLElement {
     }
 
     const theme = createDefaultTheme('light', 'shadcn');
+    const inheritedDirection = this.closest('[dir]')?.getAttribute('dir');
+    const direction = inheritedDirection === 'rtl' || inheritedDirection === 'ltr'
+      ? inheritedDirection
+      : getComputedStyle(this).direction;
+    this.#engine.setDirection(direction === 'rtl' ? 'rtl' : 'ltr');
     this.#engine.setCustomRenderer(this.#renderer);
     this.#engine.setTooltipHandlers({
       showTooltip: (

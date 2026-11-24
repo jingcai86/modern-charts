@@ -158,7 +158,7 @@ export function renderSankeyLinkItem(
     source: link.source.name,
     target: link.target.name,
     value: link.value,
-    formattedValue: String(link.value),
+    formattedValue: ctx.i18n.formatNumber(link.value, { useGrouping: false }),
     color: link.source.color,
     anchor: {
       left: ctx.margin.left + midX - anchorW / 2,
@@ -190,9 +190,9 @@ export function renderSankeyLinkItem(
       ctx.showTooltip(
         {
           title: `${link.source.name} → ${link.target.name}`,
-          label: 'Flow',
+          label: ctx.i18n.messages.flow,
           value: link.value,
-          formattedValue: formatGroupedNumber(link.value),
+          formattedValue: formatGroupedNumber(link.value, ctx.i18n),
           color: link.source.color,
           anchor: getLinkAnchor(),
           datum: {
@@ -293,7 +293,7 @@ export function renderSankeyNodeItem(
     id: node.id,
     label: node.name,
     value: node.value,
-    formattedValue: String(node.value),
+    formattedValue: ctx.i18n.formatNumber(node.value, { useGrouping: false }),
     color: node.color,
     anchor: fallbackAnchor,
     datum: {
@@ -317,9 +317,9 @@ export function renderSankeyNodeItem(
       ctx.showTooltip(
         {
           title: node.name,
-          label: 'Total Flow',
+          label: ctx.i18n.messages.totalFlow,
           value: node.value,
-          formattedValue: formatGroupedNumber(node.value),
+          formattedValue: formatGroupedNumber(node.value, ctx.i18n),
           color: node.color,
           anchor: resolveElementAnchor(rect, fallbackAnchor),
           datum: {

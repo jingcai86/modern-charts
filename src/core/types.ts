@@ -1,3 +1,5 @@
+import type { ChartI18n, ChartI18nConfig } from './i18n';
+export type { ChartI18n, ChartI18nConfig, ChartMessages } from './i18n';
 import type * as d3 from 'd3';
 
 export const VERSION = '0.1.0-alpha.2';
@@ -1275,6 +1277,8 @@ export interface ChartStateChangeDetail {
 }
 
 export interface ChartConfig<TData = any> {
+  /** Locale, time zone, text direction, and UI messages for this chart. */
+  i18n?: ChartI18nConfig;
   data?: TData;
   width?: number;
   height?: number;
@@ -1477,6 +1481,8 @@ export interface ChartConfig<TData = any> {
 }
 
 export interface ChartRenderContext<TData = unknown> {
+  /** Resolved internationalization shared by built-in and custom render layers. */
+  i18n: ChartI18n;
   chartType: string;
   config: ChartConfig<TData>;
   data: TData;
