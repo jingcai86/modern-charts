@@ -6,7 +6,7 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
   title: 'Heatmap Matrix Chart',
   tagName: 'mc-heatmap-chart',
   summary:
-    '2D matrix heatmap with D3 sequential color interpolators (Viridis, Plasma, Turbo, YlGnBu), rect/circle cells, and auto-contrasted Pretext cell labels.',
+    '2D matrix heatmap with D3 sequential color interpolators, independent x/y inner padding, value-driven sizeVariation, forceSquare 1:1 cells, emptyColor null handling, and Pretext cell labels.',
   subComponents: [
     'mc-theme-layer',
     'mc-scale-layer',
@@ -26,6 +26,9 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
     colorScheme: 'viridis',
     cellShape: 'rect',
     cellPadding: 0.1,
+    sizeVariation: 0,
+    forceSquare: false,
+    emptyColor: 'rgba(148, 163, 184, 0.16)',
     borderRadius: 6,
     enableLabels: true,
     themeMode,
@@ -76,8 +79,58 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
       min: 0,
       max: 0.4,
       step: 0.02,
-      description: 'Fractional padding between adjacent matrix cells.',
+      description: 'Default fractional padding between adjacent matrix cells.',
       defaultValue: 0.1
+    },
+    {
+      configPath: 'xInnerPadding',
+      attrName: 'x-inner-padding',
+      category: 'Chart-Specific',
+      control: 'range',
+      min: 0,
+      max: 0.5,
+      step: 0.02,
+      description: 'Horizontal column gap override between matrix cells.',
+      defaultValue: 0.1
+    },
+    {
+      configPath: 'yInnerPadding',
+      attrName: 'y-inner-padding',
+      category: 'Chart-Specific',
+      control: 'range',
+      min: 0,
+      max: 0.5,
+      step: 0.02,
+      description: 'Vertical row gap override between matrix cells.',
+      defaultValue: 0.1
+    },
+    {
+      configPath: 'sizeVariation',
+      attrName: 'size-variation',
+      category: 'Chart-Specific',
+      control: 'range',
+      min: 0,
+      max: 0.75,
+      step: 0.05,
+      description:
+        'Scales cell dimensions proportionally to value in addition to color (0 = uniform size).',
+      defaultValue: 0
+    },
+    {
+      configPath: 'forceSquare',
+      attrName: 'force-square',
+      category: 'Chart-Specific',
+      control: 'boolean',
+      description: 'Constrains every matrix cell to a 1:1 square aspect ratio.',
+      defaultValue: false
+    },
+    {
+      configPath: 'emptyColor',
+      attrName: 'empty-color',
+      category: 'Chart-Specific',
+      control: 'text',
+      description: 'Fill color used for missing or null matrix cells.',
+      defaultValue: 'rgba(148, 163, 184, 0.16)'
     },
     {
       configPath: 'borderRadius',
