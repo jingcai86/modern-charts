@@ -34,11 +34,12 @@ export function resolveEffectiveThemeMode(
 const hexList = (csv: string): string[] => csv.split(',').map((c) => `#${c}`);
 
 /**
- * 20-color categorical palettes aligned with popular UI design systems:
+ * 20-color built-in palettes: four UI design systems and a grayscale Neutral option:
  * - `material`: Angular Material / Material Design
  * - `bootstrap`: Bootstrap 5
  * - `antd`: Ant Design 5
  * - `shadcn`: shadcn/ui (Tailwind / Radix tokens)
+ * - `neutral`: mid-gray first, alternating lighter/darker grays without black or white
  */
 export const PALETTES: Record<BuiltInPaletteName, string[]> = {
   material: hexList(
@@ -52,6 +53,9 @@ export const PALETTES: Record<BuiltInPaletteName, string[]> = {
   ),
   shadcn: hexList(
     '2563eb,10b981,f59e0b,8b5cf6,ef4444,06b6d4,ec4899,f97316,14b8a6,6366f1,84cc16,0ea5e9,a855f7,f43f5e,eab308,22c55e,d946ef,64748b,3b82f6,0d9488'
+  ),
+  neutral: hexList(
+    '737373,a3a3a3,525252,bfbfbf,8a8a8a,404040,adadad,666666,969696,595959,c5c5c5,7a7a7a,aaaaaa,4a4a4a,b8b8b8,858585,a0a0a0,606060,909090,3b3b3b'
   )
 };
 
@@ -209,7 +213,7 @@ export function generateColorPalette(baseColor: string, count = 20): string[] {
 }
 
 /**
- * Resolves a built-in design-system palette (`'material'`, `'bootstrap'`, `'antd'`, `'shadcn'`)
+ * Resolves a built-in palette (`'material'`, `'bootstrap'`, `'antd'`, `'shadcn'`, `'neutral'`)
  * or a custom seed color string (auto-generating a 20-color light-to-dark palette centered on it).
  */
 export function resolvePaletteColors(
@@ -344,7 +348,7 @@ export function generateColorGradient(
 /**
  * Generates a full set of directional SVG `<linearGradient>` definitions and matching
  * `FillRule[]` from:
- * - a built-in design-system theme palette (`'shadcn'`, `'material'`, `'bootstrap'`, `'antd'`),
+ * - a built-in theme palette (`'shadcn'`, `'material'`, `'bootstrap'`, `'antd'`, `'neutral'`),
  * - a single seed color string (auto-expanded light-to-dark via `generateColorPalette`),
  * - a custom `colors[]` array, or
  * - a `ChartTheme` object.

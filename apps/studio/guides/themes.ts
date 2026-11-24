@@ -23,7 +23,8 @@ const PALETTE_LABELS: Record<BuiltInPaletteName, { label: string; subtitle: stri
   shadcn: { label: 'shadcn / ui', subtitle: 'Tailwind / Radix (20 colors)' },
   material: { label: 'Angular Material', subtitle: 'Material Design (20 colors)' },
   bootstrap: { label: 'Bootstrap', subtitle: 'Bootstrap 5 (20 colors)' },
-  antd: { label: 'Ant Design', subtitle: 'Ant Design 5 (20 colors)' }
+  antd: { label: 'Ant Design', subtitle: 'Ant Design 5 (20 colors)' },
+  neutral: { label: 'Neutral', subtitle: 'Mid gray (#737373, 20 colors)' }
 };
 
 export function renderThemesGuide(
@@ -36,24 +37,25 @@ export function renderThemesGuide(
   explanation.className = 'panel-card guide-section';
   explanation.innerHTML = `
     <h2 class="panel-title">Theme and Appearance are independent</h2>
-    <p class="guide-prose">The Studio header's <strong>Theme</strong> menu chooses the default design-system chart palette:
-      Shadcn, Material, Bootstrap, or Ant Design. <strong>Appearance</strong> chooses System, Light, or Dark for Studio and chart surfaces.
+    <p class="guide-prose">The Studio header's <strong>Theme</strong> menu chooses the default chart palette:
+      Shadcn, Material, Bootstrap, Ant Design, or Neutral (grayscale with mid gray as its first series color). <strong>Appearance</strong> chooses System, Light, or Dark for Studio and chart surfaces.
       Both preferences are saved separately. Use Theme to change chart colors while keeping the current light/dark appearance.</p>
     <p class="guide-prose">The examples below let you override that default with their own palette, custom colors, or gradients.
-      Their live editors show the exact chart configuration. Change <code>palette</code> for design-system colors,
+      Their live editors show the exact chart configuration. Change <code>palette</code> for design-system colors or Neutral grayscale,
       <code>themeMode</code> for appearance, and <code>colors</code> or <code>theme</code> for custom styling.</p>
   `;
   container.appendChild(explanation);
 
-  // Example 1: 4 Design-System Palettes (20 colors each)
+  // Example 1: 5 Built-In Palettes (20 colors each)
   const introCard = document.createElement('section');
   introCard.className = 'panel-card guide-section';
   introCard.innerHTML = `
-    <h2 class="panel-title">Example 1: Design-System Palettes (20 Colors Each)</h2>
+    <h2 class="panel-title">Example 1: Built-In Palettes (20 Colors Each)</h2>
     <p class="guide-prose">
-      <code>modern-charts</code> ships <strong>4 unopinionated design-system palettes</strong> with
+      <code>modern-charts</code> ships <strong>5 built-in chart palettes</strong> with
       <strong>20 colors each</strong> — <code>'shadcn'</code>, <code>'material'</code> (Angular Material),
-      <code>'bootstrap'</code>, and <code>'antd'</code> (Ant Design) — across <code>'system'</code>,
+      <code>'bootstrap'</code>, <code>'antd'</code> (Ant Design), and <code>'neutral'</code>
+      (grayscale, starting with mid gray <code>#737373</code>) — across <code>'system'</code>,
       <code>'dark'</code>, and <code>'light'</code> modes. Click any palette or edit <code>palette</code>
       (including a seed hex like <code>'#2563eb'</code>) in the live config editor below.
     </p>
@@ -161,9 +163,9 @@ export function renderThemesGuide(
   });
 
   const editor1 = createLiveConfigEditor({
-    title: 'Design-System Palettes Config (Live)',
+    title: 'Built-In Palettes Config (Live)',
     initialConfig: buildPaletteEditorConfig(),
-    hint: 'Change palette ("shadcn", "material", "bootstrap", "antd", or any hex color like "#1677ff") or add custom colors[].',
+    hint: 'Change palette ("shadcn", "material", "bootstrap", "antd", "neutral", or any hex color like "#1677ff") or add custom colors[].',
     onConfigChange: (nextCfg) => {
       if (nextCfg.themeMode) {
         selectedMode = nextCfg.themeMode;
@@ -474,6 +476,7 @@ chart.config = {
           <option value="material">material (20 colors)</option>
           <option value="bootstrap">bootstrap (20 colors)</option>
           <option value="antd">antd (20 colors)</option>
+          <option value="neutral">neutral (20 grayscale colors)</option>
         </select>
       </label>
       <label id="grad-seed-wrap" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:none;align-items:center;gap:6px;">
@@ -1072,7 +1075,7 @@ chart.config = {
       <table class="guide-table">
         <thead><tr><th>Token</th><th>Type</th><th>Controls</th></tr></thead>
         <tbody>
-          <tr><td><code>palette</code></td><td><code>'shadcn' | 'material' | 'bootstrap' | 'antd' | string</code></td><td>20-color design-system palette name or a seed color string (e.g. <code>'#2563eb'</code>) auto-expanded into a 20-color light-to-dark ramp.</td></tr>
+          <tr><td><code>palette</code></td><td><code>'shadcn' | 'material' | 'bootstrap' | 'antd' | 'neutral' | string</code></td><td>20-color built-in palette name (including Neutral grayscale) or a seed color string (e.g. <code>'#2563eb'</code>) auto-expanded into a 20-color light-to-dark ramp.</td></tr>
           <tr><td><code>colors</code></td><td><code>string[]</code></td><td>Explicit series color array (e.g. <code>generateColorPalette('#2563eb', 20)</code>). Overrides <code>palette</code>.</td></tr>
           <tr><td><code>gradient</code></td><td><code>boolean | GradientDirection | ChartGradientConfig</code></td><td>Auto-generates directional SVG linear gradients from <code>palette</code>, <code>colors[]</code>, or a seed color — adapting to vertical/horizontal layouts and flipping direction on negative bars (<code>reverseOnNegative: true</code>).</td></tr>
           <tr><td><code>background</code></td><td><code>string</code></td><td>Chart SVG canvas background fill.</td></tr>

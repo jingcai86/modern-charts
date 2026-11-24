@@ -22,7 +22,7 @@ function hexLuminance(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-describe('Design-System Palettes & Single-Color Light-to-Dark Generator (Issue #13)', () => {
+describe('Built-In Palettes & Single-Color Light-to-Dark Generator (Issue #13)', () => {
   beforeAll(() => {
     registerModernCharts();
   });
@@ -31,9 +31,9 @@ describe('Design-System Palettes & Single-Color Light-to-Dark Generator (Issue #
     document.body.innerHTML = '';
   });
 
-  it('ships strictly the 4 design-system palettes (material, bootstrap, antd, shadcn) with 20 hex colors each and removes all 7 legacy presets', () => {
+  it('ships five built-in palettes (material, bootstrap, antd, shadcn, neutral) with 20 hex colors each and excludes legacy presets', () => {
     const keys = Object.keys(PALETTES).sort();
-    expect(keys).toEqual(['antd', 'bootstrap', 'material', 'shadcn']);
+    expect(keys).toEqual(['antd', 'bootstrap', 'material', 'neutral', 'shadcn']);
     expect(DEFAULT_PALETTE).toBe('shadcn');
 
     for (const removed of [
@@ -56,6 +56,63 @@ describe('Design-System Palettes & Single-Color Light-to-Dark Generator (Issue #
       }
       // Every palette should have 20 distinct color values
       expect(new Set(colors.map((c) => c.toLowerCase())).size).toBe(20);
+    }
+  });
+
+  it('provides Neutral as twenty distinct grayscale shades centered around a mid-gray first series', () => {
+    const colors = resolvePaletteColors('neutral');
+    expect(colors).toEqual(PALETTES.neutral);
+    expect(colors).toHaveLength(20);
+    expect(colors[0]).toBe('#737373');
+    expect(new Set(colors).size).toBe(20);
+    const levels = colors.map((color) => {
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+      expect(r).toBe(g);
+      expect(g).toBe(b);
+      expect(r).toBeGreaterThan(0);
+      expect(r).toBeLessThan(255);
+      return r;
+    });
+    expect(Math.max(...levels) - Math.min(...levels)).toBeGreaterThan(100);
+    for (const mode of ['light', 'dark'] as const) {
+      const theme = createDefaultTheme(mode, 'neutral');
+      expect(theme.palette).toBe('neutral');
+      expect(theme.colors).toEqual(colors);
+    }
+    expect(createDefaultTheme().palette).toBe('shadcn');
+  });
+
+  it('renders Neutral chart series through config and attributes and generates matching gradients', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+    bar.config = {
+      width: 480,
+      height: 300,
+      animate: false,
+      palette: 'neutral',
+      indexBy: 'q',
+      keys: ['A', 'B'],
+      data: [{ q: 'Q1', A: 10, B: 20 }]
+    };
+    const fills = () => Array.from(
+      bar.shadowRoot!.querySelectorAll('rect.mc-bar-rect')
+    ).map((rect) => rect.getAttribute('fill'));
+    expect(fills()).toEqual(PALETTES.neutral.slice(0, 2));
+    bar.config = { ...bar.config, palette: undefined };
+    bar.setAttribute('palette', 'neutral');
+    expect(fills()).toEqual(PALETTES.neutral.slice(0, 2));
+
+    const gradient = generateGradientPalette('neutral');
+    expect(gradient.colors).toEqual(PALETTES.neutral);
+    expect(gradient.gradients).toHaveLength(20);
+    expect(gradient.negativeGradients).toHaveLength(20);
+    const stops = gradient.gradients[0].colors as GradientStop[];
+    expect(stops[1].color).toBe('#737373');
+    for (const stop of stops) {
+      expect(stop.color.slice(1, 3)).toBe(stop.color.slice(3, 5));
+      expect(stop.color.slice(3, 5)).toBe(stop.color.slice(5, 7));
     }
   });
 
@@ -104,7 +161,7 @@ describe('Design-System Palettes & Single-Color Light-to-Dark Generator (Issue #
     expect(resolvePaletteColors('#1677ff')).toEqual(fromRgb);
   });
 
-  it('applies design-system palettes and seed-color palettes live on charts via config.palette and HTML attribute', () => {
+  it('applies built-in palettes and seed-color palettes live on charts via config.palette and HTML attribute', () => {
     const themeMat = createDefaultTheme('dark', 'material');
     expect(themeMat.colors).toEqual(PALETTES.material);
 

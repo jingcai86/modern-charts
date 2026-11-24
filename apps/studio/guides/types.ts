@@ -35,7 +35,7 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     shortLabel: 'Themes',
     icon: '🎨',
     summary:
-      'Choose among four design-system palettes, set light/dark appearance, or create custom colors, gradients, and declarative <mc-theme-layer> overrides.'
+      'Choose among five built-in chart palettes, including mid gray Neutral, set light/dark appearance, or create custom colors, gradients, and declarative <mc-theme-layer> overrides.'
   },
   {
     id: 'd3',

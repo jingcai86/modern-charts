@@ -404,6 +404,7 @@ export function renderDynamicUpdatesGuide(
           <option value="material">material</option>
           <option value="bootstrap">bootstrap</option>
           <option value="antd">antd</option>
+          <option value="neutral">neutral (grayscale)</option>
         </select>
       </label>
       <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
@@ -500,7 +501,7 @@ export function renderDynamicUpdatesGuide(
     initialConfig: initialCfg3,
     hint: 'Edit palette, groupMode, layout, legend.position, tooltip.position, or data in a single batched setConfig().',
     onConfigChange: (nextCfg) => {
-      if (['shadcn', 'material', 'bootstrap', 'antd'].includes(nextCfg.palette)) {
+      if (['shadcn', 'material', 'bootstrap', 'antd', 'neutral'].includes(nextCfg.palette)) {
         selPalette.value = nextCfg.palette;
       }
       if (nextCfg.groupMode === 'grouped' || nextCfg.groupMode === 'stacked') {
