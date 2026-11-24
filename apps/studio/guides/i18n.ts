@@ -1,3 +1,4 @@
+import { getGlobalPalette } from '../state/theme';
 import {
   createChartI18n,
   type MCBaseChart,
@@ -47,7 +48,8 @@ function mountExample(container: HTMLElement, options: ExampleOptions): MCBaseCh
   chart.style.cssText = 'display:block;width:100%;height:100%;';
   section.querySelector('.guide-chart-stage')!.appendChild(chart);
   const readout = section.querySelector<HTMLElement>('.inspector-readout')!;
-  let currentConfig = structuredClone(options.config);
+  const defaultConfig = () => ({ palette: getGlobalPalette(), ...structuredClone(options.config) });
+  let currentConfig: Record<string, any> = defaultConfig();
 
   const apply = (nextConfig: Record<string, any>) => {
     // Validate before updating the chart so incomplete locale/timezone edits keep the last preview.
@@ -78,7 +80,7 @@ function mountExample(container: HTMLElement, options: ExampleOptions): MCBaseCh
     hint: 'Edit chart.config to update the preview. Invalid locale or timezone input keeps the last valid chart; Reset restores this example.',
     onConfigChange: apply,
     onReset: () => {
-      const defaults = structuredClone(options.config);
+      const defaults = defaultConfig();
       apply(defaults);
       editor.syncConfig(defaults);
     }

@@ -1,3 +1,4 @@
+import { getGlobalPalette } from '../state/theme';
 import type {
   LabelDescriptor,
   MCBaseChart,
@@ -196,7 +197,7 @@ export function renderCustomLabelsGuide(
     labelChart1.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'shadcn',
+      palette: getGlobalPalette(),
       indexBy: 'quarter',
       keys: ['Revenue'],
       enableLabels: true,

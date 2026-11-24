@@ -1,5 +1,5 @@
+import { getGlobalPalette } from '../state/theme';
 import {
-  DEFAULT_PALETTE,
   PALETTES,
   generateColorPalette,
   generateGradientPalette,
@@ -32,6 +32,19 @@ export function renderThemesGuide(
 ): MCBaseChart<any>[] {
   const mounted: MCBaseChart<any>[] = [];
 
+  const explanation = document.createElement('section');
+  explanation.className = 'panel-card guide-section';
+  explanation.innerHTML = `
+    <h2 class="panel-title">Theme and Appearance are independent</h2>
+    <p class="guide-prose">The Studio header's <strong>Theme</strong> menu chooses the default design-system chart palette:
+      Shadcn, Material, Bootstrap, or Ant Design. <strong>Appearance</strong> chooses System, Light, or Dark for Studio and chart surfaces.
+      Both preferences are saved separately. Use Theme to change chart colors while keeping the current light/dark appearance.</p>
+    <p class="guide-prose">The examples below let you override that default with their own palette, custom colors, or gradients.
+      Their live editors show the exact chart configuration. Change <code>palette</code> for design-system colors,
+      <code>themeMode</code> for appearance, and <code>colors</code> or <code>theme</code> for custom styling.</p>
+  `;
+  container.appendChild(explanation);
+
   // Example 1: 4 Design-System Palettes (20 colors each)
   const introCard = document.createElement('section');
   introCard.className = 'panel-card guide-section';
@@ -46,7 +59,7 @@ export function renderThemesGuide(
     </p>
     <div class="guide-palette-grid" id="guide-palette-picker"></div>
     <div class="guide-controls-row" style="margin-top:4px;">
-      <span style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">Preview Mode:</span>
+      <span style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">Appearance:</span>
       <button type="button" id="btn-theme-mode-system" class="${themeMode === 'system' ? 'btn-primary' : ''}">System</button>
       <button type="button" id="btn-theme-mode-dark" class="${themeMode === 'dark' ? 'btn-primary' : ''}">Dark</button>
       <button type="button" id="btn-theme-mode-light" class="${themeMode === 'light' ? 'btn-primary' : ''}">Light</button>
@@ -59,7 +72,7 @@ export function renderThemesGuide(
   `;
   container.appendChild(introCard);
 
-  let selectedPalette: ChartPaletteName = DEFAULT_PALETTE;
+  let selectedPalette: ChartPaletteName = getGlobalPalette();
   let selectedMode: ThemeModePreference = themeMode;
 
   const palettePicker = introCard.querySelector('#guide-palette-picker') as HTMLElement;
@@ -163,7 +176,7 @@ export function renderThemesGuide(
       applyPaletteConfig(nextCfg);
     },
     onReset: () => {
-      selectedPalette = DEFAULT_PALETTE;
+      selectedPalette = getGlobalPalette();
       selectedMode = themeMode;
       syncPaletteButtons(selectedPalette);
       syncModeButtons(selectedMode);
@@ -516,7 +529,8 @@ chart.config = {
 
   type GradSourceMode = 'theme' | 'seed' | 'array';
   let gradSourceMode: GradSourceMode = 'theme';
-  let gradPaletteName: BuiltInPaletteName = DEFAULT_PALETTE;
+  let gradPaletteName: BuiltInPaletteName = getGlobalPalette();
+  gradPaletteSelect.value = gradPaletteName;
   let gradSeedColor = '#2563eb';
   let gradCount = 20;
   let gradCustomColors = ['#2563eb', '#10b981', '#f59e0b'];
@@ -791,7 +805,7 @@ chart.config = {
     },
     onReset: () => {
       gradSourceMode = 'theme';
-      gradPaletteName = DEFAULT_PALETTE;
+      gradPaletteName = getGlobalPalette();
       gradSeedColor = '#2563eb';
       gradCount = 20;
       gradCustomColors = ['#2563eb', '#10b981', '#f59e0b'];

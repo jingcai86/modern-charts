@@ -1,3 +1,4 @@
+import { getGlobalPalette } from '../state/theme';
 import type {
   LabelOverflowStrategy,
   MCBaseChart,
@@ -174,7 +175,7 @@ export function renderTruncationGuide(
     bar1.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'shadcn',
+      palette: getGlobalPalette(),
       borderRadius: 6,
       margin: {
         top: 44,
@@ -282,7 +283,7 @@ export function renderTruncationGuide(
 
   const initialPie2Cfg = {
     title: 'Truncated Pie Link Labels & Legend Items',
-    palette: 'shadcn',
+    palette: getGlobalPalette(),
     innerRadius: 0.52,
     data: [
       { id: 'North America Cloud Infrastructure', value: 420 },

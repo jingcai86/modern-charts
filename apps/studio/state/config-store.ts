@@ -1,12 +1,13 @@
 import type {
   ChartConfig,
+  BuiltInPaletteName,
   MarkerAnnotationPosition,
   MarkerLabelPosition,
   MarkerMatchScope,
   ThemeModePreference
 } from '../../../src/index';
 import { SVG_ICON_PRESETS, type ChartCatalogEntry } from '../catalog';
-import { getGlobalThemeMode } from './theme';
+import { getGlobalPalette, getGlobalThemeMode } from './theme';
 
 export interface ChartVirtualState {
   __markerEnabled: boolean;
@@ -33,6 +34,7 @@ const chartVirtualState = new Map<string, ChartVirtualState>();
 export function getOrInitChartConfig(entry: ChartCatalogEntry): ChartConfig<any> {
   if (!chartConfigState.has(entry.id)) {
     const cfg = entry.createDefaultConfig(getGlobalThemeMode());
+    cfg.palette = getGlobalPalette();
     chartConfigState.set(entry.id, cfg);
 
     const lineMarker = cfg.markers?.find((m) => m.type === 'line');
@@ -90,6 +92,12 @@ export function syncAllStoredConfigsTheme(pref: ThemeModePreference): void {
       delete cfg.theme.axisColor;
       delete cfg.theme.gridColor;
     }
+  });
+}
+
+export function syncAllStoredConfigsPalette(palette: BuiltInPaletteName): void {
+  chartConfigState.forEach((config) => {
+    config.palette = palette;
   });
 }
 

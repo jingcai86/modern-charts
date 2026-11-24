@@ -1,9 +1,55 @@
 import {
+  DEFAULT_PALETTE,
+  PALETTES,
   resolveEffectiveThemeMode,
+  type BuiltInPaletteName,
   type ThemeModePreference
 } from '../../../src/index';
 
 const THEME_STORAGE_KEY = 'modern-charts-theme-mode';
+const PALETTE_STORAGE_KEY = 'modern-charts-palette';
+
+function isBuiltInPalette(value: unknown): value is BuiltInPaletteName {
+  return typeof value === 'string' && Object.hasOwn(PALETTES, value);
+}
+
+function readStoredPalette(): BuiltInPaletteName {
+  try {
+    const saved = localStorage.getItem(PALETTE_STORAGE_KEY);
+    if (isBuiltInPalette(saved)) return saved;
+  } catch {
+    // Use the default when storage is unavailable.
+  }
+  return DEFAULT_PALETTE;
+}
+
+let currentPalette: BuiltInPaletteName = readStoredPalette();
+
+/** The design-system palette used for new Studio chart configurations. */
+export function getGlobalPalette(): BuiltInPaletteName {
+  return currentPalette;
+}
+
+export function setGlobalPalette(palette: BuiltInPaletteName): BuiltInPaletteName {
+  if (!isBuiltInPalette(palette)) return currentPalette;
+  currentPalette = palette;
+  try {
+    if (palette === DEFAULT_PALETTE) localStorage.removeItem(PALETTE_STORAGE_KEY);
+    else localStorage.setItem(PALETTE_STORAGE_KEY, palette);
+  } catch {
+    // Keep the current session usable when storage is unavailable.
+  }
+  return currentPalette;
+}
+
+export function subscribePaletteChanges(onPaletteChange: (palette: BuiltInPaletteName) => void): void {
+  window.addEventListener('storage', (event) => {
+    if (event.key === PALETTE_STORAGE_KEY || event.key === null) {
+      currentPalette = readStoredPalette();
+      onPaletteChange(currentPalette);
+    }
+  });
+}
 
 function readStoredPreference(): ThemeModePreference {
   try {

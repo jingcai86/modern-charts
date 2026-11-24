@@ -1,3 +1,4 @@
+import { getGlobalPalette } from '../state/theme';
 import type { MCBaseChart, ThemeModePreference } from '../../../src/index';
 import { createLiveConfigEditor } from './shared';
 
@@ -173,7 +174,7 @@ export function renderEventsGuide(
 
   const initialEventsCfg = {
     title: 'Interactive Event Playground',
-    palette: 'shadcn',
+    palette: getGlobalPalette(),
     indexBy: 'quarter',
     keys: ['Cloud', 'Edge'],
     isInteractive: true,

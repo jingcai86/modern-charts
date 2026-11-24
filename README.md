@@ -230,6 +230,14 @@ const { themeLayer, scaleLayer, ariaLayer, animationLayer } = chart.getSubCompon
 
 ---
 
+## 🎛️ Interactive Studio Playground
+
+Use **Theme** to choose Shadcn, Material, Bootstrap, or Ant Design chart colors. Use **Appearance** to choose System, Light, or Dark surfaces. Studio saves these preferences separately and applies the selected theme to new and reset chart configurations.
+
+The header links directly to the [Themes & Palettes guide](https://jingcai86.github.io/modern-charts/#/guide/themes), which explains the two controls and includes editable palette, gradient, and custom theme examples. Custom chart colors and guide examples can override the selected theme.
+
+---
+
 ## 🐳 Running with Docker
 
 Run the entire showcase in Docker with zero local Node.js setup:
