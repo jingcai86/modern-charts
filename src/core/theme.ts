@@ -117,30 +117,43 @@ function parseColorToRgb(raw: string): [number, number, number] | null {
     return null;
   }
 
-  // rgb(...) / rgba(...)
-  const rgbMatch =
-    /^rgba?\(\s*([\d.]+)\s*[,\s]\s*([\d.]+)\s*[,\s]\s*([\d.]+)(?:\s*[,/]\s*[\d.%]+)?\s*\)$/i.exec(
-      s
-    );
-  if (rgbMatch) {
-    return [
-      clampByte(Number(rgbMatch[1])),
-      clampByte(Number(rgbMatch[2])),
-      clampByte(Number(rgbMatch[3]))
-    ];
-  }
+  if (s.length > 64) return null;
 
-  // hsl(...) / hsla(...)
-  const hslMatch =
-    /^hsla?\(\s*([-\d.]+)(?:deg)?\s*[,\s]\s*([\d.]+)%\s*[,\s]\s*([\d.]+)%(?:\s*[,/]\s*[\d.%]+)?\s*\)$/i.exec(
-      s
-    );
-  if (hslMatch) {
-    return hslToRgb(
-      Number(hslMatch[1]),
-      Number(hslMatch[2]) / 100,
-      Number(hslMatch[3]) / 100
-    );
+  // rgb(...) / rgba(...) and hsl(...) / hsla(...) — linear O(n) parser (no ReDoS)
+  const lower = s.toLowerCase();
+  const openIdx = lower.indexOf('(');
+  if (openIdx > 0 && lower.endsWith(')')) {
+    const fn = lower.slice(0, openIdx);
+    const body = lower.slice(openIdx + 1, -1).trim();
+    const slashIdx = body.indexOf('/');
+    const primary = (slashIdx === -1 ? body : body.slice(0, slashIdx)).trim();
+    const parts = primary
+      .split(primary.includes(',') ? ',' : ' ')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (parts.length < 3 || parts.length > 4) return null;
+
+    if (fn === 'rgb' || fn === 'rgba') {
+      const r = Number(parts[0]);
+      const g = Number(parts[1]);
+      const b = Number(parts[2]);
+      if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b)) {
+        return null;
+      }
+      return [clampByte(r), clampByte(g), clampByte(b)];
+    }
+
+    if (fn === 'hsl' || fn === 'hsla') {
+      const hStr = parts[0].endsWith('deg') ? parts[0].slice(0, -3) : parts[0];
+      if (!parts[1].endsWith('%') || !parts[2].endsWith('%')) return null;
+      const h = Number(hStr);
+      const sat = Number(parts[1].slice(0, -1));
+      const lit = Number(parts[2].slice(0, -1));
+      if (!Number.isFinite(h) || !Number.isFinite(sat) || !Number.isFinite(lit)) {
+        return null;
+      }
+      return hslToRgb(h, sat / 100, lit / 100);
+    }
   }
 
   return null;
