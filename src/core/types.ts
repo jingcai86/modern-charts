@@ -1059,6 +1059,76 @@ export interface GradientStop {
   opacity?: number;
 }
 
+export type GradientDirection =
+  | 'auto'
+  | 'vertical'
+  | 'horizontal'
+  | 'top-to-bottom'
+  | 'bottom-to-top'
+  | 'left-to-right'
+  | 'right-to-left'
+  | 'diagonal';
+
+export interface GradientGeneratorOptions {
+  /** Custom gradient `<linearGradient id="...">`. Default `'mc-grad'`. */
+  id?: string;
+  /**
+   * Gradient direction or angle in degrees.
+   * - `'vertical'` / `'top-to-bottom'` (`0°`): bright tip at top → baseline at bottom (negative flips to `180°`).
+   * - `'horizontal'` / `'right-to-left'` (`270°`): bright tip at right → baseline at left (negative flips to `90°`).
+   * - `'bottom-to-top'` (`180°`), `'left-to-right'` (`90°`), `'diagonal'` (`45°`), or custom degrees.
+   * - `'auto'`: resolves from `layout` (`'horizontal'` → `270°`, `'vertical'` → `0°`).
+   */
+  direction?: GradientDirection | number;
+  /** Chart layout hint used when `direction` is `'auto'`. Default `'vertical'`. */
+  layout?: 'vertical' | 'horizontal';
+  /** Tonal lightness shift from the base color (`0`–`1`). Default `0.28`. */
+  intensity?: number;
+  /** Starting (tip) stop opacity (`0`–`1`). Default `1`. */
+  startOpacity?: number;
+  /** Ending (baseline) stop opacity (`0`–`1`). Default `0.78`. */
+  endOpacity?: number;
+}
+
+export interface GradientPaletteOptions
+  extends Omit<GradientGeneratorOptions, 'id'> {
+  /** Number of shades/gradients generated when the source is a single seed color. Default `20`. */
+  count?: number;
+  /**
+   * Automatically generate paired reversed-direction gradients (`+180°`) and
+   * direction-aware `fill` rules for negative values (`value < 0`). Default `true`.
+   */
+  reverseOnNegative?: boolean;
+  /** Prefix for generated gradient IDs. Default `'mc-grad'`. */
+  idPrefix?: string;
+  /** Optional series/item keys mapped 1-to-1 to generated gradients in `fill` rules. */
+  keys?: string[];
+}
+
+export interface GeneratedGradientPalette {
+  /** Resolved base colors (from theme palette, `colors[]`, or single-color light-to-dark ramp). */
+  colors: string[];
+  /** All generated `<linearGradient>` defs (positive + negative variants when `reverseOnNegative` is enabled). */
+  defs: LinearGradientDef[];
+  /** Direction-aware `FillRule[]` that automatically flip gradient direction for negative items (`value < 0`). */
+  fill: FillRule[];
+  /** Positive-direction gradient defs aligned by index with `colors`. */
+  gradients: LinearGradientDef[];
+  /** Reversed-direction gradient defs for negative items (`value < 0`), aligned by index with `colors`. */
+  negativeGradients: LinearGradientDef[];
+}
+
+export interface ChartGradientConfig
+  extends Omit<GradientPaletteOptions, 'keys'> {
+  enabled?: boolean;
+  /**
+   * Optional color source override: a theme palette name (`'shadcn'`, `'material'`, `'bootstrap'`, `'antd'`),
+   * a single seed color (`'#2563eb'`), or a custom `string[]` array.
+   * Defaults to the chart's active `colors` / `palette`.
+   */
+  colors?: ChartPaletteName | string[];
+}
+
 export interface DotsPatternDef {
   id: string;
   type: 'dots';
@@ -1225,6 +1295,12 @@ export interface ChartConfig<TData = any> {
   themeMode?: ThemeModePreference;
   palette?: ChartPaletteName;
   colors?: string[];
+  /**
+   * Auto-generates directional SVG linear gradients from the chart's theme palette,
+   * custom `colors[]`, or a single seed color — automatically adapting to vertical vs.
+   * horizontal layouts and flipping gradient direction for negative values (`value < 0`).
+   */
+  gradient?: boolean | GradientDirection | ChartGradientConfig;
 
   // Scale layer config (Nivo-style xScale, yScale, scales, colorScheme)
   xScale?: Partial<ScaleAxisConfig>;

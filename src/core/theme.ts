@@ -3,6 +3,13 @@ import type {
   BuiltInPaletteName,
   ChartPaletteName,
   ChartTheme,
+  FillMatchContext,
+  FillRule,
+  GeneratedGradientPalette,
+  GradientDirection,
+  GradientGeneratorOptions,
+  GradientPaletteOptions,
+  LinearGradientDef,
   ThemeModePreference
 } from './types';
 export { createSequentialColorScale } from './color-schemes';
@@ -219,6 +226,222 @@ export function resolvePaletteColors(
     return generateColorPalette(palette, count);
   }
   return PALETTES[DEFAULT_PALETTE];
+}
+
+function clampUnit(n: number, fallback: number): number {
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(1, n));
+}
+
+function normalizeColorKey(raw: string): string {
+  const rgb = parseColorToRgb(raw);
+  return rgb ? rgbToHex(rgb[0], rgb[1], rgb[2]) : raw.trim().toLowerCase();
+}
+
+/**
+ * Resolves positive and reversed-negative SVG linear gradient angles (in degrees)
+ * for vertical, horizontal, cardinal, diagonal, or custom numeric directions.
+ *
+ * Angle convention matches `PatternEngine`:
+ * - `0°` = top → bottom (positive vertical bar: vivid top tip → zero baseline at bottom)
+ * - `180°` = bottom → top (negative vertical bar: vivid bottom tip → zero baseline at top)
+ * - `270°` = right → left (positive horizontal bar: vivid right tip → zero baseline at left)
+ * - `90°` = left → right (negative horizontal bar: vivid left tip → zero baseline at right)
+ */
+export function resolveGradientAngles(
+  direction: GradientDirection | number = 'vertical',
+  layout: 'vertical' | 'horizontal' = 'vertical'
+): { positiveAngle: number; negativeAngle: number } {
+  let positiveAngle = 0;
+
+  if (typeof direction === 'number' && Number.isFinite(direction)) {
+    positiveAngle = ((direction % 360) + 360) % 360;
+  } else {
+    const resolved =
+      direction === 'auto'
+        ? layout === 'horizontal'
+          ? 'horizontal'
+          : 'vertical'
+        : direction;
+
+    switch (resolved) {
+      case 'horizontal':
+      case 'right-to-left':
+        positiveAngle = 270;
+        break;
+      case 'left-to-right':
+        positiveAngle = 90;
+        break;
+      case 'bottom-to-top':
+        positiveAngle = 180;
+        break;
+      case 'diagonal':
+        positiveAngle = 45;
+        break;
+      case 'vertical':
+      case 'top-to-bottom':
+      default:
+        positiveAngle = 0;
+        break;
+    }
+  }
+
+  return {
+    positiveAngle,
+    negativeAngle: (positiveAngle + 180) % 360
+  };
+}
+
+/**
+ * Generates a smooth 3-stop tonal `<linearGradient>` definition from a single base color
+ * (bright highlight at tip → exact base color anchor → deeper/softer baseline tail).
+ */
+export function generateColorGradient(
+  baseColor: string,
+  options: GradientGeneratorOptions = {}
+): LinearGradientDef {
+  const rgb = parseColorToRgb(baseColor) ?? [37, 99, 235];
+  const [h, s, l] = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+  const intensity = clampUnit(options.intensity ?? 0.28, 0.28);
+  const startOpacity = clampUnit(options.startOpacity ?? 1, 1);
+  const endOpacity = clampUnit(options.endOpacity ?? 0.78, 0.78);
+  const midOpacity =
+    Math.round((startOpacity * 0.65 + endOpacity * 0.35) * 1000) / 1000;
+
+  const startL =
+    l >= 0.88
+      ? Math.min(0.98, l + 0.04)
+      : Math.min(0.92, l + intensity * 0.45);
+  const endL =
+    l <= 0.14
+      ? Math.max(0.05, l - 0.04)
+      : Math.max(0.12, l - intensity * 0.45);
+
+  const [sr, sg, sb] = hslToRgb(h, Math.min(1, s * 1.05), startL);
+  const [er, eg, eb] = hslToRgb(h, Math.min(1, s * 0.95), endL);
+
+  const startHex = rgbToHex(sr, sg, sb);
+  const midHex = rgbToHex(rgb[0], rgb[1], rgb[2]);
+  const endHex = rgbToHex(er, eg, eb);
+
+  const { positiveAngle } = resolveGradientAngles(
+    options.direction ?? 'vertical',
+    options.layout ?? 'vertical'
+  );
+
+  return {
+    id: options.id ?? 'mc-grad',
+    type: 'linearGradient',
+    angle: positiveAngle,
+    colors: [
+      { offset: '0%', color: startHex, opacity: startOpacity },
+      { offset: '48%', color: midHex, opacity: midOpacity },
+      { offset: '100%', color: endHex, opacity: endOpacity }
+    ]
+  };
+}
+
+/**
+ * Generates a full set of directional SVG `<linearGradient>` definitions and matching
+ * `FillRule[]` from:
+ * - a built-in design-system theme palette (`'shadcn'`, `'material'`, `'bootstrap'`, `'antd'`),
+ * - a single seed color string (auto-expanded light-to-dark via `generateColorPalette`),
+ * - a custom `colors[]` array, or
+ * - a `ChartTheme` object.
+ *
+ * When `reverseOnNegative` is `true` (default), negative items (`value < 0`, e.g. negative
+ * vertical or horizontal bars) automatically receive the opposite gradient direction (`+180°`)
+ * so both positive and negative bars radiate outward from the zero axis.
+ */
+export function generateGradientPalette(
+  source: ChartPaletteName | string[] | ChartTheme = DEFAULT_PALETTE,
+  options: GradientPaletteOptions = {}
+): GeneratedGradientPalette {
+  const count = options.count ?? 20;
+  let colors: string[];
+
+  if (Array.isArray(source)) {
+    colors =
+      source.length > 0 ? [...source] : resolvePaletteColors(DEFAULT_PALETTE, count);
+  } else if (
+    source &&
+    typeof source === 'object' &&
+    Array.isArray(source.colors) &&
+    source.colors.length > 0
+  ) {
+    colors = [...source.colors];
+  } else if (typeof source === 'string') {
+    colors = resolvePaletteColors(source, count);
+  } else {
+    colors = resolvePaletteColors(DEFAULT_PALETTE, count);
+  }
+
+  const reverseOnNegative = options.reverseOnNegative !== false;
+  const idPrefix = options.idPrefix ?? 'mc-grad';
+  const { positiveAngle, negativeAngle } = resolveGradientAngles(
+    options.direction ?? 'vertical',
+    options.layout ?? 'vertical'
+  );
+
+  const gradients: LinearGradientDef[] = [];
+  const negativeGradients: LinearGradientDef[] = [];
+  const defs: LinearGradientDef[] = [];
+  const fill: FillRule[] = [];
+
+  const isNegativeContext = (ctx: FillMatchContext): boolean =>
+    ctx.target !== 'legend' && typeof ctx.value === 'number' && ctx.value < 0;
+
+  colors.forEach((color, idx) => {
+    const posId = `${idPrefix}-${idx}`;
+    const posDef = generateColorGradient(color, {
+      id: posId,
+      direction: positiveAngle,
+      intensity: options.intensity,
+      startOpacity: options.startOpacity,
+      endOpacity: options.endOpacity
+    });
+    gradients.push(posDef);
+    defs.push(posDef);
+
+    const normColor = normalizeColorKey(color);
+    const keyName = options.keys?.[idx];
+    const matchesTarget = (ctx: FillMatchContext): boolean =>
+      keyName !== undefined
+        ? ctx.key === keyName || ctx.seriesId === keyName || ctx.id === keyName
+        : normalizeColorKey(ctx.color) === normColor;
+
+    if (reverseOnNegative) {
+      const negId = `${idPrefix}-${idx}-neg`;
+      const negDef = generateColorGradient(color, {
+        id: negId,
+        direction: negativeAngle,
+        intensity: options.intensity,
+        startOpacity: options.startOpacity,
+        endOpacity: options.endOpacity
+      });
+      negativeGradients.push(negDef);
+      defs.push(negDef);
+
+      fill.push({
+        id: negId,
+        match: (_datum, ctx) => isNegativeContext(ctx) && matchesTarget(ctx)
+      });
+    }
+
+    fill.push({
+      id: posId,
+      match: (_datum, ctx) =>
+        (!reverseOnNegative || !isNegativeContext(ctx)) && matchesTarget(ctx)
+    });
+  });
+
+  return {
+    colors,
+    defs,
+    fill,
+    gradients,
+    negativeGradients
+  };
 }
 
 export function createDefaultTheme(
