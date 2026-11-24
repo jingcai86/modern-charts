@@ -1,3 +1,4 @@
+import { getGlobalPalette } from '../state/theme';
 import type {
   MCBaseChart,
   MCTooltipElement,
@@ -127,7 +128,7 @@ export function renderTooltipsGuide(
     keys: ['Cloud', 'Edge'],
     groupMode: 'grouped',
     themeMode,
-    palette: 'shadcn',
+    palette: getGlobalPalette(),
     title: 'Hover Bars to Inspect ::part() Styled Tooltip',
     markers: [
       {
@@ -410,7 +411,7 @@ mc-bar-chart::part(tooltip-badge) {
 
   const buildBar4Config = (mode: 'item' | 'follow') => ({
     title: `Hover or Tab through bars — Tooltip Position: ${mode}`,
-    palette: 'shadcn',
+    palette: getGlobalPalette(),
     indexBy: 'quarter',
     keys: ['Cloud', 'Edge', 'AI'],
     data: [

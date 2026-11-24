@@ -1,3 +1,4 @@
+import { getGlobalPalette } from '../state/theme';
 import type {
   LegendPosition,
   MCBaseChart,
@@ -289,7 +290,7 @@ export function renderDynamicUpdatesGuide(
       data: payload.barData,
       autoSize: true,
       themeMode,
-      palette: 'shadcn',
+      palette: getGlobalPalette(),
       title: barIsEmpty ? 'Empty State (data = null / [])' : 'Live Bar Dataset',
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge'],

@@ -1,3 +1,4 @@
+import { getGlobalPalette } from '../state/theme';
 import type { MCBaseChart, ThemeModePreference } from '../../../src/index';
 import { createLiveConfigEditor } from './shared';
 
@@ -306,7 +307,7 @@ export function renderAccessibilityGuide(
     staticChart.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'shadcn',
+      palette: getGlobalPalette(),
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge'],
       borderRadius: 6,

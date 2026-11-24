@@ -1,3 +1,4 @@
+import { getGlobalPalette } from '../state/theme';
 import type {
   ChartRenderContext,
   MCBaseChart,
@@ -180,7 +181,7 @@ export function renderCustomLayersGuide(
     return {
       data: lineData,
       title: 'Weekly API Traffic with Custom Layer',
-      palette: 'shadcn',
+      palette: getGlobalPalette(),
       enableArea: true,
       areaOpacity: 0.14,
       curve: 'monotoneX',
@@ -313,7 +314,7 @@ export function renderCustomLayersGuide(
   const initialCfg2 = {
     data: barData,
     title: 'Regional SLA Uptime (%) — Threshold-Aware Layer',
-    palette: 'shadcn',
+    palette: getGlobalPalette(),
     indexBy: 'region',
     keys: ['Uptime'],
     borderRadius: 6,

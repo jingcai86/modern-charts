@@ -1,6 +1,7 @@
 import {
   VERSION,
   registerModernCharts,
+  type BuiltInPaletteName,
   type MCBaseChart,
   type ThemeModePreference
 } from '../../src/index';
@@ -8,10 +9,13 @@ import { CHART_CATALOG, type ChartCatalogEntry } from './catalog';
 import { GUIDES_CATALOG, renderGuidePage, type GuideId } from './guides';
 import { renderOverviewPage, writeStoredHomeTab } from './pages/overview';
 import { renderChartDetailPage } from './pages/chart-detail';
-import { syncAllStoredConfigsTheme } from './state/config-store';
+import { syncAllStoredConfigsPalette, syncAllStoredConfigsTheme } from './state/config-store';
 import {
+  getGlobalPalette,
   getGlobalThemeMode,
+  setGlobalPalette,
   setGlobalThemeMode,
+  subscribePaletteChanges,
   subscribeThemeChanges
 } from './state/theme';
 
@@ -164,18 +168,18 @@ function handleRoute(): void {
 
 window.addEventListener('hashchange', handleRoute);
 
-// Three-state Theme Selector (System / Dark Mode / Light Mode + localStorage + OS listener)
-const globalThemeSelect = document.getElementById(
-  'global-theme-select'
+// Appearance controls the light/dark surfaces independently of the design-system palette.
+const globalAppearanceSelect = document.getElementById(
+  'global-appearance-select'
 ) as HTMLSelectElement | null;
 
-if (globalThemeSelect) {
-  globalThemeSelect.value = getGlobalThemeMode();
+if (globalAppearanceSelect) {
+  globalAppearanceSelect.value = getGlobalThemeMode();
 }
 
 function syncActiveViewTheme(pref: ThemeModePreference): void {
-  if (globalThemeSelect && globalThemeSelect.value !== pref) {
-    globalThemeSelect.value = pref;
+  if (globalAppearanceSelect && globalAppearanceSelect.value !== pref) {
+    globalAppearanceSelect.value = pref;
   }
 
   syncAllStoredConfigsTheme(pref);
@@ -200,7 +204,7 @@ function syncActiveViewTheme(pref: ThemeModePreference): void {
   }
 }
 
-globalThemeSelect?.addEventListener('change', (e) => {
+globalAppearanceSelect?.addEventListener('change', (e) => {
   const target = (e.target as HTMLSelectElement).value as ThemeModePreference;
   const nextPref = setGlobalThemeMode(target);
   syncActiveViewTheme(nextPref);
@@ -209,5 +213,27 @@ globalThemeSelect?.addEventListener('change', (e) => {
 subscribeThemeChanges((nextPref) => {
   syncActiveViewTheme(nextPref);
 });
+
+const globalPaletteSelect = document.getElementById('global-palette-select') as HTMLSelectElement | null;
+if (globalPaletteSelect) globalPaletteSelect.value = getGlobalPalette();
+
+function syncActiveViewPalette(palette: BuiltInPaletteName): void {
+  if (globalPaletteSelect) globalPaletteSelect.value = palette;
+  syncAllStoredConfigsPalette(palette);
+  const root = document.getElementById('app-root');
+  if (!root) return;
+  if (activeGuideId) {
+    renderGuidePage(root, activeGuideId, getGlobalThemeMode());
+  } else if (activeDetailChart && activeDetailEntry) {
+    activeDetailChart = renderChartDetailPage(root, activeDetailEntry);
+  } else {
+    activeOverviewCharts.forEach((chart) => chart.setConfig({ ...chart.config, palette }));
+  }
+}
+
+globalPaletteSelect?.addEventListener('change', () => {
+  syncActiveViewPalette(setGlobalPalette(globalPaletteSelect.value as BuiltInPaletteName));
+});
+subscribePaletteChanges(syncActiveViewPalette);
 
 handleRoute();

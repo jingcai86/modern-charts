@@ -35,7 +35,7 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     shortLabel: 'Themes',
     icon: '🎨',
     summary:
-      'Work with built-in dark/light/system themes, all 7 bundled palettes, or craft fully custom brand themes and declarative <mc-theme-layer> overrides.'
+      'Choose among four design-system palettes, set light/dark appearance, or create custom colors, gradients, and declarative <mc-theme-layer> overrides.'
   },
   {
     id: 'd3',
