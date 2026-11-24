@@ -37,7 +37,9 @@ export class MCHeatmapChart extends MCBaseChart<HeatmapRow[]> {
     'min',
     'max',
     'border-radius',
-    'enable-labels'
+    'enable-labels',
+    'x-title',
+    'y-title'
   ];
 
   get chartType(): string {
@@ -111,7 +113,11 @@ export class MCHeatmapChart extends MCBaseChart<HeatmapRow[]> {
     (ctx: ChartRenderContext<HeatmapRow[]>) => void
   > {
     return {
-      axes: (ctx) => renderCartesianAxes(ctx),
+      axes: (ctx) =>
+        renderCartesianAxes(ctx, {
+          xTitle: this.getOption('xTitle', 'x-title'),
+          yTitle: this.getOption('yTitle', 'y-title')
+        }),
       cells: (ctx) =>
         renderHeatmapCellsLayer(ctx.state.model as HeatmapChartModel, ctx),
       labels: (ctx) =>

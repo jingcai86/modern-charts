@@ -64,8 +64,19 @@ export type ScaleType =
   | 'ordinal'
   | 'sequential';
 
+export type AxisPosition =
+  | 'top'
+  | 'right'
+  | 'bottom'
+  | 'left'
+  | 'both'
+  | 'none';
+
 export interface ScaleAxisConfig {
   type: ScaleType;
+  position?: AxisPosition;
+  title?: string;
+  tickCount?: number;
   min?: number | 'auto';
   max?: number | 'auto';
   stacked?: boolean;
