@@ -11,7 +11,8 @@ function scoreBadge(score) {
 }
 
 function buildLighthouseMarkdown() {
-  const manifestPath = process.env.LHCI_MANIFEST_PATH || '.lighthouseci/manifest.json';
+  const rawManifestEnv = (process.env.LHCI_MANIFEST_PATH || '').trim();
+  const manifestPath = '.lighthouseci/manifest.json';
   let summary = null;
   let reportUrl = '';
 
@@ -24,21 +25,41 @@ function buildLighthouseMarkdown() {
     }
   }
 
-  if (existsSync(manifestPath)) {
+  let manifest = null;
+  if (rawManifestEnv.startsWith('[')) {
     try {
-      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-      const entry = Array.isArray(manifest) ? manifest[0] : null;
-      if (entry?.summary) {
-        summary = entry.summary;
-      } else if (entry?.jsonPath && existsSync(entry.jsonPath)) {
-        const lhr = JSON.parse(readFileSync(entry.jsonPath, 'utf8'));
-        summary = {
-          performance: lhr.categories?.performance?.score,
-          accessibility: lhr.categories?.accessibility?.score,
-          'best-practices': lhr.categories?.['best-practices']?.score,
-          seo: lhr.categories?.seo?.score
-        };
-      }
+      manifest = JSON.parse(rawManifestEnv);
+    } catch {
+      manifest = null;
+    }
+  } else if (existsSync(rawManifestEnv || manifestPath)) {
+    try {
+      manifest = JSON.parse(
+        readFileSync(rawManifestEnv || manifestPath, 'utf8')
+      );
+    } catch {
+      manifest = null;
+    }
+  } else if (existsSync(manifestPath)) {
+    try {
+      manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    } catch {
+      manifest = null;
+    }
+  }
+
+  const entry = Array.isArray(manifest) ? manifest[0] : null;
+  if (entry?.summary) {
+    summary = entry.summary;
+  } else if (entry?.jsonPath && existsSync(entry.jsonPath)) {
+    try {
+      const lhr = JSON.parse(readFileSync(entry.jsonPath, 'utf8'));
+      summary = {
+        performance: lhr.categories?.performance?.score,
+        accessibility: lhr.categories?.accessibility?.score,
+        'best-practices': lhr.categories?.['best-practices']?.score,
+        seo: lhr.categories?.seo?.score
+      };
     } catch {
       // ignore parse errors
     }
