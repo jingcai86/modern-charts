@@ -91,16 +91,14 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     category: 'Theme Layer (<mc-theme-layer>)',
     control: 'select',
     options: [
-      { label: 'modern', value: 'modern' },
-      { label: 'nivo', value: 'nivo' },
-      { label: 'echarts', value: 'echarts' },
-      { label: 'emerald', value: 'emerald' },
-      { label: 'sunset', value: 'sunset' },
-      { label: 'ocean', value: 'ocean' },
-      { label: 'cyber', value: 'cyber' }
+      { label: 'shadcn (20 colors)', value: 'shadcn' },
+      { label: 'material (20 colors)', value: 'material' },
+      { label: 'bootstrap (20 colors)', value: 'bootstrap' },
+      { label: 'antd (20 colors)', value: 'antd' }
     ],
-    description: 'Color palette used by D3 ordinal color scale.',
-    defaultValue: 'modern'
+    description:
+      '20-color design-system palette (or pass any hex/rgb/hsl seed color in config.palette to auto-generate a 20-color light-to-dark ramp).',
+    defaultValue: 'shadcn'
   },
   {
     configPath: 'theme.fontSize',

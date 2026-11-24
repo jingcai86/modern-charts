@@ -1298,7 +1298,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this._config.palette ||
       this._config.theme?.palette ||
       (this.getAttribute('palette') as ChartPaletteName) ||
-      'modern';
+      'shadcn';
     let theme = createDefaultTheme(modeAttr, paletteAttr);
 
     const { themeLayer } = this.getSubComponents();

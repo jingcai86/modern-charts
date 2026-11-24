@@ -3,9 +3,10 @@ import type { ChartAttributeSpec, ChartCatalogEntry } from '../../catalog';
 import { getGlobalThemeMode } from '../../state/theme';
 import {
   applyHtmlAttributeToConfig,
-  extractChartConfigJson,
+  extractChartConfigBlock,
   extractTagAttributes,
   generateWebComponentHtmlSnippet,
+  parseConfigObjectLiteral,
   restoreSerializedFunctions
 } from '../../utils/code-sync';
 
@@ -92,21 +93,21 @@ export function createCodeEditorPanel(opts: {
 
   htmlPreviewBox.addEventListener('input', () => {
     const rawMarkup = htmlPreviewBox.value;
-    const jsonBlock = extractChartConfigJson(rawMarkup);
+    const configBlock = extractChartConfigBlock(rawMarkup);
     const currentTagAttrs = extractTagAttributes(rawMarkup, entry.tagName);
 
     let nextCfg: ChartConfig<any> = { ...config };
 
-    if (jsonBlock !== null) {
+    if (configBlock !== null) {
       try {
-        const parsedRaw = JSON.parse(jsonBlock);
-        if (parsedRaw && typeof parsedRaw === 'object') {
+        const parsedRaw = parseConfigObjectLiteral(configBlock);
+        if (parsedRaw && typeof parsedRaw === 'object' && !Array.isArray(parsedRaw)) {
           nextCfg = restoreSerializedFunctions(parsedRaw, config);
           editorHelperDesc.innerHTML = defaultHelperHtml;
           editorHelperDesc.style.color = 'var(--text-muted)';
         }
       } catch (err: any) {
-        editorHelperDesc.textContent = `Waiting for valid chart.config JSON: ${
+        editorHelperDesc.textContent = `Waiting for valid chart.config: ${
           err?.message ?? 'Syntax error'
         }`;
         editorHelperDesc.style.color = '#f87171';

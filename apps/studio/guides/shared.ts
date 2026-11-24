@@ -1,4 +1,8 @@
-import { formatConfigAsJson, restoreSerializedFunctions } from '../utils/code-sync';
+import {
+  formatConfigAssignment,
+  parseConfigObjectLiteral,
+  restoreSerializedFunctions
+} from '../utils/code-sync';
 import { isUnsafePathKey } from '../utils/object-path';
 import { GUIDES_CATALOG, type GuideId } from './types';
 
@@ -160,7 +164,7 @@ export function createCodeBlock(code: string, title = 'Code Example'): HTMLEleme
 export interface LiveCodeEditorOptions {
   title: string;
   initialValue: string;
-  language?: 'json' | 'css' | 'html';
+  language?: 'config' | 'css' | 'html';
   hint?: string;
   onApply: (rawValue: string) => void | string;
   onReset?: () => void;
@@ -184,7 +188,7 @@ export function createLiveCodeEditor(
   const idBase = `guide-live-editor-${++copySnippetSeq}`;
   const textareaId = `${idBase}-input`;
   const errorId = `${idBase}-error`;
-  const lang = (options.language ?? 'json').toUpperCase();
+  const lang = (options.language ?? 'config').toUpperCase();
   const defaultHint =
     options.hint ??
     `Live editable ${lang} — changes reflect on the chart immediately.`;
@@ -306,7 +310,7 @@ export function createLiveCodeEditor(
 }
 
 // ============================================================================
-// Live JSON Config Editor (preserves functions + named layer reordering)
+// Live JS Config Editor (preserves functions + named layer reordering)
 // ============================================================================
 function restoreGuideConfigFunctions(
   parsed: any,
@@ -371,6 +375,8 @@ function restoreGuideConfigFunctions(
 export interface LiveConfigEditorOptions<T extends Record<string, any> = Record<string, any>> {
   title: string;
   initialConfig: T;
+  /** Assignment prefix displayed before the config object (default: `'chart.config ='`). */
+  assignPrefix?: string;
   hint?: string;
   /** Optional map of layer names/tokens to live custom layer functions/objects so users can reorder or restore them in `layers[]`. */
   layerRegistry?: Record<string, any>;
@@ -390,24 +396,25 @@ export function createLiveConfigEditor<T extends Record<string, any> = Record<st
   options: LiveConfigEditorOptions<T>
 ): LiveConfigEditorHandle<T> {
   let activeConfig: T = options.initialConfig;
+  const assignPrefix = options.assignPrefix ?? 'chart.config =';
 
   const editor = createLiveCodeEditor({
     title: options.title,
-    language: 'json',
-    initialValue: formatConfigAsJson(options.initialConfig),
+    language: 'config',
+    initialValue: formatConfigAssignment(options.initialConfig, assignPrefix),
     hint:
       options.hint ??
-      'Live editable JSON config — modify data, colors, labels, or options to update the chart immediately.',
+      'Live editable chart.config — modify data, colors, labels, or options to update the chart immediately.',
     onReset: options.onReset,
     onApply: (rawValue) => {
       let parsed: any;
       try {
-        parsed = JSON.parse(rawValue);
+        parsed = parseConfigObjectLiteral(rawValue);
       } catch (err: any) {
-        return `Waiting for valid JSON: ${err?.message ?? 'Syntax error'}`;
+        return `Waiting for valid chart.config: ${err?.message ?? 'Syntax error'}`;
       }
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return 'Config must be a JSON object ({ ... }).';
+        return 'Config must be a JavaScript object ({ ... }).';
       }
       const restored = options.layerRegistry
         ? restoreGuideConfigFunctions(parsed, activeConfig, options.layerRegistry)
@@ -422,7 +429,7 @@ export function createLiveConfigEditor<T extends Record<string, any> = Record<st
     syncConfig: (nextConfig, opts = {}) => {
       activeConfig = nextConfig;
       if (opts.title) editor.setTitle(opts.title);
-      editor.setValue(formatConfigAsJson(nextConfig), {
+      editor.setValue(formatConfigAssignment(nextConfig, assignPrefix), {
         resetBaseline: opts.resetBaseline,
         preserveFocus: opts.preserveFocus
       });

@@ -180,7 +180,7 @@ export function renderCustomLayersGuide(
     return {
       data: lineData,
       title: 'Weekly API Traffic with Custom Layer',
-      palette: 'modern',
+      palette: 'shadcn',
       enableArea: true,
       areaOpacity: 0.14,
       curve: 'monotoneX',
@@ -313,7 +313,7 @@ export function renderCustomLayersGuide(
   const initialCfg2 = {
     data: barData,
     title: 'Regional SLA Uptime (%) — Threshold-Aware Layer',
-    palette: 'emerald',
+    palette: 'shadcn',
     indexBy: 'region',
     keys: ['Uptime'],
     borderRadius: 6,

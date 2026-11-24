@@ -127,7 +127,7 @@ export function renderTooltipsGuide(
     keys: ['Cloud', 'Edge'],
     groupMode: 'grouped',
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     title: 'Hover Bars to Inspect ::part() Styled Tooltip',
     markers: [
       {
@@ -248,7 +248,7 @@ mc-bar-chart::part(tooltip-badge) {
 
   const initialLine2Cfg = {
     title: 'Hover Across Months for Computed KPI Tooltip',
-    palette: 'ocean',
+    palette: 'bootstrap',
     curve: 'monotoneX',
     enableArea: true,
     enableSlices: true,
@@ -358,7 +358,7 @@ mc-bar-chart::part(tooltip-badge) {
       data: pie3BaseData,
       innerRadius,
       themeMode,
-      palette: 'sunset',
+      palette: 'material',
       tooltip: tipDisabled ? false : undefined,
       title: 'Declarative <mc-tooltip> with {{datum.owner}}'
     });
@@ -385,7 +385,7 @@ mc-bar-chart::part(tooltip-badge) {
         <h3 class="guide-example-title">Example 4: Configurable Positioning — Item-Anchored vs. Follow Mouse</h3>
         <p class="guide-prose">
           Toggle between <code>position: 'item'</code> and <code>position: 'follow'</code>, or edit <code>tooltip</code>
-          settings and <code>data</code> directly in the live JSON editor below.
+          settings and <code>data</code> directly in the live config editor below.
         </p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -410,7 +410,7 @@ mc-bar-chart::part(tooltip-badge) {
 
   const buildBar4Config = (mode: 'item' | 'follow') => ({
     title: `Hover or Tab through bars — Tooltip Position: ${mode}`,
-    palette: 'modern',
+    palette: 'shadcn',
     indexBy: 'quarter',
     keys: ['Cloud', 'Edge', 'AI'],
     data: [

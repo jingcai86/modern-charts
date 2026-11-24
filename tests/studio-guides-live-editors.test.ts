@@ -5,6 +5,14 @@ import {
   renderGuidePage,
   type GuideId
 } from '../apps/studio/guides/index';
+import {
+  extractChartConfigBlock,
+  formatConfigAsJsObject,
+  formatConfigAssignment,
+  parseConfigObjectLiteral
+} from '../apps/studio/utils/code-sync';
+import { createCodeEditorPanel } from '../apps/studio/pages/chart-detail/code-editor';
+import { CHART_CATALOG } from '../apps/studio/catalog';
 
 describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
   beforeAll(() => {
@@ -16,7 +24,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
   });
 
   it.each(GUIDES_CATALOG)(
-    'renders live client-editable editors with accessible controls for guide "$id"',
+    'renders live client-editable editors (no LIVE JSON) with accessible controls for guide "$id"',
     (guide) => {
       const root = document.createElement('div');
       document.body.appendChild(root);
@@ -38,6 +46,10 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
         const wrap = ta.closest('.guide-code-wrap');
         expect(wrap).not.toBeNull();
 
+        const badgeText = wrap!.querySelector('.guide-code-live-badge')?.textContent;
+        expect(['LIVE CONFIG', 'LIVE CSS', 'LIVE HTML']).toContain(badgeText);
+        expect(badgeText).not.toBe('LIVE JSON');
+
         const resetBtn = wrap!.querySelector('button.guide-reset-btn');
         const copyBtn = wrap!.querySelector('button.guide-copy-btn');
         const copyStatus = copyBtn?.nextElementSibling;
@@ -50,7 +62,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     15_000
   );
 
-  it('updates mounted charts live on JSON config edits, surfaces accessible errors on invalid JSON, and resets cleanly', () => {
+  it('updates mounted charts live on JS chart.config edits, surfaces accessible errors on invalid syntax, and resets cleanly', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
@@ -61,25 +73,27 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     );
     const staticEditor = editors[1];
 
-    // 1. Live edit JSON: flip isInteractive to false and change title
-    const parsed = JSON.parse(staticEditor.value);
+    expect(staticEditor.value.startsWith('chart.config = {')).toBe(true);
+
+    // 1. Live edit JS config with unquoted keys, single quotes, comment, and trailing comma
+    const parsed = parseConfigObjectLiteral(staticEditor.value);
     parsed.isInteractive = false;
     parsed.title = 'Client-Edited Static Title';
-    staticEditor.value = JSON.stringify(parsed, null, 2);
+    staticEditor.value = `// Updated live config\n${formatConfigAssignment(parsed).replace(/\n\};$/, ',\n};')}`;
     staticEditor.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(staticEditor.getAttribute('aria-invalid')).toBe('false');
     expect(staticChart.isInteractive).toBe(false);
     expect(staticChart.config.title).toBe('Client-Edited Static Title');
 
-    // 2. Typing broken JSON flags aria-invalid + aria-describedby without crashing
-    staticEditor.value = '{ "isInteractive": ';
+    // 2. Typing broken config flags aria-invalid + aria-describedby without crashing
+    staticEditor.value = 'chart.config = { isInteractive: ';
     staticEditor.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(staticEditor.getAttribute('aria-invalid')).toBe('true');
     const errId = staticEditor.getAttribute('aria-describedby');
     expect(errId).toBeTruthy();
-    expect(document.getElementById(errId!)?.textContent).toContain('Waiting for valid JSON');
+    expect(document.getElementById(errId!)?.textContent).toContain('Waiting for valid chart.config');
 
     // 3. Clicking Reset restores default config and clears aria-invalid
     const resetBtn = staticEditor
@@ -141,12 +155,12 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     const layerEditor = root.querySelector<HTMLTextAreaElement>(
       'textarea.guide-code-editor'
     )!;
-    const cfg = JSON.parse(layerEditor.value);
+    const cfg = parseConfigObjectLiteral(layerEditor.value);
     const customObj = cfg.layers.find((l: any) => l?.name === 'peak-and-mean');
     expect(customObj).toBeTruthy();
     cfg.layers = ['grid', customObj, 'axes', 'lines', 'points', 'legends'];
     cfg.data[0].data[0].y = 110;
-    layerEditor.value = JSON.stringify(cfg, null, 2);
+    layerEditor.value = formatConfigAssignment(cfg);
     layerEditor.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(layerEditor.getAttribute('aria-invalid')).toBe('false');
@@ -155,5 +169,71 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     );
     expect(customLayerG).not.toBeNull();
     expect(customLayerG!.textContent).toContain('Peak: 110K (Mon)');
+  });
+
+  it('parses JS config object literals safely and updates chart-detail code editor live', () => {
+    const sample = `
+      /* Leading comment */
+      chart.config = {
+        palette: 'material', // inline comment
+        'custom-key': 'hello {world}',
+        values: [1, -2.5, .5, 1e2,],
+        nested: { enabled: true, empty: null, },
+        __proto__: { polluted: true },
+      };
+    `;
+    const parsed = parseConfigObjectLiteral(sample);
+    expect(parsed.palette).toBe('material');
+    expect(parsed['custom-key']).toBe('hello {world}');
+    expect(parsed.values).toEqual([1, -2.5, 0.5, 100]);
+    expect(parsed.nested).toEqual({ enabled: true, empty: null });
+    expect(({} as any).polluted).toBeUndefined();
+
+    const formatted = formatConfigAsJsObject({
+      palette: 'shadcn',
+      keys: ['A', 'B'],
+      'kebab-key': "it's ok"
+    });
+    expect(formatted).toContain("palette: 'shadcn'");
+    expect(formatted).toContain("keys: ['A', 'B']");
+    expect(formatted).toContain("'kebab-key': 'it\\'s ok'");
+    expect(parseConfigObjectLiteral(formatted)).toEqual({
+      palette: 'shadcn',
+      keys: ['A', 'B'],
+      'kebab-key': "it's ok"
+    });
+
+    // Brace extraction handles single quotes and comments containing braces
+    const htmlWithConfig = `<script>
+      chart.config = {
+        title: 'Revenue {Q1}', // keep } out of brace count
+        palette: 'antd',
+      };
+    </script>`;
+    const block = extractChartConfigBlock(htmlWithConfig);
+    expect(block).not.toBeNull();
+    expect(parseConfigObjectLiteral(block!)).toEqual({
+      title: 'Revenue {Q1}',
+      palette: 'antd'
+    });
+
+    // Chart detail code editor emits JS chart.config and accepts live JS edits
+    const barEntry = CHART_CATALOG.find((c) => c.id === 'bar')!;
+    let latestCfg = barEntry.createDefaultConfig('dark');
+    const panel = createCodeEditorPanel({
+      entry: barEntry,
+      config: latestCfg,
+      allAttributes: barEntry.specificAttributes,
+      onMarkupEdited: (next) => {
+        latestCfg = next;
+      },
+      onRandomizeData: () => {},
+      onResetDefault: () => {}
+    });
+    const ta = panel.element.querySelector<HTMLTextAreaElement>('#detail-html-preview')!;
+    expect(ta.value).toContain("palette: 'shadcn'");
+    ta.value = ta.value.replace("palette: 'shadcn'", "palette: 'bootstrap', // live edit");
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(latestCfg.palette).toBe('bootstrap');
   });
 });

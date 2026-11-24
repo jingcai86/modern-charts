@@ -56,7 +56,7 @@ const data: BarDatum[] = [
     title: 'Quarterly Spend ($K)',
     xTitle: 'Quarter',
     yTitle: 'Spend ($K)',
-    palette: 'modern',
+    palette: 'shadcn',
     markers: [
       {
         id: 'floor',

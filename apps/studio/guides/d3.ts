@@ -20,7 +20,7 @@ export function renderD3Guide(
       <code>d3</code> namespace on every custom layer's render context (<code>ctx.d3</code>), along with
       the chart's already-computed <code>ctx.xScale</code>, <code>ctx.yScale</code>, <code>ctx.colorScale</code>,
       <code>ctx.layerGroup</code>, and tooltip helpers (<code>ctx.showTooltip</code> / <code>ctx.hideTooltip</code>).
-      Edit the live JSON configs below to watch the D3 overlays recompute immediately from your updated data.
+      Edit the live <code>chart.config</code> editors below to watch the D3 overlays recompute immediately from your updated data.
     </p>
   `;
   container.appendChild(introCard);
@@ -146,7 +146,7 @@ export function renderD3Guide(
   const buildD3Chart1Config = () => ({
     confidenceBandPct: bandPct,
     title: `Demand Forecast with D3 ±${bandPct}% Ribbon & OLS Trend`,
-    palette: 'ocean',
+    palette: 'bootstrap',
     curve: 'monotoneX',
     yScale: { type: 'linear', min: 30, max: 175 },
     data: forecastData,
@@ -319,7 +319,7 @@ export function renderD3Guide(
 
   const initialD3Cfg2 = {
     title: 'Scatter Clusters with D3 Quantile IQR Box',
-    palette: 'cyber',
+    palette: 'antd',
     xTitle: 'Latency (ms)',
     yTitle: 'Throughput (req/s)',
     xScale: { type: 'linear', min: 10, max: 100 },

@@ -516,7 +516,7 @@ export class MCTruncateElement extends HTMLElement {
 
       const themeMode =
         (this.getAttribute('theme-mode') as ThemeModePreference) || 'light';
-      const theme = createDefaultTheme(themeMode, 'modern');
+      const theme = createDefaultTheme(themeMode, 'shadcn');
       const customTip = overflow.tooltip;
       const anchor = resolveElementAnchor(textEl, {
         left: 0,

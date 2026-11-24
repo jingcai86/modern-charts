@@ -110,7 +110,7 @@ npm install modern-charts
 
     // Theming & Palette
     themeMode: 'system',
-    palette: 'nivo',
+    palette: 'shadcn',
 
     // Scales
     xScale: { type: 'band', padding: 0.28 },

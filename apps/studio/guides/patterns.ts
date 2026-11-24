@@ -84,7 +84,7 @@ export function renderPatternsGuide(
         <h2 class="panel-title">Example 1: Accessible Series Patterns, Gradients &amp; Threshold Splits</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Toggle presets or edit <code>defs</code> (<code>rotation</code>, <code>spacing</code>, <code>colors</code>, <code>angle</code>),
-          <code>fill</code> rules, and <code>markers</code> live in the JSON editor — notice legend swatches update automatically.
+          <code>fill</code> rules, and <code>markers</code> live in the config editor — notice legend swatches update automatically.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -127,7 +127,7 @@ export function renderPatternsGuide(
         title: 'Accessible Patterns with Inherited Colors (Live)',
         cfg: {
           title: 'Accessible Pattern Fills',
-          palette: 'modern',
+          palette: 'shadcn',
           indexBy: 'quarter',
           keys: ['Cloud', 'Edge', 'AI'],
           markers: [],
@@ -151,7 +151,7 @@ export function renderPatternsGuide(
         title: 'Linear Gradients Config (Live)',
         cfg: {
           title: 'Linear Gradients (Multi-Stop & Inherit)',
-          palette: 'ocean',
+          palette: 'bootstrap',
           indexBy: 'quarter',
           keys: ['Cloud', 'Edge', 'AI'],
           markers: [],
@@ -178,7 +178,7 @@ export function renderPatternsGuide(
         title: 'Patterns + Partial Thresholds Config (Live)',
         cfg: {
           title: 'Threshold Split with Striped Cap',
-          palette: 'modern',
+          palette: 'shadcn',
           indexBy: 'quarter',
           keys: ['Cloud', 'Edge'],
           defs: [
@@ -217,7 +217,7 @@ export function renderPatternsGuide(
       title: 'Rule-Based Datum Predicate Config (Live)',
       cfg: {
         title: 'Datum Predicate (Bars >= 200)',
-        palette: 'sunset',
+        palette: 'material',
         indexBy: 'quarter',
         keys: ['Cloud', 'Edge', 'AI'],
         markers: [],
@@ -322,7 +322,7 @@ export function renderPatternsGuide(
 
   const defaultPie2Cfg = {
     title: 'Pie: Gradient, Dots, Squares & Wave',
-    palette: 'modern',
+    palette: 'shadcn',
     innerRadius: 0.5,
     data: [
       { id: 'Compute', value: 420 },
@@ -352,7 +352,7 @@ export function renderPatternsGuide(
 
   const defaultLine2Cfg = {
     title: 'Line Area: Striped & Dotted Area Fills',
-    palette: 'emerald',
+    palette: 'shadcn',
     enableArea: true,
     areaOpacity: 0.42,
     data: [
@@ -506,7 +506,7 @@ export function renderPatternsGuide(
         data: { value: 84, min: 0, max: 100, unit: '%', label: 'Throughput' },
         autoSize: true,
         themeMode,
-        palette: 'modern',
+        palette: 'shadcn',
         title: 'Gauge with Declarative <mc-def>'
       });
     }

@@ -77,7 +77,7 @@ export function renderEventsGuide(
         <h2 class="panel-title">Live Interactive Event Log &amp; Editable Chart Config</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Hover bars, click axis labels or empty canvas, hover legends or the SLA marker, press <strong>Tab + Enter</strong>,
-          or edit <code>data</code>, <code>markers</code>, <code>view</code>, and <code>isInteractive</code> in the live JSON editor below.
+          or edit <code>data</code>, <code>markers</code>, <code>view</code>, and <code>isInteractive</code> in the live config editor below.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -173,7 +173,7 @@ export function renderEventsGuide(
 
   const initialEventsCfg = {
     title: 'Interactive Event Playground',
-    palette: 'modern',
+    palette: 'shadcn',
     indexBy: 'quarter',
     keys: ['Cloud', 'Edge'],
     isInteractive: true,

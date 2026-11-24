@@ -93,7 +93,7 @@ export function renderChartStateGuide(
       <div>
         <h2 class="panel-title">Example 1: State Transitions &amp; <code>mc-state-change</code></h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Toggle preset buttons or edit <code>loading</code>, <code>loadingText</code>, <code>emptyText</code>, and <code>data</code> directly in the live JSON editor.
+          Toggle preset buttons or edit <code>loading</code>, <code>loadingText</code>, <code>emptyText</code>, and <code>data</code> directly in the live config editor.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -140,7 +140,7 @@ export function renderChartStateGuide(
     bar1.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'modern',
+      palette: 'shadcn',
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge'],
       borderRadius: 6,
@@ -264,7 +264,7 @@ export function renderChartStateGuide(
       loading: mode === 'loading',
       autoSize: true,
       themeMode,
-      palette: 'ocean',
+      palette: 'bootstrap',
       title: 'API Throughput (Custom Slots)',
       enableArea: true,
       areaOpacity: 0.16
@@ -401,7 +401,7 @@ mc-pie-chart::part(state-message) {
       emptyText: 'No billing records found',
       autoSize: true,
       themeMode,
-      palette: 'emerald',
+      palette: 'shadcn',
       title: 'Cloud Spend Share',
       innerRadius: 0.54
     });

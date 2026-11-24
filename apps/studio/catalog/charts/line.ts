@@ -47,7 +47,7 @@ export const LINE_CHART_ENTRY: ChartCatalogEntry = {
     enablePointLabels: true,
     enableSlices: true,
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     xScale: { type: 'point' },
     yScale: { type: 'linear', min: 0, max: 320, stacked: false },
     view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },

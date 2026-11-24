@@ -56,7 +56,7 @@ export function renderTruncationGuide(
         <h2 class="panel-title">Example 1: Long Axis Categories, Rotation &amp; Full-Text Tooltips</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Hover or keyboard-<strong>Tab</strong> onto any truncated X-axis tick below to inspect the full label text.
-          Use the controls or edit <code>data</code> and <code>label.overflow</code> directly in the live JSON editor.
+          Use the controls or edit <code>data</code> and <code>label.overflow</code> directly in the live config editor.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:6px;">
@@ -174,7 +174,7 @@ export function renderTruncationGuide(
     bar1.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'modern',
+      palette: 'shadcn',
       borderRadius: 6,
       margin: {
         top: 44,
@@ -265,7 +265,7 @@ export function renderTruncationGuide(
         <h2 class="panel-title">Example 2: Truncated Legends &amp; Pie Arc Links</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Set <code>legend.maxItemWidth</code> and <code>label.maxWidth</code> to bound long series names in legends and pie link labels —
-          edit either value or segment names in the live JSON editor below.
+          edit either value or segment names in the live config editor below.
         </p>
       </div>
     </div>
@@ -282,7 +282,7 @@ export function renderTruncationGuide(
 
   const initialPie2Cfg = {
     title: 'Truncated Pie Link Labels & Legend Items',
-    palette: 'emerald',
+    palette: 'shadcn',
     innerRadius: 0.52,
     data: [
       { id: 'North America Cloud Infrastructure', value: 420 },

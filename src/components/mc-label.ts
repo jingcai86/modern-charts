@@ -538,7 +538,7 @@ export class MCLabelElement extends HTMLElement {
       return;
     }
 
-    const theme = createDefaultTheme('light', 'modern');
+    const theme = createDefaultTheme('light', 'shadcn');
     this.#engine.setCustomRenderer(this.#renderer);
     this.#engine.setTooltipHandlers({
       showTooltip: (

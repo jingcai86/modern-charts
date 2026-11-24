@@ -47,7 +47,7 @@ interface PieDatum {
     cornerRadius: 6,
     padAngle: 2,
     title: 'Cloud Cost Breakdown',
-    palette: 'modern',
+    palette: 'shadcn',
     ariaLabel: 'Cloud cost breakdown donut chart'
   };
 </script>

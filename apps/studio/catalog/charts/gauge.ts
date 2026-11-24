@@ -26,7 +26,7 @@ export const GAUGE_CHART_ENTRY: ChartCatalogEntry = {
     max: 100,
     unit: '%',
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Real-Time Text Layout Efficiency Gauge',
