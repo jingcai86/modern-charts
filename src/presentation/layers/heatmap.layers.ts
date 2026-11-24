@@ -1,9 +1,7 @@
-import { physicalTextAnchor } from '../../core/i18n';
+import { renderUnifiedLegendLayer } from '../../core/legend-engine';
 import type { ChartRenderContext, HeatmapRow } from '../../core/types';
 import type { HeatmapChartModel } from '../../models/heatmap.model';
 import { renderHeatmapCellItem } from '../items/cell.item';
-
-const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export function renderHeatmapCellsLayer(
   model: HeatmapChartModel,
@@ -52,67 +50,30 @@ export function renderHeatmapCellLabelsLayer(
 }
 
 export function renderHeatmapLegendLayer(
-  model: HeatmapChartModel,
+  _model: HeatmapChartModel,
   ctx: ChartRenderContext<HeatmapRow[]>,
-  defs?: Element | null
+  _defs?: Element | null
 ): void {
-  if (!defs || !model.seqScale) return;
-
-  const gradId = 'mc-heatmap-legend-grad';
-  const grad = document.createElementNS(SVG_NS, 'linearGradient');
-  grad.setAttribute('id', gradId);
-  grad.setAttribute('x1', '0%');
-  grad.setAttribute('y1', '0%');
-  grad.setAttribute('x2', '100%');
-  grad.setAttribute('y2', '0%');
-
-  for (let i = 0; i <= 10; i++) {
-    const t = i / 10;
-    const stop = document.createElementNS(SVG_NS, 'stop');
-    stop.setAttribute('offset', `${t * 100}%`);
-    stop.setAttribute(
-      'stop-color',
-      model.seqScale(model.minVal + t * (model.maxVal - model.minVal))
+  const hasExplicitPosition =
+    typeof ctx.config.legend === 'object' &&
+    ctx.config.legend !== null &&
+    ctx.config.legend.position !== undefined;
+  const hostHasDeclPos =
+    ctx.svg.getRootNode() instanceof ShadowRoot &&
+    Boolean(
+      (ctx.svg.getRootNode() as ShadowRoot).host?.querySelector(
+        ':scope > mc-legend[position]'
+      )
     );
-    grad.appendChild(stop);
-  }
-  defs.appendChild(grad);
-
-  const barW = Math.min(130, ctx.innerWidth * 0.34);
-  const barH = 8;
-  const startX = ctx.innerWidth - barW - 22;
-  const startY = -20;
-
-  const barRect = document.createElementNS(SVG_NS, 'rect');
-  barRect.setAttribute('x', String(startX));
-  barRect.setAttribute('y', String(startY));
-  barRect.setAttribute('width', String(barW));
-  barRect.setAttribute('height', String(barH));
-  barRect.setAttribute('rx', '4');
-  barRect.setAttribute('fill', `url(#${gradId})`);
-  ctx.layerGroup.appendChild(barRect);
-
-  ctx.renderLabel(ctx.layerGroup, {
-    id: 'heatmap-legend-min',
-    text: ctx.i18n.formatNumber(model.minVal, { useGrouping: false }),
-    x: startX - 6,
-    y: startY + barH / 2,
-    type: 'legend',
-    anchor: physicalTextAnchor('end', ctx.i18n.direction),
-    baseline: 'middle',
-    fontSize: 10,
-    color: ctx.theme.mutedTextColor
-  });
-
-  ctx.renderLabel(ctx.layerGroup, {
-    id: 'heatmap-legend-max',
-    text: ctx.i18n.formatNumber(model.maxVal, { useGrouping: false }),
-    x: startX + barW + 6,
-    y: startY + barH / 2,
-    type: 'legend',
-    anchor: physicalTextAnchor('start', ctx.i18n.direction),
-    baseline: 'middle',
-    fontSize: 10,
-    color: ctx.theme.mutedTextColor
-  });
+  const effectiveCtx =
+    hasExplicitPosition || hostHasDeclPos
+      ? ctx
+      : {
+          ...ctx,
+          legendConfig: {
+            ...ctx.legendConfig,
+            position: 'top' as const
+          }
+        };
+  renderUnifiedLegendLayer(effectiveCtx, [], 'top');
 }

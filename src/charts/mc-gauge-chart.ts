@@ -12,6 +12,7 @@ import {
 import {
   renderGaugeBandsLayer,
   renderGaugeCenterLayer,
+  renderGaugeLegendsLayer,
   renderGaugeNeedleLayer,
   renderGaugeTicksLayer,
   renderGaugeTrackLayer,
@@ -46,7 +47,7 @@ export class MCGaugeChart extends MCBaseChart<GaugeDataInput> {
   }
 
   get defaultLayers(): string[] {
-    return ['track', 'bands', 'valueArc', 'ticks', 'needle', 'center'];
+    return ['track', 'bands', 'valueArc', 'ticks', 'needle', 'center', 'legends'];
   }
 
   protected getDefaultMargin(): ChartMargin {
@@ -118,7 +119,9 @@ export class MCGaugeChart extends MCBaseChart<GaugeDataInput> {
       needle: (ctx) =>
         renderGaugeNeedleLayer(ctx.state.model as GaugeChartModel, ctx),
       center: (ctx) =>
-        renderGaugeCenterLayer(ctx.state.model as GaugeChartModel, ctx)
+        renderGaugeCenterLayer(ctx.state.model as GaugeChartModel, ctx),
+      legends: (ctx) =>
+        renderGaugeLegendsLayer(ctx.state.model as GaugeChartModel, ctx)
     };
   }
 }

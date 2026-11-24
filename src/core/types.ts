@@ -800,6 +800,8 @@ export interface TooltipConfig<TDatum = any> {
 
 export type LegendPosition = 'top' | 'bottom' | 'left' | 'right';
 
+export type LegendType = 'categorical' | 'continuous' | 'piecewise';
+
 export interface LegendPadding {
   top: number;
   right: number;
@@ -829,8 +831,20 @@ export interface LegendItem {
 export interface LegendConfig {
   /** Enable or disable the legend layer. Default `true`. */
   enabled?: boolean;
+  /** Legend mode (`'categorical'` default, `'continuous'` gradient bar, or `'piecewise'` stepped bins). */
+  type?: LegendType;
   /** Legend placement around the plot area. Default `'bottom'`. */
   position?: LegendPosition;
+  /** Minimum domain value for `'continuous'` or `'piecewise'` visualMap legends. */
+  min?: number;
+  /** Maximum domain value for `'continuous'` or `'piecewise'` visualMap legends. */
+  max?: number;
+  /** Sequential color scheme name for `'continuous'` or `'piecewise'` visualMap legends. */
+  colorScheme?: string;
+  /** Number of discrete bins when `type === 'piecewise'` (default `5`). */
+  steps?: number;
+  /** Show interactive min/max range handles on `'continuous'` visualMap legends (ECharts `visualMap.calculable`). */
+  calculable?: boolean;
   /** Padding around the legend box (number for uniform padding or per-side object). */
   padding?: number | Partial<LegendPadding>;
   /** Wrap items onto additional rows (top/bottom) or columns (left/right) when exceeding available space. Default `true`. */
@@ -856,7 +870,13 @@ export interface LegendConfig {
 
 export interface ResolvedLegendConfig {
   enabled: boolean;
+  type?: LegendType;
   position: LegendPosition;
+  min?: number;
+  max?: number;
+  colorScheme?: string;
+  steps?: number;
+  calculable?: boolean;
   padding: LegendPadding;
   wrap: boolean;
   enableTooltip: boolean;
