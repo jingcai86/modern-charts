@@ -40,7 +40,8 @@ jobs:
         uses: treosh/lighthouse-ci-action@v12
         with:
           configPath: './lighthouserc.json'
-          uploadHandler: 'temporary-public-storage'
+          temporaryPublicStorage: true
+          uploadArtifacts: true
 
       - name: Post Lighthouse Score Table PR Comment
         if: github.event_name == 'pull_request' && always()
