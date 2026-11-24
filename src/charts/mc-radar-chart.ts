@@ -1,5 +1,10 @@
 import { MCBaseChart } from '../core/base-chart';
-import type { ChartMargin, ChartRenderContext, RadarDatum } from '../core/types';
+import type {
+  ChartMargin,
+  ChartRenderContext,
+  RadarBlendMode,
+  RadarDatum
+} from '../core/types';
 import {
   computeRadarChartModel,
   type RadarChartModel
@@ -25,9 +30,15 @@ export class MCRadarChart extends MCBaseChart<RadarDatum[]> {
     'max-value',
     'grid-levels',
     'grid-shape',
+    'start-angle',
+    'grid-label-offset',
     'fill-opacity',
     'enable-dots',
-    'enable-dot-labels'
+    'enable-dot-labels',
+    'dot-size',
+    'dot-border-width',
+    'blend-mode',
+    'split-area'
   ];
 
   #keys: string[] | null = null;
@@ -102,21 +113,29 @@ export class MCRadarChart extends MCBaseChart<RadarDatum[]> {
     const model = computeRadarChartModel(ctx, {
       indexBy: this.indexBy,
       keys: this.keys,
-      maxValue: this.hasAttribute('max-value')
-        ? Number(this.getAttribute('max-value'))
-        : undefined,
+      maxValue: this.getOption('maxValue', 'max-value'),
       gridLevels: this.getOption('gridLevels', 'grid-levels', 5) ?? 5,
       gridShape:
         (this.getOption('gridShape', 'grid-shape', 'circular') as
           | 'circular'
           | 'linear') || 'circular',
+      startAngle: this.getOption('startAngle', 'start-angle', 0) ?? 0,
+      gridLabelOffset:
+        this.getOption('gridLabelOffset', 'grid-label-offset', 18) ?? 18,
       fillOpacity:
         this.getOption('fillOpacity', 'fill-opacity', 0.24) ?? 0.24,
       enableDots:
         this.getOption('enableDots', 'enable-dots', true) !== false,
       enableDotLabels: Boolean(
         this.getOption('enableDotLabels', 'enable-dot-labels', false)
-      )
+      ),
+      dotSize: this.getOption('dotSize', 'dot-size', 8.4) ?? 8.4,
+      dotBorderWidth:
+        this.getOption('dotBorderWidth', 'dot-border-width', 1.8) ?? 1.8,
+      blendMode:
+        (this.getOption('blendMode', 'blend-mode', 'normal') as RadarBlendMode) ??
+        'normal',
+      splitArea: Boolean(this.getOption('splitArea', 'split-area', false))
     });
     ctx.state.model = model;
     ctx.state.series = model.series;

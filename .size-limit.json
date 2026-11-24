@@ -74,7 +74,7 @@
     "name": "Standalone Radar chart (modern-charts/radar) [gzip]",
     "path": "dist/radar.js",
     "gzip": true,
-    "limit": "90 kB"
+    "limit": "95 kB"
   },
   {
     "name": "Standalone Sunburst chart (modern-charts/sunburst) [brotli]",

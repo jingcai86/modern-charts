@@ -34,6 +34,10 @@ export function renderRadarPolygonItem(
   poly.setAttribute('fill-opacity', String(s.fillOpacity));
   poly.setAttribute('stroke', s.color);
   poly.setAttribute('stroke-width', '2.2');
+  if (s.blendMode && s.blendMode !== 'normal') {
+    poly.style.mixBlendMode = s.blendMode;
+    poly.setAttribute('data-blend-mode', s.blendMode);
+  }
 
   ctx.animateItem(poly, {
     type: 'radar-expand',
@@ -67,15 +71,17 @@ export function renderRadarDotItem(
   pt: ComputedRadarPointModel,
   ctx: ChartRenderContext<any>
 ): SVGCircleElement {
+  const baseRadius = pt.dotRadius ?? 4.2;
+  const borderWidth = pt.dotBorderWidth ?? 1.8;
   const dot = document.createElementNS(SVG_NS, 'circle');
   dot.setAttribute('class', 'mc-radar-dot');
   dot.setAttribute('data-item-component', 'mc-radar-dot-item');
   dot.setAttribute('cx', String(pt.x));
   dot.setAttribute('cy', String(pt.y));
-  dot.setAttribute('r', '4.2');
+  dot.setAttribute('r', String(baseRadius));
   dot.setAttribute('fill', pt.color);
   dot.setAttribute('stroke', ctx.theme.background);
-  dot.setAttribute('stroke-width', '1.8');
+  dot.setAttribute('stroke-width', String(borderWidth));
   const interactive = ctx.isInteractive !== false;
   if (interactive) {
     dot.style.cursor = 'pointer';
@@ -86,10 +92,10 @@ export function renderRadarDotItem(
   const radarCy =
     (ctx.state?.model as { cy?: number } | undefined)?.cy ?? ctx.innerHeight / 2;
   const fallbackAnchor = {
-    left: ctx.margin.left + radarCx + pt.x - 5,
-    top: ctx.margin.top + radarCy + pt.y - 5,
-    width: 10,
-    height: 10,
+    left: ctx.margin.left + radarCx + pt.x - baseRadius,
+    top: ctx.margin.top + radarCy + pt.y - baseRadius,
+    width: baseRadius * 2,
+    height: baseRadius * 2,
     relative: true
   };
 
@@ -121,7 +127,7 @@ export function renderRadarDotItem(
 
   if (interactive) {
     dot.addEventListener('mouseenter', (e) => {
-      dot.setAttribute('r', '6');
+      dot.setAttribute('r', String(baseRadius + 1.8));
       ctx.showTooltip(
         {
           title: pt.axis,
@@ -143,7 +149,7 @@ export function renderRadarDotItem(
       );
     });
     dot.addEventListener('mouseleave', () => {
-      dot.setAttribute('r', '4.2');
+      dot.setAttribute('r', String(baseRadius));
       ctx.hideTooltip();
     });
   }
