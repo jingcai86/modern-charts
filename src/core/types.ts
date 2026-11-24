@@ -1409,6 +1409,14 @@ export interface ChartConfig<TData = any> {
   maxValue?: number;
   startAngle?: number;
   endAngle?: number;
+  roseType?: PieRoseType;
+  activeOuterRadiusOffset?: number;
+  minAngle?: number;
+  enableArcLabels?: boolean;
+  enableArcLinkLabels?: boolean;
+  arcLinkLabelsSkipAngle?: number;
+  arcLinkLabelsDiagonalLength?: number;
+  arcLinkLabelsStraightLength?: number;
   gridLabelOffset?: number;
   fillOpacity?: number;
   enableDots?: boolean;
@@ -1606,6 +1614,8 @@ export type RadarBlendMode =
 export interface RadarDatum {
   [key: string]: string | number;
 }
+
+export type PieRoseType = 'none' | 'radius' | 'area';
 
 export type SunburstSortOrder = 'desc' | 'asc' | 'none';
 export type SunburstFocusMode = 'none' | 'ancestor' | 'descendant';
