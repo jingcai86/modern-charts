@@ -1,5 +1,9 @@
-import type { MCBaseChart, ChartRenderContext, ThemeModePreference } from '../../../src/index';
-import { createCodeBlock } from './shared';
+import type {
+  ChartRenderContext,
+  MCBaseChart,
+  ThemeModePreference
+} from '../../../src/index';
+import { createLiveConfigEditor } from './shared';
 
 export function renderD3Guide(
   container: HTMLElement,
@@ -16,13 +20,12 @@ export function renderD3Guide(
       <code>d3</code> namespace on every custom layer's render context (<code>ctx.d3</code>), along with
       the chart's already-computed <code>ctx.xScale</code>, <code>ctx.yScale</code>, <code>ctx.colorScale</code>,
       <code>ctx.layerGroup</code>, and tooltip helpers (<code>ctx.showTooltip</code> / <code>ctx.hideTooltip</code>).
-      You never have to re-implement resize observers, margins, axes, or ARIA — just drop into D3 for
-      statistical overlays, confidence bands, brush annotations, or bespoke geometries.
+      Edit the live JSON configs below to watch the D3 overlays recompute immediately from your updated data.
     </p>
   `;
   container.appendChild(introCard);
 
-  // Example 1: D3 Area Confidence Band + Linear Trendline using ctx.d3.area() & ctx.d3.line()
+  // Example 1: D3 Area Confidence Band + Linear Trendline
   const ex1 = document.createElement('section');
   ex1.className = 'panel-card guide-section';
   ex1.innerHTML = `
@@ -31,7 +34,7 @@ export function renderD3Guide(
         <h2 class="panel-title">Example 1: D3 Confidence Ribbon &amp; Interactive Mean Overlay</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Uses <code>ctx.d3.area()</code>, <code>ctx.d3.curveMonotoneX</code>, <code>ctx.d3.select(ctx.layerGroup)</code>,
-          and <code>ctx.d3.format('.1f')</code> to draw a dynamic confidence interval around the primary line series.
+          and <code>ctx.d3.format('.1f')</code> to draw a dynamic confidence interval &amp; OLS trendline around the primary series.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -64,13 +67,14 @@ export function renderD3Guide(
   ];
 
   let bandPct = 15;
-  const makeConfidenceLayer = (pct: number) => ({
+  const confidenceLayer = {
     name: 'd3-confidence-band',
     render(ctx: ChartRenderContext<typeof forecastData>) {
       const { d3, xScale, yScale, layerGroup } = ctx;
       const pts = ctx.data?.[0]?.data ?? [];
       if (!pts.length || !xScale || !yScale) return;
 
+      const pct = bandPct;
       const ratio = pct / 100;
       const root = d3.select(layerGroup);
 
@@ -78,8 +82,8 @@ export function renderD3Guide(
       const ribbon = d3
         .area<{ x: string; y: number }>()
         .x((d) => xScale(d.x))
-        .y0((d) => yScale(d.y * (1 - ratio)))
-        .y1((d) => yScale(d.y * (1 + ratio)))
+        .y0((d) => yScale(Number(d.y) * (1 - ratio)))
+        .y1((d) => yScale(Number(d.y) * (1 + ratio)))
         .curve(d3.curveMonotoneX);
 
       root
@@ -93,7 +97,7 @@ export function renderD3Guide(
         .attr('stroke-dasharray', '3 3')
         .style('cursor', 'pointer')
         .on('pointermove', (event: PointerEvent) => {
-          const mean = d3.mean(pts, (d) => d.y) ?? 0;
+          const mean = d3.mean(pts, (d) => Number(d.y)) ?? 0;
           ctx.showTooltip(
             `<strong>D3 Confidence Band (±${pct}%)</strong><br/>Series Mean: ${d3.format('.1f')(mean)}`,
             event.clientX,
@@ -105,11 +109,11 @@ export function renderD3Guide(
       // 2. D3 linear trendline from first to last least-squares estimate
       const n = pts.length;
       const meanX = (n - 1) / 2;
-      const meanY = d3.mean(pts, (d) => d.y) ?? 0;
+      const meanY = d3.mean(pts, (d) => Number(d.y)) ?? 0;
       let num = 0;
       let den = 0;
       pts.forEach((p, i) => {
-        num += (i - meanX) * (p.y - meanY);
+        num += (i - meanX) * (Number(p.y) - meanY);
         den += (i - meanX) ** 2;
       });
       const slope = den ? num / den : 0;
@@ -130,74 +134,70 @@ export function renderD3Guide(
         .attr('stroke-dasharray', '6 4')
         .attr('pointer-events', 'none');
     }
-  });
+  };
 
   const d3Chart1 = document.createElement('mc-line-chart') as MCBaseChart<any>;
   ex1.querySelector('#guide-d3-chart-1')!.appendChild(d3Chart1);
   mounted.push(d3Chart1);
 
-  const renderD3Chart1 = () => {
-    d3Chart1.setConfig({
-      data: forecastData,
-      autoSize: true,
-      themeMode,
-      palette: 'ocean',
-      title: `Demand Forecast with D3 ±${bandPct}% Ribbon & OLS Trend`,
-      enableArea: false,
-      curve: 'monotoneX',
-      yScale: { type: 'linear', min: 30, max: 175 },
-      margin: { top: 44, right: 24, bottom: 60, left: 52 },
-      layers: ['grid', makeConfidenceLayer(bandPct), 'axes', 'lines', 'points', 'legends']
-    });
-  };
-  renderD3Chart1();
-
   const slider = ex1.querySelector('#d3-band-slider') as HTMLInputElement;
   const sliderVal = ex1.querySelector('#d3-band-val') as HTMLElement;
+
+  const buildD3Chart1Config = () => ({
+    confidenceBandPct: bandPct,
+    title: `Demand Forecast with D3 ±${bandPct}% Ribbon & OLS Trend`,
+    palette: 'ocean',
+    curve: 'monotoneX',
+    yScale: { type: 'linear', min: 30, max: 175 },
+    data: forecastData,
+    layers: ['grid', confidenceLayer, 'axes', 'lines', 'points', 'legends']
+  });
+
+  const applyD3Chart1 = (cfg: Record<string, any>) => {
+    const { confidenceBandPct, ...chartCfg } = cfg;
+    if (typeof confidenceBandPct === 'number' && Number.isFinite(confidenceBandPct)) {
+      bandPct = Math.max(1, Math.min(50, confidenceBandPct));
+      slider.value = String(Math.max(5, Math.min(30, bandPct)));
+      sliderVal.textContent = `±${bandPct}%`;
+    }
+    d3Chart1.setConfig({
+      autoSize: true,
+      themeMode,
+      enableArea: false,
+      margin: { top: 44, right: 24, bottom: 60, left: 52 },
+      ...chartCfg
+    });
+  };
+
+  const initialD3Cfg1 = buildD3Chart1Config();
+  applyD3Chart1(initialD3Cfg1);
+
+  const editor1 = createLiveConfigEditor({
+    title: 'D3 Confidence Ribbon & Trend Config (Live)',
+    initialConfig: initialD3Cfg1,
+    layerRegistry: { 'd3-confidence-band': confidenceLayer },
+    hint: 'Edit confidenceBandPct, data points, curve, or yScale — the D3 ribbon & OLS trendline recompute live.',
+    onConfigChange: (nextCfg) => {
+      applyD3Chart1(nextCfg);
+    },
+    onReset: () => {
+      bandPct = 15;
+      slider.value = '15';
+      sliderVal.textContent = '±15%';
+      const resetCfg = buildD3Chart1Config();
+      applyD3Chart1(resetCfg);
+      editor1.syncConfig(resetCfg);
+    }
+  });
+  ex1.querySelector('#guide-d3-code-1')!.appendChild(editor1.element);
+
   slider.addEventListener('input', () => {
     bandPct = Number(slider.value);
     sliderVal.textContent = `±${bandPct}%`;
-    renderD3Chart1();
+    const nextCfg = buildD3Chart1Config();
+    applyD3Chart1(nextCfg);
+    editor1.syncConfig(nextCfg);
   });
-
-  ex1.querySelector('#guide-d3-code-1')!.appendChild(
-    createCodeBlock(
-      `
-const d3ConfidenceLayer = {
-  name: 'd3-confidence-band',
-  render(ctx) {
-    const { d3, xScale, yScale, layerGroup } = ctx;
-    const pts = ctx.data[0].data;
-
-    // Build a D3 area generator using the chart's own scales
-    const ribbon = d3.area()
-      .x((d) => xScale(d.x))
-      .y0((d) => yScale(d.y * 0.85))
-      .y1((d) => yScale(d.y * 1.15))
-      .curve(d3.curveMonotoneX);
-
-    d3.select(layerGroup)
-      .append('path')
-      .datum(pts)
-      .attr('d', ribbon)
-      .attr('fill', '#06b6d4')
-      .attr('fill-opacity', 0.2)
-      .on('pointermove', (event) => {
-        const mean = d3.mean(pts, (d) => d.y);
-        ctx.showTooltip(\`Mean: \${d3.format('.1f')(mean)}\`, event.clientX, event.clientY);
-      })
-      .on('pointerleave', () => ctx.hideTooltip());
-  }
-};
-
-lineChart.config = {
-  data: forecastData,
-  layers: ['grid', d3ConfidenceLayer, 'axes', 'lines', 'points', 'legends']
-};
-      `,
-      'Using ctx.d3.area(), ctx.d3.select(), and ctx.showTooltip()'
-    )
-  );
 
   // Example 2: D3 Statistical IQR Box + Centroid Crosshair on <mc-scatter-chart>
   const ex2 = document.createElement('section');
@@ -209,6 +209,7 @@ lineChart.config = {
         <p class="guide-prose" style="margin:4px 0 0;">
           Uses <code>ctx.d3.quantile()</code> and <code>ctx.d3.mean()</code> across all scatter points to render an
           interquartile range (25th–75th percentile) bounding box and centroid crosshair directly in SVG.
+          Add or modify scatter coordinates in the editor to watch the IQR box shift live.
         </p>
       </div>
     </div>
@@ -243,116 +244,110 @@ lineChart.config = {
     }
   ];
 
-  const d3QuartileLayer = (ctx: ChartRenderContext<typeof scatterData>) => {
-    const { d3, xScale, yScale, layerGroup } = ctx;
-    const allPts = (ctx.data ?? []).flatMap((s) => s.data);
-    if (allPts.length < 4 || !xScale || !yScale) return;
+  const d3QuartileLayer = {
+    name: 'd3-iqr-box',
+    render(ctx: ChartRenderContext<typeof scatterData>) {
+      const { d3, xScale, yScale, layerGroup } = ctx;
+      const allPts = (ctx.data ?? []).flatMap((s) => s.data ?? []);
+      if (allPts.length < 4 || !xScale || !yScale) return;
 
-    const xs = allPts.map((p) => p.x).sort(d3.ascending);
-    const ys = allPts.map((p) => p.y).sort(d3.ascending);
+      const xs = allPts.map((p) => Number(p.x)).sort(d3.ascending);
+      const ys = allPts.map((p) => Number(p.y)).sort(d3.ascending);
 
-    const q1x = d3.quantile(xs, 0.25) ?? xs[0];
-    const q3x = d3.quantile(xs, 0.75) ?? xs[xs.length - 1];
-    const q1y = d3.quantile(ys, 0.25) ?? ys[0];
-    const q3y = d3.quantile(ys, 0.75) ?? ys[ys.length - 1];
-    const mx = d3.mean(xs) ?? 0;
-    const my = d3.mean(ys) ?? 0;
+      const q1x = d3.quantile(xs, 0.25) ?? xs[0];
+      const q3x = d3.quantile(xs, 0.75) ?? xs[xs.length - 1];
+      const q1y = d3.quantile(ys, 0.25) ?? ys[0];
+      const q3y = d3.quantile(ys, 0.75) ?? ys[ys.length - 1];
+      const mx = d3.mean(xs) ?? 0;
+      const my = d3.mean(ys) ?? 0;
 
-    const root = d3.select(layerGroup);
+      const root = d3.select(layerGroup);
 
-    // IQR shaded region
-    root
-      .append('rect')
-      .attr('x', xScale(q1x))
-      .attr('y', yScale(q3y))
-      .attr('width', Math.max(0, xScale(q3x) - xScale(q1x)))
-      .attr('height', Math.max(0, yScale(q1y) - yScale(q3y)))
-      .attr('rx', 6)
-      .attr('fill', '#a855f7')
-      .attr('fill-opacity', 0.14)
-      .attr('stroke', '#a855f7')
-      .attr('stroke-width', 1.5)
-      .attr('stroke-dasharray', '5 3')
-      .attr('pointer-events', 'none');
+      // IQR shaded region
+      root
+        .append('rect')
+        .attr('x', xScale(q1x))
+        .attr('y', yScale(q3y))
+        .attr('width', Math.max(0, xScale(q3x) - xScale(q1x)))
+        .attr('height', Math.max(0, yScale(q1y) - yScale(q3y)))
+        .attr('rx', 6)
+        .attr('fill', '#a855f7')
+        .attr('fill-opacity', 0.14)
+        .attr('stroke', '#a855f7')
+        .attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', '5 3')
+        .attr('pointer-events', 'none');
 
-    // Centroid crosshair
-    const cx = xScale(mx);
-    const cy = yScale(my);
-    root
-      .append('line')
-      .attr('x1', cx - 10)
-      .attr('x2', cx + 10)
-      .attr('y1', cy)
-      .attr('y2', cy)
-      .attr('stroke', '#ec4899')
-      .attr('stroke-width', 2)
-      .attr('pointer-events', 'none');
-    root
-      .append('line')
-      .attr('x1', cx)
-      .attr('x2', cx)
-      .attr('y1', cy - 10)
-      .attr('y2', cy + 10)
-      .attr('stroke', '#ec4899')
-      .attr('stroke-width', 2)
-      .attr('pointer-events', 'none');
+      // Centroid crosshair
+      const cx = xScale(mx);
+      const cy = yScale(my);
+      root
+        .append('line')
+        .attr('x1', cx - 10)
+        .attr('x2', cx + 10)
+        .attr('y1', cy)
+        .attr('y2', cy)
+        .attr('stroke', '#ec4899')
+        .attr('stroke-width', 2)
+        .attr('pointer-events', 'none');
+      root
+        .append('line')
+        .attr('x1', cx)
+        .attr('x2', cx)
+        .attr('y1', cy - 10)
+        .attr('y2', cy + 10)
+        .attr('stroke', '#ec4899')
+        .attr('stroke-width', 2)
+        .attr('pointer-events', 'none');
 
-    ctx.renderLabel(layerGroup, {
-      text: `IQR Box • Mean (${mx.toFixed(0)}, ${my.toFixed(0)})`,
-      x: xScale(q1x) + 6,
-      y: yScale(q3y) - 8,
-      type: 'custom',
-      anchor: 'start',
-      fontSize: 11,
-      fontWeight: 700,
-      color: '#c084fc'
-    });
+      ctx.renderLabel(layerGroup, {
+        text: `IQR Box • Mean (${mx.toFixed(0)}, ${my.toFixed(0)})`,
+        x: xScale(q1x) + 6,
+        y: yScale(q3y) - 8,
+        type: 'custom',
+        anchor: 'start',
+        fontSize: 11,
+        fontWeight: 700,
+        color: '#c084fc'
+      });
+    }
   };
 
   const d3Chart2 = document.createElement('mc-scatter-chart') as MCBaseChart<any>;
   ex2.querySelector('#guide-d3-chart-2')!.appendChild(d3Chart2);
   mounted.push(d3Chart2);
-  d3Chart2.setConfig({
-    data: scatterData,
-    autoSize: true,
-    themeMode,
-    palette: 'cyber',
+
+  const initialD3Cfg2 = {
     title: 'Scatter Clusters with D3 Quantile IQR Box',
+    palette: 'cyber',
     xTitle: 'Latency (ms)',
     yTitle: 'Throughput (req/s)',
     xScale: { type: 'linear', min: 10, max: 100 },
     yScale: { type: 'linear', min: 20, max: 100 },
-    margin: { top: 44, right: 24, bottom: 64, left: 54 },
+    data: scatterData,
     layers: ['grid', d3QuartileLayer, 'axes', 'points', 'legends']
+  };
+
+  const applyD3Chart2 = (cfg: Record<string, any>) => {
+    d3Chart2.setConfig({
+      autoSize: true,
+      themeMode,
+      margin: { top: 44, right: 24, bottom: 64, left: 54 },
+      ...cfg
+    });
+  };
+  applyD3Chart2(initialD3Cfg2);
+
+  const editor2 = createLiveConfigEditor({
+    title: 'D3 Statistical IQR Scatter Config (Live)',
+    initialConfig: initialD3Cfg2,
+    layerRegistry: { 'd3-iqr-box': d3QuartileLayer },
+    hint: 'Edit Cluster A/B points, xScale, or yScale — the D3 quantile IQR box & centroid update live.',
+    onConfigChange: (nextCfg) => {
+      applyD3Chart2(nextCfg);
+    }
   });
-
-  ex2.querySelector('#guide-d3-code-2')!.appendChild(
-    createCodeBlock(
-      `
-const d3QuartileLayer = (ctx) => {
-  const { d3, xScale, yScale, layerGroup } = ctx;
-  const pts = ctx.data.flatMap((s) => s.data);
-  const xs = pts.map((p) => p.x).sort(d3.ascending);
-  const ys = pts.map((p) => p.y).sort(d3.ascending);
-
-  const q1x = d3.quantile(xs, 0.25), q3x = d3.quantile(xs, 0.75);
-  const q1y = d3.quantile(ys, 0.25), q3y = d3.quantile(ys, 0.75);
-
-  d3.select(layerGroup)
-    .append('rect')
-    .attr('x', xScale(q1x))
-    .attr('y', yScale(q3y))
-    .attr('width', xScale(q3x) - xScale(q1x))
-    .attr('height', yScale(q1y) - yScale(q3y))
-    .attr('fill', '#a855f7')
-    .attr('fill-opacity', 0.14)
-    .attr('stroke', '#a855f7');
-};
-      `,
-      'D3 Statistical Overlays with ctx.d3.quantile()'
-    )
-  );
+  ex2.querySelector('#guide-d3-code-2')!.appendChild(editor2.element);
 
   return mounted;
 }
-

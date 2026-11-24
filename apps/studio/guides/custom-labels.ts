@@ -1,10 +1,10 @@
 import type {
-  MCBaseChart,
   LabelDescriptor,
+  MCBaseChart,
   MeasuredLabel,
   ThemeModePreference
 } from '../../../src/index';
-import { createCodeBlock } from './shared';
+import { createLiveConfigEditor } from './shared';
 
 export function renderCustomLabelsGuide(
   container: HTMLElement,
@@ -24,7 +24,7 @@ export function renderCustomLabelsGuide(
     <div class="guide-pillars-grid">
       <div class="guide-pillar-card">
         <h3>1. SVG Mode (<code>'svg'</code>)</h3>
-        <p>Renders crisp SVG <code>&lt;text&gt;</code>/<code>&lt;tspan&gt;</code> with automatic Pretext line wrapping, custom <code>formatter</code> functions, backgrounds, and padding.</p>
+        <p>Renders crisp SVG <code>&lt;text&gt;</code>/<code>&lt;tspan&gt;</code> with automatic Pretext line wrapping, custom <code>formatter</code> strings/functions, backgrounds, and padding.</p>
       </div>
       <div class="guide-pillar-card">
         <h3>2. Rich HTML Mode (<code>'foreignObject'</code>)</h3>
@@ -46,7 +46,7 @@ export function renderCustomLabelsGuide(
       <div>
         <h2 class="panel-title">Example 1: Formatters, Rich <code>&lt;foreignObject&gt;</code> Icons &amp; Custom <code>labelRenderer</code></h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Switch between the 3 label customization approaches on the same live bar chart and compare the generated code.
+          Switch between the 3 label customization approaches — or edit <code>formatter</code> (e.g. <code>"\${{text}}K"</code>), <code>background</code>, <code>icon</code>, and <code>data</code> directly in the live JSON editor.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -68,7 +68,7 @@ export function renderCustomLabelsGuide(
 
   const labelCode1 = ex1.querySelector('#guide-label-code-1') as HTMLElement;
 
-  const salesData = [
+  const defaultSalesData = [
     { quarter: 'Q1', Revenue: 142 },
     { quarter: 'Q2', Revenue: 168 },
     { quarter: 'Q3', Revenue: 196 },
@@ -79,12 +79,121 @@ export function renderCustomLabelsGuide(
 
   type DemoLabelMode = 'svg' | 'foreignObject' | 'custom';
   let activeLabelDemo: DemoLabelMode = 'svg';
+  let latestSalesData = defaultSalesData;
 
-  const renderLabelDemo1 = (mode: DemoLabelMode) => {
-    activeLabelDemo = mode;
+  const customPillRenderer = (
+    descriptor: LabelDescriptor,
+    measured: MeasuredLabel,
+    defaultRender: () => SVGGElement
+  ) => {
+    if (descriptor.type !== 'data') return defaultRender();
 
-    const baseConfig: Record<string, any> = {
-      data: salesData,
+    const total = Math.max(
+      1,
+      latestSalesData.reduce((s, d) => s + Number(d.Revenue ?? 0), 0)
+    );
+    const val = Number(descriptor.text);
+    const share = Math.round((val / total) * 100);
+    const isTop = val >= 200;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const pillW = Math.max(measured.boxWidth + 32, 74);
+    const pillH = 24;
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', String(descriptor.x - pillW / 2));
+    rect.setAttribute('y', String(descriptor.y - pillH / 2));
+    rect.setAttribute('width', String(pillW));
+    rect.setAttribute('height', String(pillH));
+    rect.setAttribute('rx', '12');
+    rect.setAttribute('fill', isTop ? '#f59e0b' : '#1e293b');
+    rect.setAttribute('stroke', isTop ? '#fef3c7' : '#6366f1');
+    rect.setAttribute('stroke-width', '1.4');
+    g.appendChild(rect);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', String(descriptor.x));
+    text.setAttribute('y', String(descriptor.y + 4));
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('font-size', '11');
+    text.setAttribute('font-weight', '700');
+    text.setAttribute('fill', isTop ? '#0f172a' : '#f8fafc');
+    text.textContent = `${isTop ? '★ ' : ''}$${val}K (${share}%)`;
+    g.appendChild(text);
+
+    return g;
+  };
+
+  const buildLabelDemo1Config = (mode: DemoLabelMode): { title: string; cfg: Record<string, any> } => {
+    if (mode === 'svg') {
+      return {
+        title: 'SVG Label Overrides & Formatters (Live)',
+        cfg: {
+          title: 'Mode 1: SVG Formatter + Pill Background',
+          data: defaultSalesData,
+          labelMode: 'svg',
+          label: [
+            {
+              target: 'data',
+              formatter: '${{text}}K',
+              fontWeight: 700,
+              fontSize: 12,
+              color: '#ffffff',
+              background: 'rgba(15, 23, 42, 0.55)',
+              borderRadius: 5,
+              padding: { top: 2, right: 6, bottom: 2, left: 6 }
+            },
+            {
+              target: 'axis-tick',
+              formatter: (text: string) => (/^\d+$/.test(text) ? `$${text}K` : text)
+            }
+          ]
+        }
+      };
+    }
+
+    if (mode === 'foreignObject') {
+      return {
+        title: 'Rich <foreignObject> Labels with Icons (Live)',
+        cfg: {
+          title: 'Mode 2: Pretext-Measured <foreignObject> with SVG Icons',
+          data: defaultSalesData,
+          labelMode: 'foreignObject',
+          label: {
+            target: 'data',
+            renderMode: 'foreignObject',
+            formatter: '${{text}}K',
+            icon: TREND_UP_SVG,
+            iconPosition: 'start',
+            iconSize: 12,
+            iconGap: 4,
+            fontSize: 12,
+            fontWeight: 700,
+            color: '#ecfdf5',
+            background: 'rgba(5, 150, 105, 0.85)',
+            borderRadius: 999,
+            padding: { top: 3, right: 8, bottom: 3, left: 7 }
+          }
+        }
+      };
+    }
+
+    return {
+      title: 'Custom Programmatic labelRenderer Config (Live)',
+      cfg: {
+        title: 'Mode 3: Custom labelRenderer (Pretext Measured)',
+        data: defaultSalesData,
+        labelMode: 'custom',
+        labelRenderer: customPillRenderer
+      }
+    };
+  };
+
+  const applyLabelChart1 = (cfg: Record<string, any>) => {
+    if (Array.isArray(cfg.data)) {
+      latestSalesData = cfg.data;
+    }
+    labelChart1.setConfig({
       autoSize: true,
       themeMode,
       palette: 'modern',
@@ -94,184 +203,30 @@ export function renderCustomLabelsGuide(
       borderRadius: 8,
       yScale: { type: 'linear', min: 0, max: 290 },
       margin: { top: 44, right: 24, bottom: 52, left: 54 },
-      layers: ['grid', 'axes', 'bars', 'labels']
-    };
-
-    if (mode === 'svg') {
-      labelChart1.setConfig({
-        ...baseConfig,
-        title: 'Mode 1: SVG Formatter + Pill Background',
-        labelMode: 'svg',
-        label: [
-          {
-            target: 'data',
-            formatter: (text: string) => `$${text}K`,
-            fontWeight: 700,
-            fontSize: 12,
-            color: '#ffffff',
-            background: 'rgba(15, 23, 42, 0.55)',
-            borderRadius: 5,
-            padding: { top: 2, right: 6, bottom: 2, left: 6 }
-          },
-          {
-            target: 'axis-tick',
-            formatter: (text: string) => (/^\d+$/.test(text) ? `$${text}K` : text)
-          }
-        ]
-      });
-
-      labelCode1.innerHTML = '';
-      labelCode1.appendChild(
-        createCodeBlock(
-          `
-chart.config = {
-  data: salesData,
-  labelMode: 'svg',
-  label: [
-    {
-      target: 'data',
-      formatter: (text) => \`$\${text}K\`,
-      fontWeight: 700,
-      color: '#ffffff',
-      background: 'rgba(15, 23, 42, 0.55)',
-      borderRadius: 5,
-      padding: { top: 2, right: 6, bottom: 2, left: 6 }
-    },
-    {
-      target: 'axis-tick',
-      formatter: (t) => (/^\\d+$/.test(t) ? \`$\${t}K\` : t)
-    }
-  ]
-};
-          `,
-          'SVG Label Overrides & Formatters'
-        )
-      );
-    } else if (mode === 'foreignObject') {
-      labelChart1.setConfig({
-        ...baseConfig,
-        title: 'Mode 2: Pretext-Measured <foreignObject> with SVG Icons',
-        labelMode: 'foreignObject',
-        label: {
-          target: 'data',
-          renderMode: 'foreignObject',
-          formatter: (text: string) => `$${text}K`,
-          icon: TREND_UP_SVG,
-          iconPosition: 'start',
-          iconSize: 12,
-          iconGap: 4,
-          fontSize: 12,
-          fontWeight: 700,
-          color: '#ecfdf5',
-          background: 'rgba(5, 150, 105, 0.85)',
-          borderRadius: 999,
-          padding: { top: 3, right: 8, bottom: 3, left: 7 }
-        }
-      });
-
-      labelCode1.innerHTML = '';
-      labelCode1.appendChild(
-        createCodeBlock(
-          `
-const TREND_UP_SVG = \`<svg viewBox="0 0 16 16" width="12" height="12"
-  fill="none" stroke="currentColor" stroke-width="2.2">
-  <path d="M3 11L12 4M12 4H6M12 4V10"/>
-</svg>\`;
-
-chart.config = {
-  data: salesData,
-  labelMode: 'foreignObject',
-  label: {
-    target: 'data',
-    renderMode: 'foreignObject',
-    formatter: (text) => \`$\${text}K\`,
-    icon: TREND_UP_SVG,
-    iconPosition: 'start',
-    iconSize: 12,
-    iconGap: 4,
-    color: '#ecfdf5',
-    background: 'rgba(5, 150, 105, 0.85)',
-    borderRadius: 999,
-    padding: { top: 3, right: 8, bottom: 3, left: 7 }
-  }
-};
-          `,
-          'Rich <foreignObject> Labels with Inline SVG Icons'
-        )
-      );
-    } else {
-      const total = salesData.reduce((s, d) => s + d.Revenue, 0);
-      labelChart1.setConfig({
-        ...baseConfig,
-        title: 'Mode 3: Custom labelRenderer (Pretext Measured)',
-        labelMode: 'custom',
-        labelRenderer: (
-          descriptor: LabelDescriptor,
-          measured: MeasuredLabel,
-          defaultRender: () => SVGGElement
-        ) => {
-          if (descriptor.type !== 'data') return defaultRender();
-
-          const val = Number(descriptor.text);
-          const share = Math.round((val / total) * 100);
-          const isTop = val >= 200;
-
-          const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          const pillW = Math.max(measured.boxWidth + 32, 74);
-          const pillH = 24;
-
-          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          rect.setAttribute('x', String(descriptor.x - pillW / 2));
-          rect.setAttribute('y', String(descriptor.y - pillH / 2));
-          rect.setAttribute('width', String(pillW));
-          rect.setAttribute('height', String(pillH));
-          rect.setAttribute('rx', '12');
-          rect.setAttribute('fill', isTop ? '#f59e0b' : '#1e293b');
-          rect.setAttribute('stroke', isTop ? '#fef3c7' : '#6366f1');
-          rect.setAttribute('stroke-width', '1.4');
-          g.appendChild(rect);
-
-          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          text.setAttribute('x', String(descriptor.x));
-          text.setAttribute('y', String(descriptor.y + 4));
-          text.setAttribute('text-anchor', 'middle');
-          text.setAttribute('font-size', '11');
-          text.setAttribute('font-weight', '700');
-          text.setAttribute('fill', isTop ? '#0f172a' : '#f8fafc');
-          text.textContent = `${isTop ? '★ ' : ''}$${val}K (${share}%)`;
-          g.appendChild(text);
-
-          return g;
-        }
-      });
-
-      labelCode1.innerHTML = '';
-      labelCode1.appendChild(
-        createCodeBlock(
-          `
-chart.config = {
-  data: salesData,
-  labelMode: 'custom',
-  labelRenderer: (descriptor, measured, defaultRender) => {
-    // Fall back to default Pretext rendering for titles & axis ticks
-    if (descriptor.type !== 'data') return defaultRender();
-
-    const val = Number(descriptor.text);
-    const share = Math.round((val / total) * 100);
-    const isTop = val >= 200;
-
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    const pillW = Math.max(measured.boxWidth + 32, 74);
-    // Append custom SVG pill + text using descriptor.x / descriptor.y...
-    return g;
-  }
-};
-          `,
-          'Custom Programmatic labelRenderer'
-        )
-      );
-    }
+      layers: ['grid', 'axes', 'bars', 'labels'],
+      labelRenderer: undefined,
+      label: undefined,
+      ...cfg
+    });
   };
+
+  const initial1 = buildLabelDemo1Config('svg');
+  applyLabelChart1(initial1.cfg);
+
+  const editor1 = createLiveConfigEditor({
+    title: initial1.title,
+    initialConfig: initial1.cfg,
+    hint: 'Edit formatter ("${{text}}K"), colors, icon, background, or data values — updates chart live.',
+    onConfigChange: (nextCfg) => {
+      applyLabelChart1(nextCfg);
+    },
+    onReset: () => {
+      const next = buildLabelDemo1Config(activeLabelDemo);
+      applyLabelChart1(next.cfg);
+      editor1.syncConfig(next.cfg, { title: next.title });
+    }
+  });
+  labelCode1.appendChild(editor1.element);
 
   const btnSvg = ex1.querySelector('#btn-lbl-svg') as HTMLButtonElement;
   const btnFo = ex1.querySelector('#btn-lbl-fo') as HTMLButtonElement;
@@ -283,20 +238,17 @@ chart.config = {
     btnCustom.classList.toggle('btn-primary', activeLabelDemo === 'custom');
   };
 
-  btnSvg.addEventListener('click', () => {
-    renderLabelDemo1('svg');
+  const selectDemo1Mode = (mode: DemoLabelMode) => {
+    activeLabelDemo = mode;
     syncLabelBtns();
-  });
-  btnFo.addEventListener('click', () => {
-    renderLabelDemo1('foreignObject');
-    syncLabelBtns();
-  });
-  btnCustom.addEventListener('click', () => {
-    renderLabelDemo1('custom');
-    syncLabelBtns();
-  });
+    const next = buildLabelDemo1Config(mode);
+    applyLabelChart1(next.cfg);
+    editor1.syncConfig(next.cfg, { title: next.title });
+  };
 
-  renderLabelDemo1('svg');
+  btnSvg.addEventListener('click', () => selectDemo1Mode('svg'));
+  btnFo.addEventListener('click', () => selectDemo1Mode('foreignObject'));
+  btnCustom.addEventListener('click', () => selectDemo1Mode('custom'));
 
   // Example 2: Interactive Pretext Truncation, Rotation & Tooltip Playground (<mc-truncate>)
   const ex2 = document.createElement('section');
@@ -307,7 +259,7 @@ chart.config = {
         <h2 class="panel-title">Example 2: Pretext Label Truncation, Rotation &amp; Tooltips (<code>&lt;mc-truncate&gt;</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Every <code>&lt;mc-label&gt;</code> uses the shared <code>@chenglou/pretext</code> truncation engine.
-          When <code>maxWidth</code> or <code>maxChars</code> is exceeded, it defaults to ellipsis truncation with an automatic hover/keyboard tooltip showing the full text — or switch to <code>rotate</code> (default 45° or negative like -45°), <code>both</code>, or <code>wrap</code>.
+          Use the controls or edit <code>label.overflow</code> &amp; <code>data</code> directly in the live JSON editor below.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
@@ -340,18 +292,6 @@ chart.config = {
       <div class="guide-chart-stage" id="guide-label-chart-2"></div>
       <div id="guide-label-code-2"></div>
     </div>
-    <div style="margin-top:14px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;">
-      <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted);">Standalone <code>&lt;mc-truncate&gt;</code> component (hover or Tab):</span>
-      <mc-truncate
-        id="standalone-truncate-demo"
-        text="Global Enterprise Cloud Infrastructure Throughput Analysis"
-        max-width="150"
-        strategy="truncate"
-        font-size="13"
-        font-weight="600"
-        theme-mode="${themeMode}"
-      ></mc-truncate>
-    </div>
   `;
   container.appendChild(ex2);
 
@@ -360,7 +300,6 @@ chart.config = {
   mounted.push(wrapChart);
 
   const code2Host = ex2.querySelector('#guide-label-code-2') as HTMLElement;
-  const standaloneTruncate = ex2.querySelector('#standalone-truncate-demo') as HTMLElement;
 
   let ovStrategy: 'truncate' | 'rotate' | 'both' | 'wrap' | 'none' = 'truncate';
   let tickMaxWidth = 82;
@@ -368,128 +307,145 @@ chart.config = {
   let tickMaxRotation = -45;
   let tickEnableTooltip = true;
 
-  const renderOverflowChart = () => {
+  const deptData = [
+    { dept: 'Cloud Platform Engineering', Spend: 214 },
+    { dept: 'Applied Machine Learning', Spend: 186 },
+    { dept: 'Security & Compliance Ops', Spend: 129 },
+    { dept: 'Developer Experience Tools', Spend: 158 }
+  ];
+
+  const buildOverflowConfig = () => {
     const overflowCfg: Record<string, any> = {
       strategy: ovStrategy,
       maxWidth: tickMaxWidth,
       maxRotation: tickMaxRotation,
       enableTooltip: tickEnableTooltip
     };
-    if (tickMaxChars > 0) {
-      overflowCfg.maxChars = tickMaxChars;
-    }
+    if (tickMaxChars > 0) overflowCfg.maxChars = tickMaxChars;
 
-    wrapChart.setConfig({
-      data: [
-        { dept: 'Cloud Platform Engineering', Spend: 214 },
-        { dept: 'Applied Machine Learning', Spend: 186 },
-        { dept: 'Security & Compliance Ops', Spend: 129 },
-        { dept: 'Developer Experience Tools', Spend: 158 }
-      ],
-      autoSize: true,
-      themeMode,
-      palette: 'sunset',
+    return {
       title: `Pretext Overflow: strategy="${ovStrategy}" (maxWidth: ${tickMaxWidth}px${
         tickMaxChars > 0 ? `, maxChars: ${tickMaxChars}` : ''
       })`,
+      data: deptData,
+      label: {
+        target: 'axis-tick',
+        overflow: overflowCfg,
+        fontSize: 11
+      }
+    };
+  };
+
+  const applyOverflowConfig = (cfg: Record<string, any>) => {
+    const strat = cfg.label?.overflow?.strategy ?? ovStrategy;
+    wrapChart.setConfig({
+      autoSize: true,
+      themeMode,
+      palette: 'sunset',
       indexBy: 'dept',
       keys: ['Spend'],
       borderRadius: 6,
       margin: {
         top: 44,
         right: 24,
-        bottom: ovStrategy === 'rotate' || ovStrategy === 'both' ? 116 : 84,
+        bottom: strat === 'rotate' || strat === 'both' ? 116 : 84,
         left: 50
       },
-      label: {
-        target: 'axis-tick',
-        overflow: overflowCfg,
-        fontSize: 11
-      },
-      layers: ['grid', 'axes', 'bars', 'labels']
+      layers: ['grid', 'axes', 'bars', 'labels'],
+      ...cfg
     });
-
-    standaloneTruncate.setAttribute('strategy', ovStrategy === 'wrap' ? 'truncate' : ovStrategy);
-    standaloneTruncate.setAttribute('max-width', String(Math.max(90, tickMaxWidth + 40)));
-    if (tickMaxChars > 0) {
-      standaloneTruncate.setAttribute('max-chars', String(tickMaxChars));
-    } else {
-      standaloneTruncate.removeAttribute('max-chars');
-    }
-    standaloneTruncate.setAttribute('max-rotation', String(tickMaxRotation));
-    standaloneTruncate.setAttribute('enable-tooltip', String(tickEnableTooltip));
-
-    code2Host.innerHTML = '';
-    code2Host.appendChild(
-      createCodeBlock(
-        `
-// 1. Unified chart config (applies across all <mc-label> targets):
-chart.config = {
-  data: departmentData,
-  labelOverflow: {
-    strategy: '${ovStrategy}', // 'truncate' | 'rotate' | 'both' | 'wrap' | 'none'
-    maxWidth: ${tickMaxWidth},${tickMaxChars > 0 ? `\n    maxChars: ${tickMaxChars},` : ''}
-    maxRotation: ${tickMaxRotation}, // default 45 (supports negative e.g. -45)
-    enableTooltip: ${tickEnableTooltip} // default true; customizable via tooltip: { formatter }
-  }
-};
-
-// 2. Declarative <mc-truncate> inside any chart or standalone:
-// <mc-bar-chart>
-//   <mc-truncate for="axis-tick" strategy="${ovStrategy}" max-width="${tickMaxWidth}"${
-          tickMaxChars > 0 ? ` max-chars="${tickMaxChars}"` : ''
-        } max-rotation="${tickMaxRotation}" enable-tooltip="${tickEnableTooltip}"></mc-truncate>
-// </mc-bar-chart>
-        `,
-        'Pretext Truncation, Rotation & Tooltip'
-      )
-    );
   };
-  renderOverflowChart();
 
   const stratButtons = Array.from(
     ex2.querySelectorAll<HTMLButtonElement>('[data-ov-strat]')
   );
+  const mwSlider = ex2.querySelector('#lbl-maxwidth-slider') as HTMLInputElement;
+  const mwVal = ex2.querySelector('#lbl-maxwidth-val') as HTMLElement;
+  const mcSlider = ex2.querySelector('#lbl-maxchars-slider') as HTMLInputElement;
+  const mcVal = ex2.querySelector('#lbl-maxchars-val') as HTMLElement;
+  const rotSlider = ex2.querySelector('#lbl-maxrot-slider') as HTMLInputElement;
+  const rotVal = ex2.querySelector('#lbl-maxrot-val') as HTMLElement;
+  const tipToggle = ex2.querySelector('#lbl-tooltip-toggle') as HTMLInputElement;
+
+  const syncOverflowControls = () => {
+    stratButtons.forEach((b) =>
+      b.classList.toggle('btn-primary', b.dataset.ovStrat === ovStrategy)
+    );
+    mwSlider.value = String(tickMaxWidth);
+    mwVal.textContent = `${tickMaxWidth}px`;
+    mcSlider.value = String(tickMaxChars);
+    mcVal.textContent = tickMaxChars > 0 ? String(tickMaxChars) : 'off';
+    rotSlider.value = String(tickMaxRotation);
+    rotVal.textContent = `${tickMaxRotation}°`;
+    tipToggle.checked = tickEnableTooltip;
+  };
+
+  const initialOvCfg = buildOverflowConfig();
+  applyOverflowConfig(initialOvCfg);
+
+  const editor2 = createLiveConfigEditor({
+    title: 'Pretext Truncation, Rotation & Tooltip Config (Live)',
+    initialConfig: initialOvCfg,
+    hint: 'Edit strategy, maxWidth, maxChars, maxRotation, enableTooltip, or category text live.',
+    onConfigChange: (nextCfg) => {
+      const ov = nextCfg.label?.overflow;
+      if (ov) {
+        if (ov.strategy) ovStrategy = ov.strategy;
+        if (typeof ov.maxWidth === 'number') tickMaxWidth = ov.maxWidth;
+        if (typeof ov.maxChars === 'number') tickMaxChars = ov.maxChars;
+        if (typeof ov.maxRotation === 'number') tickMaxRotation = ov.maxRotation;
+        if (typeof ov.enableTooltip === 'boolean') tickEnableTooltip = ov.enableTooltip;
+        syncOverflowControls();
+      }
+      applyOverflowConfig(nextCfg);
+    },
+    onReset: () => {
+      ovStrategy = 'truncate';
+      tickMaxWidth = 82;
+      tickMaxChars = 0;
+      tickMaxRotation = -45;
+      tickEnableTooltip = true;
+      syncOverflowControls();
+      const resetCfg = buildOverflowConfig();
+      applyOverflowConfig(resetCfg);
+      editor2.syncConfig(resetCfg);
+    }
+  });
+  code2Host.appendChild(editor2.element);
+
+  const updateFromControls = () => {
+    syncOverflowControls();
+    const nextCfg = buildOverflowConfig();
+    applyOverflowConfig(nextCfg);
+    editor2.syncConfig(nextCfg);
+  };
+
   stratButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       ovStrategy = btn.dataset.ovStrat as typeof ovStrategy;
-      stratButtons.forEach((b) =>
-        b.classList.toggle('btn-primary', b.dataset.ovStrat === ovStrategy)
-      );
-      renderOverflowChart();
+      updateFromControls();
     });
   });
 
-  const maxWidthSlider = ex2.querySelector('#lbl-maxwidth-slider') as HTMLInputElement;
-  const maxWidthVal = ex2.querySelector('#lbl-maxwidth-val') as HTMLElement;
-  maxWidthSlider.addEventListener('input', () => {
-    tickMaxWidth = Number(maxWidthSlider.value);
-    maxWidthVal.textContent = `${tickMaxWidth}px`;
-    renderOverflowChart();
+  mwSlider.addEventListener('input', () => {
+    tickMaxWidth = Number(mwSlider.value);
+    updateFromControls();
   });
 
-  const maxCharsSlider = ex2.querySelector('#lbl-maxchars-slider') as HTMLInputElement;
-  const maxCharsVal = ex2.querySelector('#lbl-maxchars-val') as HTMLElement;
-  maxCharsSlider.addEventListener('input', () => {
-    tickMaxChars = Number(maxCharsSlider.value);
-    maxCharsVal.textContent = tickMaxChars > 0 ? `${tickMaxChars}` : 'off';
-    renderOverflowChart();
+  mcSlider.addEventListener('input', () => {
+    tickMaxChars = Number(mcSlider.value);
+    updateFromControls();
   });
 
-  const maxRotSlider = ex2.querySelector('#lbl-maxrot-slider') as HTMLInputElement;
-  const maxRotVal = ex2.querySelector('#lbl-maxrot-val') as HTMLElement;
-  maxRotSlider.addEventListener('input', () => {
-    tickMaxRotation = Number(maxRotSlider.value);
-    maxRotVal.textContent = `${tickMaxRotation}°`;
-    renderOverflowChart();
+  rotSlider.addEventListener('input', () => {
+    tickMaxRotation = Number(rotSlider.value);
+    updateFromControls();
   });
 
-  const tipToggle = ex2.querySelector('#lbl-tooltip-toggle') as HTMLInputElement;
   tipToggle.addEventListener('change', () => {
     tickEnableTooltip = tipToggle.checked;
-    renderOverflowChart();
+    updateFromControls();
   });
 
   return mounted;
 }
-

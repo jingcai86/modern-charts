@@ -1,11 +1,11 @@
 import {
   PALETTES,
-  type MCBaseChart,
   type ChartPaletteName,
   type ChartTheme,
+  type MCBaseChart,
   type ThemeModePreference
 } from '../../../src/index';
-import { createCodeBlock } from './shared';
+import { createLiveConfigEditor } from './shared';
 
 export function renderThemesGuide(
   container: HTMLElement,
@@ -20,9 +20,9 @@ export function renderThemesGuide(
     <h2 class="panel-title">Default Themes &amp; Built-In Palettes</h2>
     <p class="guide-prose">
       Every chart resolves its visual tokens through <code>&lt;mc-theme-layer&gt;</code> and
-      <code>createDefaultTheme(mode, palette)</code>. You can pick from <strong>3 theme modes</strong>
+      <code>createDefaultTheme(mode, palette)</code>. Pick from <strong>3 theme modes</strong>
       (<code>'system'</code>, <code>'dark'</code>, <code>'light'</code>) and <strong>7 bundled palettes</strong>,
-      or override any individual token in <code>chart.config.theme</code> and <code>chart.config.colors</code>.
+      or edit <code>themeMode</code>, <code>palette</code>, or custom <code>colors</code> directly in the live JSON editor below.
     </p>
     <div class="guide-palette-grid" id="guide-palette-picker"></div>
     <div class="guide-controls-row" style="margin-top:4px;">
@@ -51,18 +51,38 @@ export function renderThemesGuide(
   introCard.querySelector('#guide-theme-pie')!.appendChild(pieEl);
   mounted.push(barEl, pieEl);
 
-  const renderPaletteCharts = () => {
+  const barData = [
+    { q: 'Q1', Compute: 120, Storage: 84, Network: 54 },
+    { q: 'Q2', Compute: 148, Storage: 96, Network: 68 },
+    { q: 'Q3', Compute: 165, Storage: 112, Network: 79 },
+    { q: 'Q4', Compute: 192, Storage: 130, Network: 92 }
+  ];
+  const pieData = [
+    { id: 'Compute', value: 44 },
+    { id: 'Storage', value: 28 },
+    { id: 'Network', value: 18 },
+    { id: 'Edge', value: 10 }
+  ];
+
+  const applyPaletteConfig = (cfg: {
+    themeMode?: ThemeModePreference;
+    palette?: ChartPaletteName;
+    colors?: string[];
+    theme?: Partial<ChartTheme>;
+  }) => {
+    const mode = cfg.themeMode ?? selectedMode;
+    const palette = cfg.palette ?? selectedPalette;
+    const hasColors = Array.isArray(cfg.colors) && cfg.colors.length > 0;
+    const labelSuffix = hasColors ? 'custom colors' : `"${palette}"`;
+
     barEl.setConfig({
-      data: [
-        { q: 'Q1', Compute: 120, Storage: 84, Network: 54 },
-        { q: 'Q2', Compute: 148, Storage: 96, Network: 68 },
-        { q: 'Q3', Compute: 165, Storage: 112, Network: 79 },
-        { q: 'Q4', Compute: 192, Storage: 130, Network: 92 }
-      ],
+      data: barData,
       autoSize: true,
-      themeMode: selectedMode,
-      palette: selectedPalette,
-      title: `Palette: "${selectedPalette}" (${selectedMode})`,
+      themeMode: mode,
+      palette,
+      colors: hasColors ? cfg.colors : undefined,
+      theme: cfg.theme,
+      title: `Palette: ${labelSuffix} (${mode})`,
       indexBy: 'q',
       keys: ['Compute', 'Storage', 'Network'],
       groupMode: 'grouped',
@@ -71,42 +91,73 @@ export function renderThemesGuide(
     });
 
     pieEl.setConfig({
-      data: [
-        { id: 'Compute', value: 44 },
-        { id: 'Storage', value: 28 },
-        { id: 'Network', value: 18 },
-        { id: 'Edge', value: 10 }
-      ],
+      data: pieData,
       autoSize: true,
-      themeMode: selectedMode,
-      palette: selectedPalette,
-      title: `Donut — "${selectedPalette}"`,
+      themeMode: mode,
+      palette,
+      colors: hasColors ? cfg.colors : undefined,
+      theme: cfg.theme,
+      title: `Donut — ${labelSuffix}`,
       innerRadius: 0.56,
       padAngle: 0.03,
       cornerRadius: 6,
       centerLabel: '100%'
     });
-
-    codeSlot1.innerHTML = '';
-    codeSlot1.appendChild(
-      createCodeBlock(
-        `
-chart.config = {
-  data,
-  themeMode: '${selectedMode}', // 'system' | 'dark' | 'light'
-  palette: '${selectedPalette}', // 'modern' | 'nivo' | 'echarts' | 'emerald' | 'sunset' | 'ocean' | 'cyber'
-  // Or supply your own color array directly:
-  // colors: ['#2563eb', '#14b8a6', '#f59e0b']
-};
-        `,
-        'Using Default Themes & Built-In Palettes'
-      )
-    );
   };
+
+  const syncModeButtons = (mode: ThemeModePreference) => {
+    (['system', 'dark', 'light'] as ThemeModePreference[]).forEach((other) => {
+      introCard
+        .querySelector(`#btn-theme-mode-${other}`)
+        ?.classList.toggle('btn-primary', other === mode);
+    });
+  };
+
+  const syncPaletteButtons = (palette: string) => {
+    palettePicker
+      .querySelectorAll<HTMLButtonElement>('.guide-palette-card')
+      .forEach((el) =>
+        el.classList.toggle('active', el.dataset.paletteName === palette)
+      );
+  };
+
+  const buildPaletteEditorConfig = () => ({
+    themeMode: selectedMode,
+    palette: selectedPalette,
+    colors: [] as string[]
+  });
+
+  const editor1 = createLiveConfigEditor({
+    title: 'Default Themes & Built-In Palettes (Live)',
+    initialConfig: buildPaletteEditorConfig(),
+    hint: 'Change palette ("ocean", "sunset", "cyber"), themeMode, or add hex codes to colors[] — updates both charts live.',
+    onConfigChange: (nextCfg) => {
+      if (nextCfg.themeMode) {
+        selectedMode = nextCfg.themeMode;
+        syncModeButtons(selectedMode);
+      }
+      if (nextCfg.palette && nextCfg.palette in PALETTES) {
+        selectedPalette = nextCfg.palette;
+        syncPaletteButtons(selectedPalette);
+      }
+      applyPaletteConfig(nextCfg);
+    },
+    onReset: () => {
+      selectedPalette = 'modern';
+      selectedMode = themeMode;
+      syncPaletteButtons(selectedPalette);
+      syncModeButtons(selectedMode);
+      const resetCfg = buildPaletteEditorConfig();
+      applyPaletteConfig(resetCfg);
+      editor1.syncConfig(resetCfg);
+    }
+  });
+  codeSlot1.appendChild(editor1.element);
 
   (Object.keys(PALETTES) as ChartPaletteName[]).forEach((name) => {
     const btn = document.createElement('button');
     btn.type = 'button';
+    btn.dataset.paletteName = name;
     btn.className = `guide-palette-card ${name === selectedPalette ? 'active' : ''}`;
     const swatches = PALETTES[name]
       .slice(0, 6)
@@ -118,9 +169,10 @@ chart.config = {
     `;
     btn.addEventListener('click', () => {
       selectedPalette = name;
-      palettePicker.querySelectorAll('.guide-palette-card').forEach((el) => el.classList.remove('active'));
-      btn.classList.add('active');
-      renderPaletteCharts();
+      syncPaletteButtons(name);
+      const nextCfg = buildPaletteEditorConfig();
+      applyPaletteConfig(nextCfg);
+      editor1.syncConfig(nextCfg);
     });
     palettePicker.appendChild(btn);
   });
@@ -129,21 +181,24 @@ chart.config = {
     const b = introCard.querySelector(`#btn-theme-mode-${m}`) as HTMLButtonElement;
     b.addEventListener('click', () => {
       selectedMode = m;
-      (['system', 'dark', 'light'] as ThemeModePreference[]).forEach((other) => {
-        introCard
-          .querySelector(`#btn-theme-mode-${other}`)
-          ?.classList.toggle('btn-primary', other === m);
-      });
-      renderPaletteCharts();
+      syncModeButtons(m);
+      const nextCfg = buildPaletteEditorConfig();
+      applyPaletteConfig(nextCfg);
+      editor1.syncConfig(nextCfg);
     });
   });
 
-  renderPaletteCharts();
+  applyPaletteConfig(buildPaletteEditorConfig());
 
   // Example 2: Fully Custom Brand Themes
   const customThemes: Record<
     string,
-    { label: string; theme: Partial<ChartTheme>; colors: string[]; themeMode: 'light' | 'dark' }
+    {
+      label: string;
+      theme: Partial<ChartTheme>;
+      colors: string[];
+      themeMode: 'light' | 'dark';
+    }
   > = {
     editorial: {
       label: 'Editorial Print (Warm Paper)',
@@ -208,7 +263,7 @@ chart.config = {
       <div>
         <h2 class="panel-title">Example 2: Crafting Your Own Custom Brand Theme</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Pass a partial <code>theme</code> object and custom <code>colors</code> array to override typography, surfaces, grid dash patterns, axes, and tooltips.
+          Pass a partial <code>theme</code> object and custom <code>colors</code> array to override typography, surfaces, grid dash patterns, axes, and tooltips — edit any token below to preview live.
         </p>
       </div>
       <div class="guide-controls-row" id="guide-custom-theme-btns"></div>
@@ -228,71 +283,73 @@ chart.config = {
   const customThemeCode = ex2.querySelector('#guide-custom-theme-code') as HTMLElement;
   let activeCustomKey = 'editorial';
 
-  const applyCustomTheme = (key: string) => {
-    activeCustomKey = key;
-    const preset = customThemes[key];
-    customLineEl.setConfig({
+  const brandLineData = [
+    {
+      id: 'Revenue',
       data: [
-        {
-          id: 'Revenue',
-          data: [
-            { x: 'Jan', y: 112 },
-            { x: 'Feb', y: 129 },
-            { x: 'Mar', y: 141 },
-            { x: 'Apr', y: 136 },
-            { x: 'May', y: 162 },
-            { x: 'Jun', y: 184 }
-          ]
-        },
-        {
-          id: 'Forecast',
-          data: [
-            { x: 'Jan', y: 105 },
-            { x: 'Feb', y: 120 },
-            { x: 'Mar', y: 132 },
-            { x: 'Apr', y: 148 },
-            { x: 'May', y: 158 },
-            { x: 'Jun', y: 175 }
-          ]
-        }
-      ],
-      autoSize: true,
+        { x: 'Jan', y: 112 },
+        { x: 'Feb', y: 129 },
+        { x: 'Mar', y: 141 },
+        { x: 'Apr', y: 136 },
+        { x: 'May', y: 162 },
+        { x: 'Jun', y: 184 }
+      ]
+    },
+    {
+      id: 'Forecast',
+      data: [
+        { x: 'Jan', y: 105 },
+        { x: 'Feb', y: 120 },
+        { x: 'Mar', y: 132 },
+        { x: 'Apr', y: 148 },
+        { x: 'May', y: 158 },
+        { x: 'Jun', y: 175 }
+      ]
+    }
+  ];
+
+  const buildCustomThemeConfig = (key: string) => {
+    const preset = customThemes[key];
+    return {
       title: preset.label,
       themeMode: preset.themeMode,
-      colors: preset.colors,
-      theme: preset.theme,
+      colors: [...preset.colors],
+      theme: { ...preset.theme },
       enableArea: true,
       areaOpacity: 0.14,
-      curve: 'monotoneX',
-      yScale: { type: 'linear', min: 80, max: 205 },
-      margin: { top: 44, right: 24, bottom: 64, left: 52 }
-    });
-
-    customThemeCode.innerHTML = '';
-    customThemeCode.appendChild(
-      createCodeBlock(
-        `
-chart.config = {
-  data,
-  themeMode: '${preset.themeMode}',
-  colors: ${JSON.stringify(preset.colors)},
-  theme: ${JSON.stringify(preset.theme, null, 2)}
-};
-
-// Or declaratively via <mc-theme-layer>:
-// <mc-line-chart>
-//   <mc-theme-layer
-//     mode="${preset.themeMode}"
-//     background="${preset.theme.background}"
-//     text-color="${preset.theme.textColor}"
-//     font-family="${preset.theme.fontFamily}"
-//   ></mc-theme-layer>
-// </mc-line-chart>
-        `,
-        `Custom Theme — ${preset.label}`
-      )
-    );
+      curve: 'monotoneX'
+    };
   };
+
+  const applyCustomLineConfig = (cfg: Record<string, any>) => {
+    customLineEl.setConfig({
+      data: brandLineData,
+      autoSize: true,
+      yScale: { type: 'linear', min: 80, max: 205 },
+      margin: { top: 44, right: 24, bottom: 64, left: 52 },
+      ...cfg
+    });
+  };
+
+  const initialBrandCfg = buildCustomThemeConfig(activeCustomKey);
+  applyCustomLineConfig(initialBrandCfg);
+
+  const editor2 = createLiveConfigEditor({
+    title: `Custom Theme — ${customThemes[activeCustomKey].label}`,
+    initialConfig: initialBrandCfg,
+    hint: 'Edit background, textColor, colors[], fontFamily, or gridStrokeDasharray to restyle live.',
+    onConfigChange: (nextCfg) => {
+      applyCustomLineConfig(nextCfg);
+    },
+    onReset: () => {
+      const resetCfg = buildCustomThemeConfig(activeCustomKey);
+      applyCustomLineConfig(resetCfg);
+      editor2.syncConfig(resetCfg, {
+        title: `Custom Theme — ${customThemes[activeCustomKey].label}`
+      });
+    }
+  });
+  customThemeCode.appendChild(editor2.element);
 
   Object.entries(customThemes).forEach(([key, preset]) => {
     const btn = document.createElement('button');
@@ -300,14 +357,17 @@ chart.config = {
     btn.textContent = preset.label;
     btn.className = key === activeCustomKey ? 'btn-primary' : '';
     btn.addEventListener('click', () => {
-      customThemeBtns.querySelectorAll('button').forEach((b) => b.classList.remove('btn-primary'));
+      activeCustomKey = key;
+      customThemeBtns
+        .querySelectorAll('button')
+        .forEach((b) => b.classList.remove('btn-primary'));
       btn.classList.add('btn-primary');
-      applyCustomTheme(key);
+      const nextCfg = buildCustomThemeConfig(key);
+      applyCustomLineConfig(nextCfg);
+      editor2.syncConfig(nextCfg, { title: `Custom Theme — ${preset.label}` });
     });
     customThemeBtns.appendChild(btn);
   });
-
-  applyCustomTheme(activeCustomKey);
 
   // Theme Token Table
   const tokenCard = document.createElement('section');
@@ -333,4 +393,3 @@ chart.config = {
 
   return mounted;
 }
-

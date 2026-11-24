@@ -1,5 +1,5 @@
 import type { MCBaseChart, ThemeModePreference } from '../../../src/index';
-import { createCodeBlock } from './shared';
+import { createLiveConfigEditor } from './shared';
 
 export function renderAccessibilityGuide(
   container: HTMLElement,
@@ -43,8 +43,8 @@ export function renderAccessibilityGuide(
       <div>
         <h2 class="panel-title">Example 1: Keyboard Navigation, Live Screen-Reader Output &amp; Data-Table Fallback</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Click inside the chart and press <strong>Tab</strong> followed by <strong>ArrowLeft / ArrowRight / Home / End</strong>
-          (or <strong>Enter</strong>) to inspect the exact screen-reader announcement and generated accessible HTML table below.
+          Click inside the chart and press <strong>Tab</strong> + <strong>Arrow</strong> keys — or edit <code>aria</code>,
+          <code>ariaLabel</code>, <code>isFocusable</code>, <code>animate</code>, and <code>data</code> directly in the live JSON editor.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:12px;">
@@ -102,6 +102,9 @@ export function renderAccessibilityGuide(
     { quarter: 'Q4', Cloud: 244, Edge: 158 }
   ];
 
+  const barAriaLabelFn = (item: any) =>
+    `${item.seriesId} revenue in ${item.category}: $${item.value}M (${item.index + 1} of ${item.total})`;
+
   bar.addEventListener('mc-aria-focus', (e: Event) => {
     const d = (e as CustomEvent).detail ?? {};
     livePreview.textContent = `Announced: "${d.label}${
@@ -114,72 +117,89 @@ export function renderAccessibilityGuide(
     livePreview.textContent = `Activated via keyboard: "${d.label}"`;
   });
 
-  const renderA11yChart = () => {
-    const isFocusable = chkA11yFocusable.checked;
-    const includeDataTable = chkTable.checked;
-    const animate = !chkReduced.checked;
+  const buildA11yConfig = () => ({
+    title: 'Quarterly Revenue (Keyboard & Screen-Reader Ready)',
+    ariaLabel: 'Quarterly Cloud and Edge revenue comparison',
+    isFocusable: chkA11yFocusable.checked,
+    animate: !chkReduced.checked,
+    barAriaLabel: barAriaLabelFn,
+    aria: {
+      description:
+        'Grouped bar chart comparing Cloud and Edge revenue from Q1 to Q4.',
+      includeDataTable: chkTable.checked,
+      announceOnFocus: true
+    },
+    data: sampleData
+  });
 
-    bar.setConfig({
-      data: sampleData,
-      autoSize: true,
-      themeMode,
-      palette: 'ocean',
-      title: 'Quarterly Revenue (Keyboard & Screen-Reader Ready)',
-      ariaLabel: 'Quarterly Cloud and Edge revenue comparison',
-      indexBy: 'quarter',
-      keys: ['Cloud', 'Edge'],
-      isFocusable,
-      animate,
-      barAriaLabel: (item) =>
-        `${item.seriesId} revenue in ${item.category}: $${item.value}M (${item.index + 1} of ${item.total})`,
-      aria: {
-        description:
-          'Grouped bar chart comparing Cloud and Edge revenue from Q1 to Q4.',
-        includeDataTable,
-        announceOnFocus: true
-      },
-      borderRadius: 6,
-      margin: { top: 44, right: 24, bottom: 72, left: 52 },
-      layers: ['grid', 'axes', 'bars', 'labels', 'legends']
-    });
-
+  const syncDataTablePreview = () => {
     const generatedTable = bar.shadowRoot?.querySelector(
       '.mc-aria-table-container table'
     );
     if (generatedTable) {
       tablePreview.replaceChildren(generatedTable.cloneNode(true));
     } else {
-      tablePreview.innerHTML =
-        '<p style="color:var(--text-muted);margin:0;">Data table fallback disabled (<code>aria.includeDataTable: false</code>).</p>';
+      const p = document.createElement('p');
+      p.style.cssText = 'color:var(--text-muted);margin:0;';
+      p.textContent = 'Data table fallback disabled (aria.includeDataTable: false).';
+      tablePreview.replaceChildren(p);
     }
-
-    code1.innerHTML = '';
-    code1.appendChild(
-      createCodeBlock(
-        `
-chart.config = {
-  data: quarterlyData,
-  ariaLabel: 'Quarterly Cloud and Edge revenue comparison',
-  isFocusable: ${isFocusable},
-  animate: ${animate}, // honors prefers-reduced-motion automatically
-  barAriaLabel: (item) =>
-    \`\${item.seriesId} revenue in \${item.category}: $\${item.value}M (\${item.index + 1} of \${item.total})\`,
-  aria: {
-    description: 'Grouped bar chart comparing Cloud and Edge revenue from Q1 to Q4.',
-    includeDataTable: ${includeDataTable},
-    announceOnFocus: true
-  }
-};
-        `,
-        'W3C ARIA, Keyboard Focus & Data-Table Fallback'
-      )
-    );
   };
 
-  chkA11yFocusable.addEventListener('change', renderA11yChart);
-  chkTable.addEventListener('change', renderA11yChart);
-  chkReduced.addEventListener('change', renderA11yChart);
-  renderA11yChart();
+  const applyA11yConfig = (cfg: Record<string, any>) => {
+    bar.setConfig({
+      autoSize: true,
+      themeMode,
+      palette: 'ocean',
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      borderRadius: 6,
+      margin: { top: 44, right: 24, bottom: 72, left: 52 },
+      layers: ['grid', 'axes', 'bars', 'labels', 'legends'],
+      ...cfg
+    });
+    syncDataTablePreview();
+  };
+
+  const initialA11yCfg = buildA11yConfig();
+  applyA11yConfig(initialA11yCfg);
+
+  const editor1 = createLiveConfigEditor({
+    title: 'W3C ARIA, Keyboard Focus & Data-Table Config (Live)',
+    initialConfig: initialA11yCfg,
+    hint: 'Edit ariaLabel, isFocusable, animate, aria.includeDataTable, or data — the generated table updates live.',
+    onConfigChange: (nextCfg) => {
+      if (typeof nextCfg.isFocusable === 'boolean') {
+        chkA11yFocusable.checked = nextCfg.isFocusable;
+      }
+      if (typeof nextCfg.animate === 'boolean') {
+        chkReduced.checked = !nextCfg.animate;
+      }
+      if (typeof nextCfg.aria?.includeDataTable === 'boolean') {
+        chkTable.checked = nextCfg.aria.includeDataTable;
+      }
+      applyA11yConfig(nextCfg);
+    },
+    onReset: () => {
+      chkA11yFocusable.checked = true;
+      chkTable.checked = true;
+      chkReduced.checked = false;
+      const resetCfg = buildA11yConfig();
+      applyA11yConfig(resetCfg);
+      editor1.syncConfig(resetCfg);
+    }
+  });
+  code1.appendChild(editor1.element);
+
+  const updateA11yFromControls = () => {
+    const nextCfg = buildA11yConfig();
+    applyA11yConfig(nextCfg);
+    editor1.syncConfig(nextCfg);
+  };
+
+  chkA11yFocusable.addEventListener('change', updateA11yFromControls);
+  chkTable.addEventListener('change', updateA11yFromControls);
+  chkReduced.addEventListener('change', updateA11yFromControls);
 
   // Example 2: Static Charts (isInteractive vs isFocusable) — Live Interactive Demo
   const staticSection = document.createElement('section');
@@ -190,11 +210,8 @@ chart.config = {
       <div>
         <h2 class="panel-title">Example 2: Static Charts (<code>isInteractive</code> vs. <code>isFocusable</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Use <code>isInteractive: false</code> (or HTML attribute <code>is-interactive="false"</code>) for thumbnails,
-          print/PDF exports, report snapshots, or dense dashboards. <code>isInteractive</code> is the master switch:
-          when <code>false</code>, no <code>&lt;mc-tooltip&gt;</code> is created, no hover/pointer/keyboard listeners or
-          <code>tabindex</code> attributes are attached, interactive item ARIA roles are removed, and the chart SVG still
-          preserves <code>role="img"</code> with its <code>aria-label</code> and description.
+          Use <code>isInteractive: false</code> for thumbnails, print/PDF exports, or dense dashboards.
+          Toggle presets or edit <code>isInteractive</code>, <code>isFocusable</code>, and <code>ariaLabel</code> directly in the live JSON editor below.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
@@ -246,7 +263,7 @@ chart.config = {
   let interactiveVal = true;
   let focusableVal = true;
 
-  const updateStaticDemo = () => {
+  const syncStaticControls = () => {
     chkInteractive.checked = interactiveVal;
     chkStaticFocusable.checked = focusableVal;
     chkStaticFocusable.disabled = !interactiveVal;
@@ -259,27 +276,9 @@ chart.config = {
     presetBtns.forEach((b) =>
       b.classList.toggle('btn-primary', b.dataset.modePreset === activePreset)
     );
+  };
 
-    staticChart.setConfig({
-      data: sampleData,
-      autoSize: true,
-      themeMode,
-      palette: 'modern',
-      title: !interactiveVal
-        ? 'Static Chart (isInteractive: false)'
-        : focusableVal
-        ? 'Interactive + Keyboard Focusable Chart'
-        : 'Mouse-Only Interactive Chart (isFocusable: false)',
-      ariaLabel: 'Quarterly Cloud and Edge revenue chart',
-      indexBy: 'quarter',
-      keys: ['Cloud', 'Edge'],
-      isInteractive: interactiveVal,
-      isFocusable: focusableVal,
-      borderRadius: 6,
-      margin: { top: 44, right: 24, bottom: 72, left: 52 },
-      layers: ['grid', 'axes', 'bars', 'labels', 'legends']
-    });
-
+  const syncStaticDomBadge = () => {
     const sr = staticChart.shadowRoot;
     const tooltipCount = sr?.querySelectorAll('mc-tooltip').length ?? 0;
     const tabindexCount = sr?.querySelectorAll('[tabindex]').length ?? 0;
@@ -289,32 +288,69 @@ chart.config = {
       sr?.querySelectorAll('.mc-aria-item[role]').length ?? 0;
 
     domBadge.textContent = `Shadow DOM → <mc-tooltip>: ${tooltipCount} | [tabindex]: ${tabindexCount} | item ARIA roles: ${itemRoles} | svg role="${svgRole}"`;
+  };
 
-    staticCodeHost.innerHTML = '';
-    staticCodeHost.appendChild(
-      createCodeBlock(
-        `
-<!-- HTML attribute syntax -->
-<mc-bar-chart
-  aria-label="Quarterly Cloud and Edge revenue chart"
-  is-interactive="${interactiveVal}"
-  is-focusable="${focusableVal}"
-></mc-bar-chart>
+  const buildStaticConfig = () => ({
+    title: !interactiveVal
+      ? 'Static Chart (isInteractive: false)'
+      : focusableVal
+      ? 'Interactive + Keyboard Focusable Chart'
+      : 'Mouse-Only Interactive Chart (isFocusable: false)',
+    ariaLabel: 'Quarterly Cloud and Edge revenue chart',
+    isInteractive: interactiveVal,
+    isFocusable: focusableVal,
+    data: sampleData
+  });
 
-// JS config syntax (can be toggled dynamically at runtime)
-chart.config = {
-  data: quarterlyData,
-  ariaLabel: 'Quarterly Cloud and Edge revenue chart',
-  isInteractive: ${interactiveVal}, // master switch (default true)
-  isFocusable: ${focusableVal}    // keyboard focus when isInteractive is true
-};
+  const applyStaticConfig = (cfg: Record<string, any>) => {
+    staticChart.setConfig({
+      autoSize: true,
+      themeMode,
+      palette: 'modern',
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      borderRadius: 6,
+      margin: { top: 44, right: 24, bottom: 72, left: 52 },
+      layers: ['grid', 'axes', 'bars', 'labels', 'legends'],
+      ...cfg
+    });
+    syncStaticDomBadge();
+  };
 
-// Runtime toggle cleanly attaches/detaches tooltips & listeners:
-chart.isInteractive = ${!interactiveVal};
-        `,
-        'isInteractive vs. isFocusable'
-      )
-    );
+  const initialStaticCfg = buildStaticConfig();
+  syncStaticControls();
+  applyStaticConfig(initialStaticCfg);
+
+  const editor2 = createLiveConfigEditor({
+    title: 'isInteractive vs. isFocusable Config (Live)',
+    initialConfig: initialStaticCfg,
+    hint: 'Toggle isInteractive or isFocusable in JSON — watch the Shadow DOM inspection badge update immediately.',
+    onConfigChange: (nextCfg) => {
+      if (typeof nextCfg.isInteractive === 'boolean') {
+        interactiveVal = nextCfg.isInteractive;
+      }
+      if (typeof nextCfg.isFocusable === 'boolean') {
+        focusableVal = nextCfg.isFocusable;
+      }
+      syncStaticControls();
+      applyStaticConfig(nextCfg);
+    },
+    onReset: () => {
+      interactiveVal = true;
+      focusableVal = true;
+      syncStaticControls();
+      const resetCfg = buildStaticConfig();
+      applyStaticConfig(resetCfg);
+      editor2.syncConfig(resetCfg);
+    }
+  });
+  staticCodeHost.appendChild(editor2.element);
+
+  const updateStaticFromControls = () => {
+    syncStaticControls();
+    const nextCfg = buildStaticConfig();
+    applyStaticConfig(nextCfg);
+    editor2.syncConfig(nextCfg);
   };
 
   presetBtns.forEach((btn) => {
@@ -329,21 +365,19 @@ chart.isInteractive = ${!interactiveVal};
       } else {
         interactiveVal = false;
       }
-      updateStaticDemo();
+      updateStaticFromControls();
     });
   });
 
   chkInteractive.addEventListener('change', () => {
     interactiveVal = chkInteractive.checked;
-    updateStaticDemo();
+    updateStaticFromControls();
   });
 
   chkStaticFocusable.addEventListener('change', () => {
     focusableVal = chkStaticFocusable.checked;
-    updateStaticDemo();
+    updateStaticFromControls();
   });
-
-  updateStaticDemo();
 
   // Section 3: Option Matrix & Keyboard Reference Tables
   const refSection = document.createElement('section');

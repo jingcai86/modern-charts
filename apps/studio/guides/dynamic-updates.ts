@@ -4,7 +4,7 @@ import type {
   ThemeModePreference,
   TooltipPositionMode
 } from '../../../src/index';
-import { createCodeBlock } from './shared';
+import { createCodeBlock, createLiveConfigEditor } from './shared';
 
 export function renderDynamicUpdatesGuide(
   container: HTMLElement,
@@ -47,8 +47,8 @@ export function renderDynamicUpdatesGuide(
       <div>
         <h2 class="panel-title">Example 1: Real-Time Sliding-Window Streaming (<code>chart.data = nextSeries</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Appends a new telemetry point every second and drops the oldest point once the window exceeds 12 samples.
-          Toggle <code>animate</code> off to compare smooth high-frequency streaming vs. animated updates.
+          Appends a new telemetry point every second and drops the oldest once the window exceeds 12 samples —
+          or edit <code>data</code>, <code>animate</code>, and <code>curve</code> directly in the live JSON editor.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
@@ -107,50 +107,34 @@ export function renderDynamicUpdatesGuide(
   const streamBadge = ex1.querySelector('#stream-window-badge') as HTMLElement;
 
   const updateStreamBadge = () => {
-    const pts = streamSeries[0].data;
+    const pts = streamSeries[0]?.data ?? [];
     const latest = pts[pts.length - 1]?.x ?? '—';
     streamBadge.textContent = `Window: ${pts.length}/${WINDOW_SIZE} · Latest: ${latest}`;
   };
 
-  const renderStreamChart = () => {
+  const buildStreamConfig = () => ({
+    title: `Live Telemetry Feed (${WINDOW_SIZE}-Sample Sliding Window)`,
+    palette: 'cyber',
+    animate: chkStreamAnim.checked,
+    enableArea: true,
+    areaOpacity: 0.16,
+    curve: 'monotoneX',
+    data: streamSeries
+  });
+
+  const applyStreamConfig = (cfg: Record<string, any>) => {
+    if (Array.isArray(cfg.data)) {
+      streamSeries = cfg.data;
+    }
     updateStreamBadge();
     streamChart.setConfig({
-      data: streamSeries,
       autoSize: true,
       themeMode,
-      palette: 'cyber',
-      title: `Live Telemetry Feed (${WINDOW_SIZE}-Sample Sliding Window)`,
-      animate: chkStreamAnim.checked,
-      enableArea: true,
-      areaOpacity: 0.16,
-      curve: 'monotoneX',
       yScale: { type: 'linear', min: 0, max: 100 },
       margin: { top: 44, right: 24, bottom: 72, left: 48 },
-      layers: ['grid', 'axes', 'areas', 'lines', 'points', 'slices', 'legends']
+      layers: ['grid', 'axes', 'areas', 'lines', 'points', 'slices', 'legends'],
+      ...cfg
     });
-  };
-
-  const pushNextPoint = () => {
-    tickSeq += 1;
-    cpuVal = Math.max(12, Math.min(95, Math.round(cpuVal + (Math.random() - 0.48) * 16)));
-    memVal = Math.max(22, Math.min(96, Math.round(memVal + (Math.random() - 0.5) * 9)));
-    streamSeries = [
-      {
-        id: 'CPU %',
-        data: [...streamSeries[0].data, { x: `t${tickSeq}`, y: cpuVal }].slice(
-          -WINDOW_SIZE
-        )
-      },
-      {
-        id: 'Memory %',
-        data: [...streamSeries[1].data, { x: `t${tickSeq}`, y: memVal }].slice(
-          -WINDOW_SIZE
-        )
-      }
-    ];
-    updateStreamBadge();
-    // Reassign .data with a fresh reference to trigger an immediate update
-    streamChart.data = streamSeries;
   };
 
   const stopStream = () => {
@@ -160,6 +144,54 @@ export function renderDynamicUpdatesGuide(
     }
     btnStreamToggle.textContent = '▶ Start 1s Stream';
     btnStreamToggle.classList.add('btn-primary');
+  };
+
+  const initialStreamCfg = buildStreamConfig();
+  applyStreamConfig(initialStreamCfg);
+
+  const editor1 = createLiveConfigEditor({
+    title: 'Sliding-Window Stream Config (Live)',
+    initialConfig: initialStreamCfg,
+    hint: 'Edit data points, animate, curve, or palette — stream updates sync back automatically when editor is unfocused.',
+    onConfigChange: (nextCfg) => {
+      if (typeof nextCfg.animate === 'boolean') {
+        chkStreamAnim.checked = nextCfg.animate;
+      }
+      applyStreamConfig(nextCfg);
+    },
+    onReset: () => {
+      stopStream();
+      chkStreamAnim.checked = false;
+      streamSeries = makeInitialSeries();
+      const resetCfg = buildStreamConfig();
+      applyStreamConfig(resetCfg);
+      editor1.syncConfig(resetCfg);
+    }
+  });
+  ex1.querySelector('#guide-dyn-stream-code')!.appendChild(editor1.element);
+
+  const pushNextPoint = () => {
+    tickSeq += 1;
+    cpuVal = Math.max(12, Math.min(95, Math.round(cpuVal + (Math.random() - 0.48) * 16)));
+    memVal = Math.max(22, Math.min(96, Math.round(memVal + (Math.random() - 0.5) * 9)));
+    const prev0 = streamSeries[0]?.data ?? [];
+    const prev1 = streamSeries[1]?.data ?? [];
+    streamSeries = [
+      {
+        id: streamSeries[0]?.id ?? 'CPU %',
+        data: [...prev0, { x: `t${tickSeq}`, y: cpuVal }].slice(-WINDOW_SIZE)
+      },
+      {
+        id: streamSeries[1]?.id ?? 'Memory %',
+        data: [...prev1, { x: `t${tickSeq}`, y: memVal }].slice(-WINDOW_SIZE)
+      }
+    ];
+    updateStreamBadge();
+    streamChart.data = streamSeries;
+    editor1.syncConfig(buildStreamConfig(), {
+      preserveFocus: true,
+      resetBaseline: false
+    });
   };
 
   btnStreamToggle.addEventListener('click', () => {
@@ -183,35 +215,17 @@ export function renderDynamicUpdatesGuide(
   btnStreamReset.addEventListener('click', () => {
     stopStream();
     streamSeries = makeInitialSeries();
-    renderStreamChart();
+    const resetCfg = buildStreamConfig();
+    applyStreamConfig(resetCfg);
+    editor1.syncConfig(resetCfg);
   });
-  chkStreamAnim.addEventListener('change', renderStreamChart);
+  chkStreamAnim.addEventListener('change', () => {
+    const nextCfg = buildStreamConfig();
+    applyStreamConfig(nextCfg);
+    editor1.syncConfig(nextCfg);
+  });
 
-  renderStreamChart();
-
-  ex1.querySelector('#guide-dyn-stream-code')!.appendChild(
-    createCodeBlock(
-      `
-// Sliding-window real-time update (recommended immutable pattern):
-const WINDOW = 12;
-
-function pushSample(nextLabel, cpu, mem) {
-  series = [
-    { id: 'CPU %',    data: [...series[0].data, { x: nextLabel, y: cpu }].slice(-WINDOW) },
-    { id: 'Memory %', data: [...series[1].data, { x: nextLabel, y: mem }].slice(-WINDOW) }
-  ];
-  // Assigning .data triggers a fast re-render (set animate: false for high-frequency feeds)
-  lineChart.data = series;
-}
-
-// Note: mutating in place (series[0].data.push(...)) is NOT auto-detected;
-// either assign a new array reference or explicitly call lineChart.render().
-      `,
-      'Sliding-Window Streaming Updates'
-    )
-  );
-
-  // Example 2: Randomize / Add-Remove Points on Bar & Pie Charts
+  // Example 2: Randomize / Add-Remove Points on Bar & Pie Charts + Live Dataset Editor
   const ex2 = document.createElement('section');
   ex2.className = 'panel-card guide-section';
   ex2.innerHTML = `
@@ -220,7 +234,7 @@ function pushSample(nextLabel, cpu, mem) {
         <h2 class="panel-title">Example 2: Randomize, Add/Remove Points &amp; Empty State</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Replace datasets dynamically on <code>&lt;mc-bar-chart&gt;</code> and <code>&lt;mc-pie-chart&gt;</code>,
-          add/remove items, or assign <code>chart.data = null</code> to switch cleanly to the empty state (<code>:state(empty)</code>).
+          or edit <code>barData</code> / <code>pieData</code> (try setting either to <code>null</code> or <code>[]</code>) directly in the live JSON editor below.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
@@ -234,6 +248,7 @@ function pushSample(nextLabel, cpu, mem) {
       <div class="guide-chart-stage" id="guide-dyn-bar-chart"></div>
       <div class="guide-chart-stage" id="guide-dyn-pie-chart"></div>
     </div>
+    <div id="guide-dyn-ex2-code" style="margin-top:14px;"></div>
   `;
   container.appendChild(ex2);
 
@@ -243,42 +258,76 @@ function pushSample(nextLabel, cpu, mem) {
   ex2.querySelector('#guide-dyn-pie-chart')!.appendChild(dynPie);
   mounted.push(dynBar, dynPie);
 
-  let barRows = [
+  const defaultBarRows = [
     { quarter: 'Q1', Cloud: 138, Edge: 84 },
     { quarter: 'Q2', Cloud: 172, Edge: 108 },
     { quarter: 'Q3', Cloud: 196, Edge: 124 },
     { quarter: 'Q4', Cloud: 234, Edge: 152 }
   ];
-  let pieRows = [
+  const defaultPieRows = [
     { id: 'Compute', value: 420 },
     { id: 'Storage', value: 290 },
     { id: 'Network', value: 195 },
     { id: 'AI Ops', value: 310 }
   ];
+
+  let barRows = defaultBarRows.map((r) => ({ ...r }));
+  let pieRows = defaultPieRows.map((p) => ({ ...p }));
   let isEmptyDemo = false;
 
-  const syncBarPie = () => {
+  const buildEx2DatasetPayload = () => ({
+    barData: isEmptyDemo ? null : barRows,
+    pieData: isEmptyDemo ? null : pieRows
+  });
+
+  const applyEx2Datasets = (payload: { barData: any; pieData: any }) => {
+    const barIsEmpty = !Array.isArray(payload.barData) || payload.barData.length === 0;
+    const pieIsEmpty = !Array.isArray(payload.pieData) || payload.pieData.length === 0;
+
     dynBar.setConfig({
-      data: isEmptyDemo ? null : barRows,
+      data: payload.barData,
       autoSize: true,
       themeMode,
       palette: 'modern',
-      title: isEmptyDemo ? 'Empty State (data = null)' : 'Live Bar Dataset',
+      title: barIsEmpty ? 'Empty State (data = null / [])' : 'Live Bar Dataset',
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge'],
       borderRadius: 6,
       margin: { top: 44, right: 20, bottom: 70, left: 48 }
     });
     dynPie.setConfig({
-      data: isEmptyDemo ? null : pieRows,
+      data: payload.pieData,
       autoSize: true,
       themeMode,
       palette: 'sunset',
-      title: isEmptyDemo ? 'Empty State (data = null)' : 'Live Pie Dataset',
+      title: pieIsEmpty ? 'Empty State (data = null / [])' : 'Live Pie Dataset',
       innerRadius: 0.5
     });
   };
-  syncBarPie();
+
+  const initialEx2Payload = buildEx2DatasetPayload();
+  applyEx2Datasets(initialEx2Payload);
+
+  const editor2 = createLiveConfigEditor({
+    title: 'Bar & Pie Live Datasets (Live)',
+    initialConfig: initialEx2Payload,
+    hint: 'Add/remove items or set barData / pieData to null or [] to trigger empty states live.',
+    onConfigChange: (nextPayload) => {
+      if (Array.isArray(nextPayload.barData)) barRows = nextPayload.barData;
+      if (Array.isArray(nextPayload.pieData)) pieRows = nextPayload.pieData;
+      isEmptyDemo = nextPayload.barData === null && nextPayload.pieData === null;
+      applyEx2Datasets(nextPayload);
+    },
+    onReset: () => {
+      barRows = defaultBarRows.map((r) => ({ ...r }));
+      pieRows = defaultPieRows.map((p) => ({ ...p }));
+      isEmptyDemo = false;
+      const resetPayload = buildEx2DatasetPayload();
+      applyEx2Datasets(resetPayload);
+      editor2.syncConfig(resetPayload);
+    }
+  });
+  ex2.querySelector('#guide-dyn-ex2-code')!.appendChild(editor2.element);
 
   ex2.querySelector('#btn-dyn-randomize')!.addEventListener('click', () => {
     isEmptyDemo = false;
@@ -291,8 +340,9 @@ function pushSample(nextLabel, cpu, mem) {
       id: p.id,
       value: Math.round(90 + Math.random() * 420)
     }));
-    dynBar.data = barRows;
-    dynPie.data = pieRows;
+    const payload = buildEx2DatasetPayload();
+    applyEx2Datasets(payload);
+    editor2.syncConfig(payload);
   });
 
   ex2.querySelector('#btn-dyn-add')!.addEventListener('click', () => {
@@ -310,22 +360,28 @@ function pushSample(nextLabel, cpu, mem) {
       ...pieRows,
       { id: `Region ${pieRows.length + 1}`, value: Math.round(100 + Math.random() * 260) }
     ];
-    syncBarPie();
+    const payload = buildEx2DatasetPayload();
+    applyEx2Datasets(payload);
+    editor2.syncConfig(payload);
   });
 
   ex2.querySelector('#btn-dyn-remove')!.addEventListener('click', () => {
     if (barRows.length > 2) barRows = barRows.slice(0, -1);
     if (pieRows.length > 2) pieRows = pieRows.slice(0, -1);
     isEmptyDemo = false;
-    syncBarPie();
+    const payload = buildEx2DatasetPayload();
+    applyEx2Datasets(payload);
+    editor2.syncConfig(payload);
   });
 
   ex2.querySelector('#btn-dyn-empty')!.addEventListener('click', () => {
     isEmptyDemo = !isEmptyDemo;
-    syncBarPie();
+    const payload = buildEx2DatasetPayload();
+    applyEx2Datasets(payload);
+    editor2.syncConfig(payload);
   });
 
-  // Example 3: Batched Runtime Config Updates (Theme, Layout, Stacked/Grouped, Legend, Tooltip, Resize)
+  // Example 3: Batched Runtime Config Updates
   const ex3 = document.createElement('section');
   ex3.className = 'panel-card guide-section';
   ex3.innerHTML = `
@@ -333,8 +389,7 @@ function pushSample(nextLabel, cpu, mem) {
       <div>
         <h2 class="panel-title">Example 3: Batched Runtime Config Changes (<code>setConfig</code>) &amp; Resize</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Change palette, orientation, stacking, legend placement, and tooltip mode dynamically in a single batched
-          <code>chart.setConfig({...})</code> call without recreating the element.
+          Change palette, orientation, stacking, legend placement, and tooltip mode via the dropdowns or directly in the live JSON editor below.
         </p>
       </div>
     </div>
@@ -398,61 +453,88 @@ function pushSample(nextLabel, cpu, mem) {
   const selTip = ex3.querySelector('#dyn-tooltip-pos') as HTMLSelectElement;
   const cfgCodeHost = ex3.querySelector('#guide-dyn-cfg-code') as HTMLElement;
 
-  const renderCfgBar = () => {
+  const batchedData = [
+    { quarter: 'Q1', Cloud: 120, Edge: 85, AI: 64 },
+    { quarter: 'Q2', Cloud: 158, Edge: 102, AI: 94 },
+    { quarter: 'Q3', Cloud: 184, Edge: 118, AI: 128 },
+    { quarter: 'Q4', Cloud: 226, Edge: 142, AI: 164 }
+  ];
+
+  const buildCfgBarConfig = () => {
     const palette = selPalette.value as any;
     const groupMode = selGroup.value as 'grouped' | 'stacked';
     const layout = selLayout.value as 'vertical' | 'horizontal';
     const legendPos = selLegend.value as LegendPosition;
     const tooltipPos = selTip.value as TooltipPositionMode;
 
-    cfgBar.setConfig({
-      data: [
-        { quarter: 'Q1', Cloud: 120, Edge: 85, AI: 64 },
-        { quarter: 'Q2', Cloud: 158, Edge: 102, AI: 94 },
-        { quarter: 'Q3', Cloud: 184, Edge: 118, AI: 128 },
-        { quarter: 'Q4', Cloud: 226, Edge: 142, AI: 164 }
-      ],
-      autoSize: true,
-      themeMode,
+    return {
+      title: `Batched Update (${groupMode} · ${layout} · legend:${legendPos})`,
       palette,
       groupMode,
       layout,
-      title: `Batched Update (${groupMode} · ${layout} · legend:${legendPos})`,
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge', 'AI'],
+      borderRadius: 5,
       legend: { enabled: true, position: legendPos },
       tooltip: { position: tooltipPos },
-      borderRadius: 5,
-      margin: { top: 44, right: 24, bottom: 72, left: 56 }
-    });
-
-    cfgCodeHost.innerHTML = '';
-    cfgCodeHost.appendChild(
-      createCodeBlock(
-        `
-// Batch multiple changes into ONE setConfig() call (single render pass):
-chart.setConfig({
-  ...chart.config,
-  palette: '${palette}',
-  groupMode: '${groupMode}',
-  layout: '${layout}',
-  legend: { enabled: true, position: '${legendPos}' },
-  tooltip: { position: '${tooltipPos}' }
-});
-
-// Container resizing:
-// • autoSize: true (default) observes parent size automatically via ResizeObserver
-// • autoSize: false -> call chart.resize(width, height) explicitly after layout changes
-        `,
-        'Batched Runtime Config Updates'
-      )
-    );
+      data: batchedData
+    };
   };
 
+  const applyCfgBar = (cfg: Record<string, any>) => {
+    cfgBar.setConfig({
+      autoSize: true,
+      themeMode,
+      margin: { top: 44, right: 24, bottom: 72, left: 56 },
+      ...cfg
+    });
+  };
+
+  const initialCfg3 = buildCfgBarConfig();
+  applyCfgBar(initialCfg3);
+
+  const editor3 = createLiveConfigEditor({
+    title: 'Batched Runtime Config Updates (Live)',
+    initialConfig: initialCfg3,
+    hint: 'Edit palette, groupMode, layout, legend.position, tooltip.position, or data in a single batched setConfig().',
+    onConfigChange: (nextCfg) => {
+      if (['modern', 'emerald', 'sunset', 'ocean', 'cyber'].includes(nextCfg.palette)) {
+        selPalette.value = nextCfg.palette;
+      }
+      if (nextCfg.groupMode === 'grouped' || nextCfg.groupMode === 'stacked') {
+        selGroup.value = nextCfg.groupMode;
+      }
+      if (nextCfg.layout === 'vertical' || nextCfg.layout === 'horizontal') {
+        selLayout.value = nextCfg.layout;
+      }
+      if (['top', 'bottom', 'left', 'right'].includes(nextCfg.legend?.position)) {
+        selLegend.value = nextCfg.legend.position;
+      }
+      if (nextCfg.tooltip?.position === 'item' || nextCfg.tooltip?.position === 'follow') {
+        selTip.value = nextCfg.tooltip.position;
+      }
+      applyCfgBar(nextCfg);
+    },
+    onReset: () => {
+      selPalette.value = 'modern';
+      selGroup.value = 'grouped';
+      selLayout.value = 'vertical';
+      selLegend.value = 'bottom';
+      selTip.value = 'item';
+      const resetCfg = buildCfgBarConfig();
+      applyCfgBar(resetCfg);
+      editor3.syncConfig(resetCfg);
+    }
+  });
+  cfgCodeHost.appendChild(editor3.element);
+
   [selPalette, selGroup, selLayout, selLegend, selTip].forEach((el) =>
-    el.addEventListener('change', renderCfgBar)
+    el.addEventListener('change', () => {
+      const nextCfg = buildCfgBarConfig();
+      applyCfgBar(nextCfg);
+      editor3.syncConfig(nextCfg);
+    })
   );
-  renderCfgBar();
 
   // Section 4: Framework Integration (React & Vue 3) + Performance & State Behavior
   const fwCard = document.createElement('section');

@@ -4,7 +4,11 @@ import type {
   ThemeModePreference,
   TooltipPayload
 } from '../../../src/index';
-import { createCodeBlock } from './shared';
+import {
+  createLiveConfigEditor,
+  createLiveCssEditor,
+  createLiveHtmlEditor
+} from './shared';
 
 export function renderTooltipsGuide(
   container: HTMLElement,
@@ -87,51 +91,16 @@ export function renderTooltipsGuide(
   `;
   container.appendChild(intro);
 
-  // Example 1: Styling via CSS ::part() (Zero JavaScript!)
+  // Example 1: Live CSS Styling via ::part() (Zero JavaScript!)
   const ex1 = document.createElement('section');
   ex1.className = 'panel-card guide-section';
   ex1.innerHTML = `
-    <style>
-      .guide-css-part-bar::part(tooltip) {
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
-        border: 1px solid #38bdf8;
-        border-radius: 12px;
-        padding: 10px 14px;
-        box-shadow: 0 14px 36px rgba(56, 189, 248, 0.25);
-        color: #f8fafc;
-      }
-      .guide-css-part-bar::part(tooltip-header) {
-        color: #38bdf8;
-        font-size: 11px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        border-bottom: 1px solid rgba(56, 189, 248, 0.22);
-        padding-bottom: 4px;
-        margin-bottom: 6px;
-      }
-      .guide-css-part-bar::part(tooltip-swatch) {
-        width: 10px;
-        height: 10px;
-        border-radius: 3px;
-      }
-      .guide-css-part-bar::part(tooltip-value) {
-        color: #fbbf24;
-        font-size: 13px;
-      }
-      .guide-css-part-bar::part(tooltip-badge) {
-        background: rgba(239, 68, 68, 0.16);
-        border: 1px solid rgba(239, 68, 68, 0.35);
-        border-radius: 6px;
-        padding: 2px 6px;
-        margin-top: 6px;
-      }
-    </style>
     <div class="guide-example-head">
       <div>
         <h3 class="guide-example-title">Example 1: Pure CSS Styling via <code>::part()</code></h3>
         <p class="guide-prose">
-          Hover any bar below. All visual styling — cyan border glow, uppercase header, square swatches, amber values,
-          and threshold pill — is applied purely via standard CSS <code>::part(...)</code> selectors with zero custom JS.
+          Edit the CSS rules on the right (colors, borders, border-radius, typography), then hover any bar on the left —
+          changes apply live via standard CSS <code>::part(...)</code> selectors.
         </p>
       </div>
     </div>
@@ -175,41 +144,54 @@ export function renderTooltipsGuide(
   };
   mounted.push(bar1);
 
-  ex1.querySelector('#guide-tooltip-code-1')!.appendChild(
-    createCodeBlock(
-      `
-/* Style any chart's unified <mc-tooltip> directly from CSS */
+  const initialTooltipCss = `/* Style any chart's unified <mc-tooltip> directly from CSS */
 mc-bar-chart::part(tooltip) {
-  background: linear-gradient(135deg, #0f172a, #1e293b);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
   border: 1px solid #38bdf8;
   border-radius: 12px;
   padding: 10px 14px;
+  box-shadow: 0 14px 36px rgba(56, 189, 248, 0.25);
   color: #f8fafc;
 }
 
 mc-bar-chart::part(tooltip-header) {
   color: #38bdf8;
-  text-transform: uppercase;
+  font-size: 11px;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.22);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 mc-bar-chart::part(tooltip-swatch) {
+  width: 10px;
+  height: 10px;
   border-radius: 3px;
 }
 
 mc-bar-chart::part(tooltip-value) {
   color: #fbbf24;
+  font-size: 13px;
 }
 
 mc-bar-chart::part(tooltip-badge) {
   background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.35);
   border-radius: 6px;
   padding: 2px 6px;
-}
-      `,
-      'Pure CSS ::part() Styling'
-    )
-  );
+  margin-top: 6px;
+}`;
+
+  const cssEditor1 = createLiveCssEditor({
+    title: 'Pure CSS ::part() Styling (Live)',
+    scopeKey: 'guide-tooltips-ex1-css',
+    hostSelector: 'mc-bar-chart',
+    scopedSelector: 'mc-bar-chart.guide-css-part-bar',
+    initialCss: initialTooltipCss,
+    hint: 'Edit colors, border, padding, or border-radius — hover bars on the left to see live styling.'
+  });
+  ex1.querySelector('#guide-tooltip-code-1')!.appendChild(cssEditor1.element);
 
   // Example 2: Custom tooltip.renderer receiving ALL chart & slice data
   const ex2 = document.createElement('section');
@@ -219,9 +201,9 @@ mc-bar-chart::part(tooltip-badge) {
       <div>
         <h3 class="guide-example-title">Example 2: Custom <code>tooltip.renderer</code> with Full Data Access</h3>
         <p class="guide-prose">
-          Hover across the line chart below. The custom <code>tooltip.renderer(payload, defaultRender)</code> receives
-          all series points in <code>payload.items</code> plus <code>payload.datum</code>, letting you compute derived
-          metrics (Total &amp; YoY Spread) on the fly and return a custom DOM element (or wrap <code>defaultRender()</code>).
+          Hover across the line chart below. The custom <code>tooltip.renderer(payload, defaultRender)</code> computes
+          YoY Lift from <code>payload.items</code>. Edit <code>data</code>, <code>tooltip.offsetX</code>/<code>offsetY</code>,
+          or <code>enableSlices</code> in the live editor to watch both the line and computed YoY tooltip update.
         </p>
       </div>
     </div>
@@ -236,7 +218,40 @@ mc-bar-chart::part(tooltip-badge) {
   line2.style.width = '100%';
   line2.style.height = '340px';
   ex2.querySelector('#guide-tooltip-chart-2')!.appendChild(line2);
-  line2.config = {
+
+  const kpiTooltipRenderer = (
+    payload: TooltipPayload,
+    defaultRender: () => Node
+  ) => {
+    const card = document.createElement('div');
+    card.appendChild(defaultRender());
+
+    if (payload.items && payload.items.length >= 2) {
+      const actual = Number(payload.items[0].value ?? 0);
+      const baseline = Number(payload.items[1].value ?? 0);
+      const delta = actual - baseline;
+      const pct = baseline > 0 ? ((delta / baseline) * 100).toFixed(1) : '0';
+
+      const footer = document.createElement('div');
+      footer.style.cssText =
+        'margin-top:6px;padding-top:6px;border-top:1px solid rgba(148,163,184,0.25);font-size:11px;display:flex;justify-content:space-between;gap:12px;';
+      const lbl = document.createElement('span');
+      lbl.textContent = 'YoY Lift:';
+      const val = document.createElement('strong');
+      val.style.color = delta >= 0 ? '#10b981' : '#ef4444';
+      val.textContent = `${delta >= 0 ? '+' : ''}${delta} (${delta >= 0 ? '+' : ''}${pct}%)`;
+      footer.append(lbl, val);
+      card.appendChild(footer);
+    }
+    return card;
+  };
+
+  const initialLine2Cfg = {
+    title: 'Hover Across Months for Computed KPI Tooltip',
+    palette: 'ocean',
+    curve: 'monotoneX',
+    enableArea: true,
+    enableSlices: true,
     data: [
       {
         id: '2026 Actual',
@@ -259,71 +274,31 @@ mc-bar-chart::part(tooltip-badge) {
         ]
       }
     ],
-    curve: 'monotoneX',
-    enableArea: true,
-    enableSlices: true,
-    themeMode,
-    palette: 'ocean',
-    title: 'Hover Across Months for Computed KPI Tooltip',
     tooltip: {
       offsetX: 16,
       offsetY: 10,
-      renderer: (payload: TooltipPayload, defaultRender) => {
-        const card = document.createElement('div');
-        card.appendChild(defaultRender());
-
-        if (payload.items && payload.items.length >= 2) {
-          const actual = Number(payload.items[0].value ?? 0);
-          const baseline = Number(payload.items[1].value ?? 0);
-          const delta = actual - baseline;
-          const pct = baseline > 0 ? ((delta / baseline) * 100).toFixed(1) : '0';
-
-          const footer = document.createElement('div');
-          footer.style.cssText =
-            'margin-top:6px;padding-top:6px;border-top:1px solid rgba(148,163,184,0.25);font-size:11px;display:flex;justify-content:space-between;gap:12px;';
-          const lbl = document.createElement('span');
-          lbl.textContent = 'YoY Lift:';
-          const val = document.createElement('strong');
-          val.style.color = delta >= 0 ? '#10b981' : '#ef4444';
-          val.textContent = `${delta >= 0 ? '+' : ''}${delta} (+${pct}%)`;
-          footer.append(lbl, val);
-          card.appendChild(footer);
-        }
-        return card;
-      }
+      renderer: kpiTooltipRenderer
     }
   };
+
+  const applyLine2 = (cfg: Record<string, any>) => {
+    line2.config = {
+      themeMode,
+      ...cfg
+    };
+  };
+  applyLine2(initialLine2Cfg);
   mounted.push(line2);
 
-  ex2.querySelector('#guide-tooltip-code-2')!.appendChild(
-    createCodeBlock(
-      `
-chart.config = {
-  data: seriesData,
-  enableSlices: true,
-  tooltip: {
-    offsetX: 16,
-    offsetY: 10,
-    // Receives full TooltipPayload + defaultRender() helper
-    renderer: (payload, defaultRender) => {
-      const card = document.createElement('div');
-      card.appendChild(defaultRender());
+  const editor2 = createLiveConfigEditor({
+    title: 'Custom tooltip.renderer Config (Live)',
+    initialConfig: initialLine2Cfg,
+    hint: 'Edit series values or tooltip offsets — YoY Lift recalculates live on hover.',
+    onConfigChange: applyLine2
+  });
+  ex2.querySelector('#guide-tooltip-code-2')!.appendChild(editor2.element);
 
-      const [actual, baseline] = payload.items ?? [];
-      const delta = Number(actual.value) - Number(baseline.value);
-      const footer = document.createElement('div');
-      footer.textContent = \`YoY Lift: +\${delta}\`;
-      card.appendChild(footer);
-      return card;
-    }
-  }
-};
-      `,
-      'Extending defaultRender() with Custom Data'
-    )
-  );
-
-  // Example 3: Declarative <mc-tooltip> Child Element + Template / Formatter
+  // Example 3: Live Declarative <mc-tooltip> Child Element + <template>
   const ex3 = document.createElement('section');
   ex3.className = 'panel-card guide-section';
   ex3.innerHTML = `
@@ -331,9 +306,9 @@ chart.config = {
       <div>
         <h3 class="guide-example-title">Example 3: Declarative <code>&lt;mc-tooltip&gt;</code> Child &amp; <code>&lt;template&gt;</code></h3>
         <p class="guide-prose">
-          Drop an <code>&lt;mc-tooltip&gt;</code> element directly inside any chart tag with a <code>&lt;template&gt;</code>
-          (using safe HTML-escaped <code>{{title}}</code>, <code>{{value}}</code>, <code>{{percentage}}</code>, and
-          <code>{{datum.*}}</code> tokens) or assign <code>.formatter</code> / <code>enabled="false"</code>.
+          Edit the declarative <code>&lt;mc-pie-chart&gt;</code> and <code>&lt;mc-tooltip&gt;</code> markup below
+          (try changing the <code>&lt;template&gt;</code> text, <code>offset-x</code>, <code>inner-radius</code>, or setting <code>enabled="false"</code>)
+          and hover any slice to inspect your changes live.
         </p>
       </div>
     </div>
@@ -347,51 +322,59 @@ chart.config = {
   const pie3 = document.createElement('mc-pie-chart') as MCBaseChart<any>;
   pie3.style.width = '100%';
   pie3.style.height = '340px';
-  const declTip = document.createElement('mc-tooltip') as MCTooltipElement;
-  declTip.setAttribute('offset-x', '18');
-  const tpl = document.createElement('template');
-  tpl.innerHTML = `
-    <div style="font-weight:700;margin-bottom:2px;">{{title}}</div>
-    <div style="font-size:12px;">Allocation: <strong>\${{value}}K</strong> ({{percentage}})</div>
-    <div style="font-size:11px;opacity:0.75;margin-top:2px;">Owner: {{datum.owner}}</div>
-  `;
-  declTip.appendChild(tpl);
-  pie3.appendChild(declTip);
   ex3.querySelector('#guide-tooltip-chart-3')!.appendChild(pie3);
-  pie3.config = {
-    data: [
-      { id: 'Compute', label: 'Compute', value: 420, owner: 'Infra Team' } as any,
-      { id: 'AI', label: 'AI / GPU', value: 360, owner: 'ML Platform' } as any,
-      { id: 'Storage', label: 'Storage', value: 210, owner: 'Data Core' } as any,
-      { id: 'Network', label: 'Network', value: 140, owner: 'Edge Ops' } as any
-    ],
-    innerRadius: 0.56,
-    themeMode,
-    palette: 'sunset',
-    title: 'Declarative <mc-tooltip> with {{datum.owner}}'
-  };
   mounted.push(pie3);
 
-  ex3.querySelector('#guide-tooltip-code-3')!.appendChild(
-    createCodeBlock(
-      `
-<mc-pie-chart id="cost-pie" inner-radius="0.56">
+  const pie3BaseData = [
+    { id: 'Compute', label: 'Compute', value: 420, owner: 'Infra Team' } as any,
+    { id: 'AI', label: 'AI / GPU', value: 360, owner: 'ML Platform' } as any,
+    { id: 'Storage', label: 'Storage', value: 210, owner: 'Data Core' } as any,
+    { id: 'Network', label: 'Network', value: 140, owner: 'Edge Ops' } as any
+  ];
+
+  const initialPie3Markup = `<mc-pie-chart inner-radius="0.56">
   <mc-tooltip offset-x="18">
     <template>
-      <div style="font-weight:700">{{title}}</div>
-      <div>Allocation: <strong>\${{value}}K</strong> ({{percentage}})</div>
-      <div>Owner: {{datum.owner}}</div>
+      <div style="font-weight:700;margin-bottom:2px;">{{title}}</div>
+      <div style="font-size:12px;">Allocation: <strong>\${{value}}K</strong> ({{percentage}})</div>
+      <div style="font-size:11px;opacity:0.75;margin-top:2px;">Owner: {{datum.owner}}</div>
     </template>
   </mc-tooltip>
-</mc-pie-chart>
+</mc-pie-chart>`;
 
-<!-- Or disable tooltips entirely: -->
-<!-- chart.config = { ..., tooltip: false }; -->
-<!-- <mc-tooltip enabled="false"></mc-tooltip> -->
-      `,
-      'Declarative <mc-tooltip> with <template>'
-    )
-  );
+  const applyPie3Markup = (
+    chartAttrs: Record<string, string>,
+    children: Node[]
+  ) => {
+    pie3.replaceChildren(...children);
+    const parsedInner = Number(chartAttrs['inner-radius']);
+    const innerRadius = Number.isFinite(parsedInner)
+      ? Math.max(0, Math.min(0.9, parsedInner))
+      : 0.56;
+    const tipEl = pie3.querySelector('mc-tooltip') as MCTooltipElement | null;
+    const tipDisabled = tipEl?.getAttribute('enabled') === 'false';
+
+    pie3.setConfig({
+      data: pie3BaseData,
+      innerRadius,
+      themeMode,
+      palette: 'sunset',
+      tooltip: tipDisabled ? false : undefined,
+      title: 'Declarative <mc-tooltip> with {{datum.owner}}'
+    });
+  };
+
+  const editor3 = createLiveHtmlEditor({
+    title: 'Declarative <mc-tooltip> Markup (Live)',
+    chartTag: 'mc-pie-chart',
+    initialMarkup: initialPie3Markup,
+    hint: 'Edit <template> tokens ({{title}}, {{value}}, {{percentage}}, {{datum.owner}}), offset-x, enabled="false", or inner-radius.',
+    onMarkupApply: ({ chartAttrs, children }) => {
+      applyPie3Markup(chartAttrs, children);
+    }
+  });
+  editor3.applyCurrent();
+  ex3.querySelector('#guide-tooltip-code-3')!.appendChild(editor3.element);
 
   // Example 4: Configurable Tooltip Positioning ('item' vs 'follow' + Keyboard Tab/Arrow)
   const ex4 = document.createElement('section');
@@ -399,11 +382,10 @@ chart.config = {
   ex4.innerHTML = `
     <div class="guide-example-header">
       <div>
-        <h3 class="guide-example-title">4. Configurable Positioning: Item-Anchored vs. Follow Mouse</h3>
+        <h3 class="guide-example-title">Example 4: Configurable Positioning — Item-Anchored vs. Follow Mouse</h3>
         <p class="guide-prose">
-          Toggle between <code>position: 'item'</code> (snaps cleanly on top of each bar/point/cell and flips below near the top edge)
-          and <code>position: 'follow'</code> (glides with the mouse pointer with automatic edge flipping).
-          Try pressing <strong>Tab</strong> and <strong>Arrow</strong> keys on the chart — keyboard focus always anchors cleanly to the active item.
+          Toggle between <code>position: 'item'</code> and <code>position: 'follow'</code>, or edit <code>tooltip</code>
+          settings and <code>data</code> directly in the live JSON editor below.
         </p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -422,73 +404,78 @@ chart.config = {
   bar4.style.width = '100%';
   bar4.style.height = '340px';
   ex4.querySelector('#guide-tooltip-chart-4')!.appendChild(bar4);
-  const bar4BaseConfig = {
+  mounted.push(bar4);
+
+  let posMode: 'item' | 'follow' = 'item';
+
+  const buildBar4Config = (mode: 'item' | 'follow') => ({
+    title: `Hover or Tab through bars — Tooltip Position: ${mode}`,
+    palette: 'modern',
+    indexBy: 'quarter',
+    keys: ['Cloud', 'Edge', 'AI'],
     data: [
       { quarter: 'Q1', Cloud: 142, Edge: 88, AI: 64 },
       { quarter: 'Q2', Cloud: 168, Edge: 104, AI: 96 },
       { quarter: 'Q3', Cloud: 190, Edge: 118, AI: 132 },
       { quarter: 'Q4', Cloud: 215, Edge: 136, AI: 168 }
     ],
-    indexBy: 'quarter',
-    keys: ['Cloud', 'Edge', 'AI'],
-    themeMode,
-    palette: 'modern' as const,
-    title: 'Hover or Tab through bars — Tooltip Position: item',
     tooltip: {
-      position: 'item' as 'item' | 'follow',
-      anchorGap: 10
+      position: mode,
+      anchorGap: 10,
+      offsetX: 14,
+      offsetY: 14
     }
+  });
+
+  const syncPosButtons = (mode: 'item' | 'follow') => {
+    ex4
+      .querySelectorAll('button[data-pos-mode]')
+      .forEach((b) =>
+        b.classList.toggle('active', b.getAttribute('data-pos-mode') === mode)
+      );
   };
-  bar4.config = bar4BaseConfig;
-  mounted.push(bar4);
+
+  const applyBar4 = (cfg: Record<string, any>) => {
+    bar4.config = {
+      themeMode,
+      ...cfg
+    };
+  };
+
+  const initialBar4Cfg = buildBar4Config(posMode);
+  applyBar4(initialBar4Cfg);
+
+  const editor4 = createLiveConfigEditor({
+    title: 'Tooltip Positioning Config (Live)',
+    initialConfig: initialBar4Cfg,
+    hint: 'Edit tooltip.position ("item" | "follow"), anchorGap, offsetX/offsetY, or enabled: false.',
+    onConfigChange: (nextCfg) => {
+      const nextPos = nextCfg.tooltip?.position;
+      if (nextPos === 'item' || nextPos === 'follow') {
+        posMode = nextPos;
+        syncPosButtons(posMode);
+      }
+      applyBar4(nextCfg);
+    },
+    onReset: () => {
+      posMode = 'item';
+      syncPosButtons(posMode);
+      const resetCfg = buildBar4Config(posMode);
+      applyBar4(resetCfg);
+      editor4.syncConfig(resetCfg);
+    }
+  });
+  ex4.querySelector('#guide-tooltip-code-4')!.appendChild(editor4.element);
 
   ex4.querySelectorAll('button[data-pos-mode]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const mode = btn.getAttribute('data-pos-mode') as 'item' | 'follow';
-      ex4
-        .querySelectorAll('button[data-pos-mode]')
-        .forEach((b) => b.classList.toggle('active', b === btn));
-      bar4.config = {
-        ...bar4.config,
-        title: `Hover or Tab through bars — Tooltip Position: ${mode}`,
-        tooltip: {
-          position: mode,
-          anchorGap: 10
-        }
-      };
+      posMode = btn.getAttribute('data-pos-mode') as 'item' | 'follow';
+      syncPosButtons(posMode);
+      const nextCfg = buildBar4Config(posMode);
+      applyBar4(nextCfg);
+      editor4.syncConfig(nextCfg);
     });
   });
-
-  ex4.querySelector('#guide-tooltip-code-4')!.appendChild(
-    createCodeBlock(
-      `
-// 1. Config API (per-chart defaults: 'item' for bar/scatter/radar/gauge, 'follow' for line/pie/sunburst/heatmap/treemap/sankey)
-chart.config = {
-  ...config,
-  tooltip: {
-    position: 'item',  // or 'follow'
-    anchorGap: 10,     // gap in px above/below anchored item
-    offsetX: 14,       // horizontal pointer offset in 'follow' mode
-    offsetY: 14,       // vertical pointer offset in 'follow' mode
-    className: 'my-custom-tooltip'
-  }
-};
-
-// 2. HTML attribute shorthand on any chart
-// <mc-bar-chart tooltip-position="follow"></mc-bar-chart>
-
-// 3. Declarative <mc-tooltip> child
-// <mc-heatmap-chart>
-//   <mc-tooltip position="item" anchor-gap="8" offset-x="12" offset-y="12"></mc-tooltip>
-// </mc-heatmap-chart>
-
-// 4. Listen to composed DOM tooltip lifecycle events
-chart.addEventListener('mc-tooltip-show', (e) => console.log('show:', e.detail));
-chart.addEventListener('mc-tooltip-hide', () => console.log('hide'));
-      `,
-      'Tooltip Positioning Modes & Lifecycle Events'
-    )
-  );
 
   // Live mc-tooltip-show / mc-tooltip-hide Event Log Strip inside Example 4
   const tipEventBar = document.createElement('div');
