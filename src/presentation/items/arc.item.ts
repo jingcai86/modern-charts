@@ -1,6 +1,9 @@
 import { resolveChartPointAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
-import type { GaugeChartModel } from '../../models/gauge.model';
+import type {
+  ComputedGaugeSeriesModel,
+  GaugeChartModel
+} from '../../models/gauge.model';
 import type { ComputedPieArcModel } from '../../models/pie.model';
 import type { ComputedSunburstArcModel } from '../../models/sunburst.model';
 
@@ -288,62 +291,82 @@ export function renderSunburstArcItem(
  */
 export function renderGaugeValueArcItem(
   model: GaugeChartModel,
-  ctx: ChartRenderContext<any>
+  ctx: ChartRenderContext<any>,
+  seriesItem?: ComputedGaugeSeriesModel
 ): SVGPathElement {
+  const item = seriesItem ?? model.series?.[0];
+  const itemIndex = item?.index ?? 0;
+  const itemTotal = item?.totalCount ?? 1;
+  const itemVal = item?.value ?? model.value;
+  const itemMin = item?.min ?? model.min;
+  const itemMax = item?.max ?? model.max;
+  const itemUnit = item?.unit ?? model.unit;
+  const itemLabel = item?.label ?? model.label;
+  const itemColor = item?.color ?? ctx.theme.colors[0];
+  const itemPathD = item?.valueArcPathD ?? model.valueArcPathD;
+  const itemDatum = item?.datum ?? model.datum;
+  const itemId =
+    itemLabel || (itemTotal > 1 ? `gauge-metric-${itemIndex}` : 'gauge-metric');
+
   const path = document.createElementNS(SVG_NS, 'path');
   path.setAttribute('class', 'mc-gauge-value-arc');
   path.setAttribute('data-item-component', 'mc-arc-item');
-  path.setAttribute('d', model.valueArcPathD);
+  path.setAttribute('data-series-index', String(itemIndex));
+  path.setAttribute('d', itemPathD);
   const gaugeFill =
     ctx.resolveFill?.({
-      id: model.label || 'gauge',
-      seriesId: model.label || 'gauge',
-      index: 0,
-      value: model.value,
-      color: ctx.theme.colors[0],
+      id: itemLabel || 'gauge',
+      seriesId: itemLabel || 'gauge',
+      index: itemIndex,
+      value: itemVal,
+      color: itemColor,
       chartType: 'gauge',
       target: 'arc',
-      datum: model.datum
-    }) ?? ctx.theme.colors[0];
+      datum: itemDatum
+    }) ?? itemColor;
   path.setAttribute('fill', gaugeFill);
 
   const getGaugeAnchor = () =>
     resolveChartPointAnchor(
       ctx,
       model.cx,
-      model.cy - model.outerRadius,
+      model.cy - (item?.ringOuterRadius ?? model.outerRadius),
       20,
       12
     );
 
   ctx.decorateAriaItem(path, {
     type: 'gauge-arc',
-    index: 0,
-    total: 1,
-    id: model.label || 'gauge-metric',
-    label: model.label || 'Gauge Metric',
-    value: model.value,
-    formattedValue: `${model.value}${model.unit}`,
-    color: ctx.theme.colors[0],
+    index: itemIndex,
+    total: itemTotal,
+    id: itemId,
+    label: itemLabel || 'Gauge Metric',
+    value: itemVal,
+    formattedValue: `${itemVal}${itemUnit}`,
+    color: itemColor,
     anchor: {
       left: ctx.margin.left + model.cx - 10,
-      top: ctx.margin.top + model.cy - model.outerRadius - 6,
+      top:
+        ctx.margin.top +
+        model.cy -
+        (item?.ringOuterRadius ?? model.outerRadius) -
+        6,
       width: 20,
       height: 12,
       relative: true
     },
     datum: {
-      value: model.value,
-      min: model.min,
-      max: model.max,
-      unit: model.unit,
-      label: model.label
+      value: itemVal,
+      min: itemMin,
+      max: itemMax,
+      unit: itemUnit,
+      label: itemLabel
     }
   });
 
   ctx.animateItem(path, {
     type: 'arc-sweep',
-    index: 0,
+    index: itemIndex,
     originX: 0,
     originY: 0
   });
@@ -354,19 +377,19 @@ export function renderGaugeValueArcItem(
       path.style.filter = 'brightness(1.08)';
       ctx.showTooltip(
         {
-          title: model.label || 'Gauge Metric',
+          title: itemLabel || 'Gauge Metric',
           label: 'Value',
-          value: model.value,
-          formattedValue: `${model.value}${model.unit}`,
-          color: ctx.theme.colors[0],
+          value: itemVal,
+          formattedValue: `${itemVal}${itemUnit}`,
+          color: itemColor,
           anchor: getGaugeAnchor(),
           datum: {
-            ...model.datum,
-            value: model.value,
-            min: model.min,
-            max: model.max,
-            unit: model.unit,
-            label: model.label
+            ...itemDatum,
+            value: itemVal,
+            min: itemMin,
+            max: itemMax,
+            unit: itemUnit,
+            label: itemLabel
           }
         },
         (e as MouseEvent).clientX,
@@ -379,22 +402,23 @@ export function renderGaugeValueArcItem(
     });
   }
 
-  const gaugeRange = model.max - model.min;
+  const gaugeRange = itemMax - itemMin;
   const gaugePct =
-    gaugeRange !== 0 ? ((model.value - model.min) / gaugeRange) * 100 : 0;
+    gaugeRange !== 0 ? ((itemVal - itemMin) / gaugeRange) * 100 : 0;
   ctx.registerEventTarget(path, {
     target: 'gaugeArc',
     category: 'item',
-    id: model.label || 'gauge-metric',
+    id: itemId,
     data: {
-      label: model.label || 'Gauge Metric',
-      value: model.value,
-      min: model.min,
-      max: model.max,
-      unit: model.unit,
+      label: itemLabel || 'Gauge Metric',
+      value: itemVal,
+      min: itemMin,
+      max: itemMax,
+      unit: itemUnit,
       percentage: gaugePct,
-      count: 1,
-      datum: model.datum
+      index: itemIndex,
+      count: itemTotal,
+      datum: itemDatum
     }
   });
 
@@ -402,41 +426,119 @@ export function renderGaugeValueArcItem(
 }
 
 /**
- * Dumb Presentation Renderer for the Gauge Needle & Pivot Item.
+ * Dumb Presentation Renderer for the Gauge Needle / Pointer & Pivot Item.
  */
 export function renderGaugeNeedleItem(
   model: GaugeChartModel,
-  ctx: ChartRenderContext<any>
+  ctx: ChartRenderContext<any>,
+  seriesItem?: ComputedGaugeSeriesModel
 ): SVGGElement {
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
-  const line = document.createElementNS(SVG_NS, 'line');
-  line.setAttribute('class', 'mc-gauge-needle');
-  line.setAttribute('data-item-component', 'mc-gauge-needle-item');
-  line.setAttribute('x1', '0');
-  line.setAttribute('y1', '0');
-  line.setAttribute('x2', String(model.needleX2));
-  line.setAttribute('y2', String(model.needleY2));
-  line.setAttribute('stroke', ctx.theme.textColor);
-  line.setAttribute('stroke-width', '2.5');
-  line.setAttribute('stroke-linecap', 'round');
+  const pointerType = model.pointerType ?? 'needle';
+  if (pointerType === 'none') {
+    return g;
+  }
 
-  ctx.animateItem(line, {
-    type: 'needle-sweep',
-    index: 0,
-    originX: 0,
-    originY: 0
+  const items: ComputedGaugeSeriesModel[] = seriesItem
+    ? [seriesItem]
+    : model.series && model.series.length > 0
+      ? model.series
+      : [
+          {
+            index: 0,
+            totalCount: 1,
+            datum: model.datum,
+            value: model.value,
+            min: model.min,
+            max: model.max,
+            unit: model.unit,
+            label: model.label,
+            color: ctx.theme.colors[0],
+            ringInnerRadius: model.innerRadius,
+            ringOuterRadius: model.outerRadius,
+            trackPathD: model.trackPathD,
+            valueArcPathD: model.valueArcPathD,
+            angleRad: 0,
+            needleX2: model.needleX2,
+            needleY2: model.needleY2,
+            trianglePoints: `${model.needleX2},${model.needleY2} -3,0 0,6 3,0`,
+            pinCx: model.needleX2,
+            pinCy: model.needleY2,
+            pinRadius: 5
+          }
+        ];
+
+  items.forEach((item, idx) => {
+    const pointerColor =
+      items.length > 1 ? item.color : ctx.theme.textColor;
+
+    if (pointerType === 'triangle') {
+      const poly = document.createElementNS(SVG_NS, 'polygon');
+      poly.setAttribute('class', 'mc-gauge-needle mc-gauge-needle--triangle');
+      poly.setAttribute('data-item-component', 'mc-gauge-needle-item');
+      poly.setAttribute('data-pointer-type', 'triangle');
+      poly.setAttribute('points', item.trianglePoints);
+      poly.setAttribute('fill', pointerColor);
+      ctx.animateItem(poly, {
+        type: 'needle-sweep',
+        index: idx,
+        originX: 0,
+        originY: 0
+      });
+      g.appendChild(poly);
+    } else if (pointerType === 'pin') {
+      const pin = document.createElementNS(SVG_NS, 'circle');
+      pin.setAttribute('class', 'mc-gauge-needle mc-gauge-needle--pin');
+      pin.setAttribute('data-item-component', 'mc-gauge-needle-item');
+      pin.setAttribute('data-pointer-type', 'pin');
+      pin.setAttribute('cx', String(item.pinCx));
+      pin.setAttribute('cy', String(item.pinCy));
+      pin.setAttribute('r', String(item.pinRadius));
+      pin.setAttribute('fill', item.color);
+      pin.setAttribute('stroke', ctx.theme.background);
+      pin.setAttribute('stroke-width', '2');
+      ctx.animateItem(pin, {
+        type: 'point-pop',
+        index: idx,
+        originX: item.pinCx,
+        originY: item.pinCy
+      });
+      g.appendChild(pin);
+    } else {
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('class', 'mc-gauge-needle');
+      line.setAttribute('data-item-component', 'mc-gauge-needle-item');
+      line.setAttribute('data-pointer-type', 'needle');
+      line.setAttribute('x1', '0');
+      line.setAttribute('y1', '0');
+      line.setAttribute('x2', String(item.needleX2));
+      line.setAttribute('y2', String(item.needleY2));
+      line.setAttribute('stroke', pointerColor);
+      line.setAttribute('stroke-width', String(model.pointerWidth ?? 2.5));
+      line.setAttribute('stroke-linecap', 'round');
+
+      ctx.animateItem(line, {
+        type: 'needle-sweep',
+        index: idx,
+        originX: 0,
+        originY: 0
+      });
+
+      g.appendChild(line);
+    }
   });
 
-  g.appendChild(line);
-
-  const pivot = document.createElementNS(SVG_NS, 'circle');
-  pivot.setAttribute('r', '5');
-  pivot.setAttribute('fill', ctx.theme.colors[0]);
-  pivot.setAttribute('stroke', ctx.theme.background);
-  pivot.setAttribute('stroke-width', '2');
-  g.appendChild(pivot);
+  if (pointerType !== 'pin') {
+    const pivot = document.createElementNS(SVG_NS, 'circle');
+    pivot.setAttribute('class', 'mc-gauge-pivot');
+    pivot.setAttribute('r', String(Math.max(4, (model.pointerWidth ?? 2.5) + 2)));
+    pivot.setAttribute('fill', ctx.theme.colors[0]);
+    pivot.setAttribute('stroke', ctx.theme.background);
+    pivot.setAttribute('stroke-width', '2');
+    g.appendChild(pivot);
+  }
 
   ctx.registerEventTarget(g, {
     target: 'gaugeNeedle',
@@ -448,6 +550,7 @@ export function renderGaugeNeedleItem(
       min: model.min,
       max: model.max,
       unit: model.unit,
+      pointerType,
       datum: model.datum
     }
   });
