@@ -108,15 +108,20 @@ export function renderGaugeCenterLayer(
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
+  const valueFontSize = Math.min(
+    ctx.theme.fontSize + 8,
+    Math.max(14, Math.round(model.outerRadius * 0.24))
+  );
+
   ctx.renderLabel(g, {
     id: 'gauge-value-label',
     text: `${model.value}${model.unit}`,
     x: 0,
-    y: model.outerRadius * 0.34,
+    y: model.valueY,
     type: 'center',
     anchor: 'middle',
     baseline: 'middle',
-    fontSize: ctx.theme.fontSize + 8,
+    fontSize: valueFontSize,
     fontWeight: 800,
     color: ctx.theme.textColor,
     datum: { value: model.value, label: model.label }
@@ -127,10 +132,11 @@ export function renderGaugeCenterLayer(
       id: 'gauge-subtitle-label',
       text: model.label,
       x: 0,
-      y: model.outerRadius * 0.56,
+      y: model.subtitleY,
       type: 'title',
       anchor: 'middle',
       baseline: 'middle',
+      maxWidth: Math.max(80, ctx.innerWidth - 8),
       fontSize: ctx.theme.fontSize,
       fontWeight: 500,
       color: ctx.theme.mutedTextColor,
