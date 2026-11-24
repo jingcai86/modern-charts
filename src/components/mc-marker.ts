@@ -1,4 +1,5 @@
 import type {
+  LineStrokeStyle,
   MarkerAnnotationConfig,
   MarkerAnnotationPosition,
   MarkerCondition,
@@ -8,13 +9,16 @@ import type {
   MarkerLegendSwatch,
   MarkerMatchScope,
   MarkerMatchStyle,
-  MarkerType
+  MarkerType,
+  ScatterSymbolType
 } from '../core/types';
 
 /**
  * `<mc-marker>` Web Component
- * Defines a single marker line (`type="line"`) or marker area (`type="area"`)
- * with optional threshold condition (`condition="below|above|between|outside"`)
+ * Defines a single marker line (`type="line"`), marker area (`type="area"`),
+ * or marker point (`type="point"`, ECharts `markPoint`), supporting statistical
+ * presets (`value="min|max|average|median"`), `line-style="solid|dashed|dotted"`,
+ * threshold conditions (`condition="below|above|between|outside"`),
  * and conditional item styling (`match-color`, `match-fill`, `match-stroke`, `match-opacity`, `match-class`, `match-icon`).
  */
 export class MCMarkerElement extends HTMLElement {
@@ -25,6 +29,11 @@ export class MCMarkerElement extends HTMLElement {
     'value',
     'from',
     'to',
+    'x',
+    'y',
+    'symbol',
+    'size',
+    'line-style',
     'label',
     'label-position',
     'label-padding',
@@ -173,7 +182,15 @@ export class MCMarkerElement extends HTMLElement {
     };
 
     const hasFromTo = this.hasAttribute('from') && this.hasAttribute('to');
+    const hasPointXY = this.hasAttribute('x') && this.hasAttribute('y');
     const typeAttr = this.getAttribute('type') as MarkerType | null;
+    const lineStyleAttr = this.getAttribute(
+      'line-style'
+    ) as LineStrokeStyle | null;
+    const symbolAttr = this.getAttribute('symbol') as ScatterSymbolType | null;
+    const sizeAttr = this.hasAttribute('size')
+      ? Number(this.getAttribute('size'))
+      : undefined;
 
     // Resolve declarative outside annotation attributes + JS property
     const annTextAttr =
@@ -284,11 +301,23 @@ export class MCMarkerElement extends HTMLElement {
 
     return {
       id: this.getAttribute('id') || undefined,
-      type: typeAttr || (hasFromTo ? 'area' : 'line'),
+      type:
+        typeAttr ||
+        (hasPointXY ? 'point' : hasFromTo ? 'area' : 'line'),
       axis: (this.getAttribute('axis') as 'x' | 'y') || 'y',
       value: this.parseValue(this.getAttribute('value')),
       from: this.parseValue(this.getAttribute('from')),
       to: this.parseValue(this.getAttribute('to')),
+      x: this.parseValue(this.getAttribute('x')),
+      y: this.parseValue(this.getAttribute('y')),
+      symbol: symbolAttr || undefined,
+      size: sizeAttr !== undefined && !Number.isNaN(sizeAttr) ? sizeAttr : undefined,
+      lineStyle:
+        lineStyleAttr === 'solid' ||
+        lineStyleAttr === 'dashed' ||
+        lineStyleAttr === 'dotted'
+          ? lineStyleAttr
+          : undefined,
       label: this.getAttribute('label') || undefined,
       labelPosition:
         (this.getAttribute('label-position') as MarkerLabelPosition) ||
