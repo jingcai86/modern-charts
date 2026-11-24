@@ -105,6 +105,13 @@ export interface BarModelInput {
   keys: string[];
   groupMode: 'grouped' | 'stacked';
   layout: 'vertical' | 'horizontal';
+  padding?: number;
+  innerPadding?: number;
+  min?: number;
+  max?: number;
+  reverse?: boolean;
+  barMaxWidth?: number;
+  barMinHeight?: number;
   borderRadius: number;
   enableLabels: boolean;
   outerLabels?: boolean | BarOuterLabelConfig;
@@ -160,25 +167,44 @@ export function computeBarChartModel(
     }
   });
 
+  const bandAxisOverrides =
+    input.padding !== undefined && Number.isFinite(input.padding)
+      ? {
+          padding: Math.max(0, Math.min(0.85, Number(input.padding))),
+          innerPadding: Math.max(0, Math.min(0.85, Number(input.padding))),
+          outerPadding: Math.max(0, Math.min(0.85, Number(input.padding))) / 2
+        }
+      : {};
+
+  const valAxisOverrides = {
+    ...(input.min !== undefined && Number.isFinite(input.min)
+      ? { min: Number(input.min) }
+      : {}),
+    ...(input.max !== undefined && Number.isFinite(input.max)
+      ? { max: Number(input.max) }
+      : {}),
+    ...(input.reverse !== undefined ? { reverse: Boolean(input.reverse) } : {})
+  };
+
   if (isHorizontal) {
     ctx.xScale = buildAxisScale(
-      { ...ctx.scaleConfig.y, type: 'linear' },
+      { ...ctx.scaleConfig.y, type: 'linear', ...valAxisOverrides },
       numericValues,
       [0, ctx.innerWidth]
     );
     ctx.yScale = buildAxisScale(
-      { ...ctx.scaleConfig.x, type: 'band' },
+      { ...ctx.scaleConfig.x, type: 'band', ...bandAxisOverrides },
       categories,
       [0, ctx.innerHeight]
     );
   } else {
     ctx.xScale = buildAxisScale(
-      { ...ctx.scaleConfig.x, type: 'band' },
+      { ...ctx.scaleConfig.x, type: 'band', ...bandAxisOverrides },
       categories,
       [0, ctx.innerWidth]
     );
     ctx.yScale = buildAxisScale(
-      ctx.scaleConfig.y,
+      { ...ctx.scaleConfig.y, ...valAxisOverrides },
       numericValues,
       [ctx.innerHeight, 0]
     );
@@ -193,6 +219,20 @@ export function computeBarChartModel(
   const zeroPos = Number(valScale(0));
   const bandwidth =
     typeof bandScale.bandwidth === 'function' ? bandScale.bandwidth() : 32;
+  const innerPad =
+    input.innerPadding !== undefined && Number.isFinite(input.innerPadding)
+      ? Math.max(0, Number(input.innerPadding))
+      : 3;
+  const maxBarThickness =
+    input.barMaxWidth !== undefined &&
+    Number.isFinite(input.barMaxWidth) &&
+    Number(input.barMaxWidth) > 0
+      ? Number(input.barMaxWidth)
+      : Infinity;
+  const minBarSpan =
+    input.barMinHeight !== undefined && Number.isFinite(input.barMinHeight)
+      ? Math.max(1, Number(input.barMinHeight))
+      : 1;
   const valueAxis: 'x' | 'y' = isHorizontal ? 'x' : 'y';
 
   const rowSummaries: {
@@ -232,20 +272,26 @@ export function computeBarChartModel(
           else runningNeg = next;
           const x0 = Number(valScale(base));
           const x1 = Number(valScale(next));
-          x = Math.min(x0, x1);
-          y = bandPos;
-          width = Math.max(1, Math.abs(x1 - x0));
-          height = bandwidth;
+          const rawW = Math.abs(x1 - x0);
+          width = val !== 0 ? Math.max(minBarSpan, rawW) : Math.max(1, rawW);
+          x = x1 >= x0 ? x0 : x0 - width;
+          height = Math.min(bandwidth, maxBarThickness);
+          y = bandPos + (bandwidth - height) / 2;
         } else {
-          const subH = Math.max(
+          const rawSubH = Math.max(
             4,
-            (bandwidth - (activeKeys.length - 1) * 3) / activeKeys.length
+            (bandwidth - (activeKeys.length - 1) * innerPad) / activeKeys.length
           );
+          const subH = Math.min(rawSubH, maxBarThickness);
+          const groupSpan =
+            activeKeys.length * subH + (activeKeys.length - 1) * innerPad;
+          const groupStart = bandPos + (bandwidth - groupSpan) / 2;
           const x0 = Number(valScale(0));
           const x1 = Number(valScale(val));
-          x = Math.min(x0, x1);
-          y = bandPos + kIdx * (subH + 3);
-          width = Math.max(1, Math.abs(x1 - x0));
+          const rawW = Math.abs(x1 - x0);
+          width = val !== 0 ? Math.max(minBarSpan, rawW) : Math.max(1, rawW);
+          x = x1 >= x0 ? x0 : x0 - width;
+          y = groupStart + kIdx * (subH + innerPad);
           height = subH;
         }
       } else {
@@ -256,21 +302,27 @@ export function computeBarChartModel(
           else runningNeg = next;
           const y0 = Number(valScale(base));
           const y1 = Number(valScale(next));
-          x = bandPos;
-          y = Math.min(y0, y1);
-          width = bandwidth;
-          height = Math.max(1, Math.abs(y0 - y1));
+          const rawH = Math.abs(y0 - y1);
+          height = val !== 0 ? Math.max(minBarSpan, rawH) : Math.max(1, rawH);
+          y = y1 <= y0 ? y0 - height : y0;
+          width = Math.min(bandwidth, maxBarThickness);
+          x = bandPos + (bandwidth - width) / 2;
         } else {
-          const subW = Math.max(
+          const rawSubW = Math.max(
             4,
-            (bandwidth - (activeKeys.length - 1) * 3) / activeKeys.length
+            (bandwidth - (activeKeys.length - 1) * innerPad) / activeKeys.length
           );
+          const subW = Math.min(rawSubW, maxBarThickness);
+          const groupSpan =
+            activeKeys.length * subW + (activeKeys.length - 1) * innerPad;
+          const groupStart = bandPos + (bandwidth - groupSpan) / 2;
           const y0 = Number(valScale(0));
           const y1 = Number(valScale(val));
-          x = bandPos + kIdx * (subW + 3);
-          y = Math.min(y0, y1);
+          const rawH = Math.abs(y0 - y1);
+          height = val !== 0 ? Math.max(minBarSpan, rawH) : Math.max(1, rawH);
+          x = groupStart + kIdx * (subW + innerPad);
+          y = y1 <= y0 ? y0 - height : y0;
           width = subW;
-          height = Math.max(1, Math.abs(y0 - y1));
         }
       }
 
