@@ -16,9 +16,9 @@ import { createCodeEditorPanel } from './code-editor';
 
 /**
  * Renders the Dedicated Chart Playground View (`#/chart/:id`), coordinating:
- * 1. Live chart stage, layer toggle chips, AI progressive layer streamer, & ARIA readout
+ * 1. Live chart stage, layer toggle chips, and AI progressive layer streamer
  * 2. Collapsible right-hand Attribute & Config Control Panel
- * 3. Bottom two-way Web Component HTML / JSON Markup Editor
+ * 3. Bottom row: two-way Web Component HTML / JSON Markup Editor (left) + Live Unified Event Inspector (right)
  */
 export function renderChartDetailPage(
   root: HTMLElement,
@@ -60,15 +60,6 @@ export function renderChartDetailPage(
     <div class="layer-chips" id="detail-layer-chips"></div>
 
     <div class="detail-chart-stage" id="detail-chart-stage"></div>
-
-    <div class="inspector-box">
-      <div class="inspector-title">
-        Live Unified Event Inspector (Click, Hover, or Tab-Focus anywhere — items, axes, legends, titles, or empty canvas):
-      </div>
-      <div class="inspector-readout" id="detail-aria-readout">
-        Click, hover, or Tab-focus any part of &lt;${escapeHtml(entry.tagName)}&gt; to inspect its unified event type, target, category, and data payload...
-      </div>
-    </div>
   `;
 
   // Mount live chart element
@@ -77,9 +68,72 @@ export function renderChartDetailPage(
   stage.appendChild(chartEl);
   chartEl.setConfig(config);
 
-  const ariaReadout = chartCard.querySelector(
+  // Bottom-Right Card: Live Unified Event Inspector (beside Web Component HTML Markup)
+  const inspectorCard = document.createElement('section');
+  inspectorCard.className = 'panel-card event-inspector-card';
+  inspectorCard.innerHTML = `
+    <div class="panel-header">
+      <h2 class="panel-title">Live Unified Event Inspector</h2>
+      <button type="button" id="btn-detail-clear-events">Clear</button>
+    </div>
+    <p class="event-inspector-desc">
+      Click, hover, or Tab-focus anywhere on <code>&lt;${escapeHtml(entry.tagName)}&gt;</code> — items, axes, legends, titles, or empty canvas.
+    </p>
+    <div class="inspector-box">
+      <div class="inspector-title">Latest Event</div>
+      <div class="inspector-readout" id="detail-aria-readout">
+        Click, hover, or Tab-focus any part of &lt;${escapeHtml(entry.tagName)}&gt; to inspect its unified event type, target, category, and data payload...
+      </div>
+    </div>
+    <div class="event-inspector-log-wrap">
+      <div class="inspector-title">Recent Event Stream</div>
+      <div class="event-inspector-history" id="detail-event-history" role="log" aria-live="polite">
+        <div class="event-inspector-empty">Waiting for chart interaction...</div>
+      </div>
+    </div>
+  `;
+
+  const ariaReadout = inspectorCard.querySelector(
     '#detail-aria-readout'
   ) as HTMLElement;
+  const eventHistoryEl = inspectorCard.querySelector(
+    '#detail-event-history'
+  ) as HTMLElement;
+  const clearEventsBtn = inspectorCard.querySelector(
+    '#btn-detail-clear-events'
+  ) as HTMLButtonElement;
+  const defaultReadoutText = ariaReadout.textContent?.trim() ?? '';
+  const eventLogLines: string[] = [];
+
+  const recordInspectorEvent = (summary: string): void => {
+    ariaReadout.textContent = summary;
+    const ts = new Date().toLocaleTimeString([], {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    eventLogLines.unshift(`[${ts}] ${summary}`);
+    if (eventLogLines.length > 20) eventLogLines.pop();
+    const frag = document.createDocumentFragment();
+    for (const line of eventLogLines) {
+      const row = document.createElement('div');
+      row.className = 'event-inspector-row';
+      row.textContent = line;
+      frag.appendChild(row);
+    }
+    eventHistoryEl.replaceChildren(frag);
+  };
+
+  clearEventsBtn.addEventListener('click', () => {
+    lastClickSummary = '';
+    eventLogLines.length = 0;
+    ariaReadout.textContent = defaultReadoutText;
+    const empty = document.createElement('div');
+    empty.className = 'event-inspector-empty';
+    empty.textContent = 'Log cleared. Interact with the chart to record events...';
+    eventHistoryEl.replaceChildren(empty);
+  });
 
   const formatEventSummary = (ev: {
     type: string;
@@ -122,14 +176,14 @@ export function renderChartDetailPage(
   let lastClickSummary = '';
   chartEl.on('click', (ev) => {
     lastClickSummary = formatEventSummary(ev);
-    ariaReadout.textContent = lastClickSummary;
+    recordInspectorEvent(lastClickSummary);
   });
   chartEl.on('mouseenter', (ev) => {
     if (ev.target === 'canvas' && lastClickSummary) return;
-    ariaReadout.textContent = formatEventSummary(ev);
+    recordInspectorEvent(formatEventSummary(ev));
   });
   chartEl.on('focus', (ev) => {
-    ariaReadout.textContent = formatEventSummary(ev);
+    recordInspectorEvent(formatEventSummary(ev));
   });
 
   // Layer Toggle Chips
@@ -249,10 +303,15 @@ export function renderChartDetailPage(
       chartEl.replayAnimation();
     });
 
+  const bottomGrid = document.createElement('section');
+  bottomGrid.className = 'detail-bottom-grid';
+  bottomGrid.appendChild(editorPanel.element);
+  bottomGrid.appendChild(inspectorCard);
+
   studioGrid.appendChild(chartCard);
   studioGrid.appendChild(attrPanel.element);
   root.appendChild(studioGrid);
-  root.appendChild(editorPanel.element);
+  root.appendChild(bottomGrid);
 
   return chartEl;
 }
