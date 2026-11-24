@@ -435,13 +435,6 @@
   color: var(--pill-purple-fg);
 }
 
-.attr-desc {
-  margin: 0;
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
 .attr-control-cell {
   display: flex;
   align-items: center;
@@ -495,32 +488,7 @@
   cursor: pointer;
 }
 
-/* Attribute scopes: chart-specific controls and common chart options. */
-.attributes-section-description {
-  margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: 0.82rem;
-  line-height: 1.45;
-}
-
-.attr-filter-status {
-  flex-shrink: 0;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.74rem;
-  line-height: 1.4;
-}
-
-.attr-empty-state {
-  margin: 0;
-  padding: 16px;
-  border: 1px dashed var(--border-subtle);
-  border-radius: 10px;
-  color: var(--text-muted);
-  font-size: 0.82rem;
-  line-height: 1.5;
-}
-
+/* Attribute scopes: compact filters and plain section headings. */
 .attributes-scope-filter {
   display: flex;
   flex-wrap: wrap;
@@ -528,197 +496,99 @@
   flex-shrink: 0;
   min-inline-size: 0;
 }
-
 .attr-scope-filter-button[data-scope="specific"],
-.attr-scope-group[data-scope="specific"],
-.attr-category-accordion[data-scope="specific"] {
+.attr-scope-group[data-scope="specific"] {
   --attr-scope-bg: var(--pill-purple-bg);
   --attr-scope-fg: var(--pill-purple-fg);
 }
-
 .attr-scope-filter-button[data-scope="common"],
-.attr-scope-group[data-scope="common"],
-.attr-category-accordion[data-scope="common"] {
+.attr-scope-group[data-scope="common"] {
   --attr-scope-bg: var(--pill-cyan-bg);
   --attr-scope-fg: var(--pill-cyan-fg);
 }
-
 .attr-scope-filter-button {
   max-inline-size: 100%;
-  padding: 6px 10px;
+  padding: 5px 9px;
   font-size: 0.76rem;
   color: var(--attr-scope-fg, var(--text-main));
   background: var(--bg-code);
   overflow-wrap: anywhere;
 }
-
 .attr-scope-filter-button:hover {
   border-color: var(--attr-scope-fg, var(--border-focus));
-  background: var(--bg-elevated);
 }
-
-.attr-scope-filter-button > span {
-  display: inline-block;
-  margin-inline-start: 4px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--bg-elevated);
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-}
-
 .attr-scope-filter-button[aria-pressed="true"] {
-  color: var(--attr-scope-fg, var(--text-main));
   background: var(--attr-scope-bg, var(--bg-elevated));
   border-color: var(--attr-scope-fg, var(--border-focus));
-  font-weight: 700;
 }
-
 .attr-scope-filter-button:focus-visible {
   outline: 2px solid var(--border-focus);
   outline-offset: 2px;
 }
-
 .attributes-accordion-list {
-  gap: 18px;
+  gap: 14px;
   min-inline-size: 0;
 }
-
-.attr-scope-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex-shrink: 0;
-  min-inline-size: 0;
-  padding-inline-start: 10px;
-  border-inline-start: 2px solid var(--attr-scope-fg, var(--border-subtle));
-}
-
-.attr-scope-header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-block: 2px;
-  min-inline-size: 0;
-}
-
-.attr-scope-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  color: var(--text-main);
-  font-size: 0.88rem;
-  line-height: 1.4;
-}
-
-.attr-scope-badge,
-.attr-category-scope {
-  display: inline-flex;
-  align-items: center;
-  max-inline-size: 100%;
-  padding: 3px 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  color: var(--attr-scope-fg, var(--text-main));
-  background: var(--attr-scope-bg, var(--bg-elevated));
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-.attr-scope-count {
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-}
-
-.attr-scope-description {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.76rem;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
+.attr-scope-group,
 .attr-scope-categories {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-inline-size: 0;
 }
-
-.attr-category-summary {
-  flex-wrap: wrap;
-  gap: 8px;
+.attr-scope-group {
+  flex-shrink: 0;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--border-subtle);
 }
-
+.attr-scope-title {
+  margin: 0;
+  color: var(--attr-scope-fg, var(--text-muted));
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.attr-category-summary {
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 0.84rem;
+}
 .attr-category-summary:focus-visible {
   outline: 2px solid var(--border-focus);
   outline-offset: -3px;
 }
-
 .attr-category-summary-left {
-  flex: 1 1 12rem;
   min-inline-size: 0;
+  gap: 8px;
 }
-
 .attr-category-name {
   overflow-wrap: anywhere;
 }
-
-.attr-category-summary-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-inline-size: 0;
-}
-
-.attr-category-scope {
-  font-size: 0.65rem;
-}
-
-.attr-category-summary .comp-pill {
-  flex-shrink: 0;
-  border-color: var(--border-subtle);
+.attr-empty-state {
+  margin: 0;
   color: var(--text-muted);
-  background: var(--bg-code);
-  font-family: inherit;
-  font-weight: 600;
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
-
 .attr-scope-group[hidden],
 .attr-category-accordion[hidden],
 .attr-row[hidden] {
   display: none;
 }
-
 @media (max-width: 560px) {
-  .attributes-filter-bar {
+  .attributes-filter-bar,
+  .attr-search-input {
     inline-size: 100%;
     min-inline-size: 0;
   }
-
   .attr-search-input {
     flex: 1 1 12rem;
-    inline-size: 100%;
-    min-inline-size: 0;
     max-inline-size: 100%;
   }
-
   .attr-scope-filter-button {
     flex: 1 1 auto;
-    padding-inline: 9px;
-  }
-
-  .attr-scope-group {
-    padding-inline-start: 8px;
   }
 }
-
 @media (forced-colors: active) {
   .attr-scope-filter-button[aria-pressed="true"] {
     outline: 2px solid Highlight;

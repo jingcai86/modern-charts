@@ -47,13 +47,11 @@ export function createAttributePanel(opts: {
   const scopes = [
     {
       id: 'specific' as const,
-      label: 'Chart-specific',
-      description: `Controls for this chart’s data and rendering (<code>${escapeHtml(entry.tagName)}</code>).`
+      label: 'Chart-specific'
     },
     {
       id: 'common' as const,
-      label: 'Common',
-      description: 'Shared settings and layers, shown where this chart supports them.'
+      label: 'Common'
     }
   ].map((scope) => ({
     ...scope,
@@ -64,14 +62,7 @@ export function createAttributePanel(opts: {
   attributesSection.className = 'panel-card attributes-panel-card';
   attributesSection.innerHTML = `
     <div class="attributes-section-header">
-      <div>
-        <h2 class="panel-title">
-          Attributes &amp; Config (${allAttributes.length})
-        </h2>
-        <p class="attributes-section-description">
-          Chart-specific options come first, followed by common settings shared across charts. Changes update the live chart and <code>chart.config</code> immediately.
-        </p>
-      </div>
+      <h2 class="panel-title">Attributes &amp; Config</h2>
       <div class="attributes-filter-bar">
         <button type="button" id="btn-expand-all-attrs">Expand All</button>
         <button type="button" id="btn-collapse-all-attrs">Minimize All</button>
@@ -86,10 +77,9 @@ export function createAttributePanel(opts: {
       </div>
     </div>
     <div class="attributes-scope-filter" role="group" aria-label="Attribute scope">
-      <button type="button" class="attr-scope-filter-button" data-scope="all" aria-pressed="true" aria-controls="attributes-categories-grid">All <span>${allAttributes.length}</span></button>
-      ${scopes.map((scope) => `<button type="button" class="attr-scope-filter-button" data-scope="${scope.id}" aria-pressed="false" aria-controls="attributes-categories-grid">${scope.label} <span>${scope.specs.length}</span></button>`).join('')}
+      <button type="button" class="attr-scope-filter-button" data-scope="all" aria-pressed="true" aria-controls="attributes-categories-grid">All</button>
+      ${scopes.map((scope) => `<button type="button" class="attr-scope-filter-button" data-scope="${scope.id}" aria-pressed="false" aria-controls="attributes-categories-grid">${scope.label}</button>`).join('')}
     </div>
-    <p class="attr-filter-status" role="status" aria-live="polite" aria-atomic="true">Showing ${allAttributes.length} of ${allAttributes.length} properties</p>
     <div class="attributes-accordion-list" id="attributes-categories-grid"></div>
   `;
 
@@ -104,10 +94,7 @@ export function createAttributePanel(opts: {
     group.dataset.scope = scope.id;
     group.setAttribute('aria-labelledby', `attr-scope-${scope.id}-title`);
     group.innerHTML = `
-      <div class="attr-scope-header">
-        <h3 class="attr-scope-title" id="attr-scope-${scope.id}-title"><span class="attr-scope-badge">${scope.label}</span> <span class="attr-scope-count">${scope.specs.length} properties</span></h3>
-        <p class="attr-scope-description">${scope.description}</p>
-      </div>
+      <h3 class="attr-scope-title" id="attr-scope-${scope.id}-title">${scope.label}</h3>
       <div class="attr-scope-categories"></div>
     `;
     categoriesGrid.appendChild(group);
@@ -131,7 +118,9 @@ export function createAttributePanel(opts: {
   const emptyState = document.createElement('p');
   emptyState.className = 'attr-empty-state';
   emptyState.hidden = true;
-  emptyState.textContent = 'No properties match these filters. Try another search or choose All.';
+  emptyState.setAttribute('role', 'status');
+  emptyState.setAttribute('aria-live', 'polite');
+  emptyState.textContent = 'No matching attributes.';
   categoriesGrid.appendChild(emptyState);
 
   const controlSyncCallbacks = new Map<string, () => void>();
@@ -218,7 +207,6 @@ export function createAttributePanel(opts: {
           <span class="attr-chevron" aria-hidden="true">▸</span>
           <span class="attr-category-name">${escapeHtml(cleanCatTitle)}</span>
         </div>
-        <span class="attr-category-summary-meta"><span class="attr-category-scope">${scope.label}</span><span class="comp-pill" data-category-count>${specsInCat.length}</span></span>
       </summary>
       <div class="attr-list"></div>
     `;
@@ -247,8 +235,8 @@ export function createAttributePanel(opts: {
           )}</span>
           <span class="attr-html-badge">${escapeHtml(cleanAttrBadge)}</span>
         </div>
-        <p class="attr-desc">${escapeHtml(spec.description)}</p>
       `;
+      metaDiv.querySelector<HTMLElement>('.attr-config-path')!.title = spec.description;
 
       const controlCell = document.createElement('div');
       controlCell.className = 'attr-control-cell';
@@ -443,7 +431,6 @@ export function createAttributePanel(opts: {
   const scopeButtons = Array.from(attributesSection.querySelectorAll<HTMLButtonElement>(
     '.attr-scope-filter-button'
   ));
-  const filterStatus = attributesSection.querySelector('.attr-filter-status') as HTMLElement;
   let activeScope: AttributeScope | 'all' = 'all';
   let beforeSearchOpen: Map<HTMLDetailsElement, boolean> | undefined;
 
@@ -452,21 +439,19 @@ export function createAttributePanel(opts: {
     if (query && !beforeSearchOpen) {
       beforeSearchOpen = new Map(cards.map((card) => [card, card.open]));
     }
-    let visibleCount = 0;
+    let hasMatches = false;
     cards.forEach((card) => {
       const rows = Array.from(card.querySelectorAll<HTMLElement>('.attr-row'));
       const scopeMatches = activeScope === 'all' || card.dataset.scope === activeScope;
-      let visibleInCard = 0;
+      let cardHasMatches = false;
       rows.forEach((row) => {
         const matches = scopeMatches && (!query || (row.dataset.searchText ?? '').includes(query));
         row.hidden = !matches;
-        if (matches) visibleInCard++;
+        if (matches) cardHasMatches = true;
       });
-      card.hidden = visibleInCard === 0;
-      visibleCount += visibleInCard;
-      const count = card.querySelector('[data-category-count]') as HTMLElement;
-      count.textContent = query ? `${visibleInCard}/${rows.length}` : String(rows.length);
-      if (query && visibleInCard > 0) {
+      card.hidden = !cardHasMatches;
+      hasMatches ||= cardHasMatches;
+      if (query && cardHasMatches) {
         card.open = true;
       } else if (!query && beforeSearchOpen) {
         card.open = beforeSearchOpen.get(card) ?? card.open;
@@ -480,8 +465,7 @@ export function createAttributePanel(opts: {
     scopeButtons.forEach((button) => {
       button.setAttribute('aria-pressed', String(button.dataset.scope === activeScope));
     });
-    filterStatus.textContent = `Showing ${visibleCount} of ${allAttributes.length} properties`;
-    emptyState.hidden = visibleCount > 0;
+    emptyState.hidden = hasMatches;
   }
 
   scopeButtons.forEach((button) => {
