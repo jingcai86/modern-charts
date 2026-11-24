@@ -316,6 +316,10 @@ export class MCViewLayer extends MCConfigBaseElement {
   static observedAttributes = [
     'zoomable',
     'pannable',
+    'brush',
+    'slider',
+    'start',
+    'end',
     'min-zoom',
     'max-zoom',
     'direction',
@@ -330,6 +334,14 @@ export class MCViewLayer extends MCConfigBaseElement {
       this.setAttribute('zoomable', String(viewCfg.zoomable));
     if (viewCfg.pannable !== undefined)
       this.setAttribute('pannable', String(viewCfg.pannable));
+    if (viewCfg.brush !== undefined)
+      this.setAttribute('brush', String(viewCfg.brush));
+    if (viewCfg.slider !== undefined)
+      this.setAttribute('slider', String(viewCfg.slider));
+    if (viewCfg.start !== undefined)
+      this.setAttribute('start', String(viewCfg.start));
+    if (viewCfg.end !== undefined)
+      this.setAttribute('end', String(viewCfg.end));
     if (viewCfg.minZoom !== undefined)
       this.setAttribute('min-zoom', String(viewCfg.minZoom));
     if (viewCfg.maxZoom !== undefined)
@@ -346,6 +358,16 @@ export class MCViewLayer extends MCConfigBaseElement {
   }
 
   public getViewConfig(): ViewConfig {
+    const brush =
+      this.hasAttribute('brush') && this.getAttribute('brush') !== 'false';
+    const slider =
+      this.hasAttribute('slider') && this.getAttribute('slider') !== 'false';
+    const start = this.hasAttribute('start')
+      ? Math.max(0, Math.min(95, Number(this.getAttribute('start'))))
+      : 0;
+    const end = this.hasAttribute('end')
+      ? Math.max(start + 5, Math.min(100, Number(this.getAttribute('end'))))
+      : 100;
     const zoomable =
       !this.hasAttribute('zoomable') ||
       this.getAttribute('zoomable') !== 'false';
@@ -353,9 +375,13 @@ export class MCViewLayer extends MCConfigBaseElement {
       !this.hasAttribute('pannable') ||
       this.getAttribute('pannable') !== 'false';
     return {
-      enabled: zoomable || pannable,
+      enabled: zoomable || pannable || brush || slider || start > 0 || end < 100,
       zoomable,
       pannable,
+      brush,
+      slider,
+      start,
+      end,
       minZoom: this.hasAttribute('min-zoom')
         ? Number(this.getAttribute('min-zoom'))
         : 0.5,

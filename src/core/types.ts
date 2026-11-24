@@ -98,6 +98,10 @@ export interface ViewConfig {
   enabled: boolean;
   zoomable: boolean;
   pannable: boolean;
+  brush?: boolean;
+  slider?: boolean;
+  start?: number;
+  end?: number;
   minZoom: number;
   maxZoom: number;
   direction: 'xy' | 'x' | 'y';
