@@ -40,10 +40,7 @@ function mount(entryId = 'bar', attributes?: ChartAttributeSpec[]) {
     !candidate.closest<HTMLDetailsElement>('.attr-category-accordion')!.hidden &&
     !candidate.closest<HTMLElement>('.attr-scope-group')!.hidden
   );
-  const status = (count: number) => expect(
-    root.querySelector('.attr-filter-status')!.textContent
-  ).toContain(`Showing ${count} of ${allAttributes.length} properties`);
-  return { entry, config, allAttributes, changed, panel, root, row, button, search, rows, visibleRows, status };
+  return { entry, config, allAttributes, changed, panel, root, row, button, search, rows, visibleRows };
 }
 
 afterEach(() => document.body.replaceChildren());
@@ -70,15 +67,16 @@ describe('Studio attribute scopes and search', () => {
       ));
       expect(groups.map((group) => group.dataset.scope), entry.id).toEqual(['specific', 'common']);
       for (const group of groups) {
-        const heading = group.querySelector('h3')!.textContent!;
-        expect(heading).toContain(group.dataset.scope === 'specific' ? 'Chart-specific' : 'Common');
-        expect(heading).toMatch(new RegExp(`\\b${group.querySelectorAll('.attr-row').length}\\b`));
+        const heading = group.querySelector('h3')!.textContent!.trim();
+        expect(heading).toBe(group.dataset.scope === 'specific' ? 'Chart-specific' : 'Common');
       }
       for (const row of view.rows()) {
         const scope = specific.has(row.dataset.configPath!) ? 'specific' : 'common';
         expect(row.dataset.scope, `${entry.id}: ${row.dataset.configPath}`).toBe(scope);
         expect(row.closest<HTMLElement>('.attr-scope-group')!.dataset.scope).toBe(scope);
         expect(row.closest<HTMLDetailsElement>('.attr-category-accordion')!.dataset.scope).toBe(scope);
+        const spec = view.allAttributes.find((attribute) => attribute.configPath === row.dataset.configPath)!;
+        expect(row.querySelector('.attr-config-path')!.getAttribute('title')).toBe(spec.description);
       }
       const commonCategories = Array.from(groups[1].querySelectorAll<HTMLDetailsElement>(
         '.attr-category-accordion'
@@ -88,13 +86,16 @@ describe('Studio attribute scopes and search', () => {
       ));
       expect(view.root.querySelector('.attributes-scope-filter')!.getAttribute('role')).toBe('group');
       expect(view.root.querySelector('.attributes-scope-filter')!.getAttribute('aria-label')).toBe('Attribute scope');
-      expect(view.root.querySelector('.attr-filter-status')!.getAttribute('aria-live')).toBe('polite');
+      expect(view.root.querySelector('h2')!.textContent!.trim()).toBe('Attributes & Config');
+      expect(view.root.querySelector(
+        '.attributes-section-description, .attr-scope-description, .attr-scope-badge, ' +
+        '.attr-scope-count, .attr-category-scope, [data-category-count], .attr-filter-status, .attr-desc'
+      )).toBeNull();
       expect(view.button('all').getAttribute('aria-pressed')).toBe('true');
-      for (const [scope, count] of [
-        ['all', view.allAttributes.length], ['specific', specific.size],
-        ['common', view.allAttributes.length - specific.size]
+      for (const [scope, label] of [
+        ['all', 'All'], ['specific', 'Chart-specific'], ['common', 'Common']
       ] as const) {
-        expect(view.button(scope).textContent).toMatch(new RegExp(`\\b${count}\\b`));
+        expect(view.button(scope).textContent!.trim()).toBe(label);
       }
       if (entry.id === 'line' || entry.id === 'bar') {
         const scaleAttributes = entry.specificAttributes.filter((attribute) => attribute.category.startsWith('Scale Layer'));
@@ -113,29 +114,33 @@ describe('Studio attribute scopes and search', () => {
     expect(view.visibleRows()).toHaveLength(0);
     expect(view.root.querySelector<HTMLElement>('.attr-empty-state')!.hidden).toBe(false);
     expect(Array.from(view.root.querySelectorAll<HTMLElement>('.attr-scope-group')).every((group) => group.hidden)).toBe(true);
-    view.status(0);
+    const empty = view.root.querySelector<HTMLElement>('.attr-empty-state')!;
+    expect(empty.textContent).toBe('No matching attributes.');
+    expect(empty.getAttribute('role')).toBe('status');
+    expect(empty.getAttribute('aria-live')).toBe('polite');
 
     view.button('specific').click();
     expect(view.visibleRows().map((row) => row.dataset.configPath)).toEqual(['groupMode']);
     expect(view.root.querySelector<HTMLElement>('.attr-scope-group[data-scope="common"]')!.hidden).toBe(true);
     expect(view.root.querySelector<HTMLElement>('.attr-empty-state')!.hidden).toBe(true);
-    view.status(1);
 
     view.button('all').click();
     view.search('  I18N.LOCALE  ');
     expect(view.visibleRows().map((row) => row.dataset.configPath)).toEqual(['i18n.locale']);
     expect(view.row('i18n.locale').closest<HTMLDetailsElement>('details')!.open).toBe(true);
     expect(view.root.querySelector<HTMLElement>('.attr-scope-group[data-scope="specific"]')!.hidden).toBe(true);
-    view.status(1);
     view.search('');
     expect(view.visibleRows()).toHaveLength(view.allAttributes.length);
     expect(view.rows()).toHaveLength(view.allAttributes.length);
-    view.status(view.allAttributes.length);
+    expect(view.root.querySelector<HTMLElement>('.attr-empty-state')!.hidden).toBe(true);
+    view.search('arranges multi-series');
+    expect(view.visibleRows().map((row) => row.dataset.configPath)).toEqual(['groupMode']);
+    view.search('');
 
     const commonOnly = mount('line', COMMON_ATTRIBUTES);
     const visibleGroups = Array.from(commonOnly.root.querySelectorAll<HTMLElement>('.attr-scope-group')).filter((group) => !group.hidden);
     expect(visibleGroups.map((group) => group.dataset.scope)).toEqual(['common']);
-    commonOnly.status(COMMON_ATTRIBUTES.length);
+    expect(commonOnly.visibleRows()).toHaveLength(COMMON_ATTRIBUTES.length);
   });
 
   it('restores disclosure choices after search and keeps expand/minimize behavior across scope changes', () => {
