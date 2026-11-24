@@ -103,6 +103,8 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "size": "size-limit",
+    "sync:context": "node .github/scripts/sync-ai-context.mjs",
+    "lint:web": "node .github/scripts/check-modern-web-guidance.mjs",
     "docker:up": "docker compose up --build",
     "docker:dev": "docker compose --profile dev up --build",
     "docker:down": "docker compose down"

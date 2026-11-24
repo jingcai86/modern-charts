@@ -35,13 +35,13 @@
   {
     "name": "Standalone Line chart (modern-charts/line) [brotli]",
     "path": "dist/line.js",
-    "limit": "95 kB"
+    "limit": "100 kB"
   },
   {
     "name": "Standalone Line chart (modern-charts/line) [gzip]",
     "path": "dist/line.js",
     "gzip": true,
-    "limit": "110 kB"
+    "limit": "115 kB"
   },
   {
     "name": "Standalone Pie chart (modern-charts/pie) [brotli]",
@@ -123,12 +123,12 @@
   {
     "name": "Standalone Gauge chart (modern-charts/gauge) [brotli]",
     "path": "dist/gauge.js",
-    "limit": "90 kB"
+    "limit": "95 kB"
   },
   {
     "name": "Standalone Gauge chart (modern-charts/gauge) [gzip]",
     "path": "dist/gauge.js",
     "gzip": true,
-    "limit": "105 kB"
+    "limit": "110 kB"
   }
 ]

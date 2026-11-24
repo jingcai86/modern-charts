@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -35,11 +35,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Sync & verify AI Context schema
+        run: node .github/scripts/sync-ai-context.mjs
+
+      - name: Auto-commit synced AI Context schema to PR branch
+        if: matrix.node-version == 22 && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        run: |
+          if [ -n "$(git status --porcelain apps/context/charts.schema.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add apps/context/charts.schema.json
+            git commit -m "chore(context): auto-sync charts.schema.json defaultLayers [skip ci]"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
+
+      - name: Run Modern Web Guidance scan
+        if: matrix.node-version == 22
+        run: node .github/scripts/check-modern-web-guidance.mjs
+
       - name: TypeScript typecheck
         run: npx tsc --noEmit
 
       - name: Run unit & integration tests with coverage
         run: npm run test:coverage
+
+      - name: Post Coverage, Web Guidance & AI Context PR Comment
+        if: matrix.node-version == 22 && github.event_name == 'pull_request' && always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/post-ci-bot-comment.mjs
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
@@ -51,11 +76,15 @@ jobs:
       - name: Build library
         run: npm run build
 
-      - name: Verify bundle size limit
+      - name: Verify bundle size limit (PR comment)
         uses: andresz1/size-limit-action@v1
         if: matrix.node-version == 22 && github.event_name == 'pull_request'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify bundle size limit (Push)
+        if: matrix.node-version == 22 && github.event_name != 'pull_request'
+        run: npm run size
 
       - name: Build demo site
         run: npm run build:examples
