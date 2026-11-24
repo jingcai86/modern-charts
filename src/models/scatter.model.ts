@@ -3,7 +3,10 @@ import { buildAxisScale, getScalePosition } from '../core/scale-manager';
 import { createOrdinalColorScale } from '../core/theme';
 import type {
   ChartRenderContext,
+  ScatterNodeSizeSpec,
+  ScatterPoint,
   ScatterSeries,
+  ScatterSymbolType,
   ThresholdEvaluationResult,
   ThresholdMatchedItem
 } from '../core/types';
@@ -20,6 +23,9 @@ export interface ComputedScatterNodeModel {
   px: number;
   py: number;
   radius: number;
+  symbol: ScatterSymbolType;
+  symbolRotate: number;
+  blendMode: string;
   label?: string;
   threshold: ThresholdEvaluationResult;
 }
@@ -30,6 +36,12 @@ export interface ScatterChartModel {
   trendline: { x1: number; y1: number; x2: number; y2: number } | null;
   enableLabels: boolean;
   enableTrendline: boolean;
+  symbol: ScatterSymbolType;
+  symbolRotate: number;
+  blendMode: string;
+  useMesh: boolean;
+  clip: boolean;
+  jitter: number;
   xTitle?: string;
   yTitle?: string;
 }
@@ -37,6 +49,13 @@ export interface ScatterChartModel {
 export interface ScatterModelInput {
   minNodeSize: number;
   maxNodeSize: number;
+  nodeSize?: ScatterNodeSizeSpec;
+  symbol?: ScatterSymbolType;
+  symbolRotate?: number;
+  blendMode?: string;
+  useMesh?: boolean;
+  clip?: boolean;
+  jitter?: number;
   enableLabels: boolean;
   enableTrendline: boolean;
   xTitle?: string;
@@ -55,10 +74,63 @@ export interface ScatterModelInput {
   ) => ThresholdMatchedItem;
 }
 
+const VALID_SYMBOLS = new Set<ScatterSymbolType>([
+  'circle',
+  'rect',
+  'roundRect',
+  'triangle',
+  'diamond',
+  'pin',
+  'arrow',
+  'cross',
+  'star'
+]);
+
+function normalizeSymbol(
+  raw: unknown,
+  fallback: ScatterSymbolType = 'circle'
+): ScatterSymbolType {
+  if (typeof raw === 'string' && VALID_SYMBOLS.has(raw as ScatterSymbolType)) {
+    return raw as ScatterSymbolType;
+  }
+  return fallback;
+}
+
+function resolvePointRadius(
+  pt: ScatterPoint,
+  series: ScatterSeries,
+  spec: ScatterNodeSizeSpec | undefined,
+  defaultScale: (val: number) => number,
+  minNodeSize: number
+): number {
+  if (typeof spec === 'number' && Number.isFinite(spec) && spec > 0) {
+    return spec;
+  }
+  if (typeof spec === 'function') {
+    const val = Number(spec(pt, series));
+    return Number.isFinite(val) && val > 0 ? val : minNodeSize;
+  }
+  if (
+    spec &&
+    typeof spec === 'object' &&
+    Array.isArray(spec.values) &&
+    Array.isArray(spec.sizes)
+  ) {
+    const key = spec.key ?? 'size';
+    const rawVal = Number((pt as Record<string, unknown>)[key] ?? pt.size ?? 0);
+    const [v0, v1] = spec.values;
+    const [s0, s1] = spec.sizes;
+    if (!Number.isFinite(rawVal) || v1 === v0) return s0;
+    const t = Math.max(0, Math.min(1, (rawVal - v0) / (v1 - v0)));
+    return s0 + (s1 - s0) * t;
+  }
+  return pt.size !== undefined ? defaultScale(Number(pt.size)) : minNodeSize;
+}
+
 /**
  * Pure Model Layer for `<mc-scatter-chart>`.
- * Computes continuous X/Y/Radius scales, linear regression trendline coordinates,
- * and threshold evaluations without creating DOM nodes.
+ * Computes continuous X/Y/Radius scales, symbols, deterministic jitter,
+ * linear regression trendline coordinates, and threshold evaluations without creating DOM nodes.
  */
 export function computeScatterChartModel(
   ctx: ChartRenderContext<ScatterSeries[]>,
@@ -94,6 +166,18 @@ export function computeScatterChartModel(
 
   input.setupThresholds(ctx);
 
+  const defaultSymbol = normalizeSymbol(input.symbol, 'circle');
+  const defaultRotate = Number.isFinite(input.symbolRotate)
+    ? Number(input.symbolRotate)
+    : 0;
+  const blendMode = input.blendMode || 'normal';
+  const useMesh = Boolean(input.useMesh);
+  const clip = Boolean(input.clip);
+  const jitter = Math.max(
+    0,
+    Number.isFinite(input.jitter) ? Number(input.jitter) : 0
+  );
+
   const sExtent = extent(allS) as [number, number];
   const rScale =
     allS.length > 0 && sExtent[0] !== undefined
@@ -107,13 +191,40 @@ export function computeScatterChartModel(
       : () => input.minNodeSize;
 
   const rawNodes: Omit<ComputedScatterNodeModel, 'index' | 'totalNodes'>[] = [];
+  let globalIdx = 0;
+
   seriesList.forEach((s) => {
     const baseColor = s.color || ctx.colorScale(s.id);
+    const seriesSymbol = normalizeSymbol(s.symbol, defaultSymbol);
+    const seriesRotate = Number.isFinite(s.symbolRotate)
+      ? Number(s.symbolRotate)
+      : defaultRotate;
+
     (s.data ?? []).forEach((pt, idx) => {
-      const px = getScalePosition(ctx.xScale, pt.x);
-      const py = getScalePosition(ctx.yScale, pt.y);
-      const radius =
-        pt.size !== undefined ? rScale(Number(pt.size)) : input.minNodeSize;
+      let px = getScalePosition(ctx.xScale, pt.x);
+      let py = getScalePosition(ctx.yScale, pt.y);
+
+      if (jitter > 0) {
+        // Deterministic golden-angle 2D disk jitter so re-renders never flicker randomly
+        const angle = ((globalIdx + 1) * 2.399963229728653) % (Math.PI * 2);
+        const radial = jitter * Math.sqrt(((globalIdx * 7 + 3) % 16) / 15);
+        px += Math.cos(angle) * radial;
+        py += Math.sin(angle) * radial;
+      }
+      globalIdx++;
+
+      const radius = resolvePointRadius(
+        pt,
+        s,
+        input.nodeSize,
+        rScale,
+        input.minNodeSize
+      );
+      const ptSymbol = normalizeSymbol(pt.symbol, seriesSymbol);
+      const ptRotate = Number.isFinite(pt.symbolRotate)
+        ? Number(pt.symbolRotate)
+        : seriesRotate;
+
       const evalResult = ctx.evaluateThresholds(
         Number(pt.y),
         { seriesId: s.id, ...pt },
@@ -146,6 +257,9 @@ export function computeScatterChartModel(
         px,
         py,
         radius: evalResult.style.radius ?? radius,
+        symbol: ptSymbol,
+        symbolRotate: ptRotate,
+        blendMode,
         label: pt.label || pt.id,
         threshold: evalResult
       });
@@ -186,6 +300,12 @@ export function computeScatterChartModel(
     trendline,
     enableLabels: input.enableLabels,
     enableTrendline: input.enableTrendline,
+    symbol: defaultSymbol,
+    symbolRotate: defaultRotate,
+    blendMode,
+    useMesh,
+    clip,
+    jitter,
     xTitle: input.xTitle,
     yTitle: input.yTitle
   };

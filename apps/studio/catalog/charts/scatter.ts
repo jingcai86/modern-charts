@@ -6,7 +6,7 @@ export const SCATTER_CHART_ENTRY: ChartCatalogEntry = {
   title: 'Scatter & Bubble Chart',
   tagName: 'mc-scatter-chart',
   summary:
-    'Continuous X/Y/Size scatter and bubble plot with least-squares linear regression trendline layer, marker thresholds, and zoomable viewport.',
+    'Continuous X/Y/Size scatter and bubble plot with 9 symbol shapes, rotation, blendMode, deterministic jitter, nearest-point mesh hover, linear regression trendline, and zoomable viewport.',
   subComponents: [
     'mc-theme-layer',
     'mc-scale-layer',
@@ -37,6 +37,12 @@ export const SCATTER_CHART_ENTRY: ChartCatalogEntry = {
     yTitle: 'FPS Score',
     minNodeSize: 7,
     maxNodeSize: 19,
+    symbol: 'circle',
+    symbolRotate: 0,
+    blendMode: 'normal',
+    jitter: 0,
+    useMesh: false,
+    clip: false,
     enableTrendline: true,
     enableLabels: true,
     themeMode,
@@ -66,6 +72,36 @@ export const SCATTER_CHART_ENTRY: ChartCatalogEntry = {
   }),
   specificAttributes: [
     {
+      configPath: 'symbol',
+      attrName: 'symbol',
+      category: 'Chart-Specific',
+      control: 'select',
+      description: 'Marker symbol shape (circle, rect, roundRect, triangle, diamond, pin, arrow, cross, star).',
+      defaultValue: 'circle',
+      options: [
+        { label: 'Circle', value: 'circle' },
+        { label: 'Diamond', value: 'diamond' },
+        { label: 'Triangle', value: 'triangle' },
+        { label: 'Rect / Square', value: 'rect' },
+        { label: 'Rounded Rect', value: 'roundRect' },
+        { label: 'Star (5-point)', value: 'star' },
+        { label: 'Pin', value: 'pin' },
+        { label: 'Arrow', value: 'arrow' },
+        { label: 'Cross / Plus', value: 'cross' }
+      ]
+    },
+    {
+      configPath: 'symbolRotate',
+      attrName: 'symbol-rotate',
+      category: 'Chart-Specific',
+      control: 'range',
+      min: -180,
+      max: 180,
+      step: 15,
+      description: 'Rotation angle of scatter symbols in degrees.',
+      defaultValue: 0
+    },
+    {
       configPath: 'minNodeSize',
       attrName: 'min-node-size',
       category: 'Chart-Specific',
@@ -86,6 +122,50 @@ export const SCATTER_CHART_ENTRY: ChartCatalogEntry = {
       step: 1,
       description: 'Maximum bubble radius in pixels.',
       defaultValue: 19
+    },
+    {
+      configPath: 'blendMode',
+      attrName: 'blend-mode',
+      category: 'Chart-Specific',
+      control: 'select',
+      description: 'CSS mix-blend-mode applied to overlapping scatter bubbles.',
+      defaultValue: 'normal',
+      options: [
+        { label: 'normal', value: 'normal' },
+        { label: 'multiply', value: 'multiply' },
+        { label: 'screen', value: 'screen' },
+        { label: 'overlay', value: 'overlay' },
+        { label: 'lighten', value: 'lighten' },
+        { label: 'darken', value: 'darken' },
+        { label: 'difference', value: 'difference' }
+      ]
+    },
+    {
+      configPath: 'jitter',
+      attrName: 'jitter',
+      category: 'Chart-Specific',
+      control: 'range',
+      min: 0,
+      max: 24,
+      step: 1,
+      description: 'Deterministic 2D pixel jitter radius to separate overlapping points.',
+      defaultValue: 0
+    },
+    {
+      configPath: 'useMesh',
+      attrName: 'use-mesh',
+      category: 'Chart-Specific',
+      control: 'boolean',
+      description: 'Enables nearest-point spatial mesh hover across the entire plot canvas.',
+      defaultValue: false
+    },
+    {
+      configPath: 'clip',
+      attrName: 'clip',
+      category: 'Chart-Specific',
+      control: 'boolean',
+      description: 'Clips scatter nodes strictly to the inner plot box.',
+      defaultValue: false
     },
     {
       configPath: 'enableTrendline',

@@ -1411,6 +1411,13 @@ export interface ChartConfig<TData = any> {
   linkOpacity?: number;
   minNodeSize?: number;
   maxNodeSize?: number;
+  nodeSize?: ScatterNodeSizeSpec;
+  symbol?: ScatterSymbolType;
+  symbolRotate?: number;
+  blendMode?: string;
+  useMesh?: boolean;
+  clip?: boolean;
+  jitter?: number;
   tilePadding?: number;
   xTitle?: string;
   yTitle?: string;
@@ -1575,17 +1582,44 @@ export interface SankeyData {
   links: SankeyLink[];
 }
 
+export type ScatterSymbolType =
+  | 'circle'
+  | 'rect'
+  | 'roundRect'
+  | 'triangle'
+  | 'diamond'
+  | 'pin'
+  | 'arrow'
+  | 'cross'
+  | 'star';
+
+export interface ScatterNodeSizeScale {
+  key?: string;
+  values: [number, number];
+  sizes: [number, number];
+}
+
+export type ScatterNodeSizeSpec =
+  | number
+  | ScatterNodeSizeScale
+  | ((point: ScatterPoint, series: ScatterSeries) => number);
+
 export interface ScatterPoint {
   x: number;
   y: number;
   size?: number;
   label?: string;
   id?: string;
+  symbol?: ScatterSymbolType;
+  symbolRotate?: number;
+  [key: string]: unknown;
 }
 
 export interface ScatterSeries {
   id: string;
   color?: string;
+  symbol?: ScatterSymbolType;
+  symbolRotate?: number;
   data: ScatterPoint[];
 }
 

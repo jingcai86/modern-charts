@@ -7,7 +7,9 @@ import {
 import type {
   ChartRenderContext,
   ScaleConfig,
-  ScatterSeries
+  ScatterNodeSizeSpec,
+  ScatterSeries,
+  ScatterSymbolType
 } from '../core/types';
 import {
   computeScatterChartModel,
@@ -29,6 +31,13 @@ export class MCScatterChart extends MCBaseChart<ScatterSeries[]> {
     ...MCBaseChart.baseObservedAttributes,
     'min-node-size',
     'max-node-size',
+    'node-size',
+    'symbol',
+    'symbol-rotate',
+    'blend-mode',
+    'use-mesh',
+    'clip',
+    'jitter',
     'enable-labels',
     'enable-trendline',
     'x-title',
@@ -80,9 +89,25 @@ export class MCScatterChart extends MCBaseChart<ScatterSeries[]> {
   }
 
   protected prepareContext(ctx: ChartRenderContext<ScatterSeries[]>): void {
+    const rawNodeSize = this._config.nodeSize ?? this.getOption('nodeSize', 'node-size');
+    const nodeSize: ScatterNodeSizeSpec | undefined =
+      typeof rawNodeSize === 'string' && Number.isFinite(Number(rawNodeSize))
+        ? Number(rawNodeSize)
+        : (rawNodeSize as ScatterNodeSizeSpec | undefined);
+
     const model = computeScatterChartModel(ctx, {
       minNodeSize: this.getOption('minNodeSize', 'min-node-size', 6) ?? 6,
       maxNodeSize: this.getOption('maxNodeSize', 'max-node-size', 18) ?? 18,
+      nodeSize,
+      symbol:
+        (this.getOption('symbol', 'symbol', 'circle') as ScatterSymbolType) ||
+        'circle',
+      symbolRotate:
+        this.getOption('symbolRotate', 'symbol-rotate', 0) ?? 0,
+      blendMode: this.getOption('blendMode', 'blend-mode', 'normal') || 'normal',
+      useMesh: Boolean(this.getOption('useMesh', 'use-mesh', false)),
+      clip: Boolean(this.getOption('clip', 'clip', false)),
+      jitter: this.getOption('jitter', 'jitter', 0) ?? 0,
       enableLabels:
         this.getOption('enableLabels', 'enable-labels', true) !== false,
       enableTrendline: Boolean(
