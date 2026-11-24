@@ -29,6 +29,13 @@ export class MCHeatmapChart extends MCBaseChart<HeatmapRow[]> {
     'cell-shape',
     'color-scheme',
     'cell-padding',
+    'x-inner-padding',
+    'y-inner-padding',
+    'size-variation',
+    'empty-color',
+    'force-square',
+    'min',
+    'max',
     'border-radius',
     'enable-labels'
   ];
@@ -68,6 +75,21 @@ export class MCHeatmapChart extends MCBaseChart<HeatmapRow[]> {
   protected prepareContext(ctx: ChartRenderContext<HeatmapRow[]>): void {
     const model = computeHeatmapChartModel(ctx, {
       cellPadding: this.getOption('cellPadding', 'cell-padding', 0.1) ?? 0.1,
+      xInnerPadding: this.getOption('xInnerPadding', 'x-inner-padding'),
+      yInnerPadding: this.getOption('yInnerPadding', 'y-inner-padding'),
+      sizeVariation:
+        this.getOption('sizeVariation', 'size-variation', 0) ?? 0,
+      emptyColor:
+        this.getOption(
+          'emptyColor',
+          'empty-color',
+          'rgba(148, 163, 184, 0.16)'
+        ) ?? 'rgba(148, 163, 184, 0.16)',
+      forceSquare: Boolean(
+        this.getOption('forceSquare', 'force-square', false)
+      ),
+      min: this.getOption('min', 'min'),
+      max: this.getOption('max', 'max'),
       colorScheme:
         this.getOption('colorScheme', 'color-scheme') ||
         ctx.scaleConfig.color?.scheme ||

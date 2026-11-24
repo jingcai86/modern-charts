@@ -20,7 +20,14 @@ export function renderHeatmapCellLabelsLayer(
   if (!model.enableLabels) return;
 
   model.cells.forEach((cell, idx) => {
-    if (cell.width < 22 || cell.height < 16) return;
+    if (
+      cell.isEmpty ||
+      !Number.isFinite(cell.value) ||
+      cell.width < 22 ||
+      cell.height < 16
+    ) {
+      return;
+    }
     ctx.renderLabel(ctx.layerGroup, {
       id: `heatmap-label-${idx}`,
       text: String(cell.value),

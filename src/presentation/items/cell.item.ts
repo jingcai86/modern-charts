@@ -37,6 +37,9 @@ export function renderHeatmapCellItem(
   node.setAttribute('data-item-component', 'mc-cell-item');
   node.setAttribute('data-row', cell.rowId);
   node.setAttribute('data-col', cell.colId);
+  if (cell.isEmpty) {
+    node.setAttribute('data-empty', 'true');
+  }
   const cellFill =
     ctx.resolveFill?.({
       id: `${cell.rowId}-${cell.colId}`,

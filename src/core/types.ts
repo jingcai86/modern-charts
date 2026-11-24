@@ -1429,6 +1429,11 @@ export interface ChartConfig<TData = any> {
   align?: SankeyAlign;
   curveness?: number;
   linkOpacity?: number;
+  xInnerPadding?: number;
+  yInnerPadding?: number;
+  sizeVariation?: number;
+  emptyColor?: string;
+  forceSquare?: boolean;
   minNodeSize?: number;
   maxNodeSize?: number;
   symbol?:
@@ -1576,7 +1581,7 @@ export interface PieDatum {
 
 export interface HeatmapCell {
   x: string;
-  y: number;
+  y: number | null;
 }
 
 export interface HeatmapRow {
