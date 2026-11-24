@@ -31,7 +31,7 @@
       "messages": "Partial<ChartMessages>; shared translatable strings with {{name}} placeholders"
     }
   },
-  "palettes": ["shadcn", "material", "bootstrap", "antd"],
+  "palettes": ["shadcn", "material", "bootstrap", "antd", "neutral"],
   "motionPresets": ["default", "gentle", "wobbly", "stiff", "slow", "molasses", "elastic", "bounce"],
   "labelTargets": [
     "all",

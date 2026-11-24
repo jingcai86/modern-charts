@@ -8,10 +8,11 @@ export type BuiltInPaletteName =
   | 'material'
   | 'bootstrap'
   | 'antd'
-  | 'shadcn';
+  | 'shadcn'
+  | 'neutral';
 
 /**
- * Built-in design-system palette (`'material'`, `'bootstrap'`, `'antd'`, `'shadcn'`)
+ * Built-in palette (`'material'`, `'bootstrap'`, `'antd'`, `'shadcn'`, or grayscale `'neutral'`)
  * or a seed color string (e.g. `'#2563eb'`, `'rgb(37, 99, 235)'`, `'hsl(221, 83%, 53%)'`)
  * treated as the midpoint of a generated ≥20-color light-to-dark palette.
  */
@@ -1124,7 +1125,7 @@ export interface ChartGradientConfig
   extends Omit<GradientPaletteOptions, 'keys'> {
   enabled?: boolean;
   /**
-   * Optional color source override: a theme palette name (`'shadcn'`, `'material'`, `'bootstrap'`, `'antd'`),
+   * Optional color source override: a built-in palette name (`'shadcn'`, `'material'`, `'bootstrap'`, `'antd'`, `'neutral'`),
    * a single seed color (`'#2563eb'`), or a custom `string[]` array.
    * Defaults to the chart's active `colors` / `palette`.
    */

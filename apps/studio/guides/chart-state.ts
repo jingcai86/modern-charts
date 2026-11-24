@@ -1,3 +1,4 @@
+import { getGlobalPalette } from '../state/theme';
 import type {
   ChartStateChangeDetail,
   MCBaseChart,
@@ -140,7 +141,7 @@ export function renderChartStateGuide(
     bar1.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'shadcn',
+      palette: getGlobalPalette(),
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge'],
       borderRadius: 6,
@@ -401,7 +402,7 @@ mc-pie-chart::part(state-message) {
       emptyText: 'No billing records found',
       autoSize: true,
       themeMode,
-      palette: 'shadcn',
+      palette: getGlobalPalette(),
       title: 'Cloud Spend Share',
       innerRadius: 0.54
     });

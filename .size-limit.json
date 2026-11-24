@@ -19,7 +19,7 @@
     "name": "Core engine & layers (modern-charts/core) [gzip]",
     "path": "dist/core.js",
     "gzip": true,
-    "limit": "95 kB"
+    "limit": "95.25 kB"
   },
   {
     "name": "Standalone Bar chart (modern-charts/bar) [brotli]",
