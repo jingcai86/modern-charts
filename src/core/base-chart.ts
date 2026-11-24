@@ -2044,10 +2044,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this.hideLegendTooltip();
       if (controlsEl) controlsEl.hidden = true;
       if (this._data === null || !hasData) {
-        rootGroup.innerHTML = '';
-        if (defs) defs.innerHTML = '';
+        rootGroup.replaceChildren();
+        if (defs) defs.replaceChildren();
         this._decoratedAriaItems = [];
-        if (ariaTableContainer) ariaTableContainer.innerHTML = '';
+        if (ariaTableContainer) ariaTableContainer.replaceChildren();
         this.#setCustomState('rendered', false);
       }
       this.#applyChartState('loading', theme);
@@ -2059,19 +2059,19 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this.hideTooltip();
       this.hideLegendTooltip();
       if (controlsEl) controlsEl.hidden = true;
-      rootGroup.innerHTML = '';
-      if (defs) defs.innerHTML = '';
+      rootGroup.replaceChildren();
+      if (defs) defs.replaceChildren();
       this._decoratedAriaItems = [];
-      if (ariaTableContainer) ariaTableContainer.innerHTML = '';
+      if (ariaTableContainer) ariaTableContainer.replaceChildren();
       this.#setCustomState('rendered', false);
       this.#applyChartState('empty', theme);
       return;
     }
 
     this.cancelTransitions(false);
-    rootGroup.innerHTML = '';
+    rootGroup.replaceChildren();
     this._decoratedAriaItems = [];
-    if (defs) defs.innerHTML = '';
+    if (defs) defs.replaceChildren();
 
     if (controlsEl) {
       controlsEl.hidden = !(

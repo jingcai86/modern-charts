@@ -520,7 +520,7 @@ export class MCLabelElement extends HTMLElement {
     if (!svg) return;
 
     if (isChartConfig && !this.hasAttribute('standalone')) {
-      svg.innerHTML = '';
+      svg.replaceChildren();
       svg.setAttribute('width', '0');
       svg.setAttribute('height', '0');
       return;
@@ -534,7 +534,7 @@ export class MCLabelElement extends HTMLElement {
     }
     const text = this.text || directText.trim();
     if (!text && !this.getTemplateHtml() && !this.icon) {
-      svg.innerHTML = '';
+      svg.replaceChildren();
       return;
     }
 
@@ -613,7 +613,7 @@ export class MCLabelElement extends HTMLElement {
     svg.setAttribute('width', String(w));
     svg.setAttribute('height', String(h));
     svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    svg.innerHTML = '';
+    svg.replaceChildren();
     this.#engine.renderLabel(svg, desc, theme);
   }
 

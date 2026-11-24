@@ -293,25 +293,30 @@
   min-height: 0;
   overflow-y: auto;
   padding-right: 6px;
+  --scrollbar-thumb: var(--border-focus);
+  --scrollbar-track: transparent;
   scrollbar-width: thin;
-  scrollbar-color: var(--border-focus) transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-.attributes-accordion-list::-webkit-scrollbar {
-  width: 6px;
-}
+@supports not (scrollbar-color: auto) {
+  .attributes-accordion-list {
+    scrollbar-width: auto;
+  }
 
-.attributes-accordion-list::-webkit-scrollbar-track {
-  background: transparent;
-}
+  .attributes-accordion-list::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
 
-.attributes-accordion-list::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
-  border-radius: 999px;
-}
+  .attributes-accordion-list::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
 
-.attributes-accordion-list::-webkit-scrollbar-thumb:hover {
-  background: var(--border-focus);
+  .attributes-accordion-list::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
+  }
 }
 
 .attr-category-accordion {

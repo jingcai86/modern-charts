@@ -390,8 +390,34 @@ button.btn-primary:hover {
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.overview-tablist::-webkit-scrollbar {
-  display: none;
+@supports not (scrollbar-width: none) {
+  .overview-tablist::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+:is(
+  mc-bar-chart,
+  mc-line-chart,
+  mc-pie-chart,
+  mc-heatmap-chart,
+  mc-radar-chart,
+  mc-sunburst-chart,
+  mc-sankey-chart,
+  mc-scatter-chart,
+  mc-treemap-chart,
+  mc-gauge-chart
+):not(:defined) {
+  visibility: hidden;
+  opacity: 0;
+  animation: mc-defined-fallback 0.2s 2s forwards;
+}
+
+@keyframes mc-defined-fallback {
+  to {
+    visibility: visible;
+    opacity: 1;
+  }
 }
 
 .overview-tab {

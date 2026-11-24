@@ -965,8 +965,7 @@ export class LabelEngine {
     container.style.cssText = styles.join('; ');
 
     if (content instanceof HTMLElement) {
-      container.innerHTML = '';
-      container.appendChild(content);
+      container.replaceChildren(content);
     } else if (typeof content === 'string') {
       container.innerHTML = content;
     } else {
