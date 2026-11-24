@@ -1401,9 +1401,16 @@ export interface ChartConfig<TData = any> {
   borderRadius?: number;
   gridShape?: 'circular' | 'linear';
   gridLevels?: number;
+  maxValue?: number;
+  startAngle?: number;
+  gridLabelOffset?: number;
   fillOpacity?: number;
   enableDots?: boolean;
   enableDotLabels?: boolean;
+  dotSize?: number;
+  dotBorderWidth?: number;
+  blendMode?: RadarBlendMode;
+  splitArea?: boolean;
   enableTrendline?: boolean;
   interactiveDrilldown?: boolean;
   nodeWidth?: number;
@@ -1545,6 +1552,20 @@ export interface HeatmapRow {
   id: string;
   data: HeatmapCell[];
 }
+
+export type RadarBlendMode =
+  | 'normal'
+  | 'multiply'
+  | 'screen'
+  | 'overlay'
+  | 'darken'
+  | 'lighten'
+  | 'color-dodge'
+  | 'color-burn'
+  | 'hard-light'
+  | 'soft-light'
+  | 'difference'
+  | 'exclusion';
 
 export interface RadarDatum {
   [key: string]: string | number;

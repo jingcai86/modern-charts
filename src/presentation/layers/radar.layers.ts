@@ -8,22 +8,78 @@ import {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+function getAxisAngles(model: RadarChartModel): number[] {
+  if (model.axisAngles && model.axisAngles.length === model.axes.length) {
+    return model.axisAngles;
+  }
+  const startRad = ((model.startAngle ?? 0) * Math.PI) / 180;
+  return model.axes.map(
+    (_, i) =>
+      (i / Math.max(1, model.axes.length)) * 2 * Math.PI -
+      Math.PI / 2 +
+      startRad
+  );
+}
+
 export function renderRadarGridLayer(
   model: RadarChartModel,
   ctx: ChartRenderContext<RadarDatum[]>
 ): void {
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+  const angles = getAxisAngles(model);
+  const isLinear = model.gridShape === 'linear' && model.axes.length >= 3;
+
+  // Render alternating splitArea bands when enabled (from outer to inner with evenodd ring paths)
+  if (model.splitArea) {
+    for (let lvl = 1; lvl <= model.gridLevels; lvl++) {
+      if (lvl % 2 === 0) continue; // alternate bands (1, 3, 5...)
+      const rInner = (model.radius / model.gridLevels) * (lvl - 1);
+      const rOuter = (model.radius / model.gridLevels) * lvl;
+      const bandPath = document.createElementNS(SVG_NS, 'path');
+      bandPath.setAttribute('class', 'mc-radar-split-area');
+      bandPath.setAttribute('data-level', String(lvl));
+      bandPath.setAttribute('fill', ctx.theme.gridColor);
+      bandPath.setAttribute('fill-opacity', '0.24');
+      bandPath.setAttribute('fill-rule', 'evenodd');
+
+      if (isLinear) {
+        const outerLoop =
+          angles
+            .map(
+              (a, idx) =>
+                `${idx === 0 ? 'M' : 'L'}${Math.cos(a) * rOuter},${Math.sin(a) * rOuter}`
+            )
+            .join(' ') + ' Z';
+        const innerLoop =
+          rInner > 0
+            ? ' ' +
+              angles
+                .map(
+                  (a, idx) =>
+                    `${idx === 0 ? 'M' : 'L'}${Math.cos(a) * rInner},${Math.sin(a) * rInner}`
+                )
+                .join(' ') +
+              ' Z'
+            : '';
+        bandPath.setAttribute('d', outerLoop + innerLoop);
+      } else {
+        const outerCircle = `M 0,${-rOuter} A ${rOuter},${rOuter} 0 1,0 0,${rOuter} A ${rOuter},${rOuter} 0 1,0 0,${-rOuter} Z`;
+        const innerCircle =
+          rInner > 0
+            ? ` M 0,${-rInner} A ${rInner},${rInner} 0 1,0 0,${rInner} A ${rInner},${rInner} 0 1,0 0,${-rInner} Z`
+            : '';
+        bandPath.setAttribute('d', outerCircle + innerCircle);
+      }
+      g.appendChild(bandPath);
+    }
+  }
 
   for (let lvl = 1; lvl <= model.gridLevels; lvl++) {
     const r = (model.radius / model.gridLevels) * lvl;
-    if (model.gridShape === 'linear' && model.axes.length >= 3) {
-      const pts = model.axes
-        .map((_, i) => {
-          const angle =
-            (i / model.axes.length) * 2 * Math.PI - Math.PI / 2;
-          return `${Math.cos(angle) * r},${Math.sin(angle) * r}`;
-        })
+    if (isLinear) {
+      const pts = angles
+        .map((angle) => `${Math.cos(angle) * r},${Math.sin(angle) * r}`)
         .join(' ');
       const poly = document.createElementNS(SVG_NS, 'polygon');
       poly.setAttribute('class', 'mc-radar-grid-level');
@@ -52,10 +108,11 @@ export function renderRadarAxesLayer(
 ): void {
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+  const angles = getAxisAngles(model);
+  const labelOffset = model.gridLabelOffset ?? 18;
 
   model.axes.forEach((axisName, i) => {
-    const angle =
-      (i / Math.max(1, model.axes.length)) * 2 * Math.PI - Math.PI / 2;
+    const angle = angles[i];
     const x = Math.cos(angle) * model.radius;
     const y = Math.sin(angle) * model.radius;
 
@@ -68,7 +125,7 @@ export function renderRadarAxesLayer(
     line.setAttribute('stroke', ctx.theme.axisColor);
     g.appendChild(line);
 
-    const labelR = model.radius + 18;
+    const labelR = model.radius + labelOffset;
     const lx = Math.cos(angle) * labelR;
     const ly = Math.sin(angle) * labelR;
     const cos = Math.cos(angle);
@@ -130,7 +187,7 @@ export function renderRadarDotsLayer(
   model: RadarChartModel,
   ctx: ChartRenderContext<RadarDatum[]>
 ): void {
-  if (!model.enableDots) return;
+  if (!model.enableDots || (model.dotSize ?? 8.4) <= 0) return;
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
