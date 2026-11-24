@@ -28,7 +28,37 @@ export function createAttributePanel(opts: {
   onConfigChanged: () => void;
 }): AttributePanelHandle {
   const { entry, config, vState, allAttributes, onConfigChanged } = opts;
-  const categories = Array.from(new Set(allAttributes.map((a) => a.category)));
+  type AttributeScope = 'specific' | 'common';
+  const specificPaths = new Set(entry.specificAttributes.map((spec) => spec.configPath));
+  const scopeFor = (spec: ChartAttributeSpec): AttributeScope =>
+    specificPaths.has(spec.configPath) ? 'specific' : 'common';
+  const commonCategoryOrder: ChartAttributeSpec['category'][] = [
+    'Sizing & Layout',
+    'Theme Layer (<mc-theme-layer>)',
+    'Universal Label (<mc-label>)',
+    'Legend (<mc-legend>)',
+    'Tooltip (<mc-tooltip>)',
+    'View & Zoom (<mc-view-layer>)',
+    'Marker & Threshold (<mc-marker-layer>)',
+    'Animation (<mc-animation-layer>)',
+    'Accessibility (<mc-aria-layer>)',
+    'Internationalization'
+  ];
+  const scopes = [
+    {
+      id: 'specific' as const,
+      label: 'Chart-specific',
+      description: `Controls for this chart’s data and rendering (<code>${escapeHtml(entry.tagName)}</code>).`
+    },
+    {
+      id: 'common' as const,
+      label: 'Common',
+      description: 'Shared settings and layers, shown where this chart supports them.'
+    }
+  ].map((scope) => ({
+    ...scope,
+    specs: allAttributes.filter((spec) => scopeFor(spec) === scope.id)
+  }));
 
   const attributesSection = document.createElement('div');
   attributesSection.className = 'panel-card attributes-panel-card';
@@ -38,8 +68,8 @@ export function createAttributePanel(opts: {
         <h2 class="panel-title">
           All Customizable Attributes &amp; Config Properties (${allAttributes.length})
         </h2>
-        <p style="margin:4px 0 0;font-size:0.82rem;color:var(--text-muted);">
-          Click any category header to expand or minimize it. Change any control below to see it reflect on the live chart and in <code>chart.config</code> immediately.
+        <p class="attributes-section-description">
+          Chart-specific options come first, followed by common settings shared across charts. Changes update the live chart and <code>chart.config</code> immediately.
         </p>
       </div>
       <div class="attributes-filter-bar">
@@ -51,15 +81,58 @@ export function createAttributePanel(opts: {
           class="attr-search-input"
           placeholder="Filter attributes..."
           aria-label="Filter attributes"
+          aria-controls="attributes-categories-grid"
         />
       </div>
     </div>
+    <div class="attributes-scope-filter" role="group" aria-label="Attribute scope">
+      <button type="button" class="attr-scope-filter-button" data-scope="all" aria-pressed="true" aria-controls="attributes-categories-grid">All <span>${allAttributes.length}</span></button>
+      ${scopes.map((scope) => `<button type="button" class="attr-scope-filter-button" data-scope="${scope.id}" aria-pressed="false" aria-controls="attributes-categories-grid">${scope.label} <span>${scope.specs.length}</span></button>`).join('')}
+    </div>
+    <p class="attr-filter-status" role="status" aria-live="polite" aria-atomic="true">Showing ${allAttributes.length} of ${allAttributes.length} properties</p>
     <div class="attributes-accordion-list" id="attributes-categories-grid"></div>
   `;
 
   const categoriesGrid = attributesSection.querySelector(
     '#attributes-categories-grid'
   ) as HTMLElement;
+
+  const categories = scopes.flatMap((scope) => {
+    if (!scope.specs.length) return [];
+    const group = document.createElement('section');
+    group.className = 'attr-scope-group';
+    group.dataset.scope = scope.id;
+    group.setAttribute('aria-labelledby', `attr-scope-${scope.id}-title`);
+    group.innerHTML = `
+      <div class="attr-scope-header">
+        <h3 class="attr-scope-title" id="attr-scope-${scope.id}-title"><span class="attr-scope-badge">${scope.label}</span> <span class="attr-scope-count">${scope.specs.length} properties</span></h3>
+        <p class="attr-scope-description">${scope.description}</p>
+      </div>
+      <div class="attr-scope-categories"></div>
+    `;
+    categoriesGrid.appendChild(group);
+    const container = group.querySelector('.attr-scope-categories') as HTMLElement;
+    const names = Array.from(new Set(scope.specs.map((spec) => spec.category)));
+    if (scope.id === 'common') {
+      const rank = (name: ChartAttributeSpec['category']) => {
+        const index = commonCategoryOrder.indexOf(name);
+        return index < 0 ? commonCategoryOrder.length : index;
+      };
+      names.sort((a, b) => rank(a) - rank(b));
+    }
+    return names.map((name) => ({
+      name,
+      scope,
+      container,
+      specs: scope.specs.filter((spec) => spec.category === name)
+    }));
+  });
+
+  const emptyState = document.createElement('p');
+  emptyState.className = 'attr-empty-state';
+  emptyState.hidden = true;
+  emptyState.textContent = 'No properties match these filters. Try another search or choose All.';
+  categoriesGrid.appendChild(emptyState);
 
   const controlSyncCallbacks = new Map<string, () => void>();
 
@@ -127,23 +200,25 @@ export function createAttributePanel(opts: {
     onConfigChanged();
   }
 
-  categories.forEach((categoryName, catIdx) => {
-    const specsInCat = allAttributes.filter((a) => a.category === categoryName);
+  categories.forEach(({ name: categoryName, scope, container, specs: specsInCat }, catIdx) => {
     const catDetails = document.createElement('details');
     catDetails.className = 'attr-category-accordion';
     catDetails.dataset.category = categoryName;
+    catDetails.dataset.scope = scope.id;
     if (catIdx === 0) {
       catDetails.open = true;
     }
 
-    const cleanCatTitle = categoryName.replace(/\s*\(<mc-[^>]+>\)/g, '');
+    const cleanCatTitle = categoryName === 'Chart-Specific'
+      ? 'Chart options'
+      : categoryName.replace(/\s*\(<mc-[^>]+>\)/g, '');
     catDetails.innerHTML = `
       <summary class="attr-category-summary">
         <div class="attr-category-summary-left">
           <span class="attr-chevron" aria-hidden="true">▸</span>
-          <span class="attr-category-name">${cleanCatTitle}</span>
+          <span class="attr-category-name">${escapeHtml(cleanCatTitle)}</span>
         </div>
-        <span class="comp-pill">${specsInCat.length}</span>
+        <span class="attr-category-summary-meta"><span class="attr-category-scope">${scope.label}</span><span class="comp-pill" data-category-count>${specsInCat.length}</span></span>
       </summary>
       <div class="attr-list"></div>
     `;
@@ -153,6 +228,8 @@ export function createAttributePanel(opts: {
     specsInCat.forEach((spec) => {
       const row = document.createElement('div');
       row.className = 'attr-row';
+      row.dataset.scope = scope.id;
+      row.dataset.configPath = spec.configPath;
       row.dataset.searchText =
         `${spec.configPath} ${spec.attrName} ${spec.description} ${spec.category}`.toLowerCase();
 
@@ -354,55 +431,86 @@ export function createAttributePanel(opts: {
       attrList.appendChild(row);
     });
 
-    categoriesGrid.appendChild(catDetails);
+    container.appendChild(catDetails);
   });
 
-  // Expand All / Minimize All buttons
+  const cards = Array.from(categoriesGrid.querySelectorAll<HTMLDetailsElement>(
+    '.attr-category-accordion'
+  ));
+  const searchInput = attributesSection.querySelector(
+    '#attr-search-input'
+  ) as HTMLInputElement;
+  const scopeButtons = Array.from(attributesSection.querySelectorAll<HTMLButtonElement>(
+    '.attr-scope-filter-button'
+  ));
+  const filterStatus = attributesSection.querySelector('.attr-filter-status') as HTMLElement;
+  let activeScope: AttributeScope | 'all' = 'all';
+  let beforeSearchOpen: Map<HTMLDetailsElement, boolean> | undefined;
+
+  function filterAttributes(): void {
+    const query = searchInput.value.trim().toLowerCase();
+    if (query && !beforeSearchOpen) {
+      beforeSearchOpen = new Map(cards.map((card) => [card, card.open]));
+    }
+    let visibleCount = 0;
+    cards.forEach((card) => {
+      const rows = Array.from(card.querySelectorAll<HTMLElement>('.attr-row'));
+      const scopeMatches = activeScope === 'all' || card.dataset.scope === activeScope;
+      let visibleInCard = 0;
+      rows.forEach((row) => {
+        const matches = scopeMatches && (!query || (row.dataset.searchText ?? '').includes(query));
+        row.hidden = !matches;
+        if (matches) visibleInCard++;
+      });
+      card.hidden = visibleInCard === 0;
+      visibleCount += visibleInCard;
+      const count = card.querySelector('[data-category-count]') as HTMLElement;
+      count.textContent = query ? `${visibleInCard}/${rows.length}` : String(rows.length);
+      if (query && visibleInCard > 0) {
+        card.open = true;
+      } else if (!query && beforeSearchOpen) {
+        card.open = beforeSearchOpen.get(card) ?? card.open;
+      }
+    });
+    if (!query) beforeSearchOpen = undefined;
+    categoriesGrid.querySelectorAll<HTMLElement>('.attr-scope-group').forEach((group) => {
+      group.hidden = !Array.from(group.querySelectorAll<HTMLDetailsElement>('.attr-category-accordion'))
+        .some((card) => !card.hidden);
+    });
+    scopeButtons.forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.scope === activeScope));
+    });
+    filterStatus.textContent = `Showing ${visibleCount} of ${allAttributes.length} properties`;
+    emptyState.hidden = visibleCount > 0;
+  }
+
+  scopeButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      activeScope = button.dataset.scope as typeof activeScope;
+      filterAttributes();
+    });
+  });
+  searchInput.addEventListener('input', filterAttributes);
+
+  // Apply bulk actions to the categories currently shown by the filters.
+  function setVisibleCategoriesOpen(open: boolean): void {
+    cards.filter((card) => !card.hidden).forEach((card) => {
+      card.open = open;
+      beforeSearchOpen?.set(card, open);
+    });
+  }
+
   attributesSection
     .querySelector('#btn-expand-all-attrs')
     ?.addEventListener('click', () => {
-      categoriesGrid
-        .querySelectorAll<HTMLDetailsElement>('.attr-category-accordion')
-        .forEach((d) => {
-          d.open = true;
-        });
+      setVisibleCategoriesOpen(true);
     });
 
   attributesSection
     .querySelector('#btn-collapse-all-attrs')
     ?.addEventListener('click', () => {
-      categoriesGrid
-        .querySelectorAll<HTMLDetailsElement>('.attr-category-accordion')
-        .forEach((d) => {
-          d.open = false;
-        });
+      setVisibleCategoriesOpen(false);
     });
-
-  // Search filter
-  const searchInput = attributesSection.querySelector(
-    '#attr-search-input'
-  ) as HTMLInputElement;
-  searchInput.addEventListener('input', () => {
-    const q = searchInput.value.trim().toLowerCase();
-    const cards = categoriesGrid.querySelectorAll<HTMLDetailsElement>(
-      '.attr-category-accordion'
-    );
-    cards.forEach((card, idx) => {
-      const rows = card.querySelectorAll<HTMLElement>('.attr-row');
-      let visibleInCard = 0;
-      rows.forEach((r) => {
-        const match = !q || (r.dataset.searchText ?? '').includes(q);
-        r.style.display = match ? '' : 'none';
-        if (match) visibleInCard++;
-      });
-      card.style.display = visibleInCard > 0 ? '' : 'none';
-      if (q && visibleInCard > 0) {
-        card.open = true;
-      } else if (!q) {
-        card.open = idx === 0;
-      }
-    });
-  });
 
   return {
     element: attributesSection,
