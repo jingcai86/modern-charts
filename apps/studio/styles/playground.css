@@ -1,16 +1,18 @@
 /* ============================================================================
    DEDICATED CHART PLAYGROUND PAGE (#/chart/:id)
    ============================================================================ */
-.detail-studio-grid {
+.detail-studio-grid,
+.detail-bottom-grid {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   gap: 20px;
   align-items: stretch;
 }
 
 @media (max-width: 1100px) {
-  .detail-studio-grid {
-    grid-template-columns: 1fr;
+  .detail-studio-grid,
+  .detail-bottom-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -114,6 +116,65 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.event-inspector-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.event-inspector-log-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.event-inspector-history {
+  flex: 1 1 auto;
+  min-block-size: 180px;
+  background: var(--bg-code);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.event-inspector-row {
+  padding-block-end: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--code-text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.event-inspector-row:last-child {
+  padding-block-end: 0;
+  border-bottom: none;
+}
+
+.event-inspector-empty {
+  color: var(--text-muted);
+}
+
+@media (min-width: 1101px) {
+  .event-inspector-card {
+    height: 0;
+    min-height: 100%;
+    overflow: hidden;
+  }
 }
 
 /* Live Config Editor Panel */

@@ -19,6 +19,10 @@ export interface GaugeChartModel {
   cy: number;
   outerRadius: number;
   innerRadius: number;
+  bandOuterRadius: number;
+  arcBottomY: number;
+  valueY: number;
+  subtitleY: number;
   min: number;
   max: number;
   value: number;
@@ -60,12 +64,37 @@ export function computeGaugeChartModel(
     .clamp(true);
 
   const cx = ctx.innerWidth / 2;
-  const cy = ctx.innerHeight * 0.58;
+  const hasBands = (datum.bands?.length ?? 0) > 0;
+  const bandPad = hasBands ? 8 : 0;
+  const hasLabel = Boolean(datum.label && String(datum.label).trim().length > 0);
+  const subtitleFontSize = Math.max(10, ctx.theme.fontSize);
+  const subtitleGap = hasLabel ? 12 : 0;
+  const subtitleReserve = hasLabel ? subtitleGap + subtitleFontSize * 1.35 : 0;
+
+  const maxOuterByWidth = ctx.innerWidth / 2 - bandPad - 6;
+  const maxOuterByHeight =
+    (ctx.innerHeight - subtitleReserve - 8) / (1 + Math.SQRT1_2) - bandPad;
   const outerRadius = Math.max(
-    48,
-    Math.min(ctx.innerWidth / 2, ctx.innerHeight * 0.62) - 16
+    40,
+    Math.min(maxOuterByWidth, maxOuterByHeight)
   );
   const innerRadius = outerRadius * 0.76;
+  const bandOuterRadius = outerRadius + bandPad;
+  const arcBottomY = bandOuterRadius * Math.SQRT1_2;
+
+  const totalHeight = bandOuterRadius + arcBottomY + subtitleReserve;
+  const topOffset = Math.max(4, (ctx.innerHeight - totalHeight) / 2);
+  const cy = topOffset + bandOuterRadius;
+
+  const valueFontSize = Math.min(
+    ctx.theme.fontSize + 8,
+    Math.max(14, Math.round(outerRadius * 0.24))
+  );
+  const valueY = Math.max(20, outerRadius * 0.44);
+  const subtitleY = Math.max(
+    arcBottomY + subtitleGap + subtitleFontSize * 0.5,
+    valueY + valueFontSize * 0.75 + subtitleFontSize * 0.65
+  );
 
   const trackArcGen = arc()
     .innerRadius(innerRadius)
@@ -115,6 +144,10 @@ export function computeGaugeChartModel(
     cy,
     outerRadius,
     innerRadius,
+    bandOuterRadius,
+    arcBottomY,
+    valueY,
+    subtitleY,
     min,
     max,
     value,
