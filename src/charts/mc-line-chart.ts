@@ -4,7 +4,13 @@ import {
   renderCartesianGrid
 } from '../core/scale-manager';
 import { allocateUniqueSvgId } from '../core/threshold-clip';
-import type { ChartRenderContext, LineSeries } from '../core/types';
+import type {
+  ChartRenderContext,
+  LineCrosshairType,
+  LineSeries,
+  LineStrokeStyle,
+  ScatterSymbolType
+} from '../core/types';
 import {
   computeLineChartModel,
   computeLineTransitionFrame,
@@ -36,8 +42,15 @@ export class MCLineChart extends MCBaseChart<LineSeries[]> {
     'curve',
     'enable-area',
     'area-opacity',
+    'area-baseline-value',
     'line-width',
+    'line-style',
     'point-size',
+    'point-border-width',
+    'symbol',
+    'stacked',
+    'connect-nulls',
+    'crosshair-type',
     'enable-point-labels',
     'enable-slices',
     'x-title',
@@ -128,12 +141,36 @@ export class MCLineChart extends MCBaseChart<LineSeries[]> {
   }
 
   protected prepareContext(ctx: ChartRenderContext<LineSeries[]>): void {
+    const rawSymbol = this.getOption('symbol', 'symbol', 'circle');
+    const symbol: ScatterSymbolType =
+      typeof rawSymbol === 'string'
+        ? (rawSymbol as ScatterSymbolType)
+        : 'circle';
     const model = computeLineChartModel(ctx, {
       curve: this.curve,
       enableArea: this.enableArea,
       areaOpacity: this.getOption('areaOpacity', 'area-opacity', 0.22) ?? 0.22,
+      areaBaselineValue: this.getOption(
+        'areaBaselineValue',
+        'area-baseline-value'
+      ),
       lineWidth: this.getOption('lineWidth', 'line-width', 2.5) ?? 2.5,
+      lineStyle:
+        (this.getOption('lineStyle', 'line-style', 'solid') as LineStrokeStyle) ??
+        'solid',
       pointSize: this.getOption('pointSize', 'point-size', 9) ?? 9,
+      pointBorderWidth:
+        this.getOption('pointBorderWidth', 'point-border-width', 2.2) ?? 2.2,
+      symbol,
+      stacked: Boolean(this.getOption('stacked', 'stacked', false)),
+      connectNulls:
+        this.getOption('connectNulls', 'connect-nulls', true) !== false,
+      crosshairType:
+        (this.getOption(
+          'crosshairType',
+          'crosshair-type',
+          'x'
+        ) as LineCrosshairType) ?? 'x',
       enablePointLabels: this.enablePointLabels,
       enableSlices:
         this.getOption('enableSlices', 'enable-slices', true) !== false,

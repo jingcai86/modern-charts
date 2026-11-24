@@ -135,6 +135,47 @@ export const LINE_CHART_ENTRY: ChartCatalogEntry = {
       defaultValue: 2.5
     },
     {
+      configPath: 'lineStyle',
+      attrName: 'line-style',
+      category: 'Chart-Specific',
+      control: 'select',
+      description: 'Stroke dash pattern for line series paths.',
+      defaultValue: 'solid',
+      options: [
+        { label: 'Solid', value: 'solid' },
+        { label: 'Dashed', value: 'dashed' },
+        { label: 'Dotted', value: 'dotted' }
+      ]
+    },
+    {
+      configPath: 'stacked',
+      attrName: 'stacked',
+      category: 'Chart-Specific',
+      control: 'boolean',
+      description: 'Stacks Y values across all line and area series.',
+      defaultValue: false
+    },
+    {
+      configPath: 'connectNulls',
+      attrName: 'connect-nulls',
+      category: 'Chart-Specific',
+      control: 'boolean',
+      description:
+        'When true, connects lines across null/missing points; when false, leaves a visual gap.',
+      defaultValue: true
+    },
+    {
+      configPath: 'areaBaselineValue',
+      attrName: 'area-baseline-value',
+      category: 'Chart-Specific',
+      control: 'number',
+      min: -200,
+      max: 500,
+      step: 10,
+      description: 'Custom Y baseline value for area fills.',
+      defaultValue: 0
+    },
+    {
       configPath: 'pointSize',
       attrName: 'point-size',
       category: 'Chart-Specific',
@@ -142,8 +183,49 @@ export const LINE_CHART_ENTRY: ChartCatalogEntry = {
       min: 0,
       max: 20,
       step: 1,
-      description: 'Diameter of each data point circle in pixels.',
+      description: 'Diameter of each data point marker in pixels.',
       defaultValue: 9
+    },
+    {
+      configPath: 'pointBorderWidth',
+      attrName: 'point-border-width',
+      category: 'Chart-Specific',
+      control: 'range',
+      min: 0,
+      max: 6,
+      step: 0.5,
+      description: 'Stroke border width of data point markers in pixels.',
+      defaultValue: 2.2
+    },
+    {
+      configPath: 'symbol',
+      attrName: 'symbol',
+      category: 'Chart-Specific',
+      control: 'select',
+      description: 'Marker shape rendered at each data point.',
+      defaultValue: 'circle',
+      options: [
+        { label: 'Circle', value: 'circle' },
+        { label: 'Diamond', value: 'diamond' },
+        { label: 'Rectangle', value: 'rect' },
+        { label: 'Rounded Rect', value: 'roundRect' },
+        { label: 'Triangle', value: 'triangle' },
+        { label: 'Cross', value: 'cross' },
+        { label: 'Star', value: 'star' }
+      ]
+    },
+    {
+      configPath: 'crosshairType',
+      attrName: 'crosshair-type',
+      category: 'Chart-Specific',
+      control: 'select',
+      description: 'Crosshair guide lines shown when hovering slices.',
+      defaultValue: 'x',
+      options: [
+        { label: 'X (Vertical Slice)', value: 'x' },
+        { label: 'Y (Horizontal Value)', value: 'y' },
+        { label: 'Cross (Both X & Y)', value: 'cross' }
+      ]
     },
     {
       configPath: 'enablePointLabels',

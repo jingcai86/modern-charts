@@ -19,7 +19,12 @@ export function renderLineAreasLayer(
   defs?: Element | null,
   forceEnable?: boolean
 ): void {
-  if (!model.enableArea && !forceEnable && !ctx.scaleConfig.y.stacked) {
+  if (
+    !model.enableArea &&
+    !forceEnable &&
+    !model.stacked &&
+    !ctx.scaleConfig.y.stacked
+  ) {
     return;
   }
   model.series.forEach((s) => {
@@ -51,7 +56,7 @@ export function renderLinePointsLayer(
 ): void {
   model.series.forEach((s) => {
     s.points.forEach((pt) => {
-      if (pt.radius <= 0) return;
+      if (pt.defined === false || pt.radius <= 0) return;
       const circle = renderLinePointItem(pt, ctx);
       ctx.layerGroup.appendChild(circle);
     });
@@ -70,6 +75,7 @@ export function renderLinePointLabelsLayer(
 
   model.series.forEach((s) => {
     s.points.forEach((pt) => {
+      if (pt.defined === false) return;
       ctx.renderLabel(ctx.layerGroup, {
         id: `point-label-${s.id}-${pt.pointIndex}`,
         text: pt.label,
@@ -110,16 +116,37 @@ export function renderLineSlicesLayer(
       ? ctx.innerWidth / firstPoints.length
       : ctx.innerWidth;
 
-  const crosshair = document.createElementNS(SVG_NS, 'line');
-  crosshair.setAttribute('class', 'mc-crosshair');
-  crosshair.setAttribute('y1', '0');
-  crosshair.setAttribute('y2', String(ctx.innerHeight));
-  crosshair.setAttribute('stroke', ctx.theme.mutedTextColor);
-  crosshair.setAttribute('stroke-width', '1');
-  crosshair.setAttribute('stroke-dasharray', '3 3');
-  crosshair.style.opacity = '0';
-  crosshair.style.pointerEvents = 'none';
-  ctx.layerGroup.appendChild(crosshair);
+  const crosshairType = model.crosshairType ?? 'x';
+  const showX = crosshairType === 'x' || crosshairType === 'cross';
+  const showY = crosshairType === 'y' || crosshairType === 'cross';
+
+  let crosshairX: SVGLineElement | null = null;
+  if (showX) {
+    crosshairX = document.createElementNS(SVG_NS, 'line');
+    crosshairX.setAttribute('class', 'mc-crosshair mc-crosshair--x');
+    crosshairX.setAttribute('y1', '0');
+    crosshairX.setAttribute('y2', String(ctx.innerHeight));
+    crosshairX.setAttribute('stroke', ctx.theme.mutedTextColor);
+    crosshairX.setAttribute('stroke-width', '1');
+    crosshairX.setAttribute('stroke-dasharray', '3 3');
+    crosshairX.style.opacity = '0';
+    crosshairX.style.pointerEvents = 'none';
+    ctx.layerGroup.appendChild(crosshairX);
+  }
+
+  let crosshairY: SVGLineElement | null = null;
+  if (showY) {
+    crosshairY = document.createElementNS(SVG_NS, 'line');
+    crosshairY.setAttribute('class', 'mc-crosshair mc-crosshair--y');
+    crosshairY.setAttribute('x1', '0');
+    crosshairY.setAttribute('x2', String(ctx.innerWidth));
+    crosshairY.setAttribute('stroke', ctx.theme.mutedTextColor);
+    crosshairY.setAttribute('stroke-width', '1');
+    crosshairY.setAttribute('stroke-dasharray', '3 3');
+    crosshairY.style.opacity = '0';
+    crosshairY.style.pointerEvents = 'none';
+    ctx.layerGroup.appendChild(crosshairY);
+  }
 
   firstPoints.forEach((pt, idx) => {
     const sliceLeft = Math.max(0, pt.px - stepW / 2);
@@ -135,14 +162,16 @@ export function renderLineSlicesLayer(
     sliceRect.style.cursor = 'crosshair';
 
     sliceRect.addEventListener('mousemove', (e) => {
-      crosshair.setAttribute('x1', String(pt.px));
-      crosshair.setAttribute('x2', String(pt.px));
-      crosshair.style.opacity = '0.75';
+      if (crosshairX) {
+        crosshairX.setAttribute('x1', String(pt.px));
+        crosshairX.setAttribute('x2', String(pt.px));
+        crosshairX.style.opacity = '0.75';
+      }
 
       const items = model.series
         .map((s) => {
           const p = s.points[idx];
-          if (!p) return null;
+          if (!p || p.defined === false) return null;
           return {
             id: s.id,
             label: s.id,
@@ -164,7 +193,13 @@ export function renderLineSlicesLayer(
       let topPy = pt.py;
       for (const s of model.series) {
         const p = s.points[idx];
-        if (p && p.py < topPy) topPy = p.py;
+        if (p && p.defined !== false && p.py < topPy) topPy = p.py;
+      }
+
+      if (crosshairY) {
+        crosshairY.setAttribute('y1', String(topPy));
+        crosshairY.setAttribute('y2', String(topPy));
+        crosshairY.style.opacity = '0.75';
       }
 
       ctx.showTooltip(
@@ -184,7 +219,8 @@ export function renderLineSlicesLayer(
     });
 
     sliceRect.addEventListener('mouseleave', () => {
-      crosshair.style.opacity = '0';
+      if (crosshairX) crosshairX.style.opacity = '0';
+      if (crosshairY) crosshairY.style.opacity = '0';
       ctx.hideTooltip();
     });
 
