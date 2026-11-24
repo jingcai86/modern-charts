@@ -3760,4 +3760,63 @@ describe('Unified Event System across all chart targets (Issue #49)', () => {
     );
     expect(captureCalls).toBe(1);
   });
+
+  it('positions Radial Gauge subtitle strictly below arc tips and value label without overlap at compact preview sizes', () => {
+    const gauge = document.createElement('mc-gauge-chart') as MCGaugeChart;
+    document.body.appendChild(gauge);
+
+    gauge.config = {
+      width: 360,
+      height: 270,
+      title: 'Layout Efficiency',
+      data: {
+        value: 94,
+        min: 0,
+        max: 100,
+        unit: '%',
+        label: 'Zero-Reflow Layout Score',
+        bands: [
+          { from: 0, to: 50, color: '#ef4444' },
+          { from: 50, to: 80, color: '#f59e0b' },
+          { from: 80, to: 100, color: '#10b981' }
+        ]
+      }
+    };
+
+    const valueLabelG = gauge.shadowRoot?.querySelector(
+      '[data-label-id="gauge-value-label"]'
+    );
+    const subtitleLabelG = gauge.shadowRoot?.querySelector(
+      '[data-label-id="gauge-subtitle-label"]'
+    );
+    const centerGroup = gauge.shadowRoot?.querySelector(
+      '[data-layer-name="center"] > g'
+    );
+
+    expect(valueLabelG).not.toBeNull();
+    expect(subtitleLabelG).not.toBeNull();
+    expect(centerGroup).not.toBeNull();
+
+    const extractTranslateY = (el: Element | null | undefined): number => {
+      const m = /translate\([^,]+,\s*([-\d.]+)\)/.exec(
+        el?.getAttribute('transform') ?? ''
+      );
+      return Number(m?.[1] ?? 0);
+    };
+
+    const valueY = extractTranslateY(valueLabelG);
+    const subtitleY = extractTranslateY(subtitleLabelG);
+    const cy = extractTranslateY(centerGroup);
+
+    // Inner height for 270px gauge with 32px top/bottom default margins is 206px
+    const innerHeight = 206;
+    // Subtitle sits strictly below the value label and fits inside innerHeight
+    expect(subtitleY).toBeGreaterThan(valueY + 24);
+    expect(cy + subtitleY).toBeLessThanOrEqual(innerHeight);
+    // Top of outer band does not clip above y=0
+    expect(cy).toBeGreaterThan(90);
+    // Subtitle clears bottom tips of the outer band (approx 0.707 * (outerRadius + 8))
+    const outerArcClearance = subtitleY - (cy - 4) * Math.SQRT1_2;
+    expect(outerArcClearance).toBeGreaterThan(8);
+  });
 });
