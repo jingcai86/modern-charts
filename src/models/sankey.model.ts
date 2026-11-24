@@ -49,7 +49,7 @@ export interface SankeyChartModel {
   maxCol: number;
   layout: 'horizontal' | 'vertical';
   align: SankeyAlign;
-  nodeBorderRadius: number;
+  borderRadius: number;
   curveness: number;
   focusMode: SankeyFocusMode;
   enableLabels: boolean;
@@ -62,7 +62,7 @@ export interface SankeyModelInput {
   enableLabels: boolean;
   layout?: 'horizontal' | 'vertical';
   align?: SankeyAlign;
-  nodeBorderRadius?: number;
+  borderRadius?: number;
   curveness?: number;
   focusMode?: SankeyFocusMode;
 }
@@ -70,7 +70,7 @@ export interface SankeyModelInput {
 /**
  * Pure Model Layer for `<mc-sankey-chart>`.
  * Computes DAG topological column/row ranks with configurable alignment
- * (`'justify' | 'center' | 'start' | 'end' | 'left' | 'right'`),
+ * (`'justify' | 'center' | 'start' | 'end'`),
  * horizontal or vertical node rectangles, and variable-curveness cubic Bezier flow links.
  */
 export function computeSankeyChartModel(
@@ -84,9 +84,9 @@ export function computeSankeyChartModel(
     input.layout === 'vertical' ? 'vertical' : 'horizontal';
   const isVertical = layout === 'vertical';
   const align: SankeyAlign = input.align ?? 'justify';
-  const nodeBorderRadius = Math.max(
+  const borderRadius = Math.max(
     0,
-    Number.isFinite(input.nodeBorderRadius) ? Number(input.nodeBorderRadius) : 4
+    Number.isFinite(input.borderRadius) ? Number(input.borderRadius) : 4
   );
   const curveness = Math.max(
     0,
@@ -115,7 +115,7 @@ export function computeSankeyChartModel(
       y1: 0,
       outOffset: 0,
       inOffset: 0,
-      borderRadius: nodeBorderRadius,
+      borderRadius,
       isVertical
     });
   });
@@ -139,7 +139,7 @@ export function computeSankeyChartModel(
         y1: 0,
         outOffset: 0,
         inOffset: 0,
-        borderRadius: nodeBorderRadius,
+        borderRadius,
         isVertical
       });
     }
@@ -158,7 +158,7 @@ export function computeSankeyChartModel(
         y1: 0,
         outOffset: 0,
         inOffset: 0,
-        borderRadius: nodeBorderRadius,
+        borderRadius,
         isVertical
       });
     }
@@ -215,15 +215,15 @@ export function computeSankeyChartModel(
     if (!changed) break;
   }
 
-  // 3. Apply stage alignment ('justify' | 'start'/'left' | 'end'/'right' | 'center')
+  // 3. Apply stage alignment ('justify' | 'start' | 'end' | 'center')
   nodeMap.forEach((n) => {
     const fwd = forwardCols.get(n.id) ?? 0;
     const rev = reverseDist.get(n.id) ?? 0;
     const latest = Math.max(fwd, maxCol - rev);
 
-    if (align === 'start' || align === 'left') {
+    if (align === 'start') {
       n.column = fwd;
-    } else if (align === 'end' || align === 'right') {
+    } else if (align === 'end') {
       n.column = latest;
     } else if (align === 'center') {
       n.column = Math.round((fwd + latest) / 2);
@@ -422,7 +422,7 @@ export function computeSankeyChartModel(
     maxCol,
     layout,
     align,
-    nodeBorderRadius,
+    borderRadius,
     curveness,
     focusMode,
     enableLabels: input.enableLabels

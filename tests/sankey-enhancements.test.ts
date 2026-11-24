@@ -95,7 +95,7 @@ describe('Sankey Vertical Layout, Alignment, Curveness & Focus Modes (Issue #71)
     });
   });
 
-  it('supports justify, start/left, end/right, and center stage alignments', () => {
+  it('supports justify, start, end, and center stage alignments', () => {
     const sankey = document.createElement('mc-sankey-chart') as MCSankeyChart;
     document.body.appendChild(sankey);
 
@@ -113,12 +113,12 @@ describe('Sankey Vertical Layout, Alignment, Curveness & Focus Modes (Issue #71)
     expect(getCol('EarlySink')).toBe(3);
     expect(getCol('ParallelE')).toBe(1);
 
-    // 2. start / left: EarlySink stays at earliest topological depth (1)
+    // 2. start: EarlySink stays at earliest topological depth (1)
     sankey.config = { ...sankey.config, align: 'start' };
     expect(getCol('EarlySink')).toBe(1);
     expect(getCol('ParallelE')).toBe(1);
 
-    // 3. end / right: EarlySink (latest=3) and ParallelE (feeds D at 3 -> latest=2) pulled right
+    // 3. end: EarlySink (latest=3) and ParallelE (feeds D at 3 -> latest=2) pulled right
     sankey.config = { ...sankey.config, align: 'end' };
     expect(getCol('EarlySink')).toBe(3);
     expect(getCol('ParallelE')).toBe(2);
@@ -128,15 +128,15 @@ describe('Sankey Vertical Layout, Alignment, Curveness & Focus Modes (Issue #71)
     expect(getCol('EarlySink')).toBe(2);
   });
 
-  it('applies nodeBorderRadius, nodeGap alias, and curveness to nodes and Bezier links', () => {
+  it('applies borderRadius, nodePadding, and curveness to nodes and Bezier links', () => {
     const sankey = document.createElement('mc-sankey-chart') as MCSankeyChart;
     document.body.appendChild(sankey);
 
     sankey.config = {
       width: 560,
       height: 340,
-      nodeBorderRadius: 11,
-      nodeGap: 24,
+      borderRadius: 11,
+      nodePadding: 24,
       curveness: 0,
       data: BRANCHING_DAG
     };
@@ -185,11 +185,11 @@ describe('Sankey Vertical Layout, Alignment, Curveness & Focus Modes (Issue #71)
     nodeB.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
     expect(getNodeState('D')).toBeNull();
 
-    // 2. trajectory mode (via emphasis.focus): hovering Stage B highlights entire A -> B -> C -> D chain while dimming ParallelE & EarlySink
+    // 2. trajectory mode: hovering Stage B highlights entire A -> B -> C -> D chain while dimming ParallelE & EarlySink
     sankey.config = {
       width: 560,
       height: 340,
-      emphasis: { focus: 'trajectory' },
+      focusMode: 'trajectory',
       data: BRANCHING_DAG
     };
 

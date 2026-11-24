@@ -28,7 +28,7 @@ export const SANKEY_CHART_ENTRY: ChartCatalogEntry = {
     align: 'justify',
     nodeWidth: 18,
     nodePadding: 16,
-    nodeBorderRadius: 4,
+    borderRadius: 4,
     curveness: 0.5,
     focusMode: 'adjacency',
     linkOpacity: 0.42,
@@ -65,8 +65,8 @@ export const SANKEY_CHART_ENTRY: ChartCatalogEntry = {
       options: [
         { label: 'Justify (push sinks to end)', value: 'justify' },
         { label: 'Center', value: 'center' },
-        { label: 'Start / Left', value: 'start' },
-        { label: 'End / Right', value: 'end' }
+        { label: 'Start', value: 'start' },
+        { label: 'End', value: 'end' }
       ]
     },
     {
@@ -88,12 +88,12 @@ export const SANKEY_CHART_ENTRY: ChartCatalogEntry = {
       min: 6,
       max: 36,
       step: 2,
-      description: 'Spacing (nodePadding / nodeGap) between sibling nodes in the same stage.',
+      description: 'Spacing between sibling nodes in the same stage.',
       defaultValue: 16
     },
     {
-      configPath: 'nodeBorderRadius',
-      attrName: 'node-border-radius',
+      configPath: 'borderRadius',
+      attrName: 'border-radius',
       category: 'Chart-Specific',
       control: 'range',
       min: 0,

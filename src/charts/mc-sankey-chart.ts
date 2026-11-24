@@ -28,8 +28,6 @@ export class MCSankeyChart extends MCBaseChart<SankeyData> {
     'align',
     'node-width',
     'node-padding',
-    'node-gap',
-    'node-border-radius',
     'border-radius',
     'curveness',
     'focus-mode',
@@ -76,27 +74,19 @@ export class MCSankeyChart extends MCBaseChart<SankeyData> {
   }
 
   protected prepareContext(ctx: ChartRenderContext<SankeyData>): void {
-    const nodePadding =
-      this.getOption('nodePadding', 'node-padding') ??
-      this.getOption('nodeGap', 'node-gap', 16) ??
-      16;
-    const nodeBorderRadius =
-      this.getOption('nodeBorderRadius', 'node-border-radius') ??
-      this.getOption('borderRadius', 'border-radius', 4) ??
-      4;
-    const focusMode =
-      (this.getOption('focusMode', 'focus-mode') as SankeyFocusMode | undefined) ??
-      this._config.emphasis?.focus ??
-      'adjacency';
-
     const model = computeSankeyChartModel(ctx, {
       layout: this.layout,
       align: this.align,
       nodeWidth: this.getOption('nodeWidth', 'node-width', 18) ?? 18,
-      nodePadding,
-      nodeBorderRadius,
+      nodePadding: this.getOption('nodePadding', 'node-padding', 16) ?? 16,
+      borderRadius: this.getOption('borderRadius', 'border-radius', 4) ?? 4,
       curveness: this.getOption('curveness', 'curveness', 0.5) ?? 0.5,
-      focusMode,
+      focusMode:
+        (this.getOption(
+          'focusMode',
+          'focus-mode',
+          'adjacency'
+        ) as SankeyFocusMode) ?? 'adjacency',
       linkOpacity: this.getOption('linkOpacity', 'link-opacity', 0.42) ?? 0.42,
       enableLabels:
         this.getOption('enableLabels', 'enable-labels', true) !== false
