@@ -210,7 +210,9 @@ export interface AriaConfig {
 
 // Marker & Threshold System (Nivo markers + ECharts markLine / markArea + visualMap thresholds)
 
-export type MarkerType = 'line' | 'area';
+export type MarkerType = 'line' | 'area' | 'point';
+
+export type MarkerStatPreset = 'min' | 'max' | 'average' | 'mean' | 'median';
 
 export type MarkerCondition =
   | 'below'
@@ -306,12 +308,22 @@ export interface MarkerConfig {
   id?: string;
   type?: MarkerType;
   axis?: 'x' | 'y';
-  /** Target value for a marker line (`type: 'line'`), or threshold value */
-  value?: number | string;
+  /** Target value for a marker line (`type: 'line'`), statistical preset (`'min' | 'max' | 'average' | 'median'`), or threshold value */
+  value?: number | string | MarkerStatPreset;
   /** Lower bound for a marker area (`type: 'area'`) or range threshold */
-  from?: number | string;
+  from?: number | string | MarkerStatPreset;
   /** Upper bound for a marker area (`type: 'area'`) or range threshold */
-  to?: number | string;
+  to?: number | string | MarkerStatPreset;
+  /** X coordinate or statistical preset for a point marker (`type: 'point'`, ECharts `markPoint`) */
+  x?: number | string | MarkerStatPreset;
+  /** Y coordinate or statistical preset for a point marker (`type: 'point'`, ECharts `markPoint`) */
+  y?: number | string | MarkerStatPreset;
+  /** Point marker symbol shape (`type: 'point'`, default `'pin'`) */
+  symbol?: ScatterSymbolType;
+  /** Point marker diameter in px (`type: 'point'`, default `14`) */
+  size?: number;
+  /** Stroke line pattern shorthand (`'solid' | 'dashed' | 'dotted'`) */
+  lineStyle?: LineStrokeStyle;
   label?: string;
   /**
    * Inside marker label placement relative to the marker line/area:
@@ -406,6 +418,10 @@ export interface ResolvedMarker extends MarkerConfig {
   pixelFrom?: number;
   /** End pixel position for area markers */
   pixelTo?: number;
+  /** X pixel coordinate for point markers (`type: 'point'`) */
+  pixelX?: number;
+  /** Y pixel coordinate for point markers (`type: 'point'`) */
+  pixelY?: number;
   /** All chart items that matched this marker's threshold condition */
   matchedItems: ThresholdMatchedItem[];
 }

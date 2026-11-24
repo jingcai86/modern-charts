@@ -1,3 +1,4 @@
+import { buildScatterSymbolPath } from '../presentation/items/scatter.item';
 import { getScalePosition } from './scale-manager';
 import { createChartI18n, physicalTextAnchor } from './i18n';
 import type {
@@ -7,6 +8,7 @@ import type {
   LabelPadding,
   LabelStyleOverride,
   LegendItem,
+  LineStrokeStyle,
   MarkerAnnotationConfig,
   MarkerAnnotationPosition,
   MarkerCondition,
@@ -19,6 +21,109 @@ import type {
   ThresholdMatchedItem,
   TooltipConfig
 } from './types';
+
+function resolveMarkerDasharray(
+  lineStyle?: LineStrokeStyle,
+  strokeDasharray?: string,
+  defaultDash = '6 4'
+): string | undefined {
+  if (strokeDasharray !== undefined) return strokeDasharray;
+  if (lineStyle === 'solid') return undefined;
+  if (lineStyle === 'dotted') return '2 4';
+  if (lineStyle === 'dashed') return '6 4';
+  return defaultDash;
+}
+
+interface ExtractedDataStats {
+  xNums: number[];
+  yNums: number[];
+  points: { x: any; y: number }[];
+}
+
+function extractChartDataStats(data: any): ExtractedDataStats {
+  const xNums: number[] = [];
+  const yNums: number[] = [];
+  const points: { x: any; y: number }[] = [];
+
+  if (!data) return { xNums, yNums, points };
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      if (!item || typeof item !== 'object') continue;
+      if (Array.isArray(item.data)) {
+        for (const pt of item.data) {
+          if (!pt || typeof pt !== 'object') continue;
+          const xNum = Number(pt.x);
+          const yNum = Number(pt.y);
+          if (Number.isFinite(xNum)) xNums.push(xNum);
+          if (Number.isFinite(yNum)) {
+            yNums.push(yNum);
+            points.push({ x: pt.x ?? item.id, y: yNum });
+          }
+        }
+      } else if ('value' in item && Number.isFinite(Number(item.value))) {
+        const v = Number(item.value);
+        yNums.push(v);
+        points.push({ x: item.id ?? item.label ?? 0, y: v });
+      } else {
+        let catVal: any;
+        for (const [k, v] of Object.entries(item)) {
+          if (typeof v === 'string' && catVal === undefined) {
+            catVal = v;
+          } else if (typeof v === 'number' && Number.isFinite(v)) {
+            yNums.push(v);
+            points.push({ x: catVal ?? k, y: v });
+          }
+        }
+      }
+    }
+  } else if (typeof data === 'object' && 'value' in data) {
+    const v = Number((data as any).value);
+    if (Number.isFinite(v)) yNums.push(v);
+  }
+
+  return { xNums, yNums, points };
+}
+
+function resolveStatPresetValue(
+  raw: number | string | undefined,
+  nums: number[],
+  scale?: any
+): number | string | undefined {
+  if (typeof raw !== 'string') return raw;
+  const key = raw.trim().toLowerCase();
+  if (
+    key !== 'min' &&
+    key !== 'max' &&
+    key !== 'average' &&
+    key !== 'mean' &&
+    key !== 'median'
+  ) {
+    return raw;
+  }
+
+  let pool = nums;
+  if (pool.length === 0 && scale && typeof scale.domain === 'function') {
+    const dom = scale
+      .domain()
+      .map((d: any) => Number(d))
+      .filter((n: number) => Number.isFinite(n));
+    if (dom.length > 0) pool = dom;
+  }
+  if (pool.length === 0) return 0;
+
+  if (key === 'min') return Math.min(...pool);
+  if (key === 'max') return Math.max(...pool);
+  if (key === 'average' || key === 'mean') {
+    const sum = pool.reduce((a, b) => a + b, 0);
+    return Number((sum / pool.length).toFixed(2));
+  }
+  const sorted = [...pool].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? sorted[mid]
+    : Number(((sorted[mid - 1] + sorted[mid]) / 2).toFixed(2));
+}
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -181,26 +286,82 @@ export class MarkerEngine {
     xScale: any,
     yScale: any,
     innerWidth: number,
-    innerHeight: number
+    innerHeight: number,
+    data?: any
   ): ResolvedMarker[] {
+    const stats = extractChartDataStats(data);
     return rawMarkers.map((m, idx) => {
       const axis = m.axis ?? 'y';
       const scale = axis === 'x' ? xScale : yScale;
+      const axisNums =
+        axis === 'x' && stats.xNums.length > 0 ? stats.xNums : stats.yNums;
+      const hasPointCoords = m.x !== undefined || m.y !== undefined;
       const type =
         m.type ??
-        (m.from !== undefined && m.to !== undefined ? 'area' : 'line');
+        (hasPointCoords
+          ? 'point'
+          : m.from !== undefined && m.to !== undefined
+          ? 'area'
+          : 'line');
       const id = m.id || `marker-${type}-${idx}`;
+
+      const resolvedValue = resolveStatPresetValue(m.value, axisNums, scale);
+      const resolvedFrom = resolveStatPresetValue(m.from, axisNums, scale);
+      const resolvedTo = resolveStatPresetValue(m.to, axisNums, scale);
 
       let pixelPos: number | undefined;
       let pixelFrom: number | undefined;
       let pixelTo: number | undefined;
+      let pixelX: number | undefined;
+      let pixelY: number | undefined;
+      let resolvedX = m.x;
+      let resolvedY = m.y;
 
-      if (type === 'line') {
-        const targetVal = m.value ?? m.to ?? m.from ?? 0;
+      if (type === 'point') {
+        const presetCandidate = String(m.y ?? m.value ?? '').toLowerCase();
+        if (
+          m.x === undefined &&
+          stats.points.length > 0 &&
+          (presetCandidate === 'max' || presetCandidate === 'min')
+        ) {
+          const targetPt = stats.points.reduce((best, cur) =>
+            presetCandidate === 'max'
+              ? cur.y > best.y
+                ? cur
+                : best
+              : cur.y < best.y
+              ? cur
+              : best
+          );
+          resolvedX = targetPt.x;
+          resolvedY = targetPt.y;
+        } else {
+          resolvedX = resolveStatPresetValue(
+            m.x ?? (axis === 'x' ? m.value : undefined),
+            stats.xNums,
+            xScale
+          );
+          resolvedY = resolveStatPresetValue(
+            m.y ?? (axis === 'y' ? m.value : undefined),
+            stats.yNums,
+            yScale
+          );
+        }
+        pixelX =
+          xScale && resolvedX !== undefined
+            ? getScalePosition(xScale, resolvedX)
+            : innerWidth / 2;
+        pixelY =
+          yScale && resolvedY !== undefined
+            ? getScalePosition(yScale, resolvedY)
+            : innerHeight / 2;
+        pixelPos = axis === 'x' ? pixelX : pixelY;
+      } else if (type === 'line') {
+        const targetVal = resolvedValue ?? resolvedTo ?? resolvedFrom ?? 0;
         pixelPos = scale ? getScalePosition(scale, targetVal) : 0;
       } else {
-        const fromVal = m.from ?? 0;
-        const toVal = m.to ?? m.value ?? 0;
+        const fromVal = resolvedFrom ?? 0;
+        const toVal = resolvedTo ?? resolvedValue ?? 0;
         pixelFrom = scale
           ? getScalePosition(scale, fromVal)
           : axis === 'y'
@@ -215,12 +376,22 @@ export class MarkerEngine {
 
       return {
         ...m,
+        value:
+          type === 'point'
+            ? resolvedY ?? resolvedValue
+            : resolvedValue ?? m.value,
+        from: resolvedFrom ?? m.from,
+        to: resolvedTo ?? m.to,
+        x: resolvedX,
+        y: resolvedY,
         id,
         type,
         axis,
         pixelPos,
         pixelFrom,
         pixelTo,
+        pixelX,
+        pixelY,
         matchedItems: []
       };
     });
@@ -965,6 +1136,62 @@ export class MarkerEngine {
         }
 
         this.renderMarkerAnnotation(marker, ctx, itemG, { minP, maxP });
+      } else if (marker.type === 'point') {
+        const px = marker.pixelX ?? ctx.innerWidth / 2;
+        const py = marker.pixelY ?? ctx.innerHeight / 2;
+        const r = Math.max(4, (marker.size ?? 14) / 2);
+        const symbol = marker.symbol ?? 'pin';
+        const fill = marker.fill || marker.stroke || '#ef4444';
+        const stroke = marker.stroke || '#ffffff';
+
+        const pathEl = document.createElementNS(SVG_NS, 'path');
+        pathEl.setAttribute('class', 'mc-marker-point');
+        pathEl.setAttribute('d', buildScatterSymbolPath(symbol, px, py, r));
+        pathEl.setAttribute('fill', fill);
+        if (marker.fillOpacity !== undefined) {
+          pathEl.setAttribute('fill-opacity', String(marker.fillOpacity));
+        }
+        pathEl.setAttribute('stroke', stroke);
+        pathEl.setAttribute('stroke-width', String(marker.strokeWidth ?? 1.5));
+        itemG.appendChild(pathEl);
+
+        if (marker.label) {
+          const ls = marker.labelStyle;
+          const ptLabelDesc: LabelDescriptor = {
+            id: `marker-label-${marker.id}`,
+            text: marker.label,
+            x: px + (marker.labelOffsetX ?? 0),
+            y: py - r - (marker.labelPadding ?? 6) + (marker.labelOffsetY ?? 0),
+            type: 'marker',
+            anchor: 'middle',
+            baseline: 'alphabetic',
+            fontSize: ls?.fontSize ?? Math.max(10, ctx.theme.fontSize - 1),
+            fontWeight: ls?.fontWeight ?? 600,
+            fontFamily: ls?.fontFamily,
+            color:
+              ls?.color ?? (ctx.theme.mode === 'dark' ? '#fecdd3' : fill),
+            ...(ls?.background ? { background: ls.background } : {}),
+            ...(ls?.borderColor ? { borderColor: ls.borderColor } : {}),
+            ...(ls?.borderRadius !== undefined
+              ? { borderRadius: ls.borderRadius }
+              : {}),
+            ...(ls?.padding ? { padding: ls.padding } : {}),
+            icon: ls?.icon ?? marker.icon,
+            datum: marker
+          };
+          if (typeof ls?.formatter === 'function') {
+            ptLabelDesc.text = ls.formatter(ptLabelDesc.text, ptLabelDesc);
+          }
+          const ptLabel = ctx.renderLabel(itemG, ptLabelDesc);
+          if (ptLabel) {
+            ptLabel.setAttribute('pointer-events', 'none');
+            ptLabel.style.pointerEvents = 'none';
+          }
+        }
+
+        this.renderMarkerAnnotation(marker, ctx, itemG, {
+          posPx: marker.axis === 'x' ? px : py
+        });
       } else {
         const posPx = marker.pixelPos ?? 0;
         const line = document.createElementNS(SVG_NS, 'line');
@@ -987,10 +1214,14 @@ export class MarkerEngine {
         const stroke = marker.stroke || '#ef4444';
         line.setAttribute('stroke', stroke);
         line.setAttribute('stroke-width', String(marker.strokeWidth ?? 2));
-        line.setAttribute(
-          'stroke-dasharray',
-          marker.strokeDasharray ?? '6 4'
+        const dash = resolveMarkerDasharray(
+          marker.lineStyle,
+          marker.strokeDasharray,
+          '6 4'
         );
+        if (dash) {
+          line.setAttribute('stroke-dasharray', dash);
+        }
         itemG.appendChild(line);
 
         if (marker.label) {
