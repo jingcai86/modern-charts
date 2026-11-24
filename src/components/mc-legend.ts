@@ -3,6 +3,7 @@ import type {
   LegendItem,
   LegendPadding,
   LegendPosition,
+  LegendType,
   TooltipConfig
 } from '../core/types';
 import type { MCTooltipElement } from './mc-tooltip';
@@ -11,13 +12,20 @@ import type { MCTooltipElement } from './mc-tooltip';
  * `<mc-legend>` Declarative Legend Configuration Web Component.
  *
  * Place inside any `<mc-*-chart>` to declaratively configure legend placement
- * (`top`, `bottom`, `left`, `right`), 4-side padding, wrapping, and dedicated
+ * (`top`, `bottom`, `left`, `right`), mode (`categorical`, `continuous`, `piecewise`),
+ * visualMap domain/calculable handles, 4-side padding, wrapping, and dedicated
  * legend tooltips (via `enable-tooltip` or a nested `<mc-tooltip>` child).
  */
 export class MCLegendElement extends HTMLElement {
   static observedAttributes = [
     'enabled',
+    'type',
     'position',
+    'min',
+    'max',
+    'color-scheme',
+    'steps',
+    'calculable',
     'wrap',
     'padding',
     'padding-top',
@@ -98,7 +106,13 @@ export class MCLegendElement extends HTMLElement {
 
   public toLegendConfig(): LegendConfig {
     const enabledAttr = this.getAttribute('enabled');
+    const typeAttr = this.getAttribute('type') as LegendType | null;
     const posAttr = this.getAttribute('position') as LegendPosition | null;
+    const minAttr = this.getAttribute('min');
+    const maxAttr = this.getAttribute('max');
+    const schemeAttr = this.getAttribute('color-scheme');
+    const stepsAttr = this.getAttribute('steps');
+    const calculableAttr = this.getAttribute('calculable');
     const wrapAttr = this.getAttribute('wrap');
     const enableTooltipAttr = this.getAttribute('enable-tooltip');
     const itemGapAttr = this.getAttribute('item-gap');
@@ -124,11 +138,29 @@ export class MCLegendElement extends HTMLElement {
 
     return {
       ...(enabledAttr !== null ? { enabled: enabledAttr !== 'false' } : {}),
+      ...(typeAttr === 'categorical' ||
+      typeAttr === 'continuous' ||
+      typeAttr === 'piecewise'
+        ? { type: typeAttr }
+        : {}),
       ...(posAttr === 'top' ||
       posAttr === 'bottom' ||
       posAttr === 'left' ||
       posAttr === 'right'
         ? { position: posAttr }
+        : {}),
+      ...(minAttr !== null && !Number.isNaN(Number(minAttr))
+        ? { min: Number(minAttr) }
+        : {}),
+      ...(maxAttr !== null && !Number.isNaN(Number(maxAttr))
+        ? { max: Number(maxAttr) }
+        : {}),
+      ...(schemeAttr ? { colorScheme: schemeAttr } : {}),
+      ...(stepsAttr !== null && !Number.isNaN(Number(stepsAttr))
+        ? { steps: Math.max(2, Number(stepsAttr)) }
+        : {}),
+      ...(calculableAttr !== null
+        ? { calculable: calculableAttr !== 'false' }
         : {}),
       ...(wrapAttr !== null ? { wrap: wrapAttr !== 'false' } : {}),
       ...(padding ? { padding } : {}),

@@ -473,7 +473,7 @@
       "className": "MCGaugeChart",
       "itemTags": ["mc-arc-item"],
       "useCases": ["single KPI progress", "SLO attainment", "utilization speedometer dial"],
-      "defaultLayers": ["track", "bands", "valueArc", "ticks", "needle", "center"],
+      "defaultLayers": ["track", "bands", "valueArc", "ticks", "needle", "center", "legends"],
       "supportsMarkers": false,
       "supportsCartesianScales": false,
       "supportsViewZoom": false,

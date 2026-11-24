@@ -1,4 +1,9 @@
-import type { ChartRenderContext, GaugeDataInput } from '../../core/types';
+import { renderLegendLayer } from '../../core/scale-manager';
+import type {
+  ChartRenderContext,
+  GaugeDataInput,
+  LegendItem
+} from '../../core/types';
 import type { GaugeChartModel } from '../../models/gauge.model';
 import {
   renderGaugeNeedleItem,
@@ -75,7 +80,6 @@ export function renderGaugeTicksLayer(
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
-  // Minor radial graduation tick lines
   (model.minorTicks ?? []).forEach((mt) => {
     const line = document.createElementNS(SVG_NS, 'line');
     line.setAttribute('class', 'mc-gauge-minor-tick-line');
@@ -88,7 +92,6 @@ export function renderGaugeTicksLayer(
     g.appendChild(line);
   });
 
-  // Major radial graduation tick lines + labels
   model.ticks.forEach((tick) => {
     if (
       Number.isFinite(tick.x1) &&
@@ -168,7 +171,12 @@ export function renderGaugeCenterLayer(
 
   const valueText =
     model.series && model.series.length > 1
-      ? model.series.map((s) => `${ctx.i18n.formatNumber(s.value, { useGrouping: false })}${s.unit}`).join(' / ')
+      ? model.series
+          .map(
+            (s) =>
+              `${ctx.i18n.formatNumber(s.value, { useGrouping: false })}${s.unit}`
+          )
+          .join(' / ')
       : `${ctx.i18n.formatNumber(model.value, { useGrouping: false })}${model.unit}`;
 
   ctx.renderLabel(g, {
@@ -203,4 +211,35 @@ export function renderGaugeCenterLayer(
   }
 
   ctx.layerGroup.appendChild(g);
+}
+
+export function renderGaugeLegendsLayer(
+  model: GaugeChartModel,
+  ctx: ChartRenderContext<GaugeDataInput>
+): void {
+  const hasExplicitLegend =
+    ctx.config.legend !== undefined ||
+    (ctx.svg.getRootNode() instanceof ShadowRoot &&
+      (ctx.svg.getRootNode() as ShadowRoot).host?.querySelector(
+        ':scope > mc-legend'
+      ) !== null);
+  const seriesItems: LegendItem[] =
+    model.series && model.series.length > 1
+      ? model.series.map((s, idx) => ({
+          id: s.label || `gauge-series-${idx}`,
+          label: s.label || `Series ${idx + 1}`,
+          color: s.color,
+          value: `${s.value}${s.unit}`
+        }))
+      : hasExplicitLegend
+      ? [
+          {
+            id: 'gauge-value',
+            label: model.label || 'Value',
+            color: model.series?.[0]?.color || ctx.theme.colors[0] || '#6366f1',
+            value: `${model.value}${model.unit}`
+          }
+        ]
+      : [];
+  renderLegendLayer(ctx, seriesItems, 'bottom');
 }

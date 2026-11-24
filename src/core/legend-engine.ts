@@ -1,4 +1,6 @@
+import { createSequentialColorScale } from './color-schemes';
 import { buildMarkerLegendItems } from './marker-engine';
+import { allocateUniqueSvgId } from './threshold-clip';
 import { createChartI18n } from './i18n';
 import type {
   ChartRenderContext,
@@ -86,7 +88,13 @@ export function createDefaultLegendConfig(
 
   return {
     enabled: input?.enabled !== false,
+    type: input?.type,
     position: input?.position ?? fallbackPosition,
+    min: input?.min,
+    max: input?.max,
+    colorScheme: input?.colorScheme,
+    steps: input?.steps,
+    calculable: input?.calculable,
     padding: resolveLegendPadding(input?.padding),
     wrap: input?.wrap !== false,
     enableTooltip,
@@ -359,19 +367,214 @@ export function renderUnifiedLegendLayer(
   items: LegendItem[],
   fallbackPosition: LegendPosition = 'bottom'
 ): void {
-  const markerLegendItems = buildMarkerLegendItems(ctx.markers ?? []);
-  const existingIds = new Set((items ?? []).map((it) => it.id));
-  const combinedItems: LegendItem[] = [
-    ...(items ?? []),
-    ...markerLegendItems.filter((mItem) => !existingIds.has(mItem.id))
-  ];
-  if (combinedItems.length === 0) return;
-
   const cfg: ResolvedLegendConfig =
     ctx.legendConfig ??
     createDefaultLegendConfig(ctx.config.legend, fallbackPosition);
 
   if (!cfg.enabled) return;
+
+  const model = ctx.state?.model as
+    | {
+        minVal?: number;
+        maxVal?: number;
+        seqScale?: (val: number) => string;
+      }
+    | undefined;
+  const effectiveType =
+    cfg.type ??
+    (ctx.chartType === 'heatmap' && (!items || items.length === 0)
+      ? 'continuous'
+      : 'categorical');
+
+  if (effectiveType === 'continuous') {
+    const minVal =
+      cfg.min !== undefined && Number.isFinite(cfg.min)
+        ? cfg.min
+        : model?.minVal ?? 0;
+    const maxVal =
+      cfg.max !== undefined && Number.isFinite(cfg.max)
+        ? cfg.max
+        : model?.maxVal ?? 100;
+    const scheme =
+      cfg.colorScheme ||
+      ctx.config.colorScheme ||
+      ctx.scaleConfig?.color?.scheme ||
+      'viridis';
+    const seqScale =
+      cfg.colorScheme || cfg.min !== undefined || cfg.max !== undefined || !model?.seqScale
+        ? createSequentialColorScale(scheme, [minVal, maxVal]).clamp(true)
+        : model.seqScale;
+
+    const defs = ctx.svg.querySelector('.mc-chart-defs');
+    const gradId = allocateUniqueSvgId('mc-legend-continuous-grad');
+    const isVertical = cfg.position === 'left' || cfg.position === 'right';
+    if (defs) {
+      const grad = document.createElementNS(SVG_NS, 'linearGradient');
+      grad.setAttribute('id', gradId);
+      grad.setAttribute('x1', '0%');
+      grad.setAttribute('y1', isVertical ? '100%' : '0%');
+      grad.setAttribute('x2', isVertical ? '0%' : '100%');
+      grad.setAttribute('y2', '0%');
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10;
+        const stop = document.createElementNS(SVG_NS, 'stop');
+        stop.setAttribute('offset', `${t * 100}%`);
+        stop.setAttribute(
+          'stop-color',
+          seqScale(minVal + t * (maxVal - minVal))
+        );
+        grad.appendChild(stop);
+      }
+      defs.appendChild(grad);
+    }
+
+    const barLen = isVertical
+      ? Math.min(130, Math.max(60, ctx.innerHeight * 0.45))
+      : Math.min(140, Math.max(70, ctx.innerWidth * 0.36));
+    const barThick = 10;
+
+    let originX = 0;
+    let originY = 0;
+    if (cfg.position === 'top') {
+      originX = ctx.innerWidth - barLen - 28;
+      originY = -22;
+    } else if (cfg.position === 'bottom') {
+      const hasBottomAxis = Boolean(ctx.xScale);
+      const hasXTitle = hasBottomAxis && Boolean(ctx.config.xTitle);
+      originX = (ctx.innerWidth - barLen) / 2;
+      originY = ctx.innerHeight + (hasBottomAxis ? (hasXTitle ? 46 : 28) : 12);
+    } else if (cfg.position === 'right') {
+      originX = ctx.innerWidth + 16;
+      originY = (ctx.innerHeight - barLen) / 2;
+    } else {
+      originX = -Math.max(36, ctx.margin.left - 18);
+      originY = (ctx.innerHeight - barLen) / 2;
+    }
+
+    const legendG = document.createElementNS(SVG_NS, 'g');
+    legendG.setAttribute(
+      'class',
+      `mc-legend mc-legend--continuous mc-legend--${cfg.position}`
+    );
+    legendG.setAttribute('data-legend-type', 'continuous');
+    legendG.setAttribute('data-legend-position', cfg.position);
+    legendG.setAttribute('data-min', String(minVal));
+    legendG.setAttribute('data-max', String(maxVal));
+    legendG.setAttribute(
+      'transform',
+      `translate(${Math.round(originX)}, ${Math.round(originY)})`
+    );
+
+    const barRect = document.createElementNS(SVG_NS, 'rect');
+    barRect.setAttribute('class', 'mc-legend-gradient-bar');
+    barRect.setAttribute('x', '0');
+    barRect.setAttribute('y', '0');
+    barRect.setAttribute('width', String(isVertical ? barThick : barLen));
+    barRect.setAttribute('height', String(isVertical ? barLen : barThick));
+    barRect.setAttribute('rx', '4');
+    barRect.setAttribute('fill', defs ? `url(#${gradId})` : seqScale(maxVal));
+    legendG.appendChild(barRect);
+
+    if (cfg.calculable) {
+      legendG.setAttribute('data-calculable', 'true');
+      const minHandle = document.createElementNS(SVG_NS, 'circle');
+      minHandle.setAttribute(
+        'class',
+        'mc-legend-handle mc-legend-handle--min'
+      );
+      minHandle.setAttribute('data-handle', 'min');
+      minHandle.setAttribute('cx', isVertical ? String(barThick / 2) : '0');
+      minHandle.setAttribute('cy', isVertical ? String(barLen) : String(barThick / 2));
+      minHandle.setAttribute('r', '6');
+      minHandle.setAttribute('fill', seqScale(minVal));
+      minHandle.setAttribute('stroke', '#ffffff');
+      minHandle.setAttribute('stroke-width', '2');
+
+      const maxHandle = document.createElementNS(SVG_NS, 'circle');
+      maxHandle.setAttribute(
+        'class',
+        'mc-legend-handle mc-legend-handle--max'
+      );
+      maxHandle.setAttribute('data-handle', 'max');
+      maxHandle.setAttribute('cx', isVertical ? String(barThick / 2) : String(barLen));
+      maxHandle.setAttribute('cy', isVertical ? '0' : String(barThick / 2));
+      maxHandle.setAttribute('r', '6');
+      maxHandle.setAttribute('fill', seqScale(maxVal));
+      maxHandle.setAttribute('stroke', '#ffffff');
+      maxHandle.setAttribute('stroke-width', '2');
+
+      legendG.append(minHandle, maxHandle);
+    }
+
+    ctx.renderLabel(legendG, {
+      id: 'legend-continuous-min',
+      text: String(minVal),
+      x: isVertical ? barThick / 2 : -6,
+      y: isVertical ? barLen + 12 : barThick / 2,
+      type: 'legend',
+      anchor: isVertical ? 'middle' : 'end',
+      baseline: 'middle',
+      fontSize: cfg.fontSize ?? 10,
+      color: ctx.theme.mutedTextColor
+    });
+
+    ctx.renderLabel(legendG, {
+      id: 'legend-continuous-max',
+      text: String(maxVal),
+      x: isVertical ? barThick / 2 : barLen + 6,
+      y: isVertical ? -10 : barThick / 2,
+      type: 'legend',
+      anchor: isVertical ? 'middle' : 'start',
+      baseline: 'middle',
+      fontSize: cfg.fontSize ?? 10,
+      color: ctx.theme.mutedTextColor
+    });
+
+    ctx.layerGroup.appendChild(legendG);
+    return;
+  }
+
+  let baseItems: LegendItem[] = items ?? [];
+  if (effectiveType === 'piecewise' && baseItems.length === 0) {
+    const minVal =
+      cfg.min !== undefined && Number.isFinite(cfg.min)
+        ? cfg.min
+        : model?.minVal ?? 0;
+    const maxVal =
+      cfg.max !== undefined && Number.isFinite(cfg.max)
+        ? cfg.max
+        : model?.maxVal ?? 100;
+    const steps = Math.max(2, cfg.steps ?? 5);
+    const scheme =
+      cfg.colorScheme ||
+      ctx.config.colorScheme ||
+      ctx.scaleConfig?.color?.scheme ||
+      'viridis';
+    const seqScale =
+      cfg.colorScheme || cfg.min !== undefined || cfg.max !== undefined || !model?.seqScale
+        ? createSequentialColorScale(scheme, [minVal, maxVal]).clamp(true)
+        : model.seqScale;
+    const stepSpan = (maxVal - minVal) / steps;
+    baseItems = Array.from({ length: steps }, (_, i) => {
+      const lo = Number((minVal + i * stepSpan).toFixed(1));
+      const hi = Number((minVal + (i + 1) * stepSpan).toFixed(1));
+      const mid = (lo + hi) / 2;
+      return {
+        id: `piece-${i}`,
+        label: `${lo} – ${hi}`,
+        color: seqScale(mid),
+        value: `${lo} – ${hi}`
+      };
+    });
+  }
+
+  const markerLegendItems = buildMarkerLegendItems(ctx.markers ?? []);
+  const existingIds = new Set(baseItems.map((it) => it.id));
+  const combinedItems: LegendItem[] = [
+    ...baseItems,
+    ...markerLegendItems.filter((mItem) => !existingIds.has(mItem.id))
+  ];
+  if (combinedItems.length === 0) return;
 
   const i18n = ctx.i18n ?? createChartI18n();
   const isVertical = cfg.position === 'left' || cfg.position === 'right';
@@ -425,6 +628,7 @@ export function renderUnifiedLegendLayer(
     legendG.setAttribute('role', 'list');
     legendG.setAttribute('aria-label', i18n.messages.legend);
   }
+  legendG.setAttribute('data-legend-type', effectiveType);
   legendG.setAttribute('data-legend-position', cfg.position);
   legendG.setAttribute('data-legend-wrap', String(cfg.wrap));
   legendG.setAttribute('data-legend-rows', String(layout.rowCount));
