@@ -1,17 +1,53 @@
 import { arc } from 'd3';
 import { scaleLinear } from '../core/scales';
-import type { ChartRenderContext, GaugeBand, GaugeDatum } from '../core/types';
+import type {
+  ChartRenderContext,
+  GaugeBand,
+  GaugeDataInput,
+  GaugeDatum,
+  GaugePointerType
+} from '../core/types';
 
 export interface ComputedGaugeBandModel {
   band: GaugeBand;
   pathD: string;
 }
 
-export interface ComputedGaugeTickModel {
+export interface ComputedGaugeTickLineModel {
   index: number;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+export interface ComputedGaugeTickModel extends ComputedGaugeTickLineModel {
   value: number;
   x: number;
   y: number;
+}
+
+export interface ComputedGaugeSeriesModel {
+  index: number;
+  totalCount: number;
+  datum: GaugeDatum;
+  value: number;
+  min: number;
+  max: number;
+  unit: string;
+  label?: string;
+  color: string;
+  ringInnerRadius: number;
+  ringOuterRadius: number;
+  trackPathD: string;
+  valueArcPathD: string;
+  angleRad: number;
+  needleX2: number;
+  needleY2: number;
+  trianglePoints: string;
+  pinCx: number;
+  pinCy: number;
+  pinRadius: number;
 }
 
 export interface GaugeChartModel {
@@ -19,6 +55,15 @@ export interface GaugeChartModel {
   cy: number;
   outerRadius: number;
   innerRadius: number;
+  cornerRadius: number;
+  startAngleDeg: number;
+  endAngleDeg: number;
+  splitNumber: number;
+  minorSplitNumber: number;
+  pointerType: GaugePointerType;
+  pointerLength: number;
+  pointerWidth: number;
+  enableLabels: boolean;
   bandOuterRadius: number;
   arcBottomY: number;
   valueY: number;
@@ -32,55 +77,144 @@ export interface GaugeChartModel {
   valueArcPathD: string;
   bands: ComputedGaugeBandModel[];
   ticks: ComputedGaugeTickModel[];
+  minorTicks: ComputedGaugeTickLineModel[];
   needleX2: number;
   needleY2: number;
   datum: GaugeDatum;
+  series: ComputedGaugeSeriesModel[];
 }
 
 export interface GaugeModelInput {
   min?: number;
   max?: number;
   unit?: string;
+  centerLabel?: string;
+  enableLabels?: boolean;
+  startAngle?: number;
+  endAngle?: number;
+  innerRadius?: number;
+  cornerRadius?: number;
+  splitNumber?: number;
+  minorSplitNumber?: number;
+  pointerType?: GaugePointerType;
+  pointerLength?: number;
+  pointerWidth?: number;
 }
 
 /**
  * Pure Model Layer for `<mc-gauge-chart>`.
+ * Supports custom start/end sweep angles (`startAngle`, `endAngle`), `innerRadius`,
+ * `cornerRadius`, major & minor graduation ticks (`splitNumber`, `minorSplitNumber`),
+ * pointer styles (`pointerType: 'needle' | 'triangle' | 'pin' | 'none'`, `pointerLength`, `pointerWidth`),
+ * and single or multi-series `GaugeDatum | GaugeDatum[]` concentric rings.
  */
 export function computeGaugeChartModel(
-  ctx: ChartRenderContext<GaugeDatum>,
+  ctx: ChartRenderContext<GaugeDataInput>,
   input: GaugeModelInput
 ): GaugeChartModel {
-  const datum: GaugeDatum = ctx.data ?? { value: 0, min: 0, max: 100 };
-  const min = input.min ?? datum.min ?? 0;
-  const max = input.max ?? datum.max ?? 100;
-  const unit = input.unit ?? datum.unit ?? '';
-  const value = Math.min(max, Math.max(min, Number(datum.value ?? 0)));
+  const rawData = ctx.data;
+  const items: GaugeDatum[] = Array.isArray(rawData)
+    ? rawData.length > 0
+      ? rawData
+      : [{ value: 0, min: 0, max: 100 }]
+    : [rawData ?? { value: 0, min: 0, max: 100 }];
 
-  const startAngle = -Math.PI * 0.75;
-  const endAngle = Math.PI * 0.75;
+  const primaryDatum: GaugeDatum = items[0];
+  const min = Number(input.min ?? primaryDatum.min ?? 0);
+  const max = Number(input.max ?? primaryDatum.max ?? 100);
+  const safeMax = max > min ? max : min + 100;
+  const unit = input.unit ?? primaryDatum.unit ?? '';
+  const primaryLabel =
+    input.centerLabel !== undefined ? input.centerLabel : primaryDatum.label;
+  const enableLabels = input.enableLabels !== false;
+
+  const startAngleDeg = Number.isFinite(input.startAngle)
+    ? Number(input.startAngle)
+    : -135;
+  const endAngleDeg = Number.isFinite(input.endAngle)
+    ? Number(input.endAngle)
+    : 135;
+  const startAngle = (startAngleDeg * Math.PI) / 180;
+  const endAngle = (endAngleDeg * Math.PI) / 180;
+
   const angleScale = scaleLinear()
-    .domain([min, max])
+    .domain([min, safeMax])
     .range([startAngle, endAngle])
     .clamp(true);
 
   const cx = ctx.innerWidth / 2;
-  const hasBands = (datum.bands?.length ?? 0) > 0;
+  const hasBands = (primaryDatum.bands?.length ?? 0) > 0;
   const bandPad = hasBands ? 8 : 0;
-  const hasLabel = Boolean(datum.label && String(datum.label).trim().length > 0);
+  const hasLabel =
+    enableLabels && Boolean(primaryLabel && String(primaryLabel).trim().length > 0);
   const subtitleFontSize = Math.max(10, ctx.theme.fontSize);
   const subtitleGap = hasLabel ? 12 : 0;
   const subtitleReserve = hasLabel ? subtitleGap + subtitleFontSize * 1.35 : 0;
 
+  // Compute vertical extent ratio of the configured angular sweep
+  const minSweepA = Math.min(startAngle, endAngle);
+  const maxSweepA = Math.max(startAngle, endAngle);
+  let maxBottomRatio = Math.max(
+    0.25,
+    Math.sin(startAngle - Math.PI / 2),
+    Math.sin(endAngle - Math.PI / 2)
+  );
+  // If sweep crosses 6 o'clock (π radians in 12-o'clock-based D3 arc coordinates)
+  for (let k = -2; k <= 2; k++) {
+    const bottomAngle = Math.PI + k * 2 * Math.PI;
+    if (bottomAngle >= minSweepA && bottomAngle <= maxSweepA) {
+      maxBottomRatio = 1;
+      break;
+    }
+  }
+
   const maxOuterByWidth = ctx.innerWidth / 2 - bandPad - 6;
   const maxOuterByHeight =
-    (ctx.innerHeight - subtitleReserve - 8) / (1 + Math.SQRT1_2) - bandPad;
+    (ctx.innerHeight - subtitleReserve - 8) / (1 + maxBottomRatio) - bandPad;
   const outerRadius = Math.max(
     40,
     Math.min(maxOuterByWidth, maxOuterByHeight)
   );
-  const innerRadius = outerRadius * 0.76;
+
+  let innerRadius = outerRadius * 0.76;
+  if (input.innerRadius !== undefined && Number.isFinite(input.innerRadius)) {
+    const ir = Number(input.innerRadius);
+    if (ir > 0 && ir < 1) {
+      innerRadius = outerRadius * Math.max(0.2, Math.min(0.95, ir));
+    } else if (ir >= 1) {
+      innerRadius = Math.max(12, Math.min(outerRadius - 6, ir));
+    }
+  }
+
+  const cornerRadius = Math.max(
+    0,
+    Number.isFinite(input.cornerRadius) ? Number(input.cornerRadius) : 8
+  );
+  const splitNumber = Math.max(
+    0,
+    Math.round(Number.isFinite(input.splitNumber) ? Number(input.splitNumber) : 5)
+  );
+  const minorSplitNumber = Math.max(
+    0,
+    Math.round(
+      Number.isFinite(input.minorSplitNumber) ? Number(input.minorSplitNumber) : 4
+    )
+  );
+  const pointerType: GaugePointerType = input.pointerType ?? 'needle';
+  const pointerLength = Math.max(
+    0.1,
+    Math.min(
+      1.2,
+      Number.isFinite(input.pointerLength) ? Number(input.pointerLength) : 0.88
+    )
+  );
+  const pointerWidth = Math.max(
+    1,
+    Number.isFinite(input.pointerWidth) ? Number(input.pointerWidth) : 2.5
+  );
+
   const bandOuterRadius = outerRadius + bandPad;
-  const arcBottomY = bandOuterRadius * Math.SQRT1_2;
+  const arcBottomY = bandOuterRadius * maxBottomRatio;
 
   const totalHeight = bandOuterRadius + arcBottomY + subtitleReserve;
   const topOffset = Math.max(4, (ctx.innerHeight - totalHeight) / 2);
@@ -96,69 +230,195 @@ export function computeGaugeChartModel(
     valueY + valueFontSize * 0.75 + subtitleFontSize * 0.65
   );
 
-  const trackArcGen = arc()
-    .innerRadius(innerRadius)
-    .outerRadius(outerRadius)
-    .startAngle(startAngle)
-    .endAngle(endAngle)
-    .cornerRadius(8);
+  // Build series rings & pointers (supports 1 or multiple concentric GaugeDatum items)
+  const ringCount = items.length;
+  const totalRingThickness = Math.max(8, outerRadius - innerRadius);
+  const ringGap = ringCount > 1 ? Math.min(3, totalRingThickness * 0.12) : 0;
+  const singleRingThickness =
+    (totalRingThickness - ringGap * (ringCount - 1)) / ringCount;
 
-  const valueArcGen = arc()
-    .innerRadius(innerRadius)
-    .outerRadius(outerRadius)
-    .startAngle(startAngle)
-    .endAngle(angleScale(value))
-    .cornerRadius(8);
+  const series: ComputedGaugeSeriesModel[] = items.map((d, idx) => {
+    const itemMin = Number(d.min ?? min);
+    const itemMax = Number(d.max ?? safeMax);
+    const itemSafeMax = itemMax > itemMin ? itemMax : itemMin + 100;
+    const itemUnit = d.unit ?? unit;
+    const itemVal = Math.min(
+      itemSafeMax,
+      Math.max(itemMin, Number(d.value ?? 0))
+    );
+    const itemColor =
+      d.color || ctx.theme.colors[idx % ctx.theme.colors.length] || '#6366f1';
 
-  const bands: ComputedGaugeBandModel[] = (datum.bands ?? []).map((band) => {
-    const bandArcGen = arc()
-      .innerRadius(outerRadius + 3)
-      .outerRadius(outerRadius + 8)
-      .startAngle(angleScale(band.from))
-      .endAngle(angleScale(band.to))
-      .cornerRadius(3);
+    const ringOuterRadius =
+      outerRadius - idx * (singleRingThickness + ringGap);
+    const ringInnerRadius = Math.max(8, ringOuterRadius - singleRingThickness);
+
+    const itemScale =
+      itemMin === min && itemSafeMax === safeMax
+        ? angleScale
+        : scaleLinear()
+            .domain([itemMin, itemSafeMax])
+            .range([startAngle, endAngle])
+            .clamp(true);
+
+    const itemTrackGen = arc()
+      .innerRadius(ringInnerRadius)
+      .outerRadius(ringOuterRadius)
+      .startAngle(startAngle)
+      .endAngle(endAngle)
+      .cornerRadius(cornerRadius);
+
+    const itemValueGen = arc()
+      .innerRadius(ringInnerRadius)
+      .outerRadius(ringOuterRadius)
+      .startAngle(startAngle)
+      .endAngle(itemScale(itemVal))
+      .cornerRadius(cornerRadius);
+
+    const angleRad = itemScale(itemVal) - Math.PI / 2;
+    const needleLen = innerRadius * pointerLength;
+    const needleX2 = Math.cos(angleRad) * needleLen;
+    const needleY2 = Math.sin(angleRad) * needleLen;
+
+    // Tapered triangle pointer vertices
+    const halfW = pointerWidth;
+    const perpX = -Math.sin(angleRad) * halfW;
+    const perpY = Math.cos(angleRad) * halfW;
+    const tailLen = Math.min(12, halfW * 2.4);
+    const tailX = -Math.cos(angleRad) * tailLen;
+    const tailY = -Math.sin(angleRad) * tailLen;
+    const trianglePoints = [
+      `${needleX2.toFixed(2)},${needleY2.toFixed(2)}`,
+      `${perpX.toFixed(2)},${perpY.toFixed(2)}`,
+      `${tailX.toFixed(2)},${tailY.toFixed(2)}`,
+      `${(-perpX).toFixed(2)},${(-perpY).toFixed(2)}`
+    ].join(' ');
+
+    // Rim pin coordinates centered on the series ring
+    const midR = (ringInnerRadius + ringOuterRadius) / 2;
+    const pinCx = Math.cos(angleRad) * midR;
+    const pinCy = Math.sin(angleRad) * midR;
+    const pinRadius = Math.max(4, singleRingThickness * 0.52);
+
     return {
-      band,
-      pathD: bandArcGen({} as any) || ''
+      index: idx,
+      totalCount: ringCount,
+      datum: d,
+      value: itemVal,
+      min: itemMin,
+      max: itemSafeMax,
+      unit: itemUnit,
+      label: idx === 0 ? primaryLabel : d.label,
+      color: itemColor,
+      ringInnerRadius,
+      ringOuterRadius,
+      trackPathD: itemTrackGen({} as any) || '',
+      valueArcPathD: itemValueGen({} as any) || '',
+      angleRad,
+      needleX2,
+      needleY2,
+      trianglePoints,
+      pinCx,
+      pinCy,
+      pinRadius
     };
   });
 
-  const labelR = innerRadius - 16;
-  const ticks: ComputedGaugeTickModel[] = angleScale
-    .ticks(5)
-    .map((tick: number, index: number) => {
-      const a = angleScale(tick) - Math.PI / 2;
-      return {
-        index,
-        value: tick,
-        x: Math.cos(a) * labelR,
-        y: Math.sin(a) * labelR
-      };
-    });
+  const primarySeries = series[0];
 
-  const angleRad = angleScale(value) - Math.PI / 2;
-  const needleLen = innerRadius - 6;
+  const bands: ComputedGaugeBandModel[] = (primaryDatum.bands ?? []).map(
+    (band) => {
+      const bandArcGen = arc()
+        .innerRadius(outerRadius + 3)
+        .outerRadius(outerRadius + 8)
+        .startAngle(angleScale(band.from))
+        .endAngle(angleScale(band.to))
+        .cornerRadius(3);
+      return {
+        band,
+        pathD: bandArcGen({} as any) || ''
+      };
+    }
+  );
+
+  const innermostRadius = series[series.length - 1].ringInnerRadius;
+  const tickOuterR = innermostRadius - 2;
+  const majorTickInnerR = innermostRadius - 9;
+  const minorTickInnerR = innermostRadius - 5.5;
+  const labelR = innermostRadius - 20;
+
+  const ticks: ComputedGaugeTickModel[] = [];
+  const minorTicks: ComputedGaugeTickLineModel[] = [];
+
+  if (splitNumber > 0) {
+    for (let i = 0; i <= splitNumber; i++) {
+      const rawTickVal = min + (i / splitNumber) * (safeMax - min);
+      const tickVal = Number(rawTickVal.toFixed(2));
+      const a = angleScale(tickVal) - Math.PI / 2;
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      ticks.push({
+        index: i,
+        value: tickVal,
+        x: cos * labelR,
+        y: sin * labelR,
+        x1: cos * tickOuterR,
+        y1: sin * tickOuterR,
+        x2: cos * majorTickInnerR,
+        y2: sin * majorTickInnerR
+      });
+
+      if (i < splitNumber && minorSplitNumber > 1) {
+        const nextTickVal = min + ((i + 1) / splitNumber) * (safeMax - min);
+        for (let m = 1; m < minorSplitNumber; m++) {
+          const minorVal =
+            rawTickVal + (m / minorSplitNumber) * (nextTickVal - rawTickVal);
+          const ma = angleScale(minorVal) - Math.PI / 2;
+          const mCos = Math.cos(ma);
+          const mSin = Math.sin(ma);
+          minorTicks.push({
+            index: minorTicks.length,
+            x1: mCos * tickOuterR,
+            y1: mSin * tickOuterR,
+            x2: mCos * minorTickInnerR,
+            y2: mSin * minorTickInnerR
+          });
+        }
+      }
+    }
+  }
 
   return {
     cx,
     cy,
     outerRadius,
     innerRadius,
+    cornerRadius,
+    startAngleDeg,
+    endAngleDeg,
+    splitNumber,
+    minorSplitNumber,
+    pointerType,
+    pointerLength,
+    pointerWidth,
+    enableLabels,
     bandOuterRadius,
     arcBottomY,
     valueY,
     subtitleY,
     min,
-    max,
-    value,
+    max: safeMax,
+    value: primarySeries.value,
     unit,
-    label: datum.label,
-    trackPathD: trackArcGen({} as any) || '',
-    valueArcPathD: valueArcGen({} as any) || '',
+    label: primaryLabel,
+    trackPathD: primarySeries.trackPathD,
+    valueArcPathD: primarySeries.valueArcPathD,
     bands,
     ticks,
-    needleX2: Math.cos(angleRad) * needleLen,
-    needleY2: Math.sin(angleRad) * needleLen,
-    datum
+    minorTicks,
+    needleX2: primarySeries.needleX2,
+    needleY2: primarySeries.needleY2,
+    datum: primaryDatum,
+    series
   };
 }

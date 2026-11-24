@@ -123,7 +123,7 @@
   {
     "name": "Standalone Gauge chart (modern-charts/gauge) [brotli]",
     "path": "dist/gauge.js",
-    "limit": "80 kB"
+    "limit": "85 kB"
   },
   {
     "name": "Standalone Gauge chart (modern-charts/gauge) [gzip]",

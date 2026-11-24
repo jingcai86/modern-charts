@@ -1426,6 +1426,13 @@ export interface ChartConfig<TData = any> {
   min?: number;
   max?: number;
   unit?: string;
+  startAngle?: number;
+  endAngle?: number;
+  splitNumber?: number;
+  minorSplitNumber?: number;
+  pointerType?: GaugePointerType;
+  pointerLength?: number;
+  pointerWidth?: number;
 }
 
 export interface ChartRenderContext<TData = unknown> {
@@ -1618,6 +1625,8 @@ export interface ScatterSeries {
   data: ScatterPoint[];
 }
 
+export type GaugePointerType = 'needle' | 'triangle' | 'pin' | 'none';
+
 export interface GaugeBand {
   from: number;
   to: number;
@@ -1631,6 +1640,9 @@ export interface GaugeDatum {
   max?: number;
   label?: string;
   unit?: string;
+  color?: string;
   target?: number;
   bands?: GaugeBand[];
 }
+
+export type GaugeDataInput = GaugeDatum | GaugeDatum[];
