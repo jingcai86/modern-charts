@@ -1,0 +1,59 @@
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { registerModernCharts } from '../src/index';
+import { CHART_CATALOG } from '../apps/studio/catalog';
+import { renderChartDetailPage } from '../apps/studio/pages/chart-detail';
+
+describe('Chart Detail Page Layout — Event Inspector beside HTML Markup', () => {
+  beforeAll(() => {
+    registerModernCharts();
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('places Live Unified Event Inspector to the right of Web Component HTML Markup in .detail-bottom-grid and streams live events', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+
+    const heatmapEntry = CHART_CATALOG.find((c) => c.id === 'heatmap')!;
+    const chartEl = renderChartDetailPage(root, heatmapEntry);
+
+    const topGrid = root.querySelector('.detail-studio-grid');
+    const bottomGrid = root.querySelector('.detail-bottom-grid');
+    expect(topGrid).not.toBeNull();
+    expect(bottomGrid).not.toBeNull();
+
+    // Event inspector is no longer inside the top chart card
+    expect(topGrid!.querySelector('#detail-aria-readout')).toBeNull();
+
+    // Bottom grid has Web Component HTML Markup on the left, Live Unified Event Inspector on the right
+    expect(bottomGrid!.children.length).toBe(2);
+    expect(bottomGrid!.children[0].querySelector('#detail-html-preview')).not.toBeNull();
+    expect(bottomGrid!.children[1].classList.contains('event-inspector-card')).toBe(true);
+    expect(bottomGrid!.children[1].querySelector('#detail-aria-readout')).not.toBeNull();
+
+    // Clicking a heatmap cell populates both Latest Event and Recent Event Stream
+    const cell = chartEl.shadowRoot?.querySelector(
+      '[data-event-target="heatmapCell"]'
+    ) as Element | null;
+    expect(cell).not.toBeNull();
+    cell!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, clientX: 80, clientY: 80 })
+    );
+
+    const readout = bottomGrid!.querySelector('#detail-aria-readout')!;
+    expect(readout.textContent).toContain('click → target="heatmapCell"');
+
+    const rows = bottomGrid!.querySelectorAll('.event-inspector-row');
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+
+    // Clear button resets the log and readout
+    const clearBtn = bottomGrid!.querySelector(
+      '#btn-detail-clear-events'
+    ) as HTMLButtonElement;
+    clearBtn.click();
+    expect(bottomGrid!.querySelectorAll('.event-inspector-row').length).toBe(0);
+    expect(bottomGrid!.querySelector('.event-inspector-empty')).not.toBeNull();
+  });
+});
