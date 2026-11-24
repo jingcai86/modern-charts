@@ -1408,6 +1408,14 @@ export interface ChartConfig<TData = any> {
   interactiveDrilldown?: boolean;
   nodeWidth?: number;
   nodePadding?: number;
+  nodeGap?: number;
+  nodeBorderRadius?: number;
+  align?: SankeyAlign;
+  curveness?: number;
+  focusMode?: SankeyFocusMode;
+  emphasis?: {
+    focus?: SankeyFocusMode;
+  };
   linkOpacity?: number;
   minNodeSize?: number;
   maxNodeSize?: number;
@@ -1556,6 +1564,16 @@ export interface HierarchyNode {
   color?: string;
   children?: HierarchyNode[];
 }
+
+export type SankeyAlign =
+  | 'justify'
+  | 'center'
+  | 'start'
+  | 'end'
+  | 'left'
+  | 'right';
+
+export type SankeyFocusMode = 'none' | 'adjacency' | 'trajectory';
 
 export interface SankeyNode {
   id: string;
