@@ -297,11 +297,66 @@ export function computeSankeyChartModel(
   }));
   const finalNodeMap = new Map(nodes.map((n) => [n.id, n]));
 
+  // Pre-sort outgoing links by target breadth and incoming links by source breadth
+  // (D3 sankey ascendingTargetBreadth / ascendingSourceBreadth) to minimize link crossovers.
+  const outLinksByNode = new Map<string, number[]>();
+  const inLinksByNode = new Map<string, number[]>();
+  rawLinks.forEach((l, idx) => {
+    const outList = outLinksByNode.get(l.source) ?? [];
+    outList.push(idx);
+    outLinksByNode.set(l.source, outList);
+
+    const inList = inLinksByNode.get(l.target) ?? [];
+    inList.push(idx);
+    inLinksByNode.set(l.target, inList);
+  });
+
+  const linkWidths = rawLinks.map((l) =>
+    Math.max(2, Math.max(0, Number(l.value ?? 0)) * kScale)
+  );
+  const linkOutOffsets = new Array<number>(rawLinks.length).fill(0);
+  const linkInOffsets = new Array<number>(rawLinks.length).fill(0);
+
+  const breadthCoord = (n: ComputedSankeyNodeModel): number =>
+    isVertical ? (n.x0 + n.x1) / 2 : (n.y0 + n.y1) / 2;
+
+  outLinksByNode.forEach((indices, nodeId) => {
+    const node = finalNodeMap.get(nodeId)!;
+    indices.sort((a, b) => {
+      const ta = finalNodeMap.get(rawLinks[a].target)!;
+      const tb = finalNodeMap.get(rawLinks[b].target)!;
+      return breadthCoord(ta) - breadthCoord(tb) || a - b;
+    });
+    let offset = 0;
+    for (const idx of indices) {
+      linkOutOffsets[idx] = offset;
+      offset += linkWidths[idx];
+    }
+    node.outOffset = offset;
+  });
+
+  inLinksByNode.forEach((indices, nodeId) => {
+    const node = finalNodeMap.get(nodeId)!;
+    indices.sort((a, b) => {
+      const sa = finalNodeMap.get(rawLinks[a].source)!;
+      const sb = finalNodeMap.get(rawLinks[b].source)!;
+      return breadthCoord(sa) - breadthCoord(sb) || a - b;
+    });
+    let offset = 0;
+    for (const idx of indices) {
+      linkInOffsets[idx] = offset;
+      offset += linkWidths[idx];
+    }
+    node.inOffset = offset;
+  });
+
   const links: ComputedSankeyLinkModel[] = rawLinks.map((l, index) => {
     const source = finalNodeMap.get(l.source)!;
     const target = finalNodeMap.get(l.target)!;
     const val = Math.max(0, Number(l.value ?? 0));
-    const w = Math.max(2, val * kScale);
+    const w = linkWidths[index];
+    const outOff = linkOutOffsets[index];
+    const inOff = linkInOffsets[index];
 
     let sx = 0;
     let sy = 0;
@@ -310,27 +365,35 @@ export function computeSankeyChartModel(
     let pathD = '';
 
     if (isVertical) {
-      sx = source.x0 + source.outOffset + w / 2;
-      source.outOffset += w;
-      tx = target.x0 + target.inOffset + w / 2;
-      target.inOffset += w;
+      const sx0 = source.x0 + outOff;
+      const sx1 = sx0 + w;
+      sx = sx0 + w / 2;
+
+      const tx0 = target.x0 + inOff;
+      const tx1 = tx0 + w;
+      tx = tx0 + w / 2;
+
       sy = source.y1;
       ty = target.y0;
       const dy = ty - sy;
       const cy0 = sy + dy * curveness;
       const cy1 = ty - dy * curveness;
-      pathD = `M${sx},${sy} C${sx},${cy0} ${tx},${cy1} ${tx},${ty}`;
+      pathD = `M${sx0},${sy} C${sx0},${cy0} ${tx0},${cy1} ${tx0},${ty} L${tx1},${ty} C${tx1},${cy1} ${sx1},${cy0} ${sx1},${sy} Z`;
     } else {
-      sy = source.y0 + source.outOffset + w / 2;
-      source.outOffset += w;
-      ty = target.y0 + target.inOffset + w / 2;
-      target.inOffset += w;
+      const sy0 = source.y0 + outOff;
+      const sy1 = sy0 + w;
+      sy = sy0 + w / 2;
+
+      const ty0 = target.y0 + inOff;
+      const ty1 = ty0 + w;
+      ty = ty0 + w / 2;
+
       sx = source.x1;
       tx = target.x0;
       const dx = tx - sx;
       const cx0 = sx + dx * curveness;
       const cx1 = tx - dx * curveness;
-      pathD = `M${sx},${sy} C${cx0},${sy} ${cx1},${ty} ${tx},${ty}`;
+      pathD = `M${sx},${sy0} C${cx0},${sy0} ${cx1},${ty0} ${tx},${ty0} L${tx},${ty1} C${cx1},${ty1} ${cx0},${sy1} ${sx},${sy1} Z`;
     }
 
     return {

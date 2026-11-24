@@ -183,9 +183,9 @@ export const SAMPLE_SANKEY_DATA: SankeyData = {
     { source: 'DOM Stream', target: 'Pretext', value: 250 },
     { source: 'DOM Stream', target: 'D3 Engine', value: 210 },
     { source: 'Pretext', target: 'SVG Output', value: 140 },
-    { source: 'Pretext', target: 'FO Output', value: 210 },
+    { source: 'Pretext', target: 'FO Output', value: 110 },
     { source: 'D3 Engine', target: 'SVG Output', value: 290 },
-    { source: 'D3 Engine', target: 'FO Output', value: 100 }
+    { source: 'D3 Engine', target: 'FO Output', value: 200 }
   ]
 };
 

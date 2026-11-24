@@ -74,6 +74,25 @@ describe('Sankey Vertical Layout, Alignment, Curveness & Focus Modes (Issue #71)
 
     const vLabelText = sankey.shadowRoot!.querySelector('.mc-layer--labels .mc-label text')!;
     expect(vLabelText.getAttribute('text-anchor')).toBe('middle');
+
+    // Every Y coordinate of every vertical link ribbon is strictly bounded between source.y1 and target.y0
+    sankey.shadowRoot!.querySelectorAll<SVGPathElement>('.mc-sankey-link').forEach((linkEl) => {
+      const srcId = linkEl.getAttribute('data-source')!;
+      const dstId = linkEl.getAttribute('data-target')!;
+      const srcRect = sankey.shadowRoot!.querySelector<SVGRectElement>(`.mc-sankey-node[data-node-id="${srcId}"]`)!;
+      const dstRect = sankey.shadowRoot!.querySelector<SVGRectElement>(`.mc-sankey-node[data-node-id="${dstId}"]`)!;
+      const srcBottom = Number(srcRect.getAttribute('y')) + Number(srcRect.getAttribute('height'));
+      const dstTop = Number(dstRect.getAttribute('y'));
+
+      const coords = Array.from(
+        linkEl.getAttribute('d')!.matchAll(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)
+      ).map((m) => Number(m[2]));
+      expect(coords.length).toBeGreaterThan(0);
+      for (const y of coords) {
+        expect(y).toBeGreaterThanOrEqual(srcBottom - 0.01);
+        expect(y).toBeLessThanOrEqual(dstTop + 0.01);
+      }
+    });
   });
 
   it('supports justify, start/left, end/right, and center stage alignments', () => {
@@ -125,11 +144,11 @@ describe('Sankey Vertical Layout, Alignment, Curveness & Focus Modes (Issue #71)
     const nodeEl = sankey.shadowRoot!.querySelector<SVGRectElement>('.mc-sankey-node')!;
     expect(nodeEl.getAttribute('rx')).toBe('11');
 
-    // When curveness = 0, control point 1 equals start point (M sx,sy C sx,sy tx,ty tx,ty)
+    // When curveness = 0, ribbon control point 1 equals start point
     const straightD = sankey.shadowRoot!
       .querySelector<SVGPathElement>('.mc-sankey-link')!
       .getAttribute('d')!;
-    const m = /^M([^,]+),([^\s]+)\s+C([^,]+),([^\s]+)\s+([^,]+),([^\s]+)\s+([^,]+),([^\s]+)$/.exec(
+    const m = /^M([^,]+),([^\s]+)\s+C([^,]+),([^\s]+)\s+([^,]+),([^\s]+)\s+([^,]+),([^\s]+)\s+L/.exec(
       straightD
     );
     expect(m).not.toBeNull();

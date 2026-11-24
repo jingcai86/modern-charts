@@ -39,11 +39,10 @@ export function renderSankeyLabelsLayer(
     let maxWidth = 145;
 
     if (isVertical) {
-      const isTopHalf = node.y0 < ctx.innerHeight / 2;
       lx = (node.x0 + node.x1) / 2;
-      ly = isTopHalf ? node.y1 + 14 : node.y0 - 14;
+      ly = (node.y0 + node.y1) / 2;
       anchor = 'middle';
-      maxWidth = Math.max(76, Math.min(160, node.x1 - node.x0 + 28));
+      maxWidth = Math.max(76, Math.min(180, node.x1 - node.x0 + 28));
     } else {
       const isLeftHalf = node.x0 < ctx.innerWidth / 2;
       lx = isLeftHalf ? node.x1 + 8 : node.x0 - 8;

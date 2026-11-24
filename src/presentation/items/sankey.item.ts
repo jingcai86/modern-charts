@@ -38,15 +38,14 @@ function applySankeyFocusHighlight(
       linkEl.getAttribute('data-base-opacity') ?? model.links[0]?.opacity ?? 0.42
     );
     const isActive = activeLinkIds.has(linkId);
-    linkEl.setAttribute('data-focus-state', isActive ? 'active' : 'dimmed');
-    linkEl.setAttribute(
-      'stroke-opacity',
-      String(
-        isActive
-          ? Math.min(0.92, baseOpacity + 0.35)
-          : Math.max(0.06, baseOpacity * 0.18)
-      )
+    const nextOpacity = String(
+      isActive
+        ? Math.min(0.92, baseOpacity + 0.35)
+        : Math.max(0.06, baseOpacity * 0.18)
     );
+    linkEl.setAttribute('data-focus-state', isActive ? 'active' : 'dimmed');
+    linkEl.setAttribute('fill-opacity', nextOpacity);
+    linkEl.setAttribute('stroke-opacity', nextOpacity);
   });
 }
 
@@ -59,6 +58,7 @@ function clearSankeyFocusHighlight(ctx: ChartRenderContext<any>): void {
   root.querySelectorAll<SVGPathElement>('.mc-sankey-link').forEach((linkEl) => {
     const baseOpacity = linkEl.getAttribute('data-base-opacity') ?? '0.42';
     linkEl.removeAttribute('data-focus-state');
+    linkEl.setAttribute('fill-opacity', baseOpacity);
     linkEl.setAttribute('stroke-opacity', baseOpacity);
   });
 }
@@ -125,22 +125,21 @@ export function renderSankeyLinkItem(
   path.setAttribute('data-source', link.source.id);
   path.setAttribute('data-target', link.target.id);
   path.setAttribute('data-base-opacity', String(link.opacity));
+  const linkPaint = hasCustomLinkStroke
+    ? customLinkStroke
+    : defs
+      ? `url(#${link.gradientId})`
+      : link.source.color;
   path.setAttribute('d', link.pathD);
-  path.setAttribute('fill', 'none');
-  path.setAttribute(
-    'stroke',
-    hasCustomLinkStroke
-      ? customLinkStroke
-      : defs
-        ? `url(#${link.gradientId})`
-        : link.source.color
-  );
-  path.setAttribute('stroke-width', String(link.width));
+  path.setAttribute('fill', linkPaint);
+  path.setAttribute('fill-opacity', String(link.opacity));
+  path.setAttribute('stroke', linkPaint);
+  path.setAttribute('stroke-width', '0');
   path.setAttribute('stroke-opacity', String(link.opacity));
   const interactive = ctx.isInteractive !== false;
   if (interactive) {
     path.style.cursor = 'pointer';
-    path.style.transition = 'stroke-opacity 150ms ease';
+    path.style.transition = 'fill-opacity 150ms ease, stroke-opacity 150ms ease';
   }
 
   const midX = (link.sx + link.tx) / 2;
@@ -184,10 +183,9 @@ export function renderSankeyLinkItem(
 
   if (interactive) {
     path.addEventListener('mouseenter', (e) => {
-      path.setAttribute(
-        'stroke-opacity',
-        String(Math.min(0.92, link.opacity + 0.35))
-      );
+      const hoverOpacity = String(Math.min(0.92, link.opacity + 0.35));
+      path.setAttribute('fill-opacity', hoverOpacity);
+      path.setAttribute('stroke-opacity', hoverOpacity);
       applySankeyFocusHighlight(ctx, { kind: 'link', id: link.id });
       ctx.showTooltip(
         {
@@ -211,6 +209,7 @@ export function renderSankeyLinkItem(
     });
     path.addEventListener('mouseleave', () => {
       clearSankeyFocusHighlight(ctx);
+      path.setAttribute('fill-opacity', String(link.opacity));
       path.setAttribute('stroke-opacity', String(link.opacity));
       ctx.hideTooltip();
     });
