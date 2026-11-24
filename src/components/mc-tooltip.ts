@@ -543,13 +543,13 @@ export class MCTooltipElement extends HTMLElement {
       headerEl.hidden = true;
       headerEl.textContent = '';
       bodyEl.hidden = false;
-      bodyEl.innerHTML = '';
+      bodyEl.replaceChildren();
       if (customOut === undefined) {
         this.#renderStructured(payload, headerEl, bodyEl);
       } else if (typeof customOut === 'string') {
         bodyEl.innerHTML = customOut;
       } else {
-        bodyEl.appendChild(customOut);
+        bodyEl.replaceChildren(customOut);
       }
     } else if (customFormatter) {
       const formatted = customFormatter(payload);
@@ -754,12 +754,12 @@ export class MCTooltipElement extends HTMLElement {
       headerEl.textContent = '';
     }
 
-    bodyEl.innerHTML = '';
+    bodyEl.replaceChildren();
     if (isSoloTitleText) {
       bodyEl.hidden = true;
     } else {
       bodyEl.hidden = false;
-      bodyEl.appendChild(this.buildDefaultContent(payload));
+      bodyEl.replaceChildren(this.buildDefaultContent(payload));
     }
   }
 

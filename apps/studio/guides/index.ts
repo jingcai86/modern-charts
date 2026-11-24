@@ -20,12 +20,9 @@ export function renderGuidePage(
   guideId: GuideId,
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
-  root.innerHTML = '';
-  root.appendChild(renderGuideHeader(guideId));
-
   const body = document.createElement('div');
   body.className = 'guide-body-stack';
-  root.appendChild(body);
+  root.replaceChildren(renderGuideHeader(guideId), body);
 
   switch (guideId) {
     case 'custom-layers':

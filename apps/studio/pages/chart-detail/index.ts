@@ -24,7 +24,7 @@ export function renderChartDetailPage(
   root: HTMLElement,
   entry: ChartCatalogEntry
 ): MCBaseChart<any> {
-  root.innerHTML = '';
+  root.replaceChildren();
 
   const config = getOrInitChartConfig(entry);
   const vState = getChartVirtualState(entry.id);

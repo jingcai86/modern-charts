@@ -205,7 +205,7 @@ function createGuidesGrid(): HTMLElement {
  */
 export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   const mountedCharts: MCBaseChart<any>[] = [];
-  root.innerHTML = '';
+  root.replaceChildren();
 
   const initialTab = readStoredHomeTab();
   const guideCount = GUIDES_CATALOG.length + 1;
