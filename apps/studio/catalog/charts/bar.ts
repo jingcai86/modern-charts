@@ -118,6 +118,58 @@ export const BAR_CHART_ENTRY: ChartCatalogEntry = {
       defaultValue: 5
     },
     {
+      configPath: 'padding',
+      attrName: 'padding',
+      category: 'Chart-Specific',
+      control: 'range',
+      min: 0.05,
+      max: 0.7,
+      step: 0.05,
+      description: 'Outer category band padding ratio.',
+      defaultValue: 0.25
+    },
+    {
+      configPath: 'innerPadding',
+      attrName: 'inner-padding',
+      category: 'Chart-Specific',
+      control: 'range',
+      min: 0,
+      max: 16,
+      step: 1,
+      description: 'Pixel gap between grouped bars inside each category band.',
+      defaultValue: 3
+    },
+    {
+      configPath: 'barMaxWidth',
+      attrName: 'bar-max-width',
+      category: 'Chart-Specific',
+      control: 'range',
+      min: 8,
+      max: 120,
+      step: 4,
+      description: 'Maximum bar thickness in pixels (centers bars inside their slot).',
+      defaultValue: 64
+    },
+    {
+      configPath: 'barMinHeight',
+      attrName: 'bar-min-height',
+      category: 'Chart-Specific',
+      control: 'range',
+      min: 1,
+      max: 24,
+      step: 1,
+      description: 'Minimum rendered bar length in pixels for small non-zero values.',
+      defaultValue: 1
+    },
+    {
+      configPath: 'reverse',
+      attrName: 'reverse',
+      category: 'Chart-Specific',
+      control: 'boolean',
+      description: 'Reverses the bar value scale direction.',
+      defaultValue: false
+    },
+    {
       configPath: 'enableLabels',
       attrName: 'enable-labels',
       category: 'Chart-Specific',
