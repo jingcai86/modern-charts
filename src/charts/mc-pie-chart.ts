@@ -1,5 +1,11 @@
 import { MCBaseChart } from '../core/base-chart';
-import type { ChartMargin, ChartRenderContext, PieDatum } from '../core/types';
+import type {
+  ChartMargin,
+  ChartRenderContext,
+  PieDatum,
+  PieRoseType,
+  SunburstSortOrder
+} from '../core/types';
 import { computePieChartModel, type PieChartModel } from '../models/pie.model';
 import {
   renderPieArcLabelsLayer,
@@ -19,8 +25,17 @@ export class MCPieChart extends MCBaseChart<PieDatum[]> {
     'inner-radius',
     'pad-angle',
     'corner-radius',
+    'start-angle',
+    'end-angle',
+    'sort',
+    'rose-type',
+    'active-outer-radius-offset',
+    'min-angle',
     'enable-arc-labels',
     'enable-arc-link-labels',
+    'arc-link-labels-skip-angle',
+    'arc-link-labels-diagonal-length',
+    'arc-link-labels-straight-length',
     'center-label'
   ];
 
@@ -57,9 +72,46 @@ export class MCPieChart extends MCBaseChart<PieDatum[]> {
       innerRadiusRatio: this.innerRadiusRatio,
       cornerRadius: this.getOption('cornerRadius', 'corner-radius', 5) ?? 5,
       padAngleDeg: this.getOption('padAngle', 'pad-angle'),
-      enableArcLabels: this.getAttribute('enable-arc-labels') !== 'false',
+      startAngle: this.getOption('startAngle', 'start-angle', 0) ?? 0,
+      endAngle: this.getOption('endAngle', 'end-angle', 360) ?? 360,
+      sort:
+        (this.getOption('sort', 'sort', 'none') as SunburstSortOrder) ?? 'none',
+      roseType:
+        (this.getOption('roseType', 'rose-type', 'none') as PieRoseType) ??
+        'none',
+      activeOuterRadiusOffset:
+        this.getOption(
+          'activeOuterRadiusOffset',
+          'active-outer-radius-offset',
+          7
+        ) ?? 7,
+      minAngle: this.getOption('minAngle', 'min-angle', 0) ?? 0,
+      arcLinkLabelsSkipAngle:
+        this.getOption(
+          'arcLinkLabelsSkipAngle',
+          'arc-link-labels-skip-angle',
+          8
+        ) ?? 8,
+      arcLinkLabelsDiagonalLength:
+        this.getOption(
+          'arcLinkLabelsDiagonalLength',
+          'arc-link-labels-diagonal-length',
+          14
+        ) ?? 14,
+      arcLinkLabelsStraightLength:
+        this.getOption(
+          'arcLinkLabelsStraightLength',
+          'arc-link-labels-straight-length',
+          16
+        ) ?? 16,
+      enableArcLabels:
+        this.getOption('enableArcLabels', 'enable-arc-labels', true) !== false,
       enableArcLinkLabels:
-        this.getAttribute('enable-arc-link-labels') !== 'false',
+        this.getOption(
+          'enableArcLinkLabels',
+          'enable-arc-link-labels',
+          true
+        ) !== false,
       centerLabel: this.getOption('centerLabel', 'center-label')
     });
     ctx.state.model = model;

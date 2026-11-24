@@ -60,9 +60,11 @@ export function renderPieArcLinkLabelsLayer(
   if (!model.enableArcLinkLabels) return;
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+  const skipAngleRad =
+    ((model.arcLinkLabelsSkipAngle ?? 8) * Math.PI) / 180;
 
   model.arcs.forEach((arc, idx) => {
-    if (arc.endAngle - arc.startAngle < 0.14) return;
+    if (Math.abs(arc.endAngle - arc.startAngle) < skipAngleRad) return;
     const [p0, p1, p2] = arc.linkPoints;
     const polyline = document.createElementNS(SVG_NS, 'polyline');
     polyline.setAttribute('class', 'mc-pie-link-line');
