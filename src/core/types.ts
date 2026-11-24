@@ -1403,6 +1403,7 @@ export interface ChartConfig<TData = any> {
   gridLevels?: number;
   maxValue?: number;
   startAngle?: number;
+  endAngle?: number;
   gridLabelOffset?: number;
   fillOpacity?: number;
   enableDots?: boolean;
@@ -1413,35 +1414,37 @@ export interface ChartConfig<TData = any> {
   splitArea?: boolean;
   enableTrendline?: boolean;
   interactiveDrilldown?: boolean;
-  startAngle?: number;
-  endAngle?: number;
   sort?: SunburstSortOrder;
   inheritColorFromParent?: boolean;
-  focusMode?: SunburstFocusMode;
+  focusMode?: SankeyFocusMode | SunburstFocusMode;
   labelOrientation?: SunburstLabelOrientation;
   minArcAngleForLabel?: number;
   nodeWidth?: number;
   nodePadding?: number;
   align?: SankeyAlign;
   curveness?: number;
-  focusMode?: SankeyFocusMode;
   linkOpacity?: number;
   minNodeSize?: number;
   maxNodeSize?: number;
-  symbol?: ScatterSymbolType;
+  symbol?:
+    | ScatterSymbolType
+    | ((point: ScatterPoint, series: ScatterSeries) => ScatterSymbolType);
   symbolRotate?: number;
-  blendMode?: string;
   useMesh?: boolean;
   clip?: boolean;
   jitter?: number;
+  tile?: TreemapTileMethod;
   tilePadding?: number;
+  leavesOnly?: boolean;
+  parentLabelHeight?: number;
+  orientLabel?: boolean;
+  colorBy?: TreemapColorBy;
+  nodeOpacity?: number;
   xTitle?: string;
   yTitle?: string;
   min?: number;
   max?: number;
   unit?: string;
-  startAngle?: number;
-  endAngle?: number;
   splitNumber?: number;
   minorSplitNumber?: number;
   pointerType?: GaugePointerType;
@@ -1597,6 +1600,16 @@ export interface RadarDatum {
 export type SunburstSortOrder = 'desc' | 'asc' | 'none';
 export type SunburstFocusMode = 'none' | 'ancestor' | 'descendant';
 export type SunburstLabelOrientation = 'horizontal' | 'radial' | 'tangential';
+
+export type TreemapTileMethod =
+  | 'squarify'
+  | 'binary'
+  | 'slice'
+  | 'dice'
+  | 'sliceDice'
+  | 'resquarify';
+
+export type TreemapColorBy = 'parent' | 'depth' | 'name';
 
 export interface HierarchyNode {
   name: string;
