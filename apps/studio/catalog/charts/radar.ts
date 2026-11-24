@@ -30,7 +30,7 @@ export const RADAR_CHART_ENTRY: ChartCatalogEntry = {
     enableDots: true,
     enableDotLabels: true,
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Architecture Benchmark Radar Chart',

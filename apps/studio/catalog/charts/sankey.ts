@@ -29,7 +29,7 @@ export const SANKEY_CHART_ENTRY: ChartCatalogEntry = {
     linkOpacity: 0.42,
     enableLabels: true,
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },
     animate: true,
     motionConfig: 'default',

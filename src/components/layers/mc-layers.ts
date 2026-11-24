@@ -1,4 +1,4 @@
-import { createDefaultTheme, PALETTES } from '../../core/theme';
+import { createDefaultTheme, resolvePaletteColors } from '../../core/theme';
 import type {
   ChartPaletteName,
   ChartRenderContext,
@@ -131,7 +131,7 @@ export class MCThemeLayer extends MCConfigBaseElement {
       baseMode ||
       'light';
     const palette =
-      (this.getAttribute('palette') as ChartPaletteName) || 'modern';
+      (this.getAttribute('palette') as ChartPaletteName) || 'shadcn';
     const base = createDefaultTheme(mode, palette);
     const customColors = this.colors;
 
@@ -140,7 +140,7 @@ export class MCThemeLayer extends MCConfigBaseElement {
       colors:
         customColors && customColors.length > 0
           ? customColors
-          : PALETTES[palette] ?? base.colors,
+          : resolvePaletteColors(palette),
       background: this.getAttribute('background') || base.background,
       textColor: this.getAttribute('text-color') || base.textColor,
       mutedTextColor:

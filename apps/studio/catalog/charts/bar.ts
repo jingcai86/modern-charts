@@ -42,7 +42,7 @@ export const BAR_CHART_ENTRY: ChartCatalogEntry = {
     xTitle: 'Quarter',
     yTitle: 'Spend ($K)',
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     xScale: { type: 'band', padding: 0.25 },
     yScale: { type: 'linear' },
     view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },

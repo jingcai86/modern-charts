@@ -27,7 +27,7 @@ export const PIE_CHART_ENTRY: ChartCatalogEntry = {
     cornerRadius: 6,
     centerLabel: '',
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Runtime Footprint Breakdown Donut Chart',

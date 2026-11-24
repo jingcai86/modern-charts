@@ -40,7 +40,7 @@ export const SCATTER_CHART_ENTRY: ChartCatalogEntry = {
     enableTrendline: true,
     enableLabels: true,
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },
     animate: true,
     motionConfig: 'default',

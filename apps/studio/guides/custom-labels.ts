@@ -196,7 +196,7 @@ export function renderCustomLabelsGuide(
     labelChart1.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'modern',
+      palette: 'shadcn',
       indexBy: 'quarter',
       keys: ['Revenue'],
       enableLabels: true,
@@ -341,7 +341,7 @@ export function renderCustomLabelsGuide(
     wrapChart.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'sunset',
+      palette: 'material',
       indexBy: 'dept',
       keys: ['Spend'],
       borderRadius: 6,

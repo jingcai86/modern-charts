@@ -114,7 +114,7 @@ export function renderDynamicUpdatesGuide(
 
   const buildStreamConfig = () => ({
     title: `Live Telemetry Feed (${WINDOW_SIZE}-Sample Sliding Window)`,
-    palette: 'cyber',
+    palette: 'antd',
     animate: chkStreamAnim.checked,
     enableArea: true,
     areaOpacity: 0.16,
@@ -288,7 +288,7 @@ export function renderDynamicUpdatesGuide(
       data: payload.barData,
       autoSize: true,
       themeMode,
-      palette: 'modern',
+      palette: 'shadcn',
       title: barIsEmpty ? 'Empty State (data = null / [])' : 'Live Bar Dataset',
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge'],
@@ -299,7 +299,7 @@ export function renderDynamicUpdatesGuide(
       data: payload.pieData,
       autoSize: true,
       themeMode,
-      palette: 'sunset',
+      palette: 'material',
       title: pieIsEmpty ? 'Empty State (data = null / [])' : 'Live Pie Dataset',
       innerRadius: 0.5
     });
@@ -397,11 +397,10 @@ export function renderDynamicUpdatesGuide(
       <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
         Palette:
         <select id="dyn-palette">
-          <option value="modern">modern</option>
-          <option value="emerald">emerald</option>
-          <option value="sunset">sunset</option>
-          <option value="ocean">ocean</option>
-          <option value="cyber">cyber</option>
+          <option value="shadcn">shadcn</option>
+          <option value="material">material</option>
+          <option value="bootstrap">bootstrap</option>
+          <option value="antd">antd</option>
         </select>
       </label>
       <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
@@ -498,7 +497,7 @@ export function renderDynamicUpdatesGuide(
     initialConfig: initialCfg3,
     hint: 'Edit palette, groupMode, layout, legend.position, tooltip.position, or data in a single batched setConfig().',
     onConfigChange: (nextCfg) => {
-      if (['modern', 'emerald', 'sunset', 'ocean', 'cyber'].includes(nextCfg.palette)) {
+      if (['shadcn', 'material', 'bootstrap', 'antd'].includes(nextCfg.palette)) {
         selPalette.value = nextCfg.palette;
       }
       if (nextCfg.groupMode === 'grouped' || nextCfg.groupMode === 'stacked') {
@@ -516,7 +515,7 @@ export function renderDynamicUpdatesGuide(
       applyCfgBar(nextCfg);
     },
     onReset: () => {
-      selPalette.value = 'modern';
+      selPalette.value = 'shadcn';
       selGroup.value = 'grouped';
       selLayout.value = 'vertical';
       selLegend.value = 'bottom';
@@ -550,7 +549,7 @@ export function renderDynamicUpdatesGuide(
           </tr>
         </thead>
         <tbody>
-          <tr><td><strong>HTML Attributes vs. JS Properties</strong></td><td>Simple strings/booleans work via HTML attributes (<code>palette="ocean"</code>, <code>tooltip-position="item"</code>). Arrays, objects, and callbacks (<code>data</code>, <code>config</code>, <code>tooltip.formatter</code>) should always be passed via JS properties or <code>setConfig()</code> to avoid JSON serialization overhead.</td></tr>
+          <tr><td><strong>HTML Attributes vs. JS Properties</strong></td><td>Simple strings/booleans work via HTML attributes (<code>palette="bootstrap"</code>, <code>tooltip-position="item"</code>). Arrays, objects, and callbacks (<code>data</code>, <code>config</code>, <code>tooltip.formatter</code>) should always be passed via JS properties or <code>setConfig()</code> to avoid JSON serialization overhead.</td></tr>
           <tr><td><strong>Batching Multiple Changes</strong></td><td>Prefer one <code>chart.setConfig({ ...prev, data, palette, groupMode })</code> call over setting 4 separate attributes/properties sequentially (each attribute mutation triggers its own <code>render()</code>).</td></tr>
           <tr><td><strong>High-Frequency Feeds</strong></td><td>Set <code>animate: false</code> and pass sliced immutable arrays (<code>[...pts, next].slice(-N)</code>) for smooth 10–60fps updates.</td></tr>
           <tr><td><strong>Tooltips, Focus &amp; Empty States</strong></td><td>Re-rendering rebuilds SVG layers cleanly. Setting <code>chart.data = null</code> clears the plot and toggles CSS custom state <code>:state(empty)</code> (ideal for loading skeletons or empty placeholders).</td></tr>

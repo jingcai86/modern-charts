@@ -29,7 +29,7 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
     borderRadius: 6,
     enableLabels: true,
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Cluster Compute Utilization Heatmap',

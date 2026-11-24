@@ -2,14 +2,18 @@ import type * as d3 from 'd3';
 
 export const VERSION = '0.1.0-alpha.2';
 
-export type ChartPaletteName =
-  | 'modern'
-  | 'nivo'
-  | 'echarts'
-  | 'emerald'
-  | 'sunset'
-  | 'ocean'
-  | 'cyber';
+export type BuiltInPaletteName =
+  | 'material'
+  | 'bootstrap'
+  | 'antd'
+  | 'shadcn';
+
+/**
+ * Built-in design-system palette (`'material'`, `'bootstrap'`, `'antd'`, `'shadcn'`)
+ * or a seed color string (e.g. `'#2563eb'`, `'rgb(37, 99, 235)'`, `'hsl(221, 83%, 53%)'`)
+ * treated as the midpoint of a generated ≥20-color light-to-dark palette.
+ */
+export type ChartPaletteName = BuiltInPaletteName | (string & {});
 
 export interface ChartMargin {
   top: number;

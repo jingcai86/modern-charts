@@ -150,7 +150,7 @@ export function renderAccessibilityGuide(
     bar.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'ocean',
+      palette: 'bootstrap',
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge'],
       borderRadius: 6,
@@ -306,7 +306,7 @@ export function renderAccessibilityGuide(
     staticChart.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'modern',
+      palette: 'shadcn',
       indexBy: 'quarter',
       keys: ['Cloud', 'Edge'],
       borderRadius: 6,

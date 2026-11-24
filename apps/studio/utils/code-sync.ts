@@ -21,7 +21,7 @@ export function generateWebComponentHtmlSnippet(
   fallbackThemeMode: ThemeModePreference
 ): string {
   const themeMode = config.themeMode ?? fallbackThemeMode;
-  const palette = config.palette ?? 'modern';
+  const palette = config.palette ?? 'shadcn';
   const motion =
     typeof config.motionConfig === 'string' ? config.motionConfig : 'default';
   const labelMode = config.labelMode ?? 'svg';

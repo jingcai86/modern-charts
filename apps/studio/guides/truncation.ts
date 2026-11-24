@@ -174,7 +174,7 @@ export function renderTruncationGuide(
     bar1.setConfig({
       autoSize: true,
       themeMode,
-      palette: 'modern',
+      palette: 'shadcn',
       borderRadius: 6,
       margin: {
         top: 44,
@@ -282,7 +282,7 @@ export function renderTruncationGuide(
 
   const initialPie2Cfg = {
     title: 'Truncated Pie Link Labels & Legend Items',
-    palette: 'emerald',
+    palette: 'shadcn',
     innerRadius: 0.52,
     data: [
       { id: 'North America Cloud Infrastructure', value: 420 },

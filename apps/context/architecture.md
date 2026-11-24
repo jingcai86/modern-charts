@@ -54,7 +54,7 @@ interface SharedChartConfig<TData> {
 
   // Theme (<mc-theme-layer>)
   themeMode?: 'light' | 'dark' | 'system'; // default 'light'
-  palette?: 'modern' | 'nivo' | 'echarts' | 'emerald' | 'sunset' | 'ocean' | 'cyber';
+  palette?: 'shadcn' | 'material' | 'bootstrap' | 'antd' | string; // 20-color design-system palette or seed color string (auto-generates >=20 light-to-dark colors)
   colors?: string[];
   theme?: Partial<ChartTheme>;
 

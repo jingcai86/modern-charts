@@ -23,7 +23,7 @@
     "is-interactive",
     "is-focusable"
   ],
-  "palettes": ["modern", "nivo", "echarts", "emerald", "sunset", "ocean", "cyber"],
+  "palettes": ["shadcn", "material", "bootstrap", "antd"],
   "motionPresets": ["default", "gentle", "wobbly", "stiff", "slow", "molasses", "elastic", "bounce"],
   "labelTargets": [
     "all",

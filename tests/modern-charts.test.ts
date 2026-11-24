@@ -146,7 +146,7 @@ describe('Nivo-style Single Unified chart.config & Underlying Sub-Components', (
       keys: ['Cloud', 'Edge'],
       groupMode: 'stacked',
       themeMode: 'dark',
-      palette: 'nivo',
+      palette: 'material',
       xScale: { type: 'band', padding: 0.3 },
       yScale: { type: 'linear', min: 0, max: 500, stacked: true },
       view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },
@@ -179,7 +179,7 @@ describe('Nivo-style Single Unified chart.config & Underlying Sub-Components', (
     expect(subs.markerLayer).toBeInstanceOf(MCMarkerLayer);
 
     expect(subs.themeLayer?.getAttribute('mode')).toBe('dark');
-    expect(subs.themeLayer?.getAttribute('palette')).toBe('nivo');
+    expect(subs.themeLayer?.getAttribute('palette')).toBe('material');
     expect(subs.scaleLayer?.getAttribute('y-max')).toBe('500');
     expect(subs.viewLayer?.getAttribute('max-zoom')).toBe('6');
     expect(subs.animationLayer?.getAttribute('preset')).toBe('wobbly');
@@ -460,7 +460,7 @@ describe('Universal <mc-aria-layer> / <mc-aria> Item-Level Accessibility', () =>
 });
 
 describe('Universal <mc-label> & @chenglou/pretext LabelEngine (Including <foreignObject> Icons)', () => {
-  const theme = createDefaultTheme('dark', 'modern');
+  const theme = createDefaultTheme('dark', 'shadcn');
 
   it('calculates natural width and wraps multiline text via @chenglou/pretext without DOM reflow', () => {
     const engine = new LabelEngine();
@@ -695,7 +695,7 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
       height: 360,
       enableArea: true,
       themeMode: 'dark',
-      palette: 'nivo',
+      palette: 'material',
       view: { zoomable: true, pannable: true, showControls: true }
     };
 
@@ -1912,7 +1912,7 @@ describe('Unified SVG <mc-legend> Component (Issue #16)', () => {
 
   it('uses @chenglou/pretext to center each legend row accurately and wraps by default (disableable via wrap: false)', () => {
     const labelEngine = new LabelEngine();
-    const theme = createDefaultTheme('light', 'modern');
+    const theme = createDefaultTheme('light', 'shadcn');
     const items: LegendItem[] = [
       { id: 'North America Enterprise', label: 'North America Enterprise', color: '#38bdf8' },
       { id: 'Europe & UK Commercial', label: 'Europe & UK Commercial', color: '#a855f7' },

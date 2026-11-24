@@ -26,7 +26,7 @@ export const SUNBURST_CHART_ENTRY: ChartCatalogEntry = {
     enableLabels: true,
     interactiveDrilldown: true,
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Modern Charts Module Hierarchy Sunburst',

@@ -173,7 +173,7 @@ export function renderEventsGuide(
 
   const initialEventsCfg = {
     title: 'Interactive Event Playground',
-    palette: 'modern',
+    palette: 'shadcn',
     indexBy: 'quarter',
     keys: ['Cloud', 'Edge'],
     isInteractive: true,

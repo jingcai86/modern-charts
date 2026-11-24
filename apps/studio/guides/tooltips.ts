@@ -127,7 +127,7 @@ export function renderTooltipsGuide(
     keys: ['Cloud', 'Edge'],
     groupMode: 'grouped',
     themeMode,
-    palette: 'modern',
+    palette: 'shadcn',
     title: 'Hover Bars to Inspect ::part() Styled Tooltip',
     markers: [
       {
@@ -248,7 +248,7 @@ mc-bar-chart::part(tooltip-badge) {
 
   const initialLine2Cfg = {
     title: 'Hover Across Months for Computed KPI Tooltip',
-    palette: 'ocean',
+    palette: 'bootstrap',
     curve: 'monotoneX',
     enableArea: true,
     enableSlices: true,
@@ -358,7 +358,7 @@ mc-bar-chart::part(tooltip-badge) {
       data: pie3BaseData,
       innerRadius,
       themeMode,
-      palette: 'sunset',
+      palette: 'material',
       tooltip: tipDisabled ? false : undefined,
       title: 'Declarative <mc-tooltip> with {{datum.owner}}'
     });
@@ -410,7 +410,7 @@ mc-bar-chart::part(tooltip-badge) {
 
   const buildBar4Config = (mode: 'item' | 'follow') => ({
     title: `Hover or Tab through bars — Tooltip Position: ${mode}`,
-    palette: 'modern',
+    palette: 'shadcn',
     indexBy: 'quarter',
     keys: ['Cloud', 'Edge', 'AI'],
     data: [

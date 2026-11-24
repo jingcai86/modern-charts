@@ -146,7 +146,7 @@ export function renderD3Guide(
   const buildD3Chart1Config = () => ({
     confidenceBandPct: bandPct,
     title: `Demand Forecast with D3 ±${bandPct}% Ribbon & OLS Trend`,
-    palette: 'ocean',
+    palette: 'bootstrap',
     curve: 'monotoneX',
     yScale: { type: 'linear', min: 30, max: 175 },
     data: forecastData,
@@ -319,7 +319,7 @@ export function renderD3Guide(
 
   const initialD3Cfg2 = {
     title: 'Scatter Clusters with D3 Quantile IQR Box',
-    palette: 'cyber',
+    palette: 'antd',
     xTitle: 'Latency (ms)',
     yTitle: 'Throughput (req/s)',
     xScale: { type: 'linear', min: 10, max: 100 },
