@@ -1,6 +1,11 @@
 import { arc, pie, type PieArcDatum } from 'd3';
 import { createOrdinalColorScale } from '../core/theme';
-import type { ChartRenderContext, PieDatum } from '../core/types';
+import type {
+  ChartRenderContext,
+  PieDatum,
+  PieRoseType,
+  SunburstSortOrder
+} from '../core/types';
 
 export interface ComputedPieArcModel {
   index: number;
@@ -11,6 +16,7 @@ export interface ComputedPieArcModel {
   startAngle: number;
   endAngle: number;
   midAngle: number;
+  sliceOuterRadius: number;
   color: string;
   pathD: string;
   hoverPathD: string;
@@ -24,6 +30,15 @@ export interface PieChartModel {
   cy: number;
   outerRadius: number;
   innerRadius: number;
+  startAngle: number;
+  endAngle: number;
+  sort: SunburstSortOrder;
+  roseType: PieRoseType;
+  activeOuterRadiusOffset: number;
+  minAngle: number;
+  arcLinkLabelsSkipAngle: number;
+  arcLinkLabelsDiagonalLength: number;
+  arcLinkLabelsStraightLength: number;
   total: number;
   arcs: ComputedPieArcModel[];
   enableArcLabels: boolean;
@@ -35,6 +50,15 @@ export interface PieModelInput {
   innerRadiusRatio: number;
   cornerRadius: number;
   padAngleDeg?: number;
+  startAngle?: number;
+  endAngle?: number;
+  sort?: SunburstSortOrder;
+  roseType?: PieRoseType;
+  activeOuterRadiusOffset?: number;
+  minAngle?: number;
+  arcLinkLabelsSkipAngle?: number;
+  arcLinkLabelsDiagonalLength?: number;
+  arcLinkLabelsStraightLength?: number;
   enableArcLabels: boolean;
   enableArcLinkLabels: boolean;
   centerLabel?: string;
@@ -42,14 +66,19 @@ export interface PieModelInput {
 
 /**
  * Pure Model Layer for `<mc-pie-chart>`.
+ * Supports `startAngle` / `endAngle` sweeps, `sort` (`'none' | 'desc' | 'asc'`),
+ * `roseType` (`'none' | 'radius' | 'area'` Nightingale Rose diagram),
+ * `activeOuterRadiusOffset`, `minAngle`, and `arcLinkLabels*` leader-line geometry.
  */
 export function computePieChartModel(
   ctx: ChartRenderContext<PieDatum[]>,
   input: PieModelInput
 ): PieChartModel {
   const items = Array.isArray(ctx.data) ? ctx.data : [];
-  const total =
-    items.reduce((acc, d) => acc + Math.max(0, Number(d.value ?? 0)), 0) || 1;
+  const values = items.map((d) => Math.max(0, Number(d.value ?? 0)));
+  const total = values.reduce((acc, v) => acc + v, 0) || 1;
+  const maxVal = values.length > 0 ? Math.max(...values, 1) : 1;
+
   const cx = ctx.innerWidth / 2;
   const cy = ctx.innerHeight / 2;
   const outerRadius = Math.max(
@@ -62,6 +91,39 @@ export function computePieChartModel(
       ? (Number(input.padAngleDeg) * Math.PI) / 180
       : 0.02;
 
+  const startAngleDeg = Number.isFinite(input.startAngle)
+    ? Number(input.startAngle)
+    : 0;
+  const endAngleDeg = Number.isFinite(input.endAngle)
+    ? Number(input.endAngle)
+    : 360;
+  const startRad = (startAngleDeg * Math.PI) / 180;
+  const endRad = (endAngleDeg * Math.PI) / 180;
+
+  const sortOrder: SunburstSortOrder = input.sort ?? 'none';
+  const roseType: PieRoseType = input.roseType ?? 'none';
+  const activeOuterRadiusOffset = Number.isFinite(input.activeOuterRadiusOffset)
+    ? Math.max(0, Number(input.activeOuterRadiusOffset))
+    : 7;
+  const minAngleDeg = Number.isFinite(input.minAngle)
+    ? Math.max(0, Number(input.minAngle))
+    : 0;
+  const minAngleRad = (minAngleDeg * Math.PI) / 180;
+
+  const arcLinkLabelsSkipAngle = Number.isFinite(input.arcLinkLabelsSkipAngle)
+    ? Math.max(0, Number(input.arcLinkLabelsSkipAngle))
+    : 8;
+  const arcLinkLabelsDiagonalLength = Number.isFinite(
+    input.arcLinkLabelsDiagonalLength
+  )
+    ? Math.max(2, Number(input.arcLinkLabelsDiagonalLength))
+    : 14;
+  const arcLinkLabelsStraightLength = Number.isFinite(
+    input.arcLinkLabelsStraightLength
+  )
+    ? Math.max(2, Number(input.arcLinkLabelsStraightLength))
+    : 16;
+
   ctx.colorScale = createOrdinalColorScale(
     ctx.theme,
     items.map((d) => d.id)
@@ -69,47 +131,112 @@ export function computePieChartModel(
 
   const pieGen = pie<PieDatum>()
     .value((d) => Math.max(0, Number(d.value ?? 0)))
-    .padAngle(padAngle)
-    .sort(null);
+    .startAngle(startRad)
+    .endAngle(endRad)
+    .padAngle(padAngle);
 
-  const arcGen = arc<PieArcDatum<PieDatum>>()
-    .innerRadius(innerRadius)
-    .outerRadius(outerRadius)
-    .cornerRadius(input.cornerRadius);
+  if (sortOrder === 'desc') {
+    pieGen.sortValues((a, b) => b - a);
+  } else if (sortOrder === 'asc') {
+    pieGen.sortValues((a, b) => a - b);
+  } else {
+    pieGen.sort(null);
+  }
 
-  const hoverArcGen = arc<PieArcDatum<PieDatum>>()
-    .innerRadius(innerRadius)
-    .outerRadius(outerRadius + 7)
-    .cornerRadius(input.cornerRadius);
+  const rawPieArcs = pieGen(items);
 
-  const linkStartArc = arc<PieArcDatum<PieDatum>>()
-    .innerRadius(outerRadius)
-    .outerRadius(outerRadius);
+  // Enforce minAngle on non-zero slices when configured
+  if (minAngleRad > 0 && rawPieArcs.length > 0) {
+    const totalSweep = Math.abs(endRad - startRad);
+    const dir = endRad >= startRad ? 1 : -1;
+    const clampedMin = Math.min(minAngleRad, totalSweep / rawPieArcs.length);
+    const spans = rawPieArcs.map((a) => Math.abs(a.endAngle - a.startAngle));
+    let deficit = 0;
+    let surplusTotal = 0;
+    spans.forEach((sp, idx) => {
+      const v = Math.max(0, Number(rawPieArcs[idx].data.value ?? 0));
+      if (v > 0 && sp < clampedMin) {
+        deficit += clampedMin - sp;
+        spans[idx] = clampedMin;
+      } else if (sp > clampedMin) {
+        surplusTotal += sp - clampedMin;
+      }
+    });
+    if (deficit > 0 && surplusTotal > 0) {
+      spans.forEach((sp, idx) => {
+        if (sp > clampedMin) {
+          const share = (sp - clampedMin) / surplusTotal;
+          spans[idx] = Math.max(clampedMin, sp - deficit * share);
+        }
+      });
+    }
+    let cursor = startRad;
+    rawPieArcs.forEach((a, idx) => {
+      a.startAngle = cursor;
+      a.endAngle = cursor + dir * spans[idx];
+      cursor = a.endAngle;
+    });
+  }
 
-  const linkMidArc = arc<PieArcDatum<PieDatum>>()
-    .innerRadius(outerRadius + 14)
-    .outerRadius(outerRadius + 14);
+  const arcs: ComputedPieArcModel[] = rawPieArcs.map((a, index) => {
+    const val = Math.max(0, Number(a.data.value ?? 0));
+    let sliceOuterRadius = outerRadius;
+    if (roseType === 'radius') {
+      sliceOuterRadius =
+        innerRadius +
+        (outerRadius - innerRadius) * Math.max(0.18, val / maxVal);
+    } else if (roseType === 'area') {
+      sliceOuterRadius = Math.sqrt(
+        innerRadius * innerRadius +
+          (outerRadius * outerRadius - innerRadius * innerRadius) *
+            Math.max(0.08, val / maxVal)
+      );
+    }
 
-  const pieArcs = pieGen(items);
-  const arcs: ComputedPieArcModel[] = pieArcs.map((a, index) => {
+    const sliceArcGen = arc<PieArcDatum<PieDatum>>()
+      .innerRadius(innerRadius)
+      .outerRadius(sliceOuterRadius)
+      .cornerRadius(input.cornerRadius);
+
+    const sliceHoverArcGen = arc<PieArcDatum<PieDatum>>()
+      .innerRadius(innerRadius)
+      .outerRadius(sliceOuterRadius + activeOuterRadiusOffset)
+      .cornerRadius(input.cornerRadius);
+
+    const linkStartArc = arc<PieArcDatum<PieDatum>>()
+      .innerRadius(sliceOuterRadius)
+      .outerRadius(sliceOuterRadius);
+
+    const linkMidArc = arc<PieArcDatum<PieDatum>>()
+      .innerRadius(sliceOuterRadius + arcLinkLabelsDiagonalLength)
+      .outerRadius(sliceOuterRadius + arcLinkLabelsDiagonalLength);
+
     const midAngle = (a.startAngle + a.endAngle) / 2;
-    const isRightSide = midAngle < Math.PI;
+    const isRightSide = Math.sin(midAngle) >= -1e-6;
     const p0 = linkStartArc.centroid(a);
     const p1 = linkMidArc.centroid(a);
-    const p2: [number, number] = [p1[0] + (isRightSide ? 16 : -16), p1[1]];
+    const p2: [number, number] = [
+      p1[0] +
+        (isRightSide
+          ? arcLinkLabelsStraightLength
+          : -arcLinkLabelsStraightLength),
+      p1[1]
+    ];
+
     return {
       index,
-      totalCount: pieArcs.length,
+      totalCount: rawPieArcs.length,
       data: a.data,
-      value: Number(a.data.value ?? 0),
-      percentage: (Number(a.data.value ?? 0) / total) * 100,
+      value: val,
+      percentage: (val / total) * 100,
       startAngle: a.startAngle,
       endAngle: a.endAngle,
       midAngle,
+      sliceOuterRadius,
       color: a.data.color || ctx.colorScale(a.data.id),
-      pathD: arcGen(a) || '',
-      hoverPathD: hoverArcGen(a) || '',
-      centroid: arcGen.centroid(a),
+      pathD: sliceArcGen(a) || '',
+      hoverPathD: sliceHoverArcGen(a) || '',
+      centroid: sliceArcGen.centroid(a),
       linkPoints: [p0, p1, p2],
       isRightSide
     };
@@ -120,6 +247,15 @@ export function computePieChartModel(
     cy,
     outerRadius,
     innerRadius,
+    startAngle: startAngleDeg,
+    endAngle: endAngleDeg,
+    sort: sortOrder,
+    roseType,
+    activeOuterRadiusOffset,
+    minAngle: minAngleDeg,
+    arcLinkLabelsSkipAngle,
+    arcLinkLabelsDiagonalLength,
+    arcLinkLabelsStraightLength,
     total,
     arcs,
     enableArcLabels: input.enableArcLabels,
