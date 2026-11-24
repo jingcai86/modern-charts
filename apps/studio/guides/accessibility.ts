@@ -44,7 +44,7 @@ export function renderAccessibilityGuide(
         <h2 class="panel-title">Example 1: Keyboard Navigation, Live Screen-Reader Output &amp; Data-Table Fallback</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Click inside the chart and press <strong>Tab</strong> + <strong>Arrow</strong> keys — or edit <code>aria</code>,
-          <code>ariaLabel</code>, <code>isFocusable</code>, <code>animate</code>, and <code>data</code> directly in the live JSON editor.
+          <code>ariaLabel</code>, <code>isFocusable</code>, <code>animate</code>, and <code>data</code> directly in the live config editor.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:12px;">
@@ -211,7 +211,7 @@ export function renderAccessibilityGuide(
         <h2 class="panel-title">Example 2: Static Charts (<code>isInteractive</code> vs. <code>isFocusable</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Use <code>isInteractive: false</code> for thumbnails, print/PDF exports, or dense dashboards.
-          Toggle presets or edit <code>isInteractive</code>, <code>isFocusable</code>, and <code>ariaLabel</code> directly in the live JSON editor below.
+          Toggle presets or edit <code>isInteractive</code>, <code>isFocusable</code>, and <code>ariaLabel</code> directly in the live config editor below.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
@@ -324,7 +324,7 @@ export function renderAccessibilityGuide(
   const editor2 = createLiveConfigEditor({
     title: 'isInteractive vs. isFocusable Config (Live)',
     initialConfig: initialStaticCfg,
-    hint: 'Toggle isInteractive or isFocusable in JSON — watch the Shadow DOM inspection badge update immediately.',
+    hint: 'Toggle isInteractive or isFocusable in chart.config — watch the Shadow DOM inspection badge update immediately.',
     onConfigChange: (nextCfg) => {
       if (typeof nextCfg.isInteractive === 'boolean') {
         interactiveVal = nextCfg.isInteractive;

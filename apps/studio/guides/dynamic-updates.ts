@@ -48,7 +48,7 @@ export function renderDynamicUpdatesGuide(
         <h2 class="panel-title">Example 1: Real-Time Sliding-Window Streaming (<code>chart.data = nextSeries</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Appends a new telemetry point every second and drops the oldest once the window exceeds 12 samples —
-          or edit <code>data</code>, <code>animate</code>, and <code>curve</code> directly in the live JSON editor.
+          or edit <code>data</code>, <code>animate</code>, and <code>curve</code> directly in the live config editor.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
@@ -234,7 +234,7 @@ export function renderDynamicUpdatesGuide(
         <h2 class="panel-title">Example 2: Randomize, Add/Remove Points &amp; Empty State</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Replace datasets dynamically on <code>&lt;mc-bar-chart&gt;</code> and <code>&lt;mc-pie-chart&gt;</code>,
-          or edit <code>barData</code> / <code>pieData</code> (try setting either to <code>null</code> or <code>[]</code>) directly in the live JSON editor below.
+          or edit <code>barData</code> / <code>pieData</code> (try setting either to <code>null</code> or <code>[]</code>) directly in the live config editor below.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
@@ -310,6 +310,7 @@ export function renderDynamicUpdatesGuide(
 
   const editor2 = createLiveConfigEditor({
     title: 'Bar & Pie Live Datasets (Live)',
+    assignPrefix: 'const datasets =',
     initialConfig: initialEx2Payload,
     hint: 'Add/remove items or set barData / pieData to null or [] to trigger empty states live.',
     onConfigChange: (nextPayload) => {
@@ -389,7 +390,7 @@ export function renderDynamicUpdatesGuide(
       <div>
         <h2 class="panel-title">Example 3: Batched Runtime Config Changes (<code>setConfig</code>) &amp; Resize</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Change palette, orientation, stacking, legend placement, and tooltip mode via the dropdowns or directly in the live JSON editor below.
+          Change palette, orientation, stacking, legend placement, and tooltip mode via the dropdowns or directly in the live config editor below.
         </p>
       </div>
     </div>

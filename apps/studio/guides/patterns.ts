@@ -84,7 +84,7 @@ export function renderPatternsGuide(
         <h2 class="panel-title">Example 1: Accessible Series Patterns, Gradients &amp; Threshold Splits</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Toggle presets or edit <code>defs</code> (<code>rotation</code>, <code>spacing</code>, <code>colors</code>, <code>angle</code>),
-          <code>fill</code> rules, and <code>markers</code> live in the JSON editor — notice legend swatches update automatically.
+          <code>fill</code> rules, and <code>markers</code> live in the config editor — notice legend swatches update automatically.
         </p>
       </div>
       <div class="guide-controls-row">

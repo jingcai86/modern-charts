@@ -20,7 +20,7 @@ export function renderD3Guide(
       <code>d3</code> namespace on every custom layer's render context (<code>ctx.d3</code>), along with
       the chart's already-computed <code>ctx.xScale</code>, <code>ctx.yScale</code>, <code>ctx.colorScale</code>,
       <code>ctx.layerGroup</code>, and tooltip helpers (<code>ctx.showTooltip</code> / <code>ctx.hideTooltip</code>).
-      Edit the live JSON configs below to watch the D3 overlays recompute immediately from your updated data.
+      Edit the live <code>chart.config</code> editors below to watch the D3 overlays recompute immediately from your updated data.
     </p>
   `;
   container.appendChild(introCard);

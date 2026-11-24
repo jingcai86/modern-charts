@@ -18,7 +18,7 @@ import { createCodeEditorPanel } from './code-editor';
  * Renders the Dedicated Chart Playground View (`#/chart/:id`), coordinating:
  * 1. Live chart stage, layer toggle chips, and AI progressive layer streamer
  * 2. Collapsible right-hand Attribute & Config Control Panel
- * 3. Bottom row: two-way Web Component HTML / JSON Markup Editor (left) + Live Unified Event Inspector (right)
+ * 3. Bottom row: two-way Web Component HTML & chart.config Editor (left) + Live Unified Event Inspector (right)
  */
 export function renderChartDetailPage(
   root: HTMLElement,
@@ -228,7 +228,7 @@ export function renderChartDetailPage(
     onConfigChanged: () => applyConfigUpdate(config, 'controls')
   });
 
-  // Bottom Card: Two-Way HTML / JSON Code Editor
+  // Bottom Card: Two-Way HTML & chart.config Code Editor
   const editorPanel = createCodeEditorPanel({
     entry,
     config,

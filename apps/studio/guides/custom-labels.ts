@@ -46,7 +46,7 @@ export function renderCustomLabelsGuide(
       <div>
         <h2 class="panel-title">Example 1: Formatters, Rich <code>&lt;foreignObject&gt;</code> Icons &amp; Custom <code>labelRenderer</code></h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Switch between the 3 label customization approaches — or edit <code>formatter</code> (e.g. <code>"\${{text}}K"</code>), <code>background</code>, <code>icon</code>, and <code>data</code> directly in the live JSON editor.
+          Switch between the 3 label customization approaches — or edit <code>formatter</code> (e.g. <code>'\${{text}}K'</code>), <code>background</code>, <code>icon</code>, and <code>data</code> directly in the live config editor.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -259,7 +259,7 @@ export function renderCustomLabelsGuide(
         <h2 class="panel-title">Example 2: Pretext Label Truncation, Rotation &amp; Tooltips (<code>&lt;mc-truncate&gt;</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
           Every <code>&lt;mc-label&gt;</code> uses the shared <code>@chenglou/pretext</code> truncation engine.
-          Use the controls or edit <code>label.overflow</code> &amp; <code>data</code> directly in the live JSON editor below.
+          Use the controls or edit <code>label.overflow</code> &amp; <code>data</code> directly in the live config editor below.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">

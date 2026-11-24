@@ -385,7 +385,7 @@ mc-bar-chart::part(tooltip-badge) {
         <h3 class="guide-example-title">Example 4: Configurable Positioning — Item-Anchored vs. Follow Mouse</h3>
         <p class="guide-prose">
           Toggle between <code>position: 'item'</code> and <code>position: 'follow'</code>, or edit <code>tooltip</code>
-          settings and <code>data</code> directly in the live JSON editor below.
+          settings and <code>data</code> directly in the live config editor below.
         </p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">

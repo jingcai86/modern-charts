@@ -37,7 +37,7 @@ export function renderThemesGuide(
       <strong>20 colors each</strong> — <code>'shadcn'</code>, <code>'material'</code> (Angular Material),
       <code>'bootstrap'</code>, and <code>'antd'</code> (Ant Design) — across <code>'system'</code>,
       <code>'dark'</code>, and <code>'light'</code> modes. Click any palette or edit <code>palette</code>
-      (including a seed hex like <code>"#2563eb"</code>) in the live JSON editor below.
+      (including a seed hex like <code>'#2563eb'</code>) in the live config editor below.
     </p>
     <div class="guide-palette-grid" id="guide-palette-picker"></div>
     <div class="guide-controls-row" style="margin-top:4px;">

@@ -93,7 +93,7 @@ export function renderChartStateGuide(
       <div>
         <h2 class="panel-title">Example 1: State Transitions &amp; <code>mc-state-change</code></h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Toggle preset buttons or edit <code>loading</code>, <code>loadingText</code>, <code>emptyText</code>, and <code>data</code> directly in the live JSON editor.
+          Toggle preset buttons or edit <code>loading</code>, <code>loadingText</code>, <code>emptyText</code>, and <code>data</code> directly in the live config editor.
         </p>
       </div>
       <div class="guide-controls-row">
