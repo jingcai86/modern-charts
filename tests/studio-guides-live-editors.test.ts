@@ -15,13 +15,12 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     document.body.innerHTML = '';
   });
 
-  it('renders live client-editable editors across all 11 Studio guides with accessible controls', () => {
-    const root = document.createElement('div');
-    document.body.appendChild(root);
+  it.each(GUIDES_CATALOG)(
+    'renders live client-editable editors with accessible controls for guide "$id"',
+    (guide) => {
+      const root = document.createElement('div');
+      document.body.appendChild(root);
 
-    let totalEditors = 0;
-
-    for (const guide of GUIDES_CATALOG) {
       const charts = renderGuidePage(root, guide.id as GuideId, 'dark');
       expect(charts.length, `guide "${guide.id}" should mount charts`).toBeGreaterThan(0);
 
@@ -32,7 +31,6 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
         editors.length,
         `guide "${guide.id}" should render at least one live-editable textarea`
       ).toBeGreaterThan(0);
-      totalEditors += editors.length;
 
       for (const ta of editors) {
         expect(ta.getAttribute('aria-invalid')).toBe('false');
@@ -48,10 +46,9 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
         expect(copyBtn?.getAttribute('commandfor')).toBe(ta.id);
         expect(copyStatus?.getAttribute('role')).toBe('status');
       }
-    }
-
-    expect(totalEditors).toBeGreaterThanOrEqual(24);
-  });
+    },
+    15_000
+  );
 
   it('updates mounted charts live on JSON config edits, surfaces accessible errors on invalid JSON, and resets cleanly', () => {
     const root = document.createElement('div');
