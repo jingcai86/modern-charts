@@ -36,6 +36,14 @@
   gap: 10px;
 }
 
+.panel-title-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  position: relative;
+}
+
 .panel-title {
   margin: 0;
   font-size: 1.12rem;
@@ -44,6 +52,82 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.section-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 22px;
+  block-size: 22px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+  --interest-delay-start: 0.12s;
+  interest-delay-start: var(--interest-delay-start);
+  --interest-delay-end: 0.1s;
+  interest-delay-end: var(--interest-delay-end);
+}
+
+.section-info-btn:hover,
+.section-info-btn:focus-visible,
+.section-info-btn.interest-source,
+.section-info-btn[aria-expanded="true"] {
+  color: var(--pill-cyan-fg);
+  border-color: var(--border-focus);
+  background: var(--pill-cyan-bg);
+}
+
+.section-info-btn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.section-info-popover {
+  display: none;
+  max-inline-size: 320px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-focus);
+  background: var(--bg-elevated);
+  color: var(--text-main);
+  font-size: 0.79rem;
+  font-weight: 400;
+  line-height: 1.45;
+  box-shadow: var(--card-shadow);
+  z-index: 60;
+}
+
+.section-info-popover code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.74rem;
+  color: var(--pill-cyan-fg);
+}
+
+.section-info-popover:is(:popover-open, .\:popover-open, .is-open) {
+  display: block;
+}
+
+@supports (position-area: block-end) {
+  .section-info-popover {
+    inset: auto;
+    margin: 6px 0 0;
+    position-area: block-end span-inline-end;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
+}
+
+@supports not (position-area: block-end) {
+  .section-info-popover {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+  }
 }
 
 .component-pills {
