@@ -1411,7 +1411,6 @@ export interface ChartConfig<TData = any> {
   linkOpacity?: number;
   minNodeSize?: number;
   maxNodeSize?: number;
-  nodeSize?: ScatterNodeSizeSpec;
   symbol?: ScatterSymbolType;
   symbolRotate?: number;
   blendMode?: string;
@@ -1592,17 +1591,6 @@ export type ScatterSymbolType =
   | 'arrow'
   | 'cross'
   | 'star';
-
-export interface ScatterNodeSizeScale {
-  key?: string;
-  values: [number, number];
-  sizes: [number, number];
-}
-
-export type ScatterNodeSizeSpec =
-  | number
-  | ScatterNodeSizeScale
-  | ((point: ScatterPoint, series: ScatterSeries) => number);
 
 export interface ScatterPoint {
   x: number;

@@ -7,7 +7,6 @@ import {
 import type {
   ChartRenderContext,
   ScaleConfig,
-  ScatterNodeSizeSpec,
   ScatterSeries,
   ScatterSymbolType
 } from '../core/types';
@@ -31,7 +30,6 @@ export class MCScatterChart extends MCBaseChart<ScatterSeries[]> {
     ...MCBaseChart.baseObservedAttributes,
     'min-node-size',
     'max-node-size',
-    'node-size',
     'symbol',
     'symbol-rotate',
     'blend-mode',
@@ -89,16 +87,9 @@ export class MCScatterChart extends MCBaseChart<ScatterSeries[]> {
   }
 
   protected prepareContext(ctx: ChartRenderContext<ScatterSeries[]>): void {
-    const rawNodeSize = this._config.nodeSize ?? this.getOption('nodeSize', 'node-size');
-    const nodeSize: ScatterNodeSizeSpec | undefined =
-      typeof rawNodeSize === 'string' && Number.isFinite(Number(rawNodeSize))
-        ? Number(rawNodeSize)
-        : (rawNodeSize as ScatterNodeSizeSpec | undefined);
-
     const model = computeScatterChartModel(ctx, {
       minNodeSize: this.getOption('minNodeSize', 'min-node-size', 6) ?? 6,
       maxNodeSize: this.getOption('maxNodeSize', 'max-node-size', 18) ?? 18,
-      nodeSize,
       symbol:
         (this.getOption('symbol', 'symbol', 'circle') as ScatterSymbolType) ||
         'circle',

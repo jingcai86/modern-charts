@@ -11,14 +11,14 @@ const SAMPLE_SERIES: ScatterSeries[] = [
     id: 'Group A',
     symbol: 'diamond',
     data: [
-      { x: 10, y: 20, size: 10, weight: 25, label: 'A1' },
-      { x: 50, y: 80, size: 30, weight: 75, label: 'A2', symbol: 'star', symbolRotate: 30 }
+      { x: 10, y: 20, size: 10, label: 'A1' },
+      { x: 50, y: 80, size: 30, label: 'A2', symbol: 'star', symbolRotate: 30 }
     ]
   },
   {
     id: 'Group B',
     data: [
-      { x: 90, y: 40, size: 20, weight: 100, label: 'B1' }
+      { x: 90, y: 40, size: 20, label: 'B1' }
     ]
   }
 ];
@@ -89,47 +89,6 @@ describe('Scatter Chart Nivo & ECharts Attributes (Issue #73)', () => {
         expect(el.getAttribute('d')).toContain('M');
       }
     }
-  });
-
-  it('supports fixed numeric nodeSize, { key, values, sizes } scale object, and accessor function', () => {
-    const scatter = document.createElement('mc-scatter-chart') as MCScatterChart;
-    document.body.appendChild(scatter);
-
-    // 1. Fixed number
-    scatter.config = {
-      width: 500,
-      height: 300,
-      nodeSize: 14,
-      data: SAMPLE_SERIES
-    };
-    const fixedRadii = Array.from(
-      scatter.shadowRoot!.querySelectorAll('.mc-scatter-node')
-    ).map((el) => Number(el.getAttribute('r')));
-    expect(fixedRadii).toEqual([14, 14, 14]);
-
-    // 2. Scale object { key: 'weight', values: [0, 100], sizes: [6, 26] }
-    scatter.config = {
-      width: 500,
-      height: 300,
-      nodeSize: { key: 'weight', values: [0, 100], sizes: [6, 26] },
-      data: SAMPLE_SERIES
-    };
-    const scaledRadii = Array.from(
-      scatter.shadowRoot!.querySelectorAll('.mc-scatter-node')
-    ).map((el) => Number(el.getAttribute('r')));
-    expect(scaledRadii).toEqual([11, 21, 26]);
-
-    // 3. Accessor function
-    scatter.config = {
-      width: 500,
-      height: 300,
-      nodeSize: (pt) => pt.x * 0.2 + 5,
-      data: SAMPLE_SERIES
-    };
-    const fnRadii = Array.from(
-      scatter.shadowRoot!.querySelectorAll('.mc-scatter-node')
-    ).map((el) => Number(el.getAttribute('r')));
-    expect(fnRadii).toEqual([7, 15, 23]);
   });
 
   it('applies blendMode, plot clipPath, and deterministic jitter for overlapping points', () => {

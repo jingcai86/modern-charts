@@ -3,8 +3,6 @@ import { buildAxisScale, getScalePosition } from '../core/scale-manager';
 import { createOrdinalColorScale } from '../core/theme';
 import type {
   ChartRenderContext,
-  ScatterNodeSizeSpec,
-  ScatterPoint,
   ScatterSeries,
   ScatterSymbolType,
   ThresholdEvaluationResult,
@@ -49,7 +47,6 @@ export interface ScatterChartModel {
 export interface ScatterModelInput {
   minNodeSize: number;
   maxNodeSize: number;
-  nodeSize?: ScatterNodeSizeSpec;
   symbol?: ScatterSymbolType;
   symbolRotate?: number;
   blendMode?: string;
@@ -94,37 +91,6 @@ function normalizeSymbol(
     return raw as ScatterSymbolType;
   }
   return fallback;
-}
-
-function resolvePointRadius(
-  pt: ScatterPoint,
-  series: ScatterSeries,
-  spec: ScatterNodeSizeSpec | undefined,
-  defaultScale: (val: number) => number,
-  minNodeSize: number
-): number {
-  if (typeof spec === 'number' && Number.isFinite(spec) && spec > 0) {
-    return spec;
-  }
-  if (typeof spec === 'function') {
-    const val = Number(spec(pt, series));
-    return Number.isFinite(val) && val > 0 ? val : minNodeSize;
-  }
-  if (
-    spec &&
-    typeof spec === 'object' &&
-    Array.isArray(spec.values) &&
-    Array.isArray(spec.sizes)
-  ) {
-    const key = spec.key ?? 'size';
-    const rawVal = Number((pt as Record<string, unknown>)[key] ?? pt.size ?? 0);
-    const [v0, v1] = spec.values;
-    const [s0, s1] = spec.sizes;
-    if (!Number.isFinite(rawVal) || v1 === v0) return s0;
-    const t = Math.max(0, Math.min(1, (rawVal - v0) / (v1 - v0)));
-    return s0 + (s1 - s0) * t;
-  }
-  return pt.size !== undefined ? defaultScale(Number(pt.size)) : minNodeSize;
 }
 
 /**
@@ -213,13 +179,8 @@ export function computeScatterChartModel(
       }
       globalIdx++;
 
-      const radius = resolvePointRadius(
-        pt,
-        s,
-        input.nodeSize,
-        rScale,
-        input.minNodeSize
-      );
+      const radius =
+        pt.size !== undefined ? rScale(Number(pt.size)) : input.minNodeSize;
       const ptSymbol = normalizeSymbol(pt.symbol, seriesSymbol);
       const ptRotate = Number.isFinite(pt.symbolRotate)
         ? Number(pt.symbolRotate)
