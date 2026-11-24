@@ -5,7 +5,11 @@ import type {
   GaugeChartModel
 } from '../../models/gauge.model';
 import type { ComputedPieArcModel } from '../../models/pie.model';
-import type { ComputedSunburstArcModel } from '../../models/sunburst.model';
+import {
+  computeSunburstFocusSet,
+  type ComputedSunburstArcModel,
+  type SunburstChartModel
+} from '../../models/sunburst.model';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -149,6 +153,7 @@ export function renderSunburstArcItem(
   path.setAttribute('class', 'mc-sunburst-arc');
   path.setAttribute('data-item-component', 'mc-arc-item');
   path.setAttribute('data-name', arc.name);
+  path.setAttribute('data-path', arc.pathKey || arc.pathNames.join('/'));
   path.setAttribute('data-depth', String(arc.depth));
   path.setAttribute('d', arc.pathD);
   const sunburstFill =
@@ -226,8 +231,39 @@ export function renderSunburstArcItem(
   });
 
   if (chartInteractive) {
+    const applyFocusHighlight = () => {
+      const model = ctx.state?.model as SunburstChartModel | undefined;
+      if (!model || !model.focusMode || model.focusMode === 'none') return;
+      const activeSet = computeSunburstFocusSet(
+        model,
+        arc.pathNames,
+        model.focusMode
+      );
+      if (!activeSet) return;
+      ctx.rootGroup
+        .querySelectorAll<SVGPathElement>('.mc-sunburst-arc')
+        .forEach((el) => {
+          const elPath = el.getAttribute('data-path') || '';
+          const isActive = activeSet.has(elPath);
+          el.setAttribute('data-focus-state', isActive ? 'active' : 'dimmed');
+          el.style.opacity = isActive ? '1' : '0.25';
+        });
+    };
+
+    const clearFocusHighlight = () => {
+      const model = ctx.state?.model as SunburstChartModel | undefined;
+      if (!model || !model.focusMode || model.focusMode === 'none') return;
+      ctx.rootGroup
+        .querySelectorAll<SVGPathElement>('.mc-sunburst-arc')
+        .forEach((el) => {
+          el.removeAttribute('data-focus-state');
+          el.style.opacity = '';
+        });
+    };
+
     path.addEventListener('mouseenter', (e) => {
       path.style.filter = 'brightness(1.12)';
+      applyFocusHighlight();
       ctx.showTooltip(
         {
           title: arc.breadcrumb,
@@ -253,7 +289,14 @@ export function renderSunburstArcItem(
     });
     path.addEventListener('mouseleave', () => {
       path.style.filter = 'none';
+      clearFocusHighlight();
       ctx.hideTooltip();
+    });
+    path.addEventListener('focus', () => {
+      applyFocusHighlight();
+    });
+    path.addEventListener('blur', () => {
+      clearFocusHighlight();
     });
 
     if (interactive && arc.hasChildren && onDrilldown) {

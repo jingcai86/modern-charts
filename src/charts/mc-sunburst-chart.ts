@@ -2,7 +2,10 @@ import { MCBaseChart } from '../core/base-chart';
 import type {
   ChartMargin,
   ChartRenderContext,
-  HierarchyNode
+  HierarchyNode,
+  SunburstFocusMode,
+  SunburstLabelOrientation,
+  SunburstSortOrder
 } from '../core/types';
 import {
   computeSunburstChartModel,
@@ -23,6 +26,15 @@ export class MCSunburstChart extends MCBaseChart<HierarchyNode> {
   static observedAttributes = [
     ...MCBaseChart.baseObservedAttributes,
     'corner-radius',
+    'inner-radius',
+    'pad-angle',
+    'start-angle',
+    'end-angle',
+    'sort',
+    'inherit-color-from-parent',
+    'focus-mode',
+    'label-orientation',
+    'min-arc-angle-for-label',
     'enable-labels',
     'interactive-drilldown'
   ];
@@ -61,6 +73,37 @@ export class MCSunburstChart extends MCBaseChart<HierarchyNode> {
     const model = computeSunburstChartModel(ctx, {
       focusPath: this.#focusPath,
       cornerRadius: this.getOption('cornerRadius', 'corner-radius', 3) ?? 3,
+      innerRadius:
+        this.getOption('innerRadius', 'inner-radius', 0.22) ?? 0.22,
+      padAngle: this.getOption('padAngle', 'pad-angle', 0.46) ?? 0.46,
+      startAngle: this.getOption('startAngle', 'start-angle', 0) ?? 0,
+      endAngle: this.getOption('endAngle', 'end-angle', 360) ?? 360,
+      sort:
+        (this.getOption('sort', 'sort', 'desc') as SunburstSortOrder) ?? 'desc',
+      inheritColorFromParent:
+        this.getOption(
+          'inheritColorFromParent',
+          'inherit-color-from-parent',
+          true
+        ) !== false,
+      focusMode:
+        (this.getOption(
+          'focusMode',
+          'focus-mode',
+          'none'
+        ) as SunburstFocusMode) ?? 'none',
+      labelOrientation:
+        (this.getOption(
+          'labelOrientation',
+          'label-orientation',
+          'horizontal'
+        ) as SunburstLabelOrientation) ?? 'horizontal',
+      minArcAngleForLabel:
+        this.getOption(
+          'minArcAngleForLabel',
+          'min-arc-angle-for-label',
+          8
+        ) ?? 8,
       enableLabels:
         this.getOption('enableLabels', 'enable-labels', true) !== false,
       interactiveDrilldown:

@@ -1413,6 +1413,13 @@ export interface ChartConfig<TData = any> {
   splitArea?: boolean;
   enableTrendline?: boolean;
   interactiveDrilldown?: boolean;
+  startAngle?: number;
+  endAngle?: number;
+  sort?: SunburstSortOrder;
+  inheritColorFromParent?: boolean;
+  focusMode?: SunburstFocusMode;
+  labelOrientation?: SunburstLabelOrientation;
+  minArcAngleForLabel?: number;
   nodeWidth?: number;
   nodePadding?: number;
   align?: SankeyAlign;
@@ -1586,6 +1593,10 @@ export type RadarBlendMode =
 export interface RadarDatum {
   [key: string]: string | number;
 }
+
+export type SunburstSortOrder = 'desc' | 'asc' | 'none';
+export type SunburstFocusMode = 'none' | 'ancestor' | 'descendant';
+export type SunburstLabelOrientation = 'horizontal' | 'radial' | 'tangential';
 
 export interface HierarchyNode {
   name: string;

@@ -30,9 +30,17 @@ export function renderSunburstLabelsLayer(
   if (!model.enableLabels) return;
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+  const minAngle = model.minArcAngleForLabel ?? 8;
+  const isTangential = model.labelOrientation === 'tangential';
 
   model.arcs.forEach((arc, idx) => {
-    if (arc.arcLength < 26 || arc.ringThickness < 18) return;
+    if (
+      (arc.sweepAngleDeg ?? 360) < minAngle ||
+      arc.arcLength < 24 ||
+      arc.ringThickness < 16
+    ) {
+      return;
+    }
     ctx.renderLabel(g, {
       id: `sunburst-label-${idx}`,
       text: arc.name,
@@ -41,8 +49,13 @@ export function renderSunburstLabelsLayer(
       type: 'arc',
       anchor: 'middle',
       baseline: 'middle',
-      maxWidth: Math.max(32, arc.ringThickness - 6),
-      maxHeight: Math.max(16, arc.arcLength - 4),
+      rotation: arc.labelRotation ?? 0,
+      maxWidth: isTangential
+        ? Math.max(28, arc.arcLength - 6)
+        : Math.max(32, arc.ringThickness - 6),
+      maxHeight: isTangential
+        ? Math.max(14, arc.ringThickness - 4)
+        : Math.max(16, arc.arcLength - 4),
       fontSize: Math.max(10, ctx.theme.fontSize - 1),
       fontWeight: 600,
       color: '#ffffff',
@@ -64,12 +77,13 @@ export function renderSunburstCenterLayer(
   ctx: ChartRenderContext<HierarchyNode>,
   onDrillUp?: () => void
 ): void {
+  if (model.innerHole < 14) return;
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
   const circle = document.createElementNS(SVG_NS, 'circle');
   circle.setAttribute('class', 'mc-sunburst-center');
-  circle.setAttribute('r', String(Math.max(16, model.innerHole - 3)));
+  circle.setAttribute('r', String(Math.max(12, model.innerHole - 3)));
   circle.setAttribute(
     'fill',
     ctx.theme.mode === 'dark' ? '#1e293b' : '#f8fafc'
