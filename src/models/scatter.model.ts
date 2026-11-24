@@ -103,28 +103,32 @@ export function computeScatterChartModel(
   input: ScatterModelInput
 ): ScatterChartModel {
   const seriesList = Array.isArray(ctx.data) ? ctx.data : [];
-  const allX: number[] = [];
-  const allY: number[] = [];
+  const allX: any[] = [];
+  const allY: any[] = [];
   const allS: number[] = [];
 
   seriesList.forEach((s) => {
     (s.data ?? []).forEach((pt) => {
-      allX.push(Number(pt.x));
-      allY.push(Number(pt.y));
+      allX.push(
+        ctx.scaleConfig.x.type === 'point' ||
+          ctx.scaleConfig.x.type === 'band' ||
+          ctx.scaleConfig.x.type === 'time'
+          ? pt.x
+          : Number(pt.x)
+      );
+      allY.push(
+        ctx.scaleConfig.y.type === 'point' ||
+          ctx.scaleConfig.y.type === 'band' ||
+          ctx.scaleConfig.y.type === 'time'
+          ? pt.y
+          : Number(pt.y)
+      );
       if (pt.size !== undefined) allS.push(Number(pt.size));
     });
   });
 
-  ctx.xScale = buildAxisScale(
-    { ...ctx.scaleConfig.x, type: 'linear' },
-    allX,
-    [0, ctx.innerWidth]
-  );
-  ctx.yScale = buildAxisScale(
-    { ...ctx.scaleConfig.y, type: 'linear' },
-    allY,
-    [ctx.innerHeight, 0]
-  );
+  ctx.xScale = buildAxisScale(ctx.scaleConfig.x, allX, [0, ctx.innerWidth]);
+  ctx.yScale = buildAxisScale(ctx.scaleConfig.y, allY, [ctx.innerHeight, 0]);
   ctx.colorScale = createOrdinalColorScale(
     ctx.theme,
     seriesList.map((s) => s.id)

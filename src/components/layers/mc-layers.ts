@@ -1,5 +1,6 @@
 import { createDefaultTheme, resolvePaletteColors } from '../../core/theme';
 import type {
+  AxisPosition,
   ChartPaletteName,
   ChartRenderContext,
   ChartTheme,
@@ -169,27 +170,45 @@ export class MCScaleLayer extends MCConfigBaseElement {
   static observedAttributes = [
     'target',
     'type',
+    'position',
+    'title',
+    'tick-count',
     'min',
     'max',
     'stacked',
     'reverse',
     'nice',
     'clamp',
+    'base',
+    'constant',
     'padding',
     'inner-padding',
     'outer-padding',
     'scheme',
     'x-type',
+    'x-position',
+    'x-title',
+    'x-tick-count',
     'x-min',
     'x-max',
     'x-padding',
     'x-reverse',
+    'x-nice',
+    'x-clamp',
+    'x-base',
+    'x-constant',
     'y-type',
+    'y-position',
+    'y-title',
+    'y-tick-count',
     'y-min',
     'y-max',
     'y-stacked',
     'y-reverse',
     'y-nice',
+    'y-clamp',
+    'y-base',
+    'y-constant',
     'color-scheme'
   ];
 
@@ -200,9 +219,50 @@ export class MCScaleLayer extends MCConfigBaseElement {
     return Number.isNaN(num) ? 'auto' : num;
   }
 
+  private mergeAxisPosition(
+    existing: AxisPosition | undefined,
+    incoming: string | null,
+    axisKind: 'x' | 'y'
+  ): AxisPosition | undefined {
+    if (!incoming) return existing;
+    const raw = incoming.trim().toLowerCase() as AxisPosition;
+    if (
+      raw !== 'top' &&
+      raw !== 'right' &&
+      raw !== 'bottom' &&
+      raw !== 'left' &&
+      raw !== 'both' &&
+      raw !== 'none'
+    ) {
+      return existing;
+    }
+    if (raw === 'both' || raw === 'none') return raw;
+    if (
+      axisKind === 'x' &&
+      ((existing === 'bottom' && raw === 'top') ||
+        (existing === 'top' && raw === 'bottom'))
+    ) {
+      return 'both';
+    }
+    if (
+      axisKind === 'y' &&
+      ((existing === 'left' && raw === 'right') ||
+        (existing === 'right' && raw === 'left'))
+    ) {
+      return 'both';
+    }
+    return raw;
+  }
+
   public applyFromConfig(scaleCfg: Partial<ScaleConfig>): void {
     if (scaleCfg.x) {
       if (scaleCfg.x.type) this.setAttribute('x-type', scaleCfg.x.type);
+      if (scaleCfg.x.position)
+        this.setAttribute('x-position', scaleCfg.x.position);
+      if (scaleCfg.x.title !== undefined)
+        this.setAttribute('x-title', scaleCfg.x.title);
+      if (scaleCfg.x.tickCount !== undefined)
+        this.setAttribute('x-tick-count', String(scaleCfg.x.tickCount));
       if (scaleCfg.x.min !== undefined)
         this.setAttribute('x-min', String(scaleCfg.x.min));
       if (scaleCfg.x.max !== undefined)
@@ -211,9 +271,23 @@ export class MCScaleLayer extends MCConfigBaseElement {
         this.setAttribute('x-padding', String(scaleCfg.x.padding));
       if (scaleCfg.x.reverse !== undefined)
         this.setAttribute('x-reverse', String(scaleCfg.x.reverse));
+      if (scaleCfg.x.nice !== undefined)
+        this.setAttribute('x-nice', String(scaleCfg.x.nice));
+      if (scaleCfg.x.clamp !== undefined)
+        this.setAttribute('x-clamp', String(scaleCfg.x.clamp));
+      if (scaleCfg.x.base !== undefined)
+        this.setAttribute('x-base', String(scaleCfg.x.base));
+      if (scaleCfg.x.constant !== undefined)
+        this.setAttribute('x-constant', String(scaleCfg.x.constant));
     }
     if (scaleCfg.y) {
       if (scaleCfg.y.type) this.setAttribute('y-type', scaleCfg.y.type);
+      if (scaleCfg.y.position)
+        this.setAttribute('y-position', scaleCfg.y.position);
+      if (scaleCfg.y.title !== undefined)
+        this.setAttribute('y-title', scaleCfg.y.title);
+      if (scaleCfg.y.tickCount !== undefined)
+        this.setAttribute('y-tick-count', String(scaleCfg.y.tickCount));
       if (scaleCfg.y.min !== undefined)
         this.setAttribute('y-min', String(scaleCfg.y.min));
       if (scaleCfg.y.max !== undefined)
@@ -224,6 +298,12 @@ export class MCScaleLayer extends MCConfigBaseElement {
         this.setAttribute('y-reverse', String(scaleCfg.y.reverse));
       if (scaleCfg.y.nice !== undefined)
         this.setAttribute('y-nice', String(scaleCfg.y.nice));
+      if (scaleCfg.y.clamp !== undefined)
+        this.setAttribute('y-clamp', String(scaleCfg.y.clamp));
+      if (scaleCfg.y.base !== undefined)
+        this.setAttribute('y-base', String(scaleCfg.y.base));
+      if (scaleCfg.y.constant !== undefined)
+        this.setAttribute('y-constant', String(scaleCfg.y.constant));
     }
     if (scaleCfg.color?.scheme) {
       this.setAttribute('color-scheme', scaleCfg.color.scheme);
@@ -238,11 +318,32 @@ export class MCScaleLayer extends MCConfigBaseElement {
       size: base.size ? { ...base.size } : undefined
     };
 
-    const target = this.getAttribute('target');
-    if (target === 'x' || target === 'y') {
-      const axis: ScaleAxisConfig = next[target];
+    const rawTarget = this.getAttribute('target');
+    const posAttr = this.getAttribute('position')?.trim().toLowerCase();
+    const inferredTarget: 'x' | 'y' | null =
+      rawTarget === 'x' || rawTarget === 'y'
+        ? rawTarget
+        : posAttr === 'top' || posAttr === 'bottom'
+        ? 'x'
+        : posAttr === 'left' || posAttr === 'right'
+        ? 'y'
+        : null;
+
+    if (inferredTarget === 'x' || inferredTarget === 'y') {
+      const axis: ScaleAxisConfig = next[inferredTarget];
       if (this.hasAttribute('type'))
         axis.type = this.getAttribute('type') as ScaleType;
+      if (this.hasAttribute('position')) {
+        axis.position = this.mergeAxisPosition(
+          axis.position,
+          this.getAttribute('position'),
+          inferredTarget
+        );
+      }
+      if (this.hasAttribute('title'))
+        axis.title = this.getAttribute('title') || undefined;
+      if (this.hasAttribute('tick-count'))
+        axis.tickCount = Number(this.getAttribute('tick-count'));
       if (this.hasAttribute('min'))
         axis.min = this.parseBound(this.getAttribute('min'));
       if (this.hasAttribute('max'))
@@ -255,6 +356,10 @@ export class MCScaleLayer extends MCConfigBaseElement {
         axis.nice = this.getAttribute('nice') !== 'false';
       if (this.hasAttribute('clamp'))
         axis.clamp = this.getAttribute('clamp') !== 'false';
+      if (this.hasAttribute('base'))
+        axis.base = Number(this.getAttribute('base'));
+      if (this.hasAttribute('constant'))
+        axis.constant = Number(this.getAttribute('constant'));
       if (this.hasAttribute('padding'))
         axis.padding = Number(this.getAttribute('padding'));
       if (this.hasAttribute('inner-padding'))
@@ -266,6 +371,17 @@ export class MCScaleLayer extends MCConfigBaseElement {
     // Combined shorthand attributes on a single <mc-scale-layer>
     if (this.hasAttribute('x-type'))
       next.x.type = this.getAttribute('x-type') as ScaleType;
+    if (this.hasAttribute('x-position')) {
+      next.x.position = this.mergeAxisPosition(
+        next.x.position,
+        this.getAttribute('x-position'),
+        'x'
+      );
+    }
+    if (this.hasAttribute('x-title'))
+      next.x.title = this.getAttribute('x-title') || undefined;
+    if (this.hasAttribute('x-tick-count'))
+      next.x.tickCount = Number(this.getAttribute('x-tick-count'));
     if (this.hasAttribute('x-min'))
       next.x.min = this.parseBound(this.getAttribute('x-min'));
     if (this.hasAttribute('x-max'))
@@ -274,16 +390,35 @@ export class MCScaleLayer extends MCConfigBaseElement {
       next.x.padding = Number(this.getAttribute('x-padding'));
     if (this.hasAttribute('x-reverse'))
       next.x.reverse = this.getAttribute('x-reverse') !== 'false';
+    if (this.hasAttribute('x-nice'))
+      next.x.nice = this.getAttribute('x-nice') !== 'false';
+    if (this.hasAttribute('x-clamp'))
+      next.x.clamp = this.getAttribute('x-clamp') !== 'false';
+    if (this.hasAttribute('x-base'))
+      next.x.base = Number(this.getAttribute('x-base'));
+    if (this.hasAttribute('x-constant'))
+      next.x.constant = Number(this.getAttribute('x-constant'));
 
     if (this.hasAttribute('y-type'))
       next.y.type = this.getAttribute('y-type') as ScaleType;
+    if (this.hasAttribute('y-position')) {
+      next.y.position = this.mergeAxisPosition(
+        next.y.position,
+        this.getAttribute('y-position'),
+        'y'
+      );
+    }
+    if (this.hasAttribute('y-title'))
+      next.y.title = this.getAttribute('y-title') || undefined;
+    if (this.hasAttribute('y-tick-count'))
+      next.y.tickCount = Number(this.getAttribute('y-tick-count'));
     if (this.hasAttribute('y-min'))
       next.y.min = this.parseBound(this.getAttribute('y-min'));
     if (this.hasAttribute('y-max'))
       next.y.max = this.parseBound(this.getAttribute('y-max'));
     if (
       this.hasAttribute('y-stacked') ||
-      (!target && this.hasAttribute('stacked'))
+      (!inferredTarget && this.hasAttribute('stacked'))
     ) {
       next.y.stacked =
         this.getAttribute('y-stacked') !== 'false' &&
@@ -293,6 +428,12 @@ export class MCScaleLayer extends MCConfigBaseElement {
       next.y.reverse = this.getAttribute('y-reverse') !== 'false';
     if (this.hasAttribute('y-nice'))
       next.y.nice = this.getAttribute('y-nice') !== 'false';
+    if (this.hasAttribute('y-clamp'))
+      next.y.clamp = this.getAttribute('y-clamp') !== 'false';
+    if (this.hasAttribute('y-base'))
+      next.y.base = Number(this.getAttribute('y-base'));
+    if (this.hasAttribute('y-constant'))
+      next.y.constant = Number(this.getAttribute('y-constant'));
 
     const colorScheme =
       this.getAttribute('color-scheme') || this.getAttribute('scheme');
