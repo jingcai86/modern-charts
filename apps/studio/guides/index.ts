@@ -8,6 +8,7 @@ import { renderTooltipsGuide } from './tooltips';
 import { renderTruncationGuide } from './truncation';
 import { renderEventsGuide } from './events';
 import { renderAccessibilityGuide } from './accessibility';
+import { renderI18nGuide } from './i18n';
 import { renderDynamicUpdatesGuide } from './dynamic-updates';
 import { renderChartStateGuide } from './chart-state';
 import { renderPatternsGuide } from './patterns';
@@ -41,6 +42,8 @@ export function renderGuidePage(
       return renderEventsGuide(body, themeMode);
     case 'accessibility':
       return renderAccessibilityGuide(body, themeMode);
+    case 'i18n':
+      return renderI18nGuide(body, themeMode);
     case 'dynamic-updates':
       return renderDynamicUpdatesGuide(body, themeMode);
     case 'chart-state':

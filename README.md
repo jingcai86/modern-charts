@@ -166,7 +166,7 @@ Defaults are `en-US`, the runtime's local timezone, left-to-right direction, and
 
 Numbers, percentages, and date ticks use `Intl` with the resolved chart settings. Custom layers receive `ctx.i18n.formatNumber(value, options)`, `formatPercent(ratio, options)`, `formatDate(date, options)`, and `message(key, values)`. For example, `ctx.i18n.formatPercent(0.25)` formats 25 percent. Raw chart data, event payload values, and SVG coordinates keep their original values. `createChartI18n(overrides)` exposes the same formatters outside a chart.
 
-Studio's **Internationalization** controls let you preview locale, timezone, and direction for each chart. Studio interface copy and documentation remain English; application message catalogs and translations of user-provided titles, series names, and categories belong to the host application.
+Studio's **Internationalization** controls let you preview locale, timezone, and direction for each chart. The [Internationalization guide](https://jingcai86.github.io/modern-charts/#/guide/i18n) includes live editable examples for number formats, timezones, translated messages, and RTL, plus shared-service setup code. Studio interface copy and documentation remain English; application message catalogs and translations of user-provided titles, series names, and categories belong to the host application.
 
 ### 3. Per-Chart Subpath Imports (Tree-Shaking)
 

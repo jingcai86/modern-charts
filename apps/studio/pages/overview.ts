@@ -98,6 +98,16 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="150" y="34" width="14" height="32" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
       <rect x="170" y="40" width="14" height="26" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
     </svg>`,
+  i18n: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <circle cx="62" cy="48" r="28" stroke="#38bdf8" stroke-width="1.8"/>
+      <ellipse cx="62" cy="48" rx="13" ry="28" stroke="#38bdf8" stroke-width="1.4"/>
+      <path d="M34 48 H90 M38 34 H86 M38 62 H86" stroke="#38bdf8" stroke-width="1.2"/>
+      <rect x="110" y="18" width="84" height="25" rx="6" fill="#6366f1" fill-opacity="0.22"/>
+      <text x="152" y="35" text-anchor="middle" fill="currentColor" font-size="13">1.234,56</text>
+      <rect x="110" y="53" width="84" height="25" rx="6" fill="#10b981" fill-opacity="0.22"/>
+      <text x="152" y="70" text-anchor="middle" fill="currentColor" font-size="13">١٬٢٣٤٫٥٦</text>
+    </svg>`,
   'dynamic-updates': `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
       <path d="M24 72 L196 72" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.4"/>
