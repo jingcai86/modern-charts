@@ -329,4 +329,74 @@ describe('Directional Gradient Generator & Chart Gradient Config', () => {
     const swatches = root.querySelectorAll('#grad-swatch-strip > div');
     expect(swatches.length).toBe(20);
   });
+
+  it('places fallback bar labels to the right/left on thin horizontal bars and below on narrow negative vertical bars', () => {
+    const bar = document.createElement('mc-bar-chart') as MCBarChart;
+    document.body.appendChild(bar);
+
+    // 1. Thin horizontal grouped diverging bars -> labels outside right (positive) & left (negative), centered vertically on each bar
+    bar.config = {
+      width: 480,
+      height: 220,
+      layout: 'horizontal',
+      groupMode: 'grouped',
+      margin: { top: 32, right: 40, bottom: 48, left: 56 },
+      indexBy: 'q',
+      keys: ['A', 'B', 'C'],
+      data: [
+        { q: 'Q1', A: 120, B: -48, C: 62 },
+        { q: 'Q2', A: 94, B: 76, C: -54 },
+        { q: 'Q3', A: -64, B: 112, C: 85 },
+        { q: 'Q4', A: 146, B: -38, C: -72 }
+      ]
+    };
+
+    const rects = Array.from(bar.shadowRoot!.querySelectorAll<SVGRectElement>('rect.mc-bar-rect'));
+    const labels = Array.from(bar.shadowRoot!.querySelectorAll<SVGGElement>('.mc-layer--labels .mc-label'));
+    expect(rects.length).toBe(12);
+    expect(labels.length).toBe(12);
+
+    const parseTranslate = (el: Element): [number, number] => {
+      const m = /translate\(\s*([^,\s)]+)[,\s]+([^)]+)\)/.exec(
+        el.getAttribute('transform') ?? ''
+      );
+      expect(m).not.toBeNull();
+      return [Number(m![1]), Number(m![2])];
+    };
+
+    // First bar is Q1/A = +120 (positive horizontal) -> label right of bar, vertically aligned with bar midpoint
+    const posRect = rects[0];
+    const posText = labels[0].querySelector('text')!;
+    const [posLabelX, posLabelY] = parseTranslate(labels[0]);
+    const posX = Number(posRect.getAttribute('x'));
+    const posW = Number(posRect.getAttribute('width'));
+    const posMidY = Number(posRect.getAttribute('y')) + Number(posRect.getAttribute('height')) / 2;
+    expect(posText.getAttribute('text-anchor')).toBe('start');
+    expect(posLabelX).toBeCloseTo(posX + posW + 6, 1);
+    expect(posLabelY).toBeCloseTo(posMidY, 1);
+
+    // Second bar is Q1/B = -48 (negative horizontal) -> label left of bar, vertically aligned with bar midpoint
+    const negRect = rects[1];
+    const negText = labels[1].querySelector('text')!;
+    const [negLabelX, negLabelY] = parseTranslate(labels[1]);
+    const negX = Number(negRect.getAttribute('x'));
+    const negMidY = Number(negRect.getAttribute('y')) + Number(negRect.getAttribute('height')) / 2;
+    expect(negText.getAttribute('text-anchor')).toBe('end');
+    expect(negLabelX).toBeCloseTo(negX - 6, 1);
+    expect(negLabelY).toBeCloseTo(negMidY, 1);
+
+    // 2. Narrow vertical diverging bars -> negative bar label falls back BELOW bar (not above onto zero axis)
+    bar.config = {
+      ...bar.config,
+      width: 260,
+      height: 220,
+      layout: 'vertical'
+    };
+    const vRects = Array.from(bar.shadowRoot!.querySelectorAll<SVGRectElement>('rect.mc-bar-rect'));
+    const vLabels = Array.from(bar.shadowRoot!.querySelectorAll<SVGGElement>('.mc-layer--labels .mc-label'));
+    const vNegRect = vRects[1]; // Q1/B = -48
+    const [, vNegLabelY] = parseTranslate(vLabels[1]);
+    const vNegBottom = Number(vNegRect.getAttribute('y')) + Number(vNegRect.getAttribute('height'));
+    expect(vNegLabelY).toBeGreaterThan(vNegBottom);
+  });
 });

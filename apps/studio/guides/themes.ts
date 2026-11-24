@@ -747,7 +747,7 @@ chart.config = {
       ],
       margin:
         activeLayout === 'horizontal'
-          ? { top: 44, right: 24, bottom: 68, left: 48 }
+          ? { top: 44, right: 42, bottom: 68, left: 56 }
           : { top: 44, right: 20, bottom: 68, left: 48 },
       ...cfg
     });
