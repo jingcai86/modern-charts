@@ -10,6 +10,7 @@ import type {
   ComputedLinePointModel,
   ComputedLineSeriesModel
 } from '../../models/line.model';
+import { buildScatterSymbolPath } from './scatter.item';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -275,6 +276,9 @@ export function renderLinePathItem(
       basePath.setAttribute('fill', 'none');
       basePath.setAttribute('stroke', series.color);
       basePath.setAttribute('stroke-width', String(series.strokeWidth));
+      if (series.strokeDasharray) {
+        basePath.setAttribute('stroke-dasharray', series.strokeDasharray);
+      }
       basePath.setAttribute('stroke-linecap', 'round');
       basePath.setAttribute('stroke-linejoin', 'round');
       basePath.setAttribute('clip-path', `url(#${baseClipId})`);
@@ -356,13 +360,14 @@ export function renderLinePathItem(
 
   let strokeValue = series.color;
   let strokeWidth = series.strokeWidth;
-  let strokeDasharray: string | undefined;
+  let strokeDasharray: string | undefined = series.strokeDasharray;
 
   if (fullOverlay) {
     strokeValue =
       fullOverlay.style.stroke || fullOverlay.style.color || series.color;
     strokeWidth = fullOverlay.style.strokeWidth ?? series.strokeWidth;
-    strokeDasharray = fullOverlay.style.strokeDasharray;
+    strokeDasharray =
+      fullOverlay.style.strokeDasharray ?? series.strokeDasharray;
   } else if (series.hasThresholdMatches && itemScopeMarker) {
     strokeValue =
       itemScopeMarker.matchStyle?.stroke ||
@@ -371,7 +376,8 @@ export function renderLinePathItem(
       '#ef4444';
     strokeWidth =
       itemScopeMarker.matchStyle?.strokeWidth ?? series.strokeWidth;
-    strokeDasharray = itemScopeMarker.matchStyle?.strokeDasharray;
+    strokeDasharray =
+      itemScopeMarker.matchStyle?.strokeDasharray ?? series.strokeDasharray;
   }
 
   const path = document.createElementNS(SVG_NS, 'path');
@@ -423,8 +429,12 @@ export function renderLinePathItem(
 export function renderLinePointItem(
   pt: ComputedLinePointModel,
   ctx: ChartRenderContext<any>
-): SVGCircleElement {
-  const circle = document.createElementNS(SVG_NS, 'circle');
+): SVGElement {
+  const symbol = pt.symbol ?? 'circle';
+  const isCircle = symbol === 'circle';
+  const node: SVGElement = isCircle
+    ? document.createElementNS(SVG_NS, 'circle')
+    : document.createElementNS(SVG_NS, 'path');
   const radius = pt.radius;
   const customCls = pt.threshold.style.className
     ? ` ${pt.threshold.style.className}`
@@ -435,47 +445,55 @@ export function renderLinePointItem(
       }`
     : '';
 
-  circle.setAttribute('class', `mc-line-point${threshCls}${customCls}`);
-  circle.setAttribute('data-item-component', 'mc-point-item');
-  circle.setAttribute('data-series-id', pt.seriesId);
-  circle.setAttribute('data-point-index', String(pt.pointIndex));
-  circle.setAttribute('cx', String(pt.px));
-  circle.setAttribute('cy', String(pt.py));
-  circle.setAttribute('r', String(radius));
-  circle.setAttribute(
+  node.setAttribute('class', `mc-line-point${threshCls}${customCls}`);
+  node.setAttribute('data-item-component', 'mc-point-item');
+  node.setAttribute('data-series-id', pt.seriesId);
+  node.setAttribute('data-point-index', String(pt.pointIndex));
+  node.setAttribute('data-symbol', symbol);
+  if (isCircle) {
+    node.setAttribute('cx', String(pt.px));
+    node.setAttribute('cy', String(pt.py));
+    node.setAttribute('r', String(radius));
+  } else {
+    node.setAttribute(
+      'd',
+      buildScatterSymbolPath(symbol, pt.px, pt.py, radius)
+    );
+  }
+  node.setAttribute(
     'fill',
     pt.threshold.matched ? pt.color : ctx.theme.background
   );
-  circle.setAttribute('stroke', pt.threshold.style.stroke || pt.color);
-  circle.setAttribute(
+  node.setAttribute('stroke', pt.threshold.style.stroke || pt.color);
+  node.setAttribute(
     'stroke-width',
-    String(pt.threshold.style.strokeWidth ?? 2.2)
+    String(pt.threshold.style.strokeWidth ?? pt.borderWidth ?? 2.2)
   );
 
   if (pt.threshold.matched) {
-    circle.setAttribute('data-threshold-matched', 'true');
-    circle.setAttribute(
+    node.setAttribute('data-threshold-matched', 'true');
+    node.setAttribute(
       'data-under-threshold',
       String(pt.threshold.isUnderThreshold)
     );
-    circle.setAttribute(
+    node.setAttribute(
       'data-threshold-ids',
       pt.threshold.matchedMarkerIds.join(',')
     );
     if (pt.threshold.style.strokeDasharray) {
-      circle.setAttribute(
+      node.setAttribute(
         'stroke-dasharray',
         pt.threshold.style.strokeDasharray
       );
     }
     if (pt.threshold.style.opacity !== undefined) {
-      circle.setAttribute('opacity', String(pt.threshold.style.opacity));
+      node.setAttribute('opacity', String(pt.threshold.style.opacity));
     }
   }
 
   const interactive = ctx.isInteractive !== false;
   if (interactive) {
-    circle.style.cursor = 'pointer';
+    node.style.cursor = 'pointer';
   }
 
   const fallbackAnchor = {
@@ -486,7 +504,7 @@ export function renderLinePointItem(
     relative: true
   };
 
-  ctx.decorateAriaItem(circle, {
+  ctx.decorateAriaItem(node, {
     type: 'point',
     index: pt.globalIndex,
     total: pt.totalPoints,
@@ -511,10 +529,10 @@ export function renderLinePointItem(
   });
 
   if (ctx.state?.lineTransitions?.has(pt.seriesId)) {
-    circle.setAttribute('data-animated', 'true');
-    circle.setAttribute('data-transition-mode', 'morph');
+    node.setAttribute('data-animated', 'true');
+    node.setAttribute('data-transition-mode', 'morph');
   } else {
-    ctx.animateItem(circle, {
+    ctx.animateItem(node, {
       type: 'point-pop',
       index: pt.globalIndex,
       originX: pt.px,
@@ -522,7 +540,7 @@ export function renderLinePointItem(
     });
   }
 
-  ctx.registerEventTarget(circle, {
+  ctx.registerEventTarget(node, {
     target: 'linePoint',
     category: 'item',
     id: pt.id,
@@ -544,9 +562,16 @@ export function renderLinePointItem(
   });
 
   if (interactive) {
-    circle.addEventListener('mouseenter', (e) => {
-      circle.setAttribute('r', String(radius + 2));
-      circle.setAttribute('fill', pt.color);
+    node.addEventListener('mouseenter', (e) => {
+      if (isCircle) {
+        node.setAttribute('r', String(radius + 2));
+      } else {
+        node.setAttribute(
+          'd',
+          buildScatterSymbolPath(symbol, pt.px, pt.py, radius + 2)
+        );
+      }
+      node.setAttribute('fill', pt.color);
       ctx.showTooltip(
         {
           title: pt.seriesId,
@@ -560,7 +585,7 @@ export function renderLinePointItem(
             ? `⚠ Under Threshold (${pt.threshold.matchedMarkerIds.join(', ')})`
             : undefined,
           threshold: pt.threshold,
-          anchor: resolveElementAnchor(circle, fallbackAnchor),
+          anchor: resolveElementAnchor(node, fallbackAnchor),
           datum: {
             seriesId: pt.seriesId,
             x: pt.xValue,
@@ -572,9 +597,16 @@ export function renderLinePointItem(
         (e as MouseEvent).clientY
       );
     });
-    circle.addEventListener('mouseleave', () => {
-      circle.setAttribute('r', String(radius));
-      circle.setAttribute(
+    node.addEventListener('mouseleave', () => {
+      if (isCircle) {
+        node.setAttribute('r', String(radius));
+      } else {
+        node.setAttribute(
+          'd',
+          buildScatterSymbolPath(symbol, pt.px, pt.py, radius)
+        );
+      }
+      node.setAttribute(
         'fill',
         pt.threshold.matched ? pt.color : ctx.theme.background
       );
@@ -582,7 +614,7 @@ export function renderLinePointItem(
     });
   }
 
-  return circle;
+  return node;
 }
 
 export class MCLineItem extends HTMLElement {}

@@ -1392,6 +1392,12 @@ export interface ChartConfig<TData = any> {
   pointSize?: number;
   enablePointLabels?: boolean;
   enableSlices?: boolean;
+  stacked?: boolean;
+  connectNulls?: boolean;
+  areaBaselineValue?: number;
+  pointBorderWidth?: number;
+  lineStyle?: LineStrokeStyle;
+  crosshairType?: LineCrosshairType;
   innerRadius?: number;
   padAngle?: number;
   cornerRadius?: number;
@@ -1545,9 +1551,12 @@ export type LayerInput<TData = unknown> =
 
 // Chart Data Models
 
+export type LineStrokeStyle = 'solid' | 'dashed' | 'dotted';
+export type LineCrosshairType = 'x' | 'y' | 'cross';
+
 export interface LineDataPoint {
   x: string | number | Date;
-  y: number;
+  y: number | null;
   label?: string;
   [key: string]: unknown;
 }
@@ -1555,6 +1564,9 @@ export interface LineDataPoint {
 export interface LineSeries {
   id: string;
   color?: string;
+  dashed?: boolean;
+  lineStyle?: LineStrokeStyle;
+  symbol?: ScatterSymbolType;
   data: LineDataPoint[];
 }
 

@@ -14,7 +14,10 @@ import { buildAxisScale, getScalePosition } from '../core/scale-manager';
 import { createOrdinalColorScale } from '../core/theme';
 import type {
   ChartRenderContext,
+  LineCrosshairType,
   LineSeries,
+  LineStrokeStyle,
+  ScatterSymbolType,
   ThresholdEvaluationResult,
   ThresholdMatchedItem
 } from '../core/types';
@@ -34,6 +37,9 @@ export interface ComputedLinePointModel {
   py: number;
   py0: number;
   radius: number;
+  borderWidth: number;
+  symbol: ScatterSymbolType;
+  defined: boolean;
   label: string;
   threshold: ThresholdEvaluationResult;
   raw: any;
@@ -46,7 +52,10 @@ export interface ComputedLineSeriesModel {
   linePathD: string;
   areaPathD: string;
   strokeWidth: number;
+  lineStyle: LineStrokeStyle;
+  strokeDasharray?: string;
   areaOpacity: number;
+  symbol: ScatterSymbolType;
   hasThresholdMatches: boolean;
   points: ComputedLinePointModel[];
 }
@@ -55,6 +64,13 @@ export interface LineChartModel {
   series: ComputedLineSeriesModel[];
   curve: string;
   enableArea: boolean;
+  areaBaselineValue?: number;
+  lineStyle: LineStrokeStyle;
+  symbol: ScatterSymbolType;
+  pointBorderWidth: number;
+  stacked: boolean;
+  connectNulls: boolean;
+  crosshairType: LineCrosshairType;
   enablePointLabels: boolean;
   enableSlices: boolean;
   xTitle?: string;
@@ -89,8 +105,15 @@ export interface LineModelInput {
   curve: string;
   enableArea: boolean;
   areaOpacity: number;
+  areaBaselineValue?: number;
   lineWidth: number;
+  lineStyle?: LineStrokeStyle;
   pointSize: number;
+  pointBorderWidth?: number;
+  symbol?: ScatterSymbolType;
+  stacked?: boolean;
+  connectNulls?: boolean;
+  crosshairType?: LineCrosshairType;
   enablePointLabels: boolean;
   enableSlices: boolean;
   xTitle?: string;
@@ -107,6 +130,12 @@ export interface LineModelInput {
     >,
     evalResult: ThresholdEvaluationResult
   ) => ThresholdMatchedItem;
+}
+
+function resolveLineDasharray(style: LineStrokeStyle): string | undefined {
+  if (style === 'dashed') return '8 5';
+  if (style === 'dotted') return '2 4';
+  return undefined;
 }
 
 export function getD3CurveFactory(curveName: string): CurveFactory {
@@ -142,19 +171,34 @@ export function computeLineChartModel(
   const allX: any[] = [];
   const allY: number[] = [];
 
+  const isDefinedY = (v: unknown): boolean =>
+    v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+
   seriesList.forEach((s) => {
     (s.data ?? []).forEach((pt) => {
+      if (!pt) return;
       allX.push(pt.x);
-      allY.push(Number(pt.y));
+      if (isDefinedY(pt.y)) {
+        allY.push(Number(pt.y));
+      }
     });
   });
 
-  const stacked = ctx.scaleConfig.y.stacked === true;
+  const stacked =
+    input.stacked === true || ctx.scaleConfig.y.stacked === true;
+  const connectNulls = input.connectNulls !== false;
+  const defaultLineStyle: LineStrokeStyle = input.lineStyle ?? 'solid';
+  const defaultSymbol: ScatterSymbolType = input.symbol ?? 'circle';
+  const pointBorderWidth = Number.isFinite(input.pointBorderWidth)
+    ? Math.max(0, Number(input.pointBorderWidth))
+    : 2.2;
+  const crosshairType: LineCrosshairType = input.crosshairType ?? 'x';
   const xTotals = new Map<string, number>();
 
   if (stacked) {
     seriesList.forEach((s) => {
       (s.data ?? []).forEach((pt) => {
+        if (!pt || !isDefinedY(pt.y)) return;
         const key = String(pt.x);
         const prev = xTotals.get(key) ?? 0;
         xTotals.set(key, prev + Number(pt.y));
@@ -164,6 +208,12 @@ export function computeLineChartModel(
   } else if (ctx.scaleConfig.y.min === 'auto') {
     const minVal = allY.length > 0 ? Math.min(...allY) : 0;
     if (minVal >= 0) allY.push(0);
+  }
+  if (
+    input.areaBaselineValue !== undefined &&
+    Number.isFinite(input.areaBaselineValue)
+  ) {
+    allY.push(Number(input.areaBaselineValue));
   }
 
   ctx.xScale = buildAxisScale(ctx.scaleConfig.x, allX, [0, ctx.innerWidth]);
@@ -178,78 +228,115 @@ export function computeLineChartModel(
   const curveFactory = getD3CurveFactory(input.curve);
   const baseRadius = input.pointSize / 2;
   const totalPoints = seriesList.reduce(
-    (acc, s) => acc + (s.data?.length ?? 0),
+    (acc, s) =>
+      acc + (s.data ?? []).filter((pt) => pt && isDefinedY(pt.y)).length,
     0
   );
   let globalIndex = 0;
 
+  const defaultBaselineVal =
+    input.areaBaselineValue !== undefined &&
+    Number.isFinite(input.areaBaselineValue)
+      ? Number(input.areaBaselineValue)
+      : (ctx.yScale.domain()[0] ?? 0);
+
   const runningStack = new Map<string, number>();
   const series: ComputedLineSeriesModel[] = seriesList.map((s, sIdx) => {
     const baseColor = s.color || ctx.colorScale(s.id);
+    const seriesLineStyle: LineStrokeStyle = s.lineStyle ?? defaultLineStyle;
+    const seriesSymbol: ScatterSymbolType = s.symbol ?? defaultSymbol;
+
     const points: ComputedLinePointModel[] = (s.data ?? []).map((pt, ptIdx) => {
-      const key = String(pt.x);
-      const y0 = stacked ? runningStack.get(key) ?? 0 : 0;
-      const yVal = stacked ? y0 + Number(pt.y) : Number(pt.y);
-      if (stacked) runningStack.set(key, yVal);
+      const defined = Boolean(pt && isDefinedY(pt.y));
+      const rawY = defined ? Number(pt.y) : 0;
+      const key = String(pt?.x ?? ptIdx);
+      const y0 = stacked ? runningStack.get(key) ?? 0 : defaultBaselineVal;
+      const yVal = stacked ? y0 + rawY : rawY;
+      if (stacked && defined) runningStack.set(key, yVal);
 
       const px = getScalePosition(ctx.xScale, pt.x);
       const py = getScalePosition(ctx.yScale, yVal);
       const py0 = getScalePosition(
         ctx.yScale,
-        stacked ? y0 : ctx.yScale.domain()[0] ?? 0
+        stacked ? y0 : defaultBaselineVal
       );
 
-      const evalResult = ctx.evaluateThresholds(
-        Number(pt.y),
-        { ...pt, seriesId: s.id, x: pt.x, y: Number(pt.y) },
-        'y',
-        baseColor
-      );
+      const evalResult = defined
+        ? ctx.evaluateThresholds(
+            rawY,
+            { ...pt, seriesId: s.id, x: pt.x, y: rawY },
+            'y',
+            baseColor
+          )
+        : {
+            matched: false,
+            isUnderThreshold: false,
+            isAboveThreshold: false,
+            matchedMarkers: [],
+            matchedMarkerIds: [],
+            effectiveColor: baseColor,
+            style: {}
+          };
       const effectiveColor = evalResult.effectiveColor || baseColor;
 
-      input.recordThresholdItem?.(
-        {
-          id: `${s.id}-${pt.x}`,
-          seriesId: s.id,
-          category: String(pt.x),
-          value: Number(pt.y),
-          px,
-          py,
-          originalColor: baseColor,
-          datum: { ...pt, seriesId: s.id, x: pt.x, y: Number(pt.y) }
-        },
-        evalResult
-      );
+      if (defined) {
+        input.recordThresholdItem?.(
+          {
+            id: `${s.id}-${pt.x}`,
+            seriesId: s.id,
+            category: String(pt.x),
+            value: rawY,
+            px,
+            py,
+            originalColor: baseColor,
+            datum: { ...pt, seriesId: s.id, x: pt.x, y: rawY }
+          },
+          evalResult
+        );
+      }
 
       const itemModel: ComputedLinePointModel = {
         id: `${s.id}-${pt.x}`,
-        globalIndex,
+        globalIndex: defined ? globalIndex++ : -1,
         pointIndex: ptIdx,
         totalPoints,
         seriesId: s.id,
         originalColor: baseColor,
         color: effectiveColor,
         xValue: pt.x,
-        yValue: Number(pt.y),
+        yValue: defined ? rawY : NaN,
         y0Value: y0,
         px,
         py,
         py0,
-        radius: evalResult.style.radius ?? baseRadius,
-        label: pt.label !== undefined ? String(pt.label) : String(pt.y),
+        radius: defined ? (evalResult.style.radius ?? baseRadius) : 0,
+        borderWidth: pointBorderWidth,
+        symbol: seriesSymbol,
+        defined,
+        label:
+          pt.label !== undefined
+            ? String(pt.label)
+            : defined
+              ? String(rawY)
+              : '',
         threshold: evalResult,
         raw: pt
       };
-      globalIndex++;
       return itemModel;
     });
 
+    const pathPoints = connectNulls
+      ? points.filter((p) => p.defined)
+      : points;
+
     const lineGen = line<ComputedLinePointModel>()
+      .defined((d) => d.defined)
       .x((d) => d.px)
       .y((d) => d.py)
       .curve(curveFactory);
 
     const areaGen = area<ComputedLinePointModel>()
+      .defined((d) => d.defined)
       .x((d) => d.px)
       .y0((d) => d.py0)
       .y1((d) => d.py)
@@ -259,11 +346,14 @@ export function computeLineChartModel(
       id: s.id,
       index: sIdx,
       color: baseColor,
-      linePathD: points.length > 0 ? lineGen(points) || '' : '',
-      areaPathD: points.length > 0 ? areaGen(points) || '' : '',
+      linePathD: pathPoints.length > 0 ? lineGen(pathPoints) || '' : '',
+      areaPathD: pathPoints.length > 0 ? areaGen(pathPoints) || '' : '',
       strokeWidth: input.lineWidth,
+      lineStyle: seriesLineStyle,
+      strokeDasharray: resolveLineDasharray(seriesLineStyle),
       areaOpacity: input.areaOpacity,
-      hasThresholdMatches: points.some((p) => p.threshold.matched),
+      symbol: seriesSymbol,
+      hasThresholdMatches: points.some((p) => p.defined && p.threshold.matched),
       points
     };
   });
@@ -272,6 +362,13 @@ export function computeLineChartModel(
     series,
     curve: input.curve,
     enableArea: input.enableArea,
+    areaBaselineValue: input.areaBaselineValue,
+    lineStyle: defaultLineStyle,
+    symbol: defaultSymbol,
+    pointBorderWidth,
+    stacked,
+    connectNulls,
+    crosshairType,
     enablePointLabels: input.enablePointLabels,
     enableSlices: input.enableSlices,
     xTitle: input.xTitle,
