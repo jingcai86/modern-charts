@@ -52,6 +52,7 @@ jobs:
         run: npm run build
 
       - name: Verify bundle size limit
+        if: matrix.node-version == 22
         run: npm run size
 
       - name: Build demo site
