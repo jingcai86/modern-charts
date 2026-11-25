@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../../core/dom';
 import { resolveElementAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
 import type {
@@ -173,4 +174,4 @@ export function renderRadarDotItem(
   return dot;
 }
 
-export class MCRadarItem extends HTMLElement {}
+export class MCRadarItem extends HTMLElementBase {}

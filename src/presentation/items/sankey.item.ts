@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../../core/dom';
 import { formatGroupedNumber } from '../../core/format';
 import {
   resolveChartPointAnchor,
@@ -369,5 +370,5 @@ export function renderSankeyNodeItem(
   return rect;
 }
 
-export class MCSankeyNodeItem extends HTMLElement {}
-export class MCSankeyLinkItem extends HTMLElement {}
+export class MCSankeyNodeItem extends HTMLElementBase {}
+export class MCSankeyLinkItem extends HTMLElementBase {}

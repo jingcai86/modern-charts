@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../../core/dom';
 import { resolveChartPointAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
 import type {
@@ -601,4 +602,4 @@ export function renderGaugeNeedleItem(
   return g;
 }
 
-export class MCArcItem extends HTMLElement {}
+export class MCArcItem extends HTMLElementBase {}

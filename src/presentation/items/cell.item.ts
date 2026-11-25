@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../../core/dom';
 import { formatGroupedNumber } from '../../core/format';
 import { resolveElementAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext } from '../../core/types';
@@ -291,4 +292,4 @@ export function renderTreemapTileItem(
   return rect;
 }
 
-export class MCCellItem extends HTMLElement {}
+export class MCCellItem extends HTMLElementBase {}

@@ -105,6 +105,14 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="150" y="34" width="14" height="32" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
       <rect x="170" y="40" width="14" height="26" rx="3" fill="#94a3b8" fill-opacity="0.55"/>
     </svg>`,
+  ssr: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="24" y="25" width="64" height="47" rx="7" fill="#6366f1" fill-opacity="0.16" stroke="#818cf8" stroke-width="1.5"/>
+      <path d="M36 39h40M36 49h40M36 59h40" stroke="#818cf8" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M97 48h25m-7-7 7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="132" y="25" width="64" height="47" rx="7" fill="#06b6d4" fill-opacity="0.12" stroke="#22d3ee" stroke-width="1.5"/>
+      <path d="M145 60V49m12 11V40m12 20V45m12 15V35" stroke="#22d3ee" stroke-width="4" stroke-linecap="round"/>
+    </svg>`,
   i18n: `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
       <circle cx="62" cy="48" r="28" stroke="#38bdf8" stroke-width="1.8"/>

@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../core/dom';
 import type {
   LegendConfig,
   LegendItem,
@@ -16,7 +17,7 @@ import type { MCTooltipElement } from './mc-tooltip';
  * visualMap domain/calculable handles, 4-side padding, wrapping, and dedicated
  * legend tooltips (via `enable-tooltip` or a nested `<mc-tooltip>` child).
  */
-export class MCLegendElement extends HTMLElement {
+export class MCLegendElement extends HTMLElementBase {
   static observedAttributes = [
     'enabled',
     'type',

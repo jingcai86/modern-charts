@@ -1,3 +1,4 @@
+import { HTMLElementBase, lazyTemplate } from '../core/dom';
 import { LabelEngine } from '../core/label-engine';
 import {
   normalizeOverflowInput,
@@ -20,8 +21,7 @@ import type {
 import { MCTooltipElement } from './mc-tooltip';
 import { MCTruncateElement } from './mc-truncate';
 
-const labelTemplate = document.createElement('template');
-labelTemplate.innerHTML = `
+const getLabelTemplate = lazyTemplate(`
   <div class="mc-label-host" part="container">
     <svg class="mc-label-standalone-svg" part="svg" xmlns="http://www.w3.org/2000/svg"></svg>
     <mc-tooltip
@@ -32,7 +32,7 @@ labelTemplate.innerHTML = `
     ></mc-tooltip>
     <slot style="display:none"></slot>
   </div>
-`;
+`);
 
 let sharedLabelSheet: CSSStyleSheet | null = null;
 function getLabelStyleSheet(): CSSStyleSheet | null {
@@ -95,7 +95,7 @@ function getLabelStyleSheet(): CSSStyleSheet | null {
  *   or a raw `<foreignObject>` inside `<template>`, with `@chenglou/pretext` computing
  *   exact icon + text bounding boxes without DOM reflow.
  */
-export class MCLabelElement extends HTMLElement {
+export class MCLabelElement extends HTMLElementBase {
   static observedAttributes = [
     'dir',
     'for',
@@ -148,7 +148,7 @@ export class MCLabelElement extends HTMLElement {
     if (sheet && 'adoptedStyleSheets' in shadow) {
       shadow.adoptedStyleSheets = [sheet];
     }
-    shadow.append(labelTemplate.content.cloneNode(true));
+    shadow.append(getLabelTemplate().content.cloneNode(true));
   }
 
   connectedCallback(): void {

@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../core/dom';
 import type {
   LineStrokeStyle,
   MarkerAnnotationConfig,
@@ -21,7 +22,7 @@ import type {
  * threshold conditions (`condition="below|above|between|outside"`),
  * and conditional item styling (`match-color`, `match-fill`, `match-stroke`, `match-opacity`, `match-class`, `match-icon`).
  */
-export class MCMarkerElement extends HTMLElement {
+export class MCMarkerElement extends HTMLElementBase {
   static observedAttributes = [
     'id',
     'type',
@@ -369,7 +370,7 @@ export class MCMarkerElement extends HTMLElement {
  * `<mc-marker-layer>` Web Component
  * Container component for `<mc-marker>` definitions (or configured via `chart.config.markers`).
  */
-export class MCMarkerLayer extends HTMLElement {
+export class MCMarkerLayer extends HTMLElementBase {
   static observedAttributes = ['enabled'];
 
   #markers: MarkerConfig[] = [];
