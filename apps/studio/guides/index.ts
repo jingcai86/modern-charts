@@ -1,4 +1,8 @@
-import type { MCBaseChart, ThemeModePreference } from '../../../src/index';
+import {
+  registerModernCharts,
+  type MCBaseChart,
+  type ThemeModePreference
+} from '../../../src/index';
 import { renderGuideHeader } from './shared';
 import { renderCustomLayersGuide } from './custom-layers';
 import { renderThemesGuide } from './themes';
@@ -21,6 +25,7 @@ export function renderGuidePage(
   guideId: GuideId,
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
+  registerModernCharts();
   const body = document.createElement('div');
   body.className = 'guide-body-stack';
   root.replaceChildren(renderGuideHeader(guideId), body);

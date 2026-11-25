@@ -1,49 +1,4 @@
-import {
-  arc,
-  area,
-  ascending,
-  bin,
-  curveBasis,
-  curveCardinal,
-  curveCatmullRom,
-  curveLinear,
-  curveMonotoneX,
-  curveMonotoneY,
-  curveNatural,
-  curveStep,
-  curveStepAfter,
-  curveStepBefore,
-  descending,
-  extent,
-  format,
-  group,
-  hierarchy,
-  line,
-  max,
-  mean,
-  median,
-  min,
-  partition,
-  pie,
-  quantile,
-  rollup,
-  select,
-  selectAll,
-  stack,
-  sum,
-  treemap
-} from 'd3';
-import type * as d3Types from 'd3';
-import { registerChartD3 } from './core/d3-context';
-import {
-  scaleBand,
-  scaleLinear,
-  scaleLog,
-  scaleOrdinal,
-  scalePoint,
-  scaleSqrt,
-  scaleSymlog
-} from './core/scales';
+import { registerCuratedChartD3 } from './core/d3-curated';
 import {
   CORE_COMPONENT_REGISTRY,
   defineCustomElement
@@ -69,52 +24,7 @@ import { MCScatterChart } from './charts/mc-scatter-chart';
 import { MCTreemapChart } from './charts/mc-treemap-chart';
 import { MCGaugeChart } from './charts/mc-gauge-chart';
 
-// Supply a curated chart-focused D3 namespace to `ctx.d3` (selections, shapes,
-// curves, hierarchies, stats, formatters, and scales) without eagerly bundling
-// unrelated modules like d3-geo, d3-delaunay, or d3-force. Call `registerChartD3(d3)`
-// with the full `d3` package if custom layers need additional D3 modules.
-registerChartD3({
-  arc,
-  area,
-  ascending,
-  bin,
-  curveBasis,
-  curveCardinal,
-  curveCatmullRom,
-  curveLinear,
-  curveMonotoneX,
-  curveMonotoneY,
-  curveNatural,
-  curveStep,
-  curveStepAfter,
-  curveStepBefore,
-  descending,
-  extent,
-  format,
-  group,
-  hierarchy,
-  line,
-  max,
-  mean,
-  median,
-  min,
-  partition,
-  pie,
-  quantile,
-  rollup,
-  scaleBand,
-  scaleLinear,
-  scaleLog,
-  scaleOrdinal,
-  scalePoint,
-  scaleSqrt,
-  scaleSymlog,
-  select,
-  selectAll,
-  stack,
-  sum,
-  treemap
-} as unknown as typeof d3Types);
+registerCuratedChartD3();
 
 // Core Engine
 export * from './core/i18n';

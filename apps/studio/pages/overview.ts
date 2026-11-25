@@ -1,5 +1,6 @@
 import type { MCBaseChart } from '../../../src/index';
-import { CHART_CATALOG } from '../catalog';
+import { CHART_CATALOG, type ChartCatalogEntry } from '../catalog';
+import { loadChart } from '../chart-loader';
 import { GUIDES_CATALOG, type GuideId } from '../guides/types';
 import { escapeHtml } from '../utils/html';
 import { getOrInitChartConfig } from '../state/config-store';
@@ -291,10 +292,38 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   const examplesGrid = document.createElement('section');
   examplesGrid.className = 'overview-grid';
 
-  const previewMounts = new Map<Element, () => void>();
-  const pendingCards = new Set<Element>();
+  const previews = new Map<Element, { entry: ChartCatalogEntry; stage: HTMLElement }>();
+  const nearbyCards = new Set<Element>();
+  const loadingCards = new Set<Element>();
+  const readyCards = new Set<Element>();
   let isDrainingQueue = false;
   let disposed = false;
+
+  function canMount(card: Element): boolean {
+    return !disposed && !examplesPanel.hidden && nearbyCards.has(card) && card.isConnected;
+  }
+
+  function mountChart(entry: ChartCatalogEntry, stage: HTMLElement): void {
+    const chart = document.createElement(entry.tagName) as MCBaseChart<any>;
+    // Prevent internal layer notifications during connection from drawing extra frames.
+    chart.setAttribute('data-defer-initial-render', '');
+    const cfg = getOrInitChartConfig(entry);
+    chart.setConfig({
+      ...cfg,
+      themeMode: getGlobalThemeMode(),
+      isInteractive: false,
+      isFocusable: false,
+      animate: false,
+      labelMode: 'svg',
+      xTitle: undefined,
+      yTitle: undefined,
+      view: cfg.view ? { ...cfg.view, showControls: false } : undefined
+    });
+    stage.appendChild(chart);
+    mountedCharts.push(chart);
+    chart.removeAttribute('data-defer-initial-render');
+    chart.render();
+  }
 
   async function yieldToMain(): Promise<void> {
     const g = globalThis as any;
@@ -306,7 +335,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   }
 
   async function drainRenderQueue(): Promise<void> {
-    if (isDrainingQueue || examplesPanel.hidden || disposed || pendingCards.size === 0) return;
+    if (isDrainingQueue || examplesPanel.hidden || disposed || readyCards.size === 0) return;
     isDrainingQueue = true;
     await new Promise<void>((resolve) => {
       if (typeof requestAnimationFrame === 'function') {
@@ -316,46 +345,97 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
       }
     });
     try {
-      while (pendingCards.size > 0) {
+      while (readyCards.size > 0) {
         await yieldToMain();
         if (examplesPanel.hidden || disposed) break;
-        const card = pendingCards.values().next().value;
+        const card = readyCards.values().next().value;
         if (!card) break;
-        pendingCards.delete(card);
-        if (!card.isConnected) continue;
-
-        cardObserver?.unobserve(card);
-        const mount = previewMounts.get(card);
-        previewMounts.delete(card);
-        mount?.();
+        readyCards.delete(card);
+        const preview = previews.get(card);
+        if (!preview || !canMount(card)) continue;
+        finishPreview(card);
+        mountChart(preview.entry, preview.stage);
       }
     } finally {
       isDrainingQueue = false;
     }
   }
 
+  function finishPreview(card: Element): void {
+    cardObserver?.unobserve(card);
+    previews.delete(card);
+    nearbyCards.delete(card);
+  }
+
+  function queuePreview(card: Element): void {
+    if (!canMount(card) || !previews.has(card)) return;
+    readyCards.add(card);
+    void drainRenderQueue();
+  }
+
+  function loadPreview(card: Element): void {
+    const preview = previews.get(card);
+    if (!preview || !canMount(card) || loadingCards.has(card)) return;
+    if (customElements.get(preview.entry.tagName)) {
+      queuePreview(card);
+      return;
+    }
+
+    loadingCards.add(card);
+    void loadChart(preview.entry).then(
+      () => {
+        loadingCards.delete(card);
+        queuePreview(card);
+      },
+      () => {
+        loadingCards.delete(card);
+        if (disposed || !card.isConnected) return;
+        finishPreview(card);
+        const message = document.createElement('p');
+        message.className = 'overview-preview-message';
+        message.textContent = 'Preview unavailable';
+        preview.stage.appendChild(message);
+      }
+    );
+  }
+
   const cardObserver =
     typeof IntersectionObserver === 'function'
       ? new IntersectionObserver(
           (entries) => {
+            if (disposed || examplesPanel.hidden) return;
             for (const entry of entries) {
-              if (entry.isIntersecting && previewMounts.has(entry.target)) {
-                pendingCards.add(entry.target);
+              if (entry.isIntersecting && previews.has(entry.target)) {
+                nearbyCards.add(entry.target);
+                loadPreview(entry.target);
               } else {
-                pendingCards.delete(entry.target);
+                nearbyCards.delete(entry.target);
+                readyCards.delete(entry.target);
               }
             }
-            void drainRenderQueue();
           },
           { rootMargin: '160px 0px' }
         )
       : null;
   overviewCleanups.set(root, () => {
     disposed = true;
-    pendingCards.clear();
-    previewMounts.clear();
+    readyCards.clear();
+    nearbyCards.clear();
+    loadingCards.clear();
+    previews.clear();
     cardObserver?.disconnect();
   });
+
+  function observePreviews(): void {
+    for (const card of previews.keys()) {
+      if (cardObserver) {
+        cardObserver.observe(card);
+      } else {
+        nearbyCards.add(card);
+        loadPreview(card);
+      }
+    }
+  }
 
   CHART_CATALOG.forEach((entry) => {
     const card = document.createElement('a');
@@ -375,33 +455,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
     const stage = card.querySelector(
       `#preview-stage-${entry.id}`
     ) as HTMLElement;
-    previewMounts.set(card, () => {
-      const chart = document.createElement(entry.tagName) as MCBaseChart<any>;
-      // Prevent internal layer notifications during connection from drawing extra frames.
-      chart.setAttribute('data-defer-initial-render', '');
-      const cfg = getOrInitChartConfig(entry);
-      chart.setConfig({
-        ...cfg,
-        themeMode: getGlobalThemeMode(),
-        isInteractive: false,
-        isFocusable: false,
-        animate: false,
-        labelMode: 'svg',
-        xTitle: undefined,
-        yTitle: undefined,
-        view: cfg.view ? { ...cfg.view, showControls: false } : undefined
-      });
-      stage.appendChild(chart);
-      mountedCharts.push(chart);
-      chart.removeAttribute('data-defer-initial-render');
-      chart.render();
-    });
-
-    if (cardObserver) {
-      cardObserver.observe(card);
-    } else {
-      pendingCards.add(card);
-    }
+    previews.set(card, { entry, stage });
   });
 
   examplesPanel.appendChild(examplesGrid);
@@ -419,7 +473,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   panelsContainer.append(examplesPanel, guidesPanel);
   tabsWrapper.append(tablist, panelsContainer);
   root.appendChild(tabsWrapper);
-  if (!cardObserver) void drainRenderQueue();
+  if (initialTab === 'examples') observePreviews();
 
   const tabs: Array<{ id: HomeTabId; btn: HTMLButtonElement; panel: HTMLElement }> = [
     { id: 'examples', btn: examplesTab, panel: examplesPanel },
@@ -450,7 +504,11 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
           if (typeof chart.render === 'function') chart.render();
         });
       });
-      void drainRenderQueue();
+      observePreviews();
+    } else {
+      cardObserver?.disconnect();
+      nearbyCards.clear();
+      readyCards.clear();
     }
   };
 
