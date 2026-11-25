@@ -215,6 +215,9 @@ jobs:
         with:
           path: './dist-examples'
 
+      - name: Wait for Pages artifact metadata
+        run: sleep 10
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
