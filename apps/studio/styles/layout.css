@@ -560,6 +560,14 @@ button.btn-primary:hover {
   contain: layout style paint;
 }
 
+.overview-preview-message {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  height: 100%;
+  color: var(--text-muted);
+}
+
 /* Home Page Two-Tab Interface (Chart Examples vs. Guides & Resources) */
 .overview-tabs {
   display: flex;

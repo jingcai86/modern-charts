@@ -1,10 +1,9 @@
 import {
   DEFAULT_PALETTE,
   PALETTES,
-  resolveEffectiveThemeMode,
-  type BuiltInPaletteName,
-  type ThemeModePreference
-} from '../../../src/index';
+  resolveEffectiveThemeMode
+} from '../../../src/core/theme';
+import type { BuiltInPaletteName, ThemeModePreference } from '../../../src/core/types';
 
 const THEME_STORAGE_KEY = 'modern-charts-theme-mode';
 const PALETTE_STORAGE_KEY = 'modern-charts-palette';

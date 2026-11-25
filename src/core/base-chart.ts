@@ -15,7 +15,7 @@ import {
   normalizeOverflowStrategy
 } from './label-truncate';
 import { createDefaultLegendConfig } from './legend-engine';
-import { MarkerEngine, resolveMarkerAnnotation } from './marker-engine';
+import { MarkerEngine } from './marker-engine';
 import { PatternEngine } from './pattern-engine';
 import { createDefaultScaleConfig } from './scale-manager';
 import {
@@ -70,8 +70,6 @@ import type {
 import {
   MCAnimationLayer,
   MCAriaLayer,
-  MCChartLayer,
-  MCCustomLayer,
   MCScaleLayer,
   MCThemeLayer,
   MCViewLayer
@@ -86,6 +84,10 @@ import {
 import { MCDefElement } from '../components/mc-def';
 import { MCChartStateElement } from '../components/mc-chart-state';
 import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
+import { resolveChartLayers, type ResolvedChartLayer } from './chart-layers';
+import { resolveChartDimensions, resolveChartMargin } from './chart-layout';
+import { baseChartStyles } from './chart-styles';
+import { ChartViewController } from './chart-view-controller';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -135,200 +137,7 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
     'replaceSync' in CSSStyleSheet.prototype
   ) {
     sharedChartSheet = new CSSStyleSheet();
-    sharedChartSheet.replaceSync(`
-      @layer base, theme, state;
-
-      @layer base {
-        :host {
-          display: block;
-          position: relative;
-          width: 100%;
-          height: 100%;
-          min-height: 240px;
-          box-sizing: border-box;
-          container-type: inline-size;
-          --_mc-bg: var(--mc-bg, transparent);
-          --_mc-text: var(--mc-text-color, #1e293b);
-          --_mc-font: var(--mc-font-family, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
-          --_mc-radius: var(--mc-border-radius, 12px);
-          --_mc-focus-ring: var(--mc-focus-color, #38bdf8);
-          font-family: var(--_mc-font);
-          color: var(--_mc-text);
-        }
-
-        :host([hidden]) {
-          display: none;
-        }
-
-        .mc-chart-container {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          min-height: inherit;
-          background: var(--_mc-bg);
-          border-radius: var(--_mc-radius);
-          overflow: hidden;
-          box-sizing: border-box;
-        }
-
-        .mc-chart-svg {
-          display: block;
-          width: 100%;
-          height: 100%;
-          user-select: none;
-          overflow: hidden;
-        }
-
-        .mc-aria-item {
-          outline: none;
-        }
-
-        .mc-aria-item:focus-visible {
-          outline: 2.5px solid var(--_mc-focus-ring);
-          outline-offset: 2px;
-          filter: brightness(1.16) drop-shadow(0 0 5px var(--_mc-focus-ring));
-        }
-
-        .visually-hidden:where(:not(:focus-within, :active)) {
-          position: absolute !important;
-          clip-path: inset(50%) !important;
-          overflow: hidden !important;
-          width: 1px !important;
-          height: 1px !important;
-          margin: -1px !important;
-          padding: 0 !important;
-          border: 0 !important;
-          white-space: nowrap !important;
-        }
-
-        .mc-layer {
-          transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .mc-layer--markers,
-        .mc-layer--markers *,
-        .mc-marker,
-        .mc-marker *,
-        .mc-layer--labels,
-        .mc-layer--labels *,
-        .mc-layer--outerLabels,
-        .mc-layer--outerLabels *,
-        .mc-layer--pointLabels,
-        .mc-layer--pointLabels *,
-        .mc-layer--grid,
-        .mc-layer--grid * {
-          pointer-events: none;
-        }
-
-        .mc-layer--markers .mc-marker-annotation,
-        .mc-layer--markers .mc-marker-annotation *,
-        .mc-label--interactive,
-        .mc-label--interactive * {
-          pointer-events: auto;
-        }
-
-        [data-event-target] {
-          cursor: pointer;
-        }
-
-        .mc-label--interactive {
-          cursor: pointer;
-          outline: none;
-        }
-
-        [data-event-target]:focus-visible,
-        .mc-label--interactive:focus-visible {
-          outline: 2px solid var(--_mc-focus-ring);
-          outline-offset: 2px;
-        }
-
-        .mc-chart-container--static,
-        .mc-chart-container--static * {
-          cursor: default !important;
-        }
-        @keyframes mc-layer-reveal {
-          from {
-            opacity: 0;
-            transform: translateY(4px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @media (prefers-reduced-motion: no-preference) {
-          .mc-layer--entering {
-            animation: mc-layer-reveal 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-          }
-        }
-
-        .mc-view-controls {
-          position: absolute;
-          bottom: 10px;
-          right: 12px;
-          display: inline-flex;
-          gap: 4px;
-          background: rgba(15, 23, 42, 0.06);
-          backdrop-filter: blur(6px);
-          padding: 3px;
-          border-radius: 8px;
-          border: 1px solid rgba(148, 163, 184, 0.25);
-          z-index: 5;
-        }
-
-        .mc-view-controls[hidden] {
-          display: none;
-        }
-
-        .mc-view-btn {
-          font: inherit;
-          color: inherit;
-          font-size: 11px;
-          font-weight: 600;
-          line-height: 1;
-          padding: 4px 7px;
-          border: none;
-          border-radius: 5px;
-          background: rgba(255, 255, 255, 0.82);
-          color: #1e293b;
-          cursor: pointer;
-          transition: background 150ms ease, transform 100ms ease;
-        }
-
-        .mc-view-btn:hover {
-          background: #ffffff;
-        }
-
-        .mc-view-btn:focus-visible {
-          outline: 2px solid var(--_mc-focus-ring);
-          outline-offset: 2px;
-        }
-
-        .mc-view-btn:active {
-          transform: scale(0.96);
-        }
-
-        .mc-tooltip,
-        .mc-legend-tooltip {
-          position: absolute;
-          top: 0;
-          left: 0;
-          pointer-events: none;
-          z-index: 20;
-          transition: opacity 120ms ease, transform 90ms ease;
-        }
-
-        .mc-legend-tooltip {
-          z-index: 21;
-        }
-
-        .mc-tooltip[hidden],
-        .mc-legend-tooltip[hidden] {
-          display: none;
-        }
-      }
-    `);
+    sharedChartSheet.replaceSync(baseChartStyles);
   }
   return sharedChartSheet;
 }
@@ -366,12 +175,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   #lastRenderedWidth = 0;
   #lastRenderedHeight = 0;
   #mutationObserver: MutationObserver | null = null;
-  #viewTransform = { k: 1, x: 0, y: 0 };
-  #viewController: {
-    scaleBy: (factor: number) => void;
-    reset: () => void;
-    destroy: () => void;
-  } | null = null;
+  #viewController = new ChartViewController(this, (zoomed) =>
+    this.#setCustomState('zoomed', zoomed)
+  );
   #streamTimer: ReturnType<typeof setTimeout> | null = null;
   #currentChartState: ChartStateKind | null = null;
   #suppressAttributeRender = false;
@@ -573,7 +379,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     this._isConnected = true;
     this.#unsubscribeI18n?.();
     this.#unsubscribeI18n = subscribeI18n(() => this.render());
-    this.#setupControlsListeners();
+    this.#viewController.bindControls();
     this.#setupStateSlotListeners();
     this.#setupChildObservers();
     this.#syncAutoSizeObserver();
@@ -604,10 +410,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     this.eventEngine.detach();
     this.#syncTooltipPointerTracking(false);
     this.#teardownAutoSizeObserver();
-    if (this.#viewController) {
-      this.#viewController.destroy();
-      this.#viewController = null;
-    }
+    this.#viewController.destroy();
     if (this.#mutationObserver) {
       this.#mutationObserver.disconnect();
       this.#mutationObserver = null;
@@ -1157,207 +960,15 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   }
 
   public resolveDimensions(): ChartDimensions {
-    const cfgW = this._config.width;
-    const cfgH = this._config.height;
-    const attrW = this.getAttribute('width');
-    const attrH = this.getAttribute('height');
-
-    const hostRect = this.getBoundingClientRect?.() ?? { width: 0, height: 0 };
-    const parent = this.parentElement;
-    const parentRect = parent?.getBoundingClientRect?.() ?? {
-      width: 0,
-      height: 0
-    };
-
-    const parentW =
-      (parent?.clientWidth || Math.round(parentRect.width)) ?? 0;
-    const parentH =
-      (parent?.clientHeight || Math.round(parentRect.height)) ?? 0;
-    const hostW = this.clientWidth || Math.round(hostRect.width) || 0;
-    const hostH = this.clientHeight || Math.round(hostRect.height) || 0;
-
-    let width =
-      cfgW && cfgW > 0
-        ? cfgW
-        : attrW !== null && Number(attrW) > 0
-        ? Number(attrW)
-        : hostW > 0
-        ? hostW
-        : parentW > 0
-        ? parentW
-        : 640;
-
-    let height =
-      cfgH && cfgH > 0
-        ? cfgH
-        : attrH !== null && Number(attrH) > 0
-        ? Number(attrH)
-        : hostH > 0
-        ? hostH
-        : parentH > 0
-        ? parentH
-        : this.autoSize
-        ? Math.max(280, Math.round(width * 0.56))
-        : 380;
-
-    width = Math.max(160, Math.round(width));
-    height = Math.max(140, Math.round(height));
-
-    const margin = { ...this.resolveMargin() };
-    this.expandMarginForAxes(margin);
-    this.expandMarginForMarkerAnnotations(margin);
-    this.expandMarginForLegend(margin);
-    const innerWidth = Math.max(40, width - margin.left - margin.right);
-    const innerHeight = Math.max(40, height - margin.top - margin.bottom);
-
-    return { width, height, innerWidth, innerHeight, margin };
-  }
-
-  private expandMarginForAxes(margin: ChartMargin): void {
-    if (!this.defaultLayers.includes('axes')) return;
-    const scaleCfg = this.resolveScaleConfig();
-    const xPos = scaleCfg.x?.position ?? 'bottom';
-    const yPos = scaleCfg.y?.position ?? 'left';
-    const hasXTitle = Boolean(
-      scaleCfg.x?.title ||
-        this._config.xTitle ||
-        this.getAttribute('x-title')
-    );
-    const hasYTitle = Boolean(
-      scaleCfg.y?.title ||
-        this._config.yTitle ||
-        this.getAttribute('y-title')
-    );
-    const hasChartTitle = Boolean(this.chartTitle);
-
-    if (xPos === 'top' || xPos === 'both') {
-      const topNeeded =
-        (hasChartTitle ? 28 : 8) + (hasXTitle ? 44 : 28);
-      margin.top = Math.max(margin.top, topNeeded);
-    }
-    if (yPos === 'right' || yPos === 'both') {
-      const rightNeeded = hasYTitle ? 68 : 52;
-      margin.right = Math.max(margin.right, rightNeeded);
-    }
-  }
-
-  /**
-   * Automatically reserves enough margin space when any active marker defines
-   * an outside `annotation` (`left`, `right`, `top`, or `bottom`) so outside
-   * annotation icons/text never clip against the SVG viewport.
-   */
-  private expandMarginForMarkerAnnotations(margin: ChartMargin): void {
-    const markers = this.resolveMarkersConfig();
-    if (markers.length === 0) return;
-
-    let theme: ChartTheme | null = null;
-    for (const m of markers) {
-      const ann = resolveMarkerAnnotation(m);
-      if (!ann) continue;
-
-      if (!theme) theme = this.resolveTheme();
-      const measured = this.labelEngine.measure(
-        ann.text,
-        {
-          type: 'marker',
-          fontSize: ann.fontSize ?? Math.max(10, theme.fontSize - 1),
-          fontWeight: ann.fontWeight ?? 600,
-          background: ann.background,
-          padding: ann.labelPadding,
-          icon: ann.icon
-        },
-        theme
-      );
-
-      if (ann.position === 'left') {
-        margin.left = Math.max(
-          margin.left,
-          Math.ceil(measured.boxWidth + ann.padding + 14)
-        );
-      } else if (ann.position === 'right') {
-        margin.right = Math.max(
-          margin.right,
-          Math.ceil(measured.boxWidth + ann.padding + 14)
-        );
-      } else if (ann.position === 'top') {
-        margin.top = Math.max(
-          margin.top,
-          Math.ceil(measured.boxHeight + ann.padding + 14)
-        );
-      } else if (ann.position === 'bottom') {
-        margin.bottom = Math.max(
-          margin.bottom,
-          Math.ceil(measured.boxHeight + ann.padding + 14)
-        );
-      }
-    }
-  }
-
-  private expandMarginForLegend(margin: ChartMargin): void {
-    const hasCustomLegend =
-      this._config.legend !== undefined ||
-      this.querySelector(':scope > mc-legend') !== null;
-    const hasXTitle = Boolean(this._config.xTitle);
-    const usesCategoricalLegend =
-      this.defaultLayers.includes('legends') && this.chartType !== 'heatmap';
-
-    if (!hasCustomLegend && !(hasXTitle && usesCategoricalLegend)) return;
-
-    const legend = this.resolveLegendConfig();
-    if (!legend.enabled) return;
-
-    const pad = legend.padding;
-    const hasTitle = Boolean(this.chartTitle);
-    const baseRowH = Math.max(16, (legend.fontSize ?? 11) + 6);
-
-    if (legend.position === 'top') {
-      const needed = (hasTitle ? 34 : 8) + baseRowH + pad.top + pad.bottom;
-      margin.top = Math.max(margin.top, Math.ceil(needed));
-    } else if (legend.position === 'bottom') {
-      const topClearance = hasXTitle ? 42 : 34;
-      const needed = topClearance + baseRowH + pad.top + pad.bottom + 8;
-      margin.bottom = Math.max(margin.bottom, Math.ceil(needed));
-    } else if (legend.position === 'left') {
-      const needed = 104 + pad.left + pad.right;
-      margin.left = Math.max(margin.left, Math.ceil(needed));
-    } else if (legend.position === 'right') {
-      const needed = 104 + pad.left + pad.right;
-      margin.right = Math.max(margin.right, Math.ceil(needed));
-    }
+    return resolveChartDimensions(this, this._config, this.labelEngine);
   }
 
   public resolveMargin(): ChartMargin {
-    const base = {
-      ...this.getDefaultMargin(),
-      ...(this._config.margin ?? {})
-    };
-    const attr = this.getAttribute('margin');
-    if (!attr) return base;
-    try {
-      if (attr.trim().startsWith('{')) {
-        return { ...base, ...JSON.parse(attr) };
-      }
-      const parts = attr.split(/[\s,]+/).map(Number);
-      if (parts.length === 1 && !Number.isNaN(parts[0])) {
-        return {
-          top: parts[0],
-          right: parts[0],
-          bottom: parts[0],
-          left: parts[0]
-        };
-      }
-      if (parts.length === 4 && parts.every((n) => !Number.isNaN(n))) {
-        return {
-          top: parts[0],
-          right: parts[1],
-          bottom: parts[2],
-          left: parts[3]
-        };
-      }
-    } catch {
-      // use base
-    }
-    return base;
+    return resolveChartMargin(
+      this.getDefaultMargin(),
+      this._config.margin,
+      this.getAttribute('margin')
+    );
   }
 
   public resolveTheme(): ChartTheme {
@@ -1876,183 +1487,15 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     return overrides;
   }
 
-  protected getResolvedLayerSequence(): {
-    name: string;
-    input: LayerInput<TData>;
-    render: (ctx: ChartRenderContext<TData>) => void;
-  }[] {
-    const builtInRenderers: Record<
-      string,
-      (ctx: ChartRenderContext<TData>) => void
-    > = {
-      markers: (ctx) => this.markerEngine.renderMarkersLayer(ctx),
-      ...this.getLayerRenderers()
-    };
-    const sequence: {
-      name: string;
-      input: LayerInput<TData>;
-      render: (ctx: ChartRenderContext<TData>) => void;
-    }[] = [];
-
-    const directLayerChildren = Array.from(this.children).filter((el) => {
-      const t = el.tagName.toLowerCase();
-      return t === 'mc-chart-layer' || t === 'mc-custom-layer';
-    });
-
-    const hasDeclarativeChartLayers = directLayerChildren.some(
-      (el) => el.tagName.toLowerCase() === 'mc-chart-layer'
+  protected getResolvedLayerSequence(): ResolvedChartLayer<TData>[] {
+    return resolveChartLayers(
+      this,
+      {
+        markers: (ctx) => this.markerEngine.renderMarkersLayer(ctx),
+        ...this.getLayerRenderers()
+      },
+      Boolean(this._customLayers || this._config.layers)
     );
-
-    if (
-      hasDeclarativeChartLayers &&
-      !this._customLayers &&
-      !this._config.layers
-    ) {
-      for (const el of directLayerChildren) {
-        const tag = el.tagName.toLowerCase();
-        if (tag === 'mc-chart-layer') {
-          const chartLayer = el as MCChartLayer;
-          const name = chartLayer.layerName || el.getAttribute('name') || '';
-          const enabled =
-            !el.hasAttribute('enabled') ||
-            el.getAttribute('enabled') !== 'false';
-          if (enabled && name && builtInRenderers[name]) {
-            sequence.push({
-              name,
-              input: name,
-              render: builtInRenderers[name]
-            });
-          }
-        } else if (tag === 'mc-custom-layer') {
-          const customEl = el as MCCustomLayer;
-          const name =
-            customEl.layerName || el.getAttribute('name') || 'custom-layer';
-          const enabled =
-            !el.hasAttribute('enabled') ||
-            el.getAttribute('enabled') !== 'false';
-          if (enabled) {
-            sequence.push({
-              name,
-              input: name,
-              render: (ctx) => customEl.renderIntoContext(ctx)
-            });
-          }
-        }
-      }
-      return sequence;
-    }
-
-    const rawLayers = this.layers;
-    rawLayers.forEach((item, idx) => {
-      if (typeof item === 'string') {
-        if (builtInRenderers[item]) {
-          sequence.push({
-            name: item,
-            input: item,
-            render: builtInRenderers[item]
-          });
-        } else {
-          const matchingCustomEl = directLayerChildren.find(
-            (el) =>
-              el.tagName.toLowerCase() === 'mc-custom-layer' &&
-              el.getAttribute('name') === item
-          ) as MCCustomLayer | undefined;
-          if (matchingCustomEl) {
-            sequence.push({
-              name: item,
-              input: item,
-              render: (ctx) => matchingCustomEl.renderIntoContext(ctx)
-            });
-          }
-        }
-      } else if (typeof item === 'function') {
-        const fnName = item.name || `custom-fn-${idx}`;
-        sequence.push({
-          name: fnName,
-          input: item,
-          render: (ctx) => {
-            const res = item(ctx);
-            if (typeof res === 'string') {
-              ctx.layerGroup.innerHTML = res;
-            } else if (res instanceof SVGElement) {
-              ctx.layerGroup.appendChild(res);
-            }
-          }
-        });
-      } else if (item && typeof item === 'object' && 'render' in item) {
-        sequence.push({
-          name: item.name || `custom-obj-${idx}`,
-          input: item,
-          render: (ctx) => {
-            const res = item.render(ctx);
-            if (typeof res === 'string') {
-              ctx.layerGroup.innerHTML = res;
-            } else if (res instanceof SVGElement) {
-              ctx.layerGroup.appendChild(res);
-            }
-          }
-        });
-      }
-    });
-
-    for (const el of directLayerChildren) {
-      if (el.tagName.toLowerCase() !== 'mc-custom-layer') continue;
-      const customEl = el as MCCustomLayer;
-      const name =
-        customEl.layerName || el.getAttribute('name') || 'custom-layer';
-      if (sequence.some((s) => s.name === name)) continue;
-      const enabled =
-        !el.hasAttribute('enabled') || el.getAttribute('enabled') !== 'false';
-      if (!enabled) continue;
-
-      const orderAttr = el.getAttribute('order');
-      const entry = {
-        name,
-        input: name,
-        render: (ctx: ChartRenderContext<TData>) =>
-          customEl.renderIntoContext(ctx)
-      };
-
-      if (orderAttr?.startsWith('before:')) {
-        const target = orderAttr.slice('before:'.length);
-        const targetIdx = sequence.findIndex((s) => s.name === target);
-        if (targetIdx >= 0) {
-          sequence.splice(targetIdx, 0, entry);
-          continue;
-        }
-      } else if (orderAttr?.startsWith('after:')) {
-        const target = orderAttr.slice('after:'.length);
-        const targetIdx = sequence.findIndex((s) => s.name === target);
-        if (targetIdx >= 0) {
-          sequence.splice(targetIdx + 1, 0, entry);
-          continue;
-        }
-      }
-      sequence.push(entry);
-    }
-
-    if (
-      this.resolveMarkersConfig().length > 0 &&
-      !sequence.some((s) => s.name === 'markers') &&
-      !this._customLayers &&
-      !this._config.layers
-    ) {
-      const markerEntry = {
-        name: 'markers',
-        input: 'markers' as LayerInput<TData>,
-        render: builtInRenderers.markers
-      };
-      const labelIdx = sequence.findIndex(
-        (s) => s.name === 'labels' || s.name === 'legends'
-      );
-      if (labelIdx >= 0) {
-        sequence.splice(labelIdx, 0, markerEntry);
-      } else {
-        sequence.push(markerEntry);
-      }
-    }
-
-    return sequence;
   }
 
   protected cancelTransitions(_clearSnapshot = false): void {}
@@ -2429,7 +1872,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
           : '';
     }
 
-    this.#configureViewZoom(svg, viewportGroup, viewConfig, dims);
+    this.#viewController.configure(svg, viewportGroup, viewConfig, dims);
     this.#setCustomState('rendered', true);
     this.#commitChartState('ready');
   }
@@ -2822,384 +2265,6 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     }
   }
 
-  #configureViewZoom(
-    svg: SVGSVGElement,
-    viewportGroup: SVGGElement,
-    viewConfig: ViewConfig,
-    dims: ChartDimensions
-  ): void {
-    if (this.#viewController) {
-      this.#viewController.destroy();
-      this.#viewController = null;
-    }
-
-    const container = this.shadowRoot?.querySelector(
-      '.mc-chart-container'
-    ) as HTMLDivElement | null;
-    const existingSlider = container?.querySelector('.mc-view-slider');
-    existingSlider?.remove();
-    svg.querySelector('.mc-view-brush')?.remove();
-
-    if (!viewConfig.enabled) {
-      this.#viewTransform = { k: 1, x: 0, y: 0 };
-      viewportGroup.removeAttribute('transform');
-      this.#setCustomState('zoomed', false);
-      return;
-    }
-
-    const minK = viewConfig.zoomable || viewConfig.brush || viewConfig.slider ? viewConfig.minZoom : 1;
-    const maxK = viewConfig.zoomable || viewConfig.brush || viewConfig.slider ? viewConfig.maxZoom : 1;
-
-    const clamp = (value: number, lo: number, hi: number): number =>
-      Math.max(Math.min(lo, hi), Math.min(Math.max(lo, hi), value));
-
-    let sliderWindowEl: HTMLDivElement | null = null;
-    let sliderEl: HTMLDivElement | null = null;
-
-    const syncSliderDom = (startPct: number, endPct: number): void => {
-      if (!sliderWindowEl || !sliderEl) return;
-      const s = clamp(startPct, 0, 95);
-      const e = clamp(endPct, s + 5, 100);
-      sliderWindowEl.style.left = `${s}%`;
-      sliderWindowEl.style.width = `${e - s}%`;
-      sliderEl.setAttribute('data-start', String(Math.round(s)));
-      sliderEl.setAttribute('data-end', String(Math.round(e)));
-    };
-
-    const applyTransform = (nextK: number, nextX: number, nextY: number): void => {
-      const k = clamp(nextK, minK, maxK);
-      const rawX = viewConfig.direction === 'y' ? 0 : nextX;
-      const rawY = viewConfig.direction === 'x' ? 0 : nextY;
-      const tx =
-        viewConfig.direction === 'y'
-          ? 0
-          : clamp(rawX, dims.width * (1 - 1.5 * k), dims.width * 0.5 * k);
-      const ty =
-        viewConfig.direction === 'x'
-          ? 0
-          : clamp(rawY, dims.height * (1 - 1.5 * k), dims.height * 0.5 * k);
-
-      this.#viewTransform = { k, x: tx, y: ty };
-      viewportGroup.setAttribute(
-        'transform',
-        `translate(${tx}, ${ty}) scale(${k})`
-      );
-      this.#setCustomState('zoomed', k !== 1 || tx !== 0 || ty !== 0);
-
-      const spanPct = clamp(100 / k, 5, 100);
-      const startPct = clamp(
-        (-tx / Math.max(1, dims.width * k)) * 100,
-        0,
-        100 - spanPct
-      );
-      const endPct = clamp(startPct + spanPct, startPct + 5, 100);
-      syncSliderDom(startPct, endPct);
-
-      this.dispatchEvent(
-        new CustomEvent('mc-zoom', {
-          bubbles: true,
-          composed: true,
-          detail: { k, x: tx, y: ty }
-        })
-      );
-    };
-
-    const applyPercentRange = (startPct: number, endPct: number): void => {
-      const s = clamp(startPct, 0, 95);
-      const e = clamp(endPct, s + 5, 100);
-      const span = e - s;
-      const nextK = clamp(100 / span, minK, maxK);
-      const nextX =
-        viewConfig.direction === 'y'
-          ? 0
-          : -(s / 100) * dims.width * nextK;
-      const nextY =
-        viewConfig.direction === 'y'
-          ? -(s / 100) * dims.height * nextK
-          : 0;
-      applyTransform(nextK, nextX, nextY);
-    };
-
-    if (viewConfig.slider && container) {
-      sliderEl = document.createElement('div');
-      sliderEl.className = 'mc-view-slider';
-      sliderEl.setAttribute('part', 'datazoom-slider');
-      sliderEl.setAttribute('role', 'group');
-      sliderEl.setAttribute('aria-label', 'Chart data zoom range slider');
-      sliderEl.style.cssText =
-        'position:absolute;left:48px;right:96px;bottom:10px;height:18px;border-radius:6px;background:rgba(148,163,184,0.16);border:1px solid rgba(148,163,184,0.3);z-index:5;user-select:none;touch-action:none;';
-
-      sliderWindowEl = document.createElement('div');
-      sliderWindowEl.className = 'mc-view-slider-window';
-      sliderWindowEl.style.cssText =
-        'position:absolute;top:0;bottom:0;left:0%;width:100%;background:rgba(56,189,248,0.24);border-left:3px solid #0284c7;border-right:3px solid #0284c7;border-radius:4px;cursor:grab;box-sizing:border-box;';
-
-      const leftHandle = document.createElement('button');
-      leftHandle.type = 'button';
-      leftHandle.className = 'mc-view-slider-handle mc-view-slider-handle--start';
-      leftHandle.setAttribute('data-handle', 'start');
-      leftHandle.setAttribute('aria-label', 'Zoom range start');
-      leftHandle.style.cssText =
-        'position:absolute;left:-5px;top:2px;bottom:2px;width:8px;padding:0;border:none;border-radius:3px;background:#0284c7;cursor:ew-resize;';
-
-      const rightHandle = document.createElement('button');
-      rightHandle.type = 'button';
-      rightHandle.className = 'mc-view-slider-handle mc-view-slider-handle--end';
-      rightHandle.setAttribute('data-handle', 'end');
-      rightHandle.setAttribute('aria-label', 'Zoom range end');
-      rightHandle.style.cssText =
-        'position:absolute;right:-5px;top:2px;bottom:2px;width:8px;padding:0;border:none;border-radius:3px;background:#0284c7;cursor:ew-resize;';
-
-      sliderWindowEl.append(leftHandle, rightHandle);
-      sliderEl.appendChild(sliderWindowEl);
-      container.appendChild(sliderEl);
-
-      let sliderDragMode: 'window' | 'start' | 'end' | null = null;
-      let dragStartX = 0;
-      let origStart = viewConfig.start ?? 0;
-      let origEnd = viewConfig.end ?? 100;
-
-      sliderEl.addEventListener('pointerdown', (e: PointerEvent) => {
-        const target = e.target as HTMLElement;
-        const handle = target.getAttribute('data-handle');
-        sliderDragMode =
-          handle === 'start'
-            ? 'start'
-            : handle === 'end'
-            ? 'end'
-            : 'window';
-        dragStartX = e.clientX;
-        origStart = Number(sliderEl?.getAttribute('data-start') ?? 0);
-        origEnd = Number(sliderEl?.getAttribute('data-end') ?? 100);
-        sliderEl?.setPointerCapture?.(e.pointerId);
-        e.stopPropagation();
-      });
-
-      sliderEl.addEventListener('pointermove', (e: PointerEvent) => {
-        if (!sliderDragMode || !sliderEl) return;
-        const trackW = Math.max(40, sliderEl.clientWidth || dims.innerWidth);
-        const deltaPct = ((e.clientX - dragStartX) / trackW) * 100;
-        if (sliderDragMode === 'start') {
-          applyPercentRange(clamp(origStart + deltaPct, 0, origEnd - 5), origEnd);
-        } else if (sliderDragMode === 'end') {
-          applyPercentRange(origStart, clamp(origEnd + deltaPct, origStart + 5, 100));
-        } else {
-          const span = origEnd - origStart;
-          const nextS = clamp(origStart + deltaPct, 0, 100 - span);
-          applyPercentRange(nextS, nextS + span);
-        }
-      });
-
-      const endSliderDrag = () => {
-        sliderDragMode = null;
-      };
-      sliderEl.addEventListener('pointerup', endSliderDrag);
-      sliderEl.addEventListener('pointercancel', endSliderDrag);
-    }
-
-    const scaleBy = (
-      factor: number,
-      cx = dims.width / 2,
-      cy = dims.height / 2
-    ): void => {
-      const prev = this.#viewTransform;
-      const nextK = clamp(prev.k * factor, minK, maxK);
-      const ratio = nextK / prev.k;
-      const nextX = cx - (cx - prev.x) * ratio;
-      const nextY = cy - (cy - prev.y) * ratio;
-      applyTransform(nextK, nextX, nextY);
-    };
-
-    const onWheel = (e: WheelEvent): void => {
-      if (!viewConfig.zoomable) return;
-      e.preventDefault();
-      const rect = svg.getBoundingClientRect();
-      const cx = rect.width > 0 ? e.clientX - rect.left : dims.width / 2;
-      const cy = rect.height > 0 ? e.clientY - rect.top : dims.height / 2;
-      const deltaScale = e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : 0.002;
-      scaleBy(Math.pow(2, -e.deltaY * deltaScale), cx, cy);
-    };
-
-    let pointerDown = false;
-    let dragging = false;
-    let isBrushing = false;
-    let brushRectEl: SVGRectElement | null = null;
-    let capturedPointerId: number | null = null;
-    let startX = 0;
-    let startY = 0;
-    let origX = 0;
-    let origY = 0;
-
-    const toSvgCoords = (e: PointerEvent): { x: number; y: number } => {
-      const rect = svg.getBoundingClientRect();
-      return {
-        x: rect.width > 0 ? e.clientX - rect.left : e.clientX,
-        y: rect.height > 0 ? e.clientY - rect.top : e.clientY
-      };
-    };
-
-    const onPointerDown = (e: PointerEvent): void => {
-      if (e.button !== 0) return;
-      const wantBrush = Boolean(viewConfig.brush) || (viewConfig.zoomable && e.shiftKey);
-      if (!wantBrush && !viewConfig.pannable) return;
-      pointerDown = true;
-      dragging = false;
-      isBrushing = wantBrush;
-      capturedPointerId = null;
-      const pt = toSvgCoords(e);
-      startX = isBrushing ? pt.x : e.clientX;
-      startY = isBrushing ? pt.y : e.clientY;
-      origX = this.#viewTransform.x;
-      origY = this.#viewTransform.y;
-    };
-
-    const onPointerMove = (e: PointerEvent): void => {
-      if (!pointerDown) return;
-      if (isBrushing) {
-        const pt = toSvgCoords(e);
-        const dx = pt.x - startX;
-        const dy = pt.y - startY;
-        if (!dragging) {
-          if (Math.hypot(dx, dy) < 4) return;
-          dragging = true;
-          capturedPointerId = e.pointerId;
-          svg.setPointerCapture?.(e.pointerId);
-          brushRectEl = document.createElementNS(SVG_NS, 'rect');
-          brushRectEl.setAttribute('class', 'mc-view-brush');
-          brushRectEl.setAttribute('fill', 'rgba(56, 189, 248, 0.18)');
-          brushRectEl.setAttribute('stroke', '#0284c7');
-          brushRectEl.setAttribute('stroke-width', '1.5');
-          brushRectEl.setAttribute('stroke-dasharray', '4 2');
-          brushRectEl.setAttribute('pointer-events', 'none');
-          svg.appendChild(brushRectEl);
-        }
-        if (brushRectEl) {
-          const bx =
-            viewConfig.direction === 'y'
-              ? dims.margin.left
-              : Math.min(startX, pt.x);
-          const by =
-            viewConfig.direction === 'x'
-              ? dims.margin.top
-              : Math.min(startY, pt.y);
-          const bw =
-            viewConfig.direction === 'y'
-              ? dims.innerWidth
-              : Math.max(2, Math.abs(dx));
-          const bh =
-            viewConfig.direction === 'x'
-              ? dims.innerHeight
-              : Math.max(2, Math.abs(dy));
-          brushRectEl.setAttribute('x', String(bx));
-          brushRectEl.setAttribute('y', String(by));
-          brushRectEl.setAttribute('width', String(bw));
-          brushRectEl.setAttribute('height', String(bh));
-        }
-        return;
-      }
-
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      if (!dragging) {
-        if (Math.hypot(dx, dy) < 4) return;
-        dragging = true;
-        capturedPointerId = e.pointerId;
-        svg.setPointerCapture?.(e.pointerId);
-      }
-      applyTransform(
-        this.#viewTransform.k,
-        origX + dx,
-        origY + dy
-      );
-    };
-
-    const onPointerEnd = (e: PointerEvent): void => {
-      if (!pointerDown) return;
-      if (isBrushing && dragging) {
-        const pt = toSvgCoords(e);
-        const x0 = Math.min(startX, pt.x);
-        const x1 = Math.max(startX, pt.x);
-        const y0 = Math.min(startY, pt.y);
-        const y1 = Math.max(startY, pt.y);
-        brushRectEl?.remove();
-        brushRectEl = null;
-
-        const spanW = Math.max(12, x1 - x0);
-        const startPct = clamp((x0 / Math.max(1, dims.width)) * 100, 0, 95);
-        const endPct = clamp(
-          ((x0 + spanW) / Math.max(1, dims.width)) * 100,
-          startPct + 5,
-          100
-        );
-        applyPercentRange(startPct, endPct);
-        this.dispatchEvent(
-          new CustomEvent('mc-brush', {
-            bubbles: true,
-            composed: true,
-            detail: {
-              x0,
-              y0,
-              x1,
-              y1,
-              start: Math.round(startPct * 10) / 10,
-              end: Math.round(endPct * 10) / 10,
-              ...this.#viewTransform
-            }
-          })
-        );
-      }
-      pointerDown = false;
-      dragging = false;
-      isBrushing = false;
-      if (capturedPointerId !== null) {
-        svg.releasePointerCapture?.(capturedPointerId);
-        capturedPointerId = null;
-      }
-    };
-
-    svg.addEventListener('wheel', onWheel, { passive: false });
-    svg.addEventListener('pointerdown', onPointerDown);
-    svg.addEventListener('pointermove', onPointerMove);
-    svg.addEventListener('pointerup', onPointerEnd);
-    svg.addEventListener('pointercancel', onPointerEnd);
-
-    this.#viewController = {
-      scaleBy: (factor: number) => scaleBy(factor),
-      reset: () => applyTransform(1, 0, 0),
-      destroy: () => {
-        svg.removeEventListener('wheel', onWheel);
-        svg.removeEventListener('pointerdown', onPointerDown);
-        svg.removeEventListener('pointermove', onPointerMove);
-        svg.removeEventListener('pointerup', onPointerEnd);
-        svg.removeEventListener('pointercancel', onPointerEnd);
-        sliderEl?.remove();
-        brushRectEl?.remove();
-      }
-    };
-
-    if (
-      (viewConfig.start !== undefined && viewConfig.start > 0) ||
-      (viewConfig.end !== undefined && viewConfig.end < 100)
-    ) {
-      applyPercentRange(viewConfig.start ?? 0, viewConfig.end ?? 100);
-    } else if (
-      viewConfig.initialZoom !== 1 ||
-      viewConfig.initialPanX !== 0 ||
-      viewConfig.initialPanY !== 0
-    ) {
-      applyTransform(
-        viewConfig.initialZoom,
-        viewConfig.initialPanX,
-        viewConfig.initialPanY
-      );
-    } else {
-      this.#viewTransform = { k: 1, x: 0, y: 0 };
-      viewportGroup.removeAttribute('transform');
-      syncSliderDom(0, 100);
-      this.#setCustomState('zoomed', false);
-    }
-  }
-
   #syncInteractiveTooltips(isInteractive: boolean): void {
     const container = this.shadowRoot?.querySelector(
       '.mc-chart-container'
@@ -3280,28 +2345,6 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       );
     };
     svg.addEventListener('mousemove', this.#tooltipMoveHandler);
-  }
-
-  #setupControlsListeners(): void {
-    const controls = this.shadowRoot?.querySelector('.mc-view-controls');
-    if (!controls || (controls as any).__mcBound) return;
-    (controls as any).__mcBound = true;
-
-    controls.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest(
-        'button[data-zoom]'
-      ) as HTMLButtonElement | null;
-      if (!btn || !this.#viewController) return;
-
-      const action = btn.getAttribute('data-zoom');
-      if (action === 'in') {
-        this.#viewController.scaleBy(1.25);
-      } else if (action === 'out') {
-        this.#viewController.scaleBy(0.8);
-      } else if (action === 'reset') {
-        this.#viewController.reset();
-      }
-    });
   }
 
   #setupChildObservers(): void {

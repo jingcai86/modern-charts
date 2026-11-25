@@ -1,11 +1,11 @@
 import {
   VERSION,
-  registerModernCharts,
   type BuiltInPaletteName,
-  type MCBaseChart,
   type ThemeModePreference
-} from '../../src/index';
+} from '../../src/core/types';
+import type { MCBaseChart } from '../../src/core/base-chart';
 import { CHART_CATALOG, type ChartCatalogEntry } from './catalog';
+import { loadChart } from './chart-loader';
 import { GUIDES_CATALOG, type GuideId } from './guides/types';
 import { disposeOverviewPage, renderOverviewPage, writeStoredHomeTab } from './pages/overview';
 import { renderChartDetailPage } from './pages/chart-detail';
@@ -19,8 +19,6 @@ import {
   subscribeThemeChanges
 } from './state/theme';
 
-registerModernCharts();
-
 // Keep Studio header pill and page title synchronized with the active package VERSION
 const versionPill = document.querySelector('.version-pill');
 if (versionPill) {
@@ -33,6 +31,7 @@ let activeDetailChart: MCBaseChart<any> | null = null;
 let activeDetailEntry: ChartCatalogEntry | null = null;
 let activeGuide: { id: GuideId } | null = null;
 let renderGuidePage: typeof import('./guides/index').renderGuidePage | undefined;
+let chartD3Ready = false;
 
 // Primary Navigation Popover Dropdown
 const siteNav = document.querySelector('.site-nav') as HTMLElement | null;
@@ -149,6 +148,37 @@ async function loadGuidePage(root: HTMLElement, id: GuideId, hash: string): Prom
   if (isCurrentGuide()) renderGuidePage(root, id, getGlobalThemeMode());
 }
 
+function showChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry, hash: string): void {
+  if (chartD3Ready && customElements.get(entry.tagName)) {
+    activeDetailChart = renderChartDetailPage(root, entry);
+    return;
+  }
+
+  activeDetailChart = null;
+  const status = document.createElement('p');
+  status.setAttribute('role', 'status');
+  status.textContent = 'Loading chart…';
+  root.replaceChildren(status);
+
+  // The same chart may be opened again before an earlier request finishes.
+  const isCurrent = () => status.parentElement === root && window.location.hash === hash;
+  const loadD3 = chartD3Ready
+    ? undefined
+    : import('../../src/core/d3-curated').then(({ registerCuratedChartD3 }) => {
+        if (chartD3Ready) return;
+        registerCuratedChartD3();
+        chartD3Ready = true;
+      });
+  void Promise.all([loadChart(entry), loadD3]).then(
+    () => {
+      if (isCurrent()) activeDetailChart = renderChartDetailPage(root, entry);
+    },
+    () => {
+      if (isCurrent()) status.textContent = 'Could not load this chart. Reload the page to try again.';
+    }
+  );
+}
+
 function handleRoute(): void {
   const root = document.getElementById('app-root');
   if (!root) return;
@@ -179,7 +209,7 @@ function handleRoute(): void {
       activeGuide = null;
       activeOverviewCharts = [];
       activeDetailEntry = entry;
-      activeDetailChart = renderChartDetailPage(root, entry);
+      showChartDetailPage(root, entry, hash);
       syncTopNavActiveState('overview', true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;

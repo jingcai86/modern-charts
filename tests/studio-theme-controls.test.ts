@@ -126,10 +126,10 @@ describe('Studio Theme and Appearance controls', () => {
     expect(line.resolveTheme().colors).toEqual(PALETTES.neutral);
   }, 15_000);
 
-  it('retains the chosen theme across detail navigation and reset while respecting custom colors', () => {
+  it('retains the chosen theme across detail navigation and reset while respecting custom colors', async () => {
     select(paletteSelect, 'bootstrap');
     route('#/chart/bar');
-    expect(detailChart().config.palette).toBe('bootstrap');
+    await vi.waitFor(() => expect(detailChart()?.config.palette).toBe('bootstrap'));
     const editor = document.querySelector<HTMLTextAreaElement>('#detail-html-preview')!;
     editor.value = formatConfigAssignment({
       ...detailChart().config,
