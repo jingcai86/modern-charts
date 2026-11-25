@@ -163,7 +163,8 @@ export function subscribeI18n(listener: () => void): () => void {
 
 const MAX_FORMATTERS_PER_CONTEXT = 32;
 function formatterKey(options: object): string {
-  return JSON.stringify(Object.entries(options).sort(([a], [b]) => a.localeCompare(b)));
+  // Cache keys need a stable order, which does not require initializing locale collation.
+  return JSON.stringify(Object.entries(options).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
 }
 function cachedFormatter<T>(cache: Map<string, T>, key: string, create: () => T): T {
   const existing = cache.get(key);
@@ -181,7 +182,7 @@ export function createChartI18n(config: ChartI18nConfig = {}): ChartI18n {
 
 function resolveChartI18n(config: ChartI18nConfig, global: ChartI18nConfig): ChartI18n {
   const locale = config.locale ?? global.locale ?? 'en-US';
-  const timeZone = config.timeZone ?? global.timeZone ?? new Intl.DateTimeFormat().resolvedOptions().timeZone;
+  let timeZone = config.timeZone ?? global.timeZone;
   const direction = config.direction ?? global.direction ?? 'ltr';
   if (direction !== 'ltr' && direction !== 'rtl') throw new RangeError('Chart direction must be ltr or rtl.');
   const mergedMessages = { ...DEFAULT_CHART_MESSAGES };
@@ -193,9 +194,14 @@ function resolveChartI18n(config: ChartI18nConfig, global: ChartI18nConfig): Cha
     }
   }
   const messages: Readonly<ChartMessages> = Object.freeze(mergedMessages);
-  // Reject malformed locale/time-zone identifiers consistently at configuration time.
-  new Intl.NumberFormat(locale);
-  new Intl.DateTimeFormat(locale, { timeZone });
+  // Validate explicit overrides immediately and resolve the runtime zone only when a date needs it.
+  if (timeZone !== undefined) {
+    new Intl.DateTimeFormat(locale, { timeZone });
+  } else if (locale !== 'en-US') {
+    Intl.getCanonicalLocales(locale);
+  }
+  const getTimeZone = (): string =>
+    timeZone ??= new Intl.DateTimeFormat().resolvedOptions().timeZone;
   const numberFormatters = new Map<string, Intl.NumberFormat>();
   const dateFormatters = new Map<string, Intl.DateTimeFormat>();
   const formatNumber = (value: number, options: Intl.NumberFormatOptions = {}): string => {
@@ -208,12 +214,12 @@ function resolveChartI18n(config: ChartI18nConfig, global: ChartI18nConfig): Cha
   };
   return {
     locale,
-    timeZone,
+    get timeZone() { return getTimeZone(); },
     direction,
     messages,
     formatNumber,
     formatDate(value, options = {}) {
-      const resolved = { timeZone, ...options };
+      const resolved = { timeZone: getTimeZone(), ...options };
       return cachedFormatter(dateFormatters, formatterKey(resolved), () => new Intl.DateTimeFormat(locale, resolved)).format(value);
     },
     formatPercent(value, options = {}) {
