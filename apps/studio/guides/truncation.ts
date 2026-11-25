@@ -1,9 +1,13 @@
 import { getGlobalPalette } from '../state/theme';
+import { LabelEngine } from '../../../src/core/label-engine';
+import { normalizeOverflowInput, normalizeOverflowStrategy } from '../../../src/core/label-truncate';
 import type {
+  LabelOverflowConfig,
   LabelOverflowStrategy,
   MCBaseChart,
   ThemeModePreference
 } from '../../../src/index';
+import { getLabelOverflowCapabilities, LABEL_OVERFLOW_MODES } from './label-overflow-controls';
 import { createLiveConfigEditor, escapeHtml } from './shared';
 
 export function renderTruncationGuide(
@@ -35,13 +39,14 @@ export function renderTruncationGuide(
           </tr>
         </thead>
         <tbody>
-          <tr><td><code>strategy</code> / <code>label-overflow</code></td><td><code>'truncate' | 'rotate' | 'both' | 'wrap' | 'none'</code></td><td><code>'truncate'</code></td><td>Overflow behavior applied when <code>maxWidth</code> or <code>maxChars</code> is exceeded.</td></tr>
+          <tr><td><code>strategy</code> / <code>label-overflow</code></td><td>${LABEL_OVERFLOW_MODES.map(({ strategy }) => `<code>'${strategy}'</code>`).join(' | ')}</td><td><code>'truncate'</code></td><td><code>'wrap'</code> keeps all text. <code>'wrap-truncate'</code> can shorten wrapped text. <code>'rotate-wrap-truncate'</code> also rotates it. <code>'both'</code> rotates and truncates.</td></tr>
           <tr><td><code>maxWidth</code> / <code>max-width</code></td><td><code>number</code> (px)</td><td>Per-slot budget</td><td>Exact Pretext-measured pixel width threshold before overflow triggers.</td></tr>
-          <tr><td><code>maxChars</code> / <code>max-chars</code></td><td><code>number</code></td><td>Unlimited</td><td>Grapheme-safe character threshold (via <code>Intl.Segmenter</code> — safe for emojis &amp; CJK).</td></tr>
+          <tr><td><code>maxChars</code> / <code>max-chars</code></td><td><code>number</code></td><td>Unlimited</td><td>Grapheme-safe character threshold for rotation and truncation.</td></tr>
+          <tr><td><code>maxLines</code> / <code>max-lines</code></td><td><code>number</code></td><td>Unlimited</td><td>Limits the visible lines in the truncation strategies.</td></tr>
           <tr><td><code>ellipsis</code></td><td><code>string</code></td><td><code>'…'</code></td><td>Suffix appended when truncating text.</td></tr>
-          <tr><td><code>maxRotation</code> / <code>max-rotation</code></td><td><code>number</code> (deg)</td><td><code>45</code></td><td>Rotation angle for <code>'rotate'</code> and <code>'both'</code> strategies (supports negative angles like <code>-45</code>).</td></tr>
-          <tr><td><code>enableTooltip</code> / <code>enable-tooltip</code></td><td><code>boolean</code></td><td><code>true</code></td><td>Shows full untruncated text on hover &amp; keyboard focus; set <code>false</code> to explicitly disable.</td></tr>
-          <tr><td><code>tooltip</code></td><td><code>boolean | TooltipConfig</code></td><td>Default solo tooltip</td><td>Customize truncated-label tooltip via <code>formatter</code>, <code>renderer</code>, or nested <code>&lt;mc-tooltip&gt;</code>.</td></tr>
+          <tr><td><code>maxRotation</code> / <code>max-rotation</code></td><td><code>number</code> (deg)</td><td><code>45</code></td><td>Rotation angle for <code>'rotate'</code>, <code>'both'</code>, and <code>'rotate-wrap-truncate'</code>. Negative angles are supported.</td></tr>
+          <tr><td><code>enableTooltip</code> / <code>enable-tooltip</code></td><td><code>boolean</code></td><td><code>true</code></td><td>Shows full text when hovering or focusing a label that overflow handling rotated or truncated.</td></tr>
+          <tr><td><code>tooltip</code></td><td><code>boolean | TooltipConfig</code></td><td>Default label tooltip</td><td>Customize the full-text tooltip via <code>formatter</code>, <code>renderer</code>, or a nested <code>&lt;mc-tooltip&gt;</code>.</td></tr>
         </tbody>
       </table>
     </div>
@@ -56,172 +61,241 @@ export function renderTruncationGuide(
       <div>
         <h2 class="panel-title">Example 1: Long Axis Categories, Rotation &amp; Full-Text Tooltips</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Hover or keyboard-<strong>Tab</strong> onto any truncated X-axis tick below to inspect the full label text.
-          Use the controls or edit <code>data</code> and <code>label.overflow</code> directly in the live config editor.
+          <span id="tr-tooltip-hint">Hover or press <strong>Tab</strong> to read the full text of rotated or truncated labels.</span>
+          Use the controls or edit <code>data</code> and <code>label.overflow</code> in the live config editor.
         </p>
       </div>
-      <div class="guide-controls-row" style="flex-wrap:wrap;gap:6px;">
-        <button type="button" data-trunc-strat="truncate" class="btn-primary">truncate</button>
-        <button type="button" data-trunc-strat="rotate">rotate</button>
-        <button type="button" data-trunc-strat="both">both</button>
-        <button type="button" data-trunc-strat="wrap">wrap</button>
-        <button type="button" data-trunc-strat="none">none</button>
+      <div class="guide-controls-row" role="group" aria-label="Axis label overflow" style="gap:6px;">
+        ${LABEL_OVERFLOW_MODES.map(({ strategy, label }) => `<button type="button" data-trunc-strat="${strategy}">${label}</button>`).join('')}
       </div>
     </div>
-    <div class="guide-controls-row" style="flex-wrap:wrap;gap:14px;margin:0 0 12px;">
-      <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
-        <code>maxWidth</code>: <strong id="tr-mw-val">78px</strong>
-        <input type="range" id="tr-mw-slider" min="48" max="160" step="2" value="78" style="vertical-align:middle;margin-left:6px;" />
-      </label>
-      <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
-        <code>maxChars</code>: <strong id="tr-mc-val">off</strong>
-        <input type="range" id="tr-mc-slider" min="0" max="26" step="1" value="0" style="vertical-align:middle;margin-left:6px;" />
-      </label>
-      <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
-        <code>maxRotation</code>: <strong id="tr-rot-val">-45°</strong>
-        <input type="range" id="tr-rot-slider" min="-90" max="90" step="5" value="-45" style="vertical-align:middle;margin-left:6px;" />
-      </label>
-      <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
-        <code>ellipsis</code>:
-        <select id="tr-ellipsis-select" style="margin-left:4px;">
-          <option value="…" selected>… (default)</option>
-          <option value="...">...</option>
-          <option value="→">→</option>
-        </select>
-      </label>
-      <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
-        <input type="checkbox" id="tr-tip-toggle" checked />
-        <code>enableTooltip</code>
-      </label>
+    <div id="tr-overflow-controls">
+      <div class="guide-controls-row" style="gap:14px;margin:0 0 12px;font-size:0.82rem;color:var(--text-muted);font-weight:600;">
+        <label data-trunc-control="maxWidth">
+          <code>maxWidth</code> <strong id="tr-mw-val"></strong>
+          <input type="range" id="tr-mw-slider" min="48" max="160" step="2" style="vertical-align:middle;margin-left:6px;" />
+        </label>
+        <label data-trunc-control="maxChars">
+          <code>maxChars</code> <strong id="tr-mc-val"></strong>
+          <input type="range" id="tr-mc-slider" min="0" max="26" step="1" style="vertical-align:middle;margin-left:6px;" />
+        </label>
+        <label data-trunc-control="maxLines">
+          <code>maxLines</code> <strong id="tr-ml-val"></strong>
+          <input type="range" id="tr-ml-slider" min="0" max="8" step="1" style="vertical-align:middle;margin-left:6px;" />
+        </label>
+        <label data-trunc-control="maxRotation">
+          <code>maxRotation</code> <strong id="tr-rot-val"></strong>
+          <input type="range" id="tr-rot-slider" min="-90" max="90" step="5" style="vertical-align:middle;margin-left:6px;" />
+        </label>
+        <label data-trunc-control="ellipsis">
+          <code>ellipsis</code>
+          <select id="tr-ellipsis-select" style="margin-left:4px;">
+            <option value="…">… (default)</option>
+            <option value="...">...</option>
+            <option value="→">→</option>
+            <option id="tr-ellipsis-custom" hidden></option>
+          </select>
+        </label>
+        <label data-trunc-control="enableTooltip">
+          <input type="checkbox" id="tr-tip-toggle" />
+          <code>enableTooltip</code>
+        </label>
+      </div>
     </div>
     <div class="guide-example-grid">
-      <div class="guide-chart-stage" id="guide-trunc-chart-1"></div>
+      <div style="overflow-x:auto;">
+        <div class="guide-chart-stage" id="guide-trunc-chart-1"></div>
+      </div>
       <div id="guide-trunc-code-1"></div>
     </div>
   `;
   container.appendChild(ex1);
 
   const bar1 = document.createElement('mc-bar-chart') as MCBaseChart<any>;
-  ex1.querySelector('#guide-trunc-chart-1')!.appendChild(bar1);
+  const chartStage = ex1.querySelector<HTMLElement>('#guide-trunc-chart-1')!;
+  chartStage.appendChild(bar1);
   mounted.push(bar1);
 
-  const code1 = ex1.querySelector('#guide-trunc-code-1') as HTMLElement;
+  const defaultOptions = {
+    maxWidth: 78,
+    maxChars: 0,
+    maxLines: 2,
+    maxRotation: -45,
+    ellipsis: '…',
+    enableTooltip: true
+  };
+  const defaultConfig = {
+    title: 'Long Category Labels',
+    indexBy: 'dept',
+    keys: ['Spend'],
+    data: [
+      { dept: 'Global Cloud Platform Infrastructure', Spend: 245 },
+      { dept: 'Applied Machine Learning Research', Spend: 210 },
+      { dept: 'Enterprise Security & Compliance Ops', Spend: 162 },
+      { dept: 'Developer Productivity & CI Tooling', Spend: 184 },
+      { dept: 'Real-Time Data Streaming Pipelines', Spend: 198 }
+    ],
+    label: { target: 'axis-tick' }
+  };
   let strategy: LabelOverflowStrategy = 'truncate';
-  let maxWidth = 78;
-  let maxChars = 0;
-  let maxRotation = -45;
-  let ellipsis = '…';
-  let enableTooltip = true;
-
-  const longDeptData = [
-    { dept: 'Global Cloud Platform Infrastructure', Spend: 245 },
-    { dept: 'Applied Machine Learning Research', Spend: 210 },
-    { dept: 'Enterprise Security & Compliance Ops', Spend: 162 },
-    { dept: 'Developer Productivity & CI Tooling', Spend: 184 },
-    { dept: 'Real-Time Data Streaming Pipelines', Spend: 198 }
-  ];
+  let options = { ...defaultOptions };
+  let currentConfig: Record<string, any> = defaultConfig;
+  let tooltip: LabelOverflowConfig['tooltip'];
 
   const stratBtns = Array.from(
     ex1.querySelectorAll<HTMLButtonElement>('[data-trunc-strat]')
   );
-  const mwSlider = ex1.querySelector('#tr-mw-slider') as HTMLInputElement;
-  const mwVal = ex1.querySelector('#tr-mw-val') as HTMLElement;
-  const mcSlider = ex1.querySelector('#tr-mc-slider') as HTMLInputElement;
-  const mcVal = ex1.querySelector('#tr-mc-val') as HTMLElement;
-  const rotSlider = ex1.querySelector('#tr-rot-slider') as HTMLInputElement;
-  const rotVal = ex1.querySelector('#tr-rot-val') as HTMLElement;
-  const ellSelect = ex1.querySelector('#tr-ellipsis-select') as HTMLSelectElement;
-  const tipToggle = ex1.querySelector('#tr-tip-toggle') as HTMLInputElement;
+  const controlRow = ex1.querySelector<HTMLElement>('#tr-overflow-controls')!;
+  const controlLabels = controlRow.querySelectorAll<HTMLLabelElement>('[data-trunc-control]');
+  const tooltipHint = ex1.querySelector<HTMLElement>('#tr-tooltip-hint')!;
+  const ellSelect = ex1.querySelector<HTMLSelectElement>('#tr-ellipsis-select')!;
+  const ellCustom = ex1.querySelector<HTMLOptionElement>('#tr-ellipsis-custom')!;
+  const tipToggle = ex1.querySelector<HTMLInputElement>('#tr-tip-toggle')!;
+  const numericControls = ([
+    { key: 'maxWidth', id: 'mw', unit: 'px' },
+    { key: 'maxChars', id: 'mc', offAtZero: true },
+    { key: 'maxLines', id: 'ml', offAtZero: true },
+    { key: 'maxRotation', id: 'rot', unit: '°' }
+  ] as const).map((control) => ({
+    ...control,
+    slider: ex1.querySelector<HTMLInputElement>(`#tr-${control.id}-slider`)!,
+    value: ex1.querySelector<HTMLElement>(`#tr-${control.id}-val`)!
+  }));
 
   const syncEx1Controls = () => {
-    stratBtns.forEach((b) =>
-      b.classList.toggle('btn-primary', b.dataset.truncStrat === strategy)
-    );
-    mwSlider.value = String(maxWidth);
-    mwVal.textContent = `${maxWidth}px`;
-    mcSlider.value = String(maxChars);
-    mcVal.textContent = maxChars > 0 ? String(maxChars) : 'off';
-    rotSlider.value = String(maxRotation);
-    rotVal.textContent = `${maxRotation}°`;
-    if (['…', '...', '→'].includes(ellipsis)) ellSelect.value = ellipsis;
-    tipToggle.checked = enableTooltip;
+    const capabilities = getLabelOverflowCapabilities(strategy);
+    for (const button of stratBtns) {
+      const selected = button.dataset.truncStrat === strategy;
+      button.classList.toggle('btn-primary', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    }
+    for (const label of controlLabels) {
+      label.hidden = !capabilities[label.dataset.truncControl as keyof typeof capabilities];
+    }
+    controlRow.hidden = strategy === 'none';
+    tooltipHint.hidden = !capabilities.enableTooltip || !options.enableTooltip;
+    for (const control of numericControls) {
+      const value = options[control.key];
+      control.slider.value = String(value);
+      control.value.textContent = ('offAtZero' in control && value === 0)
+        ? 'off'
+        : `${value}${'unit' in control ? control.unit : ''}`;
+    }
+    ellCustom.hidden = ['…', '...', '→'].includes(options.ellipsis);
+    ellCustom.value = options.ellipsis;
+    ellCustom.textContent = options.ellipsis || 'No ellipsis';
+    ellSelect.value = options.ellipsis;
+    tipToggle.checked = options.enableTooltip;
   };
+
+  const getAxisLabel = (cfg: Record<string, any>) => Array.isArray(cfg.label)
+    ? cfg.label.find((label) => label?.target === 'axis-tick')
+    : cfg.label;
 
   const buildEx1Config = () => {
-    const overflow: Record<string, any> = {
-      strategy,
-      maxWidth,
-      ellipsis,
-      maxRotation,
-      enableTooltip
-    };
-    if (maxChars > 0) overflow.maxChars = maxChars;
+    const capabilities = getLabelOverflowCapabilities(strategy);
+    const overflow: LabelOverflowConfig = { strategy };
+    if (capabilities.maxWidth) overflow.maxWidth = options.maxWidth;
+    if (capabilities.maxChars && options.maxChars > 0) overflow.maxChars = options.maxChars;
+    if (capabilities.maxLines && options.maxLines > 0) overflow.maxLines = options.maxLines;
+    if (capabilities.maxRotation) overflow.maxRotation = options.maxRotation;
+    if (capabilities.ellipsis) overflow.ellipsis = options.ellipsis;
+    if (capabilities.enableTooltip) {
+      overflow.enableTooltip = options.enableTooltip;
+      overflow.tooltip = tooltip;
+    }
 
+    const previous = getAxisLabel(currentConfig);
+    const label = { ...previous, target: previous?.target ?? 'axis-tick', overflow };
+    // Keep the guide's controls in overflow so an edited top-level option never shadows them.
+    for (const key of Object.keys(defaultOptions)) delete label[key];
+    delete label.tooltip;
     return {
-      title: `Long Category Labels — strategy="${strategy}"`,
-      indexBy: 'dept',
-      keys: ['Spend'],
-      data: longDeptData,
-      label: {
-        target: 'axis-tick',
-        maxWidth,
-        overflow
-      }
+      ...currentConfig,
+      label: Array.isArray(currentConfig.label)
+        ? [...currentConfig.label.filter((entry) => entry !== previous), label]
+        : label
     };
   };
 
+  const labelEngine = new LabelEngine();
   const applyEx1Config = (cfg: Record<string, any>) => {
-    const strat = cfg.label?.overflow?.strategy ?? strategy;
+    const label = getAxisLabel(cfg);
+    const theme = { ...bar1.resolveTheme(), ...cfg.theme };
+    const fontSize = Math.max(10, theme.fontSize - 1);
+    const margin = { top: 44, right: 24, bottom: 74, left: 52 };
+    const categories = Array.isArray(cfg.data) ? cfg.data : [];
+    let tickSpacing = 42;
+
+    for (const datum of categories) {
+      const text = String(datum?.[cfg.indexBy ?? 'dept'] ?? '');
+      const measured = labelEngine.measure(text, { fontSize, ...label }, theme);
+      const angle = measured.appliedRotation * Math.PI / 180;
+      const sin = Math.abs(Math.sin(angle));
+      const cos = Math.abs(Math.cos(angle));
+      const down = measured.boxWidth * sin + measured.boxHeight * cos;
+      const width = measured.boxWidth * cos;
+      const crossWidth = measured.boxHeight * sin;
+      const left = measured.appliedRotation < 0 ? width : crossWidth;
+      const right = measured.appliedRotation > 0 ? width : crossWidth;
+      margin.bottom = Math.max(margin.bottom, Math.ceil(down) + 18);
+      margin.left = Math.max(margin.left, Math.ceil(left) + 12);
+      margin.right = Math.max(margin.right, Math.ceil(right) + 12);
+      if (strategy !== 'none') {
+        tickSpacing = Math.max(tickSpacing, Math.ceil(angle === 0 ? width : crossWidth) + 8);
+      }
+    }
+
+    const finalMargin = { ...margin, ...cfg.margin };
+    chartStage.style.minWidth = `${finalMargin.left + finalMargin.right + tickSpacing * categories.length}px`;
+    chartStage.style.height = `${Math.max(380, finalMargin.top + finalMargin.bottom + 175)}px`;
     bar1.setConfig({
       autoSize: true,
       themeMode,
       palette: getGlobalPalette(),
       borderRadius: 6,
-      margin: {
-        top: 44,
-        right: 24,
-        bottom: strat === 'rotate' || strat === 'both' ? 114 : 74,
-        left: 52
-      },
       layers: ['grid', 'axes', 'bars', 'labels'],
-      ...cfg
+      ...cfg,
+      margin: finalMargin
     });
   };
 
   const initialEx1Cfg = buildEx1Config();
+  syncEx1Controls();
   applyEx1Config(initialEx1Cfg);
 
   const editor1 = createLiveConfigEditor({
     title: 'Axis & Label Truncation Config (Live)',
     initialConfig: initialEx1Cfg,
-    hint: 'Edit strategy, maxWidth, maxChars, ellipsis, maxRotation, or category strings live.',
+    hint: 'Edit the overflow strategy, its limits, or the category strings live.',
     onConfigChange: (nextCfg) => {
-      const ov = nextCfg.label?.overflow;
-      if (ov) {
-        if (ov.strategy) strategy = ov.strategy;
-        if (typeof ov.maxWidth === 'number') maxWidth = ov.maxWidth;
-        if (typeof ov.maxChars === 'number') maxChars = ov.maxChars;
-        if (typeof ov.maxRotation === 'number') maxRotation = ov.maxRotation;
-        if (typeof ov.ellipsis === 'string') ellipsis = ov.ellipsis;
-        if (typeof ov.enableTooltip === 'boolean') enableTooltip = ov.enableTooltip;
-        syncEx1Controls();
+      const label = getAxisLabel(nextCfg);
+      const overflow = normalizeOverflowInput(label?.overflow);
+      strategy = normalizeOverflowStrategy(overflow.strategy) ?? 'truncate';
+      const capabilities = getLabelOverflowCapabilities(strategy);
+      for (const { key } of numericControls) {
+        const value = overflow[key] ?? label?.[key];
+        if (typeof value === 'number') options[key] = value;
+        else if (capabilities[key]) options[key] = key === 'maxLines' ? 0 : defaultOptions[key];
       }
+      const ellipsis = label?.ellipsis ?? overflow.ellipsis;
+      const enabled = label?.enableTooltip ?? overflow.enableTooltip;
+      if (typeof ellipsis === 'string' || capabilities.ellipsis) options.ellipsis = ellipsis ?? defaultOptions.ellipsis;
+      if (typeof enabled === 'boolean' || capabilities.enableTooltip) options.enableTooltip = enabled ?? defaultOptions.enableTooltip;
+      tooltip = label?.tooltip ?? overflow.tooltip ?? (capabilities.enableTooltip ? undefined : tooltip);
+      currentConfig = nextCfg;
+      syncEx1Controls();
       applyEx1Config(nextCfg);
     },
     onReset: () => {
       strategy = 'truncate';
-      maxWidth = 78;
-      maxChars = 0;
-      maxRotation = -45;
-      ellipsis = '…';
-      enableTooltip = true;
-      syncEx1Controls();
-      const resetCfg = buildEx1Config();
-      applyEx1Config(resetCfg);
-      editor1.syncConfig(resetCfg);
+      options = { ...defaultOptions };
+      tooltip = undefined;
+      currentConfig = defaultConfig;
+      updateEx1FromControls();
     }
   });
-  code1.appendChild(editor1.element);
+  ex1.querySelector('#guide-trunc-code-1')!.appendChild(editor1.element);
 
   const updateEx1FromControls = () => {
     syncEx1Controls();
@@ -236,24 +310,18 @@ export function renderTruncationGuide(
       updateEx1FromControls();
     });
   });
-  mwSlider.addEventListener('input', () => {
-    maxWidth = Number(mwSlider.value);
-    updateEx1FromControls();
-  });
-  mcSlider.addEventListener('input', () => {
-    maxChars = Number(mcSlider.value);
-    updateEx1FromControls();
-  });
-  rotSlider.addEventListener('input', () => {
-    maxRotation = Number(rotSlider.value);
-    updateEx1FromControls();
-  });
+  for (const { key, slider } of numericControls) {
+    slider.addEventListener('input', () => {
+      options[key] = Number(slider.value);
+      updateEx1FromControls();
+    });
+  }
   ellSelect.addEventListener('change', () => {
-    ellipsis = ellSelect.value;
+    options.ellipsis = ellSelect.value;
     updateEx1FromControls();
   });
   tipToggle.addEventListener('change', () => {
-    enableTooltip = tipToggle.checked;
+    options.enableTooltip = tipToggle.checked;
     updateEx1FromControls();
   });
 

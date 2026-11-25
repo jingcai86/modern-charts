@@ -1,10 +1,10 @@
 import {
   layoutWithLines,
-  measureLineStats,
   measureNaturalWidth,
   prepareWithSegments,
   type PreparedTextWithSegments
 } from '@chenglou/pretext';
+import { rotatesOnOverflow } from './label-overflow';
 import type {
   LabelDescriptor,
   LabelOverflowConfig,
@@ -134,6 +134,8 @@ export function normalizeOverflowStrategy(
     lower === 'rotate' ||
     lower === 'both' ||
     lower === 'wrap' ||
+    lower === 'wrap-truncate' ||
+    lower === 'rotate-wrap-truncate' ||
     lower === 'none'
   ) {
     return lower;
@@ -221,7 +223,7 @@ export function resolveLabelOverflowConfig(
         : undefined,
     maxLines:
       maxLines !== undefined && Number.isFinite(maxLines) && maxLines > 0
-        ? Math.floor(maxLines)
+        ? Math.max(1, Math.floor(maxLines))
         : undefined,
     ellipsis,
     maxRotation,
@@ -396,11 +398,12 @@ export function truncateWithPretext(
       : 0;
   const hasMaxWidth =
     availWidth !== undefined && Number.isFinite(availWidth) && availWidth > 0;
-  const maxChars = overflow.maxChars;
+  const strategy = overflow.strategy;
+  const maxChars = strategy === 'wrap' ? undefined : overflow.maxChars;
   const hasMaxChars = maxChars !== undefined && maxChars > 0;
 
-  let maxLinesCap = overflow.maxLines;
-  if (maxHeight !== undefined && Number.isFinite(maxHeight) && maxHeight > 0) {
+  let maxLinesCap = strategy === 'wrap' ? undefined : overflow.maxLines;
+  if (strategy !== 'wrap' && maxHeight !== undefined && Number.isFinite(maxHeight) && maxHeight > 0) {
     const fromHeight = Math.max(1, Math.floor(maxHeight / lineHeight));
     maxLinesCap =
       maxLinesCap !== undefined
@@ -416,27 +419,13 @@ export function truncateWithPretext(
     maxLinesCap !== undefined && explicitLines.length > maxLinesCap;
   const overflowTriggered = exceedsWidth || exceedsChars || exceedsLines;
 
-  const strategy = overflow.strategy;
   const baseRotation = explicitRotation ?? 0;
-
-  if (strategy === 'none') {
-    return {
-      text: originalText,
-      originalText,
-      lines: explicitLineMetrics,
-      truncated: false,
-      overflowTriggered,
-      appliedStrategy: strategy,
-      appliedRotation: baseRotation,
-      naturalWidth,
-      width: naturalWidth
-    };
-  }
-
-  if (strategy === 'rotate') {
-    const appliedRotation = overflowTriggered
+  const rotationFor = (triggered: boolean): number =>
+    triggered && rotatesOnOverflow(strategy)
       ? resolveOverflowRotation(explicitRotation, overflow.maxRotation)
       : baseRotation;
+
+  if (strategy === 'none' || strategy === 'rotate') {
     return {
       text: originalText,
       originalText,
@@ -444,23 +433,23 @@ export function truncateWithPretext(
       truncated: false,
       overflowTriggered,
       appliedStrategy: strategy,
-      appliedRotation,
+      appliedRotation: rotationFor(overflowTriggered),
       naturalWidth,
       width: naturalWidth
     };
   }
 
-  if (strategy === 'wrap') {
+  if (strategy === 'wrap' || strategy === 'wrap-truncate' || strategy === 'rotate-wrap-truncate') {
     let wrapSource = originalText;
     let truncated = false;
 
     if (hasMaxChars) {
       const allGraphemes = splitGraphemes(originalText);
-      if (allGraphemes.length > overflow.maxChars!) {
+      if (allGraphemes.length > maxChars) {
         const res = truncateSingleLine(
           originalText,
           undefined,
-          overflow.maxChars,
+          maxChars,
           overflow.ellipsis,
           measureWidth
         );
@@ -472,14 +461,14 @@ export function truncateWithPretext(
     const wrapWidth = hasMaxWidth
       ? Math.max(12, availWidth!)
       : Math.max(naturalWidth + 4, 1000);
-    const prepared = getPrepared(wrapSource, font);
-    const layoutRes = layoutWithLines(prepared, wrapWidth, lineHeight);
-    const stats = measureLineStats(prepared, wrapWidth);
-
-    let lines: MeasuredLabelLine[] = layoutRes.lines.map((l) => ({
-      text: l.text,
-      width: Math.ceil(l.width)
-    }));
+    let lines: MeasuredLabelLine[] = wrapSource.split('\n').flatMap((paragraph) => {
+      // Pretext normalizes newlines by default. Lay out each explicit line independently.
+      const { lines: wrapped } = layoutWithLines(getPrepared(paragraph, font), wrapWidth, lineHeight);
+      return wrapped.length > 0
+        ? wrapped.map((line) => ({ text: line.text, width: Math.ceil(line.width) }))
+        : [{ text: '', width: 0 }];
+    });
+    const wrappedOverflow = lines.length > explicitLines.length;
 
     if (maxLinesCap !== undefined && lines.length > maxLinesCap) {
       lines = lines.slice(0, maxLinesCap);
@@ -497,36 +486,24 @@ export function truncateWithPretext(
       truncated = true;
     }
 
-    const width = Math.min(
-      wrapWidth,
-      Math.ceil(
-        lines.length > 0
-          ? Math.max(
-              ...lines.map((l) => l.width),
-              Math.min(stats.maxLineWidth, wrapWidth)
-            )
-          : 0
-      )
-    );
+    const width = Math.max(0, ...lines.map((line) => line.width));
+    const triggered = overflowTriggered || wrappedOverflow || truncated;
 
     return {
       text: lines.map((l) => l.text).join('\n'),
       originalText,
       lines,
       truncated,
-      overflowTriggered: overflowTriggered || lines.length > 1 || truncated,
+      overflowTriggered: triggered,
       appliedStrategy: strategy,
-      appliedRotation: baseRotation,
+      appliedRotation: rotationFor(triggered),
       naturalWidth,
-      width
+      width: strategy === 'wrap' ? width : Math.min(wrapWidth, width)
     };
   }
 
   // 'truncate' (default) and 'both' (rotate + truncate)
-  const appliedRotation =
-    strategy === 'both' && overflowTriggered
-      ? resolveOverflowRotation(explicitRotation, overflow.maxRotation)
-      : baseRotation;
+  const appliedRotation = rotationFor(overflowTriggered);
 
   if (!overflowTriggered) {
     return {

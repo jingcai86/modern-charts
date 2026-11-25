@@ -3,6 +3,7 @@ import {
   clearCache as clearPretextCache,
   type PreparedTextWithSegments
 } from '@chenglou/pretext';
+import { needsFullTextTooltip } from './label-overflow';
 import {
   ensureCanvasTextMeasurementSupport,
   normalizeOverflowInput,
@@ -37,7 +38,7 @@ export interface LabelTooltipHandlers {
     overrideConfig?: TooltipConfig<LabelDescriptor>
   ) => void;
   hideTooltip: () => void;
-  /** Controls whether truncated labels receive `tabindex="0"` and keyboard focus tooltips (default `true`). */
+  /** Controls keyboard focus for labels with full-text tooltips (default `true`). */
   isFocusable?: boolean;
 }
 
@@ -616,7 +617,7 @@ export class LabelEngine {
       );
     }
 
-    if (!measured.truncated) {
+    if (!needsFullTextTooltip(measured)) {
       return;
     }
 
@@ -716,7 +717,7 @@ export class LabelEngine {
             text: measured.originalText,
             meta: {
               ...(descriptor.meta ?? {}),
-              truncated: true,
+              truncated: measured.truncated,
               displayText: measured.displayText,
               appliedStrategy: measured.appliedStrategy,
               appliedRotation: measured.appliedRotation

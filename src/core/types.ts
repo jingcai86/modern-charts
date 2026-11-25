@@ -468,6 +468,8 @@ export type LabelOverflowStrategy =
   | 'rotate'
   | 'both'
   | 'wrap'
+  | 'wrap-truncate'
+  | 'rotate-wrap-truncate'
   | 'none';
 
 export interface LabelOverflowConfig {
@@ -476,7 +478,9 @@ export interface LabelOverflowConfig {
    * - `'truncate'` (default): truncates with ellipsis using `@chenglou/pretext`.
    * - `'rotate'`: rotates the label up to `maxRotation` (default `45°`; supports negative values like `-45`).
    * - `'both'`: rotates (`maxRotation`) AND truncates to fit `maxWidth` / `maxChars`.
-   * - `'wrap'`: multi-line `@chenglou/pretext` wrapping (`layoutWithLines`).
+   * - `'wrap'`: wraps all text to fit `maxWidth`.
+   * - `'wrap-truncate'`: wraps with truncation when character, line, or height limits are exceeded.
+   * - `'rotate-wrap-truncate'`: rotates overflowing labels and wraps with truncation limits.
    * - `'none'`: disables truncation and automatic overflow rotation.
    */
   strategy?: LabelOverflowStrategy;
@@ -484,22 +488,22 @@ export interface LabelOverflowConfig {
   maxWidth?: number;
   /** Maximum character (grapheme) count before overflow triggers. */
   maxChars?: number;
-  /** Maximum line count (applies to multi-line text and `'wrap'` strategy). */
+  /** Maximum displayed line count in strategies that truncate. */
   maxLines?: number;
   /** Ellipsis suffix appended when truncating. Default `'…'`. */
   ellipsis?: string;
   /**
-   * Maximum rotation angle in degrees when strategy is `'rotate'` or `'both'`.
+   * Maximum rotation angle in degrees for strategies that rotate on overflow.
    * Default `45`. Supports negative values (e.g. `-45`).
    */
   maxRotation?: number;
   /**
-   * Show full untruncated text in a tooltip on hover and keyboard focus when
-   * truncated. Enabled (`true`) by default; set `false` to explicitly disable.
+   * Show full text on hover and keyboard focus when a label is truncated or
+   * rotated because of overflow. Defaults to `true`.
    */
   enableTooltip?: boolean;
   /**
-   * Customize or explicitly disable (`false`) the truncated-label tooltip using
+   * Customize or explicitly disable (`false`) the full-text label tooltip using
    * the standard `TooltipConfig` API.
    */
   tooltip?: boolean | TooltipConfig<LabelDescriptor>;

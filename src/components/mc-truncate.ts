@@ -1,4 +1,5 @@
 import { HTMLElementBase, lazyTemplate } from '../core/dom';
+import { needsFullTextTooltip } from '../core/label-overflow';
 import {
   DEFAULT_MAX_ROTATION,
   DEFAULT_TRUNCATE_ELLIPSIS,
@@ -100,8 +101,8 @@ function parseOptionalNumber(raw: string | null): number | undefined {
  *
  * Powered by `@chenglou/pretext` (zero DOM layout reflow), supporting:
  * - Width (`max-width`) and/or character-count (`max-chars`) overflow triggers
- * - Overflow strategies: `'truncate'` (default), `'rotate'` (45° default, customizable including `-45`), `'both'`, `'wrap'`, `'none'`
- * - Customizable tooltip enabled by default on truncated text (hover + keyboard focus), explicitly disableable via `enable-tooltip="false"` or `.tooltip = false`
+ * - Overflow strategies: `'truncate'` (default), `'rotate'`, `'both'`, `'wrap'`, `'wrap-truncate'`, `'rotate-wrap-truncate'`, and `'none'`
+ * - Full-text tooltips for truncation or automatic overflow rotation on hover and keyboard focus. Use `enable-tooltip="false"` or `.tooltip = false` to disable them.
  *
  * Dual role:
  * 1. **Declarative config element** inside any `<mc-*-chart>` or `<mc-label>` (with optional `for="axis-tick|data|title|..."` targeting and nested `<mc-tooltip>`).
@@ -412,10 +413,12 @@ export class MCTruncateElement extends HTMLElementBase {
     if (result.appliedRotation !== 0) {
       textEl.style.transform = `rotate(${result.appliedRotation}deg)`;
       if (hostEl) {
-        const rad = Math.abs((result.appliedRotation * Math.PI) / 180);
-        const lineH = Math.round(fontSize * 1.35);
-        const rotW = Math.ceil(result.width * Math.cos(rad) + lineH * Math.sin(rad));
-        const rotH = Math.ceil(result.width * Math.sin(rad) + lineH * Math.cos(rad));
+        const rad = (result.appliedRotation * Math.PI) / 180;
+        const height = result.lines.length * Math.round(fontSize * 1.35);
+        const cos = Math.abs(Math.cos(rad));
+        const sin = Math.abs(Math.sin(rad));
+        const rotW = Math.ceil(result.width * cos + height * sin);
+        const rotH = Math.ceil(result.width * sin + height * cos);
         hostEl.style.minWidth = `${rotW}px`;
         hostEl.style.minHeight = `${rotH}px`;
       }
@@ -435,7 +438,8 @@ export class MCTruncateElement extends HTMLElementBase {
       this.removeAttribute('data-applied-rotation');
     }
 
-    if (result.truncated) {
+    const canShowFullText = needsFullTextTooltip(result);
+    if (canShowFullText) {
       this.setAttribute('data-full-text', result.originalText);
       textEl.setAttribute('aria-label', result.originalText);
     } else {
@@ -443,7 +447,7 @@ export class MCTruncateElement extends HTMLElementBase {
       textEl.removeAttribute('aria-label');
     }
 
-    const interactive = result.truncated && overflow.enableTooltip;
+    const interactive = canShowFullText && overflow.enableTooltip;
     textEl.classList.toggle('mc-truncate-text--interactive', interactive);
     if (interactive) {
       textEl.setAttribute('tabindex', '0');
@@ -507,7 +511,7 @@ export class MCTruncateElement extends HTMLElementBase {
     ) => {
       const result = this.#lastResult;
       const overflow = resolveLabelOverflowConfig(this.toStyleOverride());
-      if (!result || !result.truncated || !overflow.enableTooltip) return;
+      if (!result || !needsFullTextTooltip(result) || !overflow.enableTooltip) return;
       const tooltip = this.getTooltipElement();
       const hostEl = this.shadowRoot?.querySelector(
         '.mc-truncate-host'

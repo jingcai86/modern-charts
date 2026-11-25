@@ -62,6 +62,46 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     15_000
   );
 
+  it('shows and applies the active overflow settings in the Custom Labels guide', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [, chart] = renderGuidePage(root, 'custom-labels', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-label-code-2 textarea')!;
+    const maxChars = root.querySelector<HTMLInputElement>('#lbl-maxchars-slider')!;
+    const maxLines = root.querySelector<HTMLInputElement>('#lbl-maxlines-slider')!;
+    const maxRotation = root.querySelector<HTMLInputElement>('#lbl-maxrot-slider')!;
+    const tooltip = root.querySelector<HTMLInputElement>('#lbl-tooltip-toggle')!;
+    const activate = (mode: string) =>
+      root.querySelector<HTMLButtonElement>(`[data-ov-strat="${mode}"]`)!.click();
+    const overflow = () => parseConfigObjectLiteral(editor.value).label.overflow;
+
+    activate('wrap');
+    for (const input of [maxChars, maxLines, maxRotation, tooltip]) {
+      expect(input.closest('label')!.hidden).toBe(true);
+    }
+    expect(overflow()).toEqual({ strategy: 'wrap', maxWidth: 82 });
+
+    activate('wrap-truncate');
+    expect(maxLines.closest('label')!.hidden).toBe(false);
+    expect(maxRotation.closest('label')!.hidden).toBe(true);
+    maxLines.value = '3';
+    maxLines.dispatchEvent(new Event('input'));
+    expect(overflow()).toMatchObject({ strategy: 'wrap-truncate', maxLines: 3 });
+
+    activate('rotate-wrap-truncate');
+    expect(maxRotation.closest('label')!.hidden).toBe(false);
+    expect(overflow()).toMatchObject({ strategy: 'rotate-wrap-truncate', maxLines: 3, maxRotation: -45 });
+    const editedConfig = parseConfigObjectLiteral(editor.value);
+    editedConfig.label.overflow.maxLines = 4;
+    editor.value = formatConfigAssignment(editedConfig);
+    editor.dispatchEvent(new Event('input'));
+    expect(maxLines.value).toBe('4');
+    expect(chart.config.label).toMatchObject({ overflow: { maxLines: 4 } });
+
+    editor.closest('.guide-code-wrap')!.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+    expect(overflow()).toEqual({ strategy: 'truncate', maxWidth: 82, enableTooltip: true });
+  });
+
   it('updates mounted charts live on JS chart.config edits, surfaces accessible errors on invalid syntax, and resets cleanly', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
@@ -169,6 +209,77 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     );
     expect(customLayerG).not.toBeNull();
     expect(customLayerG!.textContent).toContain('Peak: 110K (Mon)');
+  });
+
+  it.each([
+    ['truncate', ['maxWidth', 'maxChars', 'ellipsis', 'enableTooltip']],
+    ['rotate', ['maxWidth', 'maxChars', 'maxRotation', 'enableTooltip']],
+    ['both', ['maxWidth', 'maxChars', 'maxRotation', 'ellipsis', 'enableTooltip']],
+    ['wrap', ['maxWidth']],
+    ['wrap-truncate', ['maxWidth', 'maxChars', 'maxLines', 'ellipsis', 'enableTooltip']],
+    ['rotate-wrap-truncate', ['maxWidth', 'maxChars', 'maxLines', 'maxRotation', 'ellipsis', 'enableTooltip']],
+    ['none', []]
+  ] as const)('shows only controls used by the %s strategy in the truncation guide', (strategy, visible) => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    renderGuidePage(root, 'truncation', 'dark');
+
+    const button = root.querySelector<HTMLButtonElement>(`[data-trunc-strat="${strategy}"]`)!;
+    button.click();
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    const labels = root.querySelectorAll<HTMLLabelElement>('[data-trunc-control]');
+    expect(Array.from(labels).filter(label => !label.hidden).map(label => label.dataset.truncControl))
+      .toEqual(visible);
+
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-trunc-code-1 textarea')!;
+    const { strategy: configured, ...overflow } = parseConfigObjectLiteral(editor.value).label.overflow;
+    expect(configured).toBe(strategy);
+    expect(Object.keys(overflow).sort()).toEqual(
+      visible.filter(key => key !== 'maxChars').sort()
+    );
+  });
+
+  it('keeps edited categories and overflow limits while switching wrapping modes', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'truncation', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-trunc-code-1 textarea')!;
+    const config = parseConfigObjectLiteral(editor.value);
+    const category = 'Long renamed department for the responsive chart';
+    config.data[0].dept = category;
+    config.label.overflow = {
+      strategy: 'wrap-truncate',
+      maxWidth: 48,
+      maxChars: 30,
+      maxLines: 2,
+      ellipsis: '→',
+      enableTooltip: false
+    };
+    editor.value = formatConfigAssignment(config);
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const tick = () => chart.shadowRoot?.querySelector('[data-label-id="x-tick-0"]');
+    const select = (strategy: string) => root.querySelector<HTMLButtonElement>(`[data-trunc-strat="${strategy}"]`)!.click();
+    expect(tick()?.getAttribute('data-truncated')).toBe('true');
+    expect(tick()?.textContent).toContain('→');
+
+    select('wrap');
+    expect(tick()?.getAttribute('data-truncated')).toBe('false');
+    expect(tick()?.querySelectorAll('tspan').length).toBeGreaterThan(2);
+    expect(tick()?.textContent).not.toContain('→');
+    expect(parseConfigObjectLiteral(editor.value).data[0].dept).toBe(category);
+
+    select('rotate-wrap-truncate');
+    expect(tick()?.getAttribute('data-truncated')).toBe('true');
+    expect(tick()?.getAttribute('data-applied-rotation')).toBe('-45');
+    expect(parseConfigObjectLiteral(editor.value).label.overflow).toEqual({
+      ...config.label.overflow,
+      strategy: 'rotate-wrap-truncate',
+      maxRotation: -45
+    });
+
+    editor.closest('.guide-code-wrap')?.querySelector<HTMLButtonElement>('button.guide-reset-btn')?.click();
+    expect(parseConfigObjectLiteral(editor.value).data[0].dept).toBe('Global Cloud Platform Infrastructure');
   });
 
   it('parses JS config object literals safely and updates chart-detail code editor live', () => {
