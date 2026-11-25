@@ -63,7 +63,7 @@ afterAll(() => {
 });
 
 describe('Studio Theme and Appearance controls', () => {
-  it('restores independent preferences and explains both controls with a guide link', () => {
+  it('restores independent preferences and provides a theme guide link', () => {
     expect(paletteSelect.value).toBe('bootstrap');
     expect(appearanceSelect.value).toBe('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
@@ -71,8 +71,8 @@ describe('Studio Theme and Appearance controls', () => {
     expect(document.querySelector('label[for="global-palette-select"]')!.textContent).toBe('Theme:');
     expect(document.querySelector('label[for="global-appearance-select"]')!.textContent).toBe('Appearance:');
     expect(paletteSelect.compareDocumentPosition(appearanceSelect) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const help = document.getElementById(paletteSelect.getAttribute('aria-describedby')!)!;
-    expect(help.textContent).toContain('chart colors');
+    const help = document.querySelector('.global-controls-help')!;
+    expect(help.textContent!.trim()).toBe('Themes & palettes guide →');
     expect(help.querySelector('a')!.getAttribute('href')).toBe('#/guide/themes');
   }, 15_000);
 
