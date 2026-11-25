@@ -7,6 +7,7 @@ import type {
   MCBaseChart,
   ThemeModePreference
 } from '../../../src/index';
+import { renderSectionInfoTooltip, wireSectionInfoTooltips } from '../pages/chart-detail/section-info';
 import { getLabelOverflowCapabilities, LABEL_OVERFLOW_MODES } from './label-overflow-controls';
 import { createLiveConfigEditor, escapeHtml } from './shared';
 
@@ -86,13 +87,28 @@ export function renderTruncationGuide(
           <code>maxRotation</code> <strong id="tr-rot-val"></strong>
           <input type="range" id="tr-rot-slider" min="-90" max="90" step="5" style="vertical-align:middle;margin-left:6px;" />
         </label>
-        <label data-trunc-control="ellipsis">
-          <code>ellipsis</code>
-          <select id="tr-ellipsis-select" style="margin-left:4px;">
-            <option value="…">… (default)</option>
-            <option value="...">...</option>
-          </select>
-        </label>
+        <div data-trunc-control="ellipsis" class="guide-control-with-help">
+          <label>
+            <code>ellipsis</code>
+            <select id="tr-ellipsis-select" aria-describedby="tr-ellipsis-info" style="margin-left:4px;">
+              <option value="…">… (default)</option>
+              <option value="...">... (three periods)</option>
+              <option value="→">→</option>
+            </select>
+          </label>
+          ${renderSectionInfoTooltip(
+            'tr-ellipsis-info',
+            'About ellipsis choices',
+            `<table class="guide-table guide-help-table">
+              <thead><tr><th scope="col">Suffix</th><th scope="col"><code>maxChars</code> used</th></tr></thead>
+              <tbody>
+                <tr><td><code>…</code> (default)</td><td>1</td></tr>
+                <tr><td><code>...</code> (three periods)</td><td>3</td></tr>
+                <tr><td><code>→</code> (arrow)</td><td>1</td></tr>
+              </tbody>
+            </table>`
+          )}
+        </div>
         <label data-trunc-control="enableTooltip">
           <input type="checkbox" id="tr-tip-toggle" />
           <code>enableTooltip</code>
@@ -110,6 +126,7 @@ export function renderTruncationGuide(
     </div>
   `;
   container.appendChild(ex1);
+  wireSectionInfoTooltips(ex1);
 
   const bar1 = document.createElement('mc-bar-chart') as MCBaseChart<any>;
   const chartStage = ex1.querySelector<HTMLElement>('#guide-trunc-chart-1')!;
@@ -146,7 +163,7 @@ export function renderTruncationGuide(
     ex1.querySelectorAll<HTMLButtonElement>('[data-trunc-strat]')
   );
   const controlRow = ex1.querySelector<HTMLElement>('#tr-overflow-controls')!;
-  const controlLabels = controlRow.querySelectorAll<HTMLLabelElement>('[data-trunc-control]');
+  const controls = controlRow.querySelectorAll<HTMLElement>('[data-trunc-control]');
   const tooltipHint = ex1.querySelector<HTMLElement>('#tr-tooltip-hint')!;
   const ellSelect = ex1.querySelector<HTMLSelectElement>('#tr-ellipsis-select')!;
   const tipToggle = ex1.querySelector<HTMLInputElement>('#tr-tip-toggle')!;
@@ -168,8 +185,8 @@ export function renderTruncationGuide(
       button.classList.toggle('btn-primary', selected);
       button.setAttribute('aria-pressed', String(selected));
     }
-    for (const label of controlLabels) {
-      label.hidden = !capabilities[label.dataset.truncControl as keyof typeof capabilities];
+    for (const control of controls) {
+      control.hidden = !capabilities[control.dataset.truncControl as keyof typeof capabilities];
     }
     controlRow.hidden = strategy === 'none';
     tooltipHint.hidden = !capabilities.enableTooltip || !options.enableTooltip;

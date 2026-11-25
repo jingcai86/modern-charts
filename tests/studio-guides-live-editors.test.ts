@@ -230,8 +230,8 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     const tooltipHint = root.querySelector<HTMLElement>('#tr-tooltip-hint')!;
     expect(tooltipHint.closest('.panel-header')).toBeNull();
     expect(tooltipHint.hidden).toBe(!visible.some((control) => control === 'enableTooltip'));
-    const labels = root.querySelectorAll<HTMLLabelElement>('[data-trunc-control]');
-    expect(Array.from(labels).filter(label => !label.hidden).map(label => label.dataset.truncControl))
+    const controls = root.querySelectorAll<HTMLElement>('[data-trunc-control]');
+    expect(Array.from(controls).filter(control => !control.hidden).map(control => control.dataset.truncControl))
       .toEqual(visible);
 
     const editor = root.querySelector<HTMLTextAreaElement>('#guide-trunc-code-1 textarea')!;
@@ -242,41 +242,76 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     );
   });
 
+  it('offers three ellipsis presets with hover and keyboard help', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    renderGuidePage(root, 'truncation', 'dark');
+
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-trunc-code-1 textarea')!;
+    const ellipsisSelect = root.querySelector<HTMLSelectElement>('#tr-ellipsis-select')!;
+    const info = root.querySelector<HTMLElement>('#tr-ellipsis-info')!;
+    const infoButton = root.querySelector<HTMLButtonElement>('button[aria-controls="tr-ellipsis-info"]')!;
+    expect(Array.from(ellipsisSelect.options, (option) => option.value)).toEqual(['…', '...', '→']);
+    expect(ellipsisSelect.value).toBe('…');
+    expect(ellipsisSelect.getAttribute('aria-describedby')).toBe(info.id);
+    const table = info.querySelector('table')!;
+    expect(Array.from(table.rows, (row) => Array.from(row.cells, (cell) => cell.textContent))).toEqual([
+      ['Suffix', 'maxChars used'],
+      ['… (default)', '1'],
+      ['... (three periods)', '3'],
+      ['→ (arrow)', '1']
+    ]);
+
+    infoButton.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(infoButton.getAttribute('aria-expanded')).toBe('true');
+    infoButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(infoButton.getAttribute('aria-expanded')).toBe('false');
+    infoButton.focus();
+    expect(infoButton.getAttribute('aria-expanded')).toBe('true');
+    infoButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    for (const suffix of ['...', '→']) {
+      ellipsisSelect.value = suffix;
+      ellipsisSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      expect(parseConfigObjectLiteral(editor.value).label.overflow.ellipsis).toBe(suffix);
+    }
+
+    editor.closest('.guide-code-wrap')!.querySelector<HTMLButtonElement>('button.guide-reset-btn')!.click();
+    expect(ellipsisSelect.value).toBe('…');
+  });
+
   it('keeps edited categories and overflow limits while switching wrapping modes', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const [chart] = renderGuidePage(root, 'truncation', 'dark');
     const editor = root.querySelector<HTMLTextAreaElement>('#guide-trunc-code-1 textarea')!;
     const ellipsisSelect = root.querySelector<HTMLSelectElement>('#tr-ellipsis-select')!;
-    const presets = () => Array.from(ellipsisSelect.options, (option) => option.value);
-    expect(presets()).toEqual(['…', '...']);
-    expect(ellipsisSelect.value).toBe('…');
-
     const config = parseConfigObjectLiteral(editor.value);
     const category = 'Long renamed department for the responsive chart';
+    const suffix = '~';
     config.data[0].dept = category;
     config.label.overflow = {
       strategy: 'wrap-truncate',
       maxWidth: 48,
       maxChars: 30,
       maxLines: 2,
-      ellipsis: '→',
+      ellipsis: suffix,
       enableTooltip: false
     };
     editor.value = formatConfigAssignment(config);
     editor.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(presets()).toEqual(['…', '...']);
+    expect(ellipsisSelect.options).toHaveLength(3);
     expect(ellipsisSelect.selectedIndex).toBe(-1);
 
     const tick = () => chart.shadowRoot?.querySelector('[data-label-id="x-tick-0"]');
     const select = (strategy: string) => root.querySelector<HTMLButtonElement>(`[data-trunc-strat="${strategy}"]`)!.click();
     expect(tick()?.getAttribute('data-truncated')).toBe('true');
-    expect(tick()?.textContent).toContain('→');
+    expect(tick()?.textContent).toContain(suffix);
 
     select('wrap');
     expect(tick()?.getAttribute('data-truncated')).toBe('false');
     expect(tick()?.querySelectorAll('tspan').length).toBeGreaterThan(2);
-    expect(tick()?.textContent).not.toContain('→');
+    expect(tick()?.textContent).not.toContain(suffix);
     expect(parseConfigObjectLiteral(editor.value).data[0].dept).toBe(category);
 
     select('rotate-wrap-truncate');
@@ -288,12 +323,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
       maxRotation: -45
     });
 
-    ellipsisSelect.value = '...';
-    ellipsisSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(parseConfigObjectLiteral(editor.value).label.overflow.ellipsis).toBe('...');
-
     editor.closest('.guide-code-wrap')?.querySelector<HTMLButtonElement>('button.guide-reset-btn')?.click();
-    expect(ellipsisSelect.value).toBe('…');
     expect(parseConfigObjectLiteral(editor.value).data[0].dept).toBe('Global Cloud Platform Infrastructure');
   });
 
