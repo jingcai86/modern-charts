@@ -1,4 +1,5 @@
 import type {
+  BarDatum,
   ChartConfig,
   ChartRenderContext,
   MCBaseChart,
@@ -6,26 +7,51 @@ import type {
   ThemeModePreference
 } from '../../../src/index';
 import { CHART_CATALOG, type ChartCatalogEntry } from '../catalog';
+import { BAR_CHART_ENTRY } from '../catalog/charts/bar';
 import { getGlobalPalette } from '../state/theme';
+import { formatConfigAsJsObject } from '../utils/code-sync';
 import { createCodeBlock, createLiveConfigEditor } from './shared';
 
 type SizingConfig = Pick<ChartConfig, 'autoSize' | 'width' | 'height' | 'margin'>;
 
+const comparisonImage = new URL('./assets/auto-size-comparison.svg', import.meta.url).href;
+const anatomyImage = new URL('./assets/auto-size-anatomy.svg', import.meta.url).href;
+const flowImage = new URL('./assets/auto-size-flow.svg', import.meta.url).href;
+
+const workedBarConfig: ChartConfig<BarDatum[]> = {
+  autoSize: true,
+  data: [
+    { quarter: 'Q1', sales: 50 },
+    { quarter: 'Q2', sales: 75 }
+  ],
+  indexBy: 'quarter',
+  keys: ['sales'],
+  layout: 'vertical',
+  groupMode: 'grouped',
+  padding: 0.2,
+  margin: { top: 24, right: 30, bottom: 56, left: 50 },
+  yScale: { type: 'linear', min: 0, max: 100, nice: false, tickCount: 2 },
+  legend: { enabled: false },
+  enableLabels: false,
+  animate: false,
+  layers: ['axes', 'bars']
+};
+
 const responsiveExample = `
-<div style="width: 100%; height: 360px;">
-  <mc-bar-chart id="spending-chart" auto-size></mc-bar-chart>
+<div id="chart-container" style="width: 600px; height: 320px;">
+  <mc-bar-chart id="sales-chart"></mc-bar-chart>
 </div>
+<button id="shrink-chart" type="button">Shrink to 360 px</button>
 
 <script type="module">
   import 'modern-charts/bar';
 
-  document.getElementById('spending-chart').setConfig({
-    data: [
-      { quarter: 'Q1', Cloud: 142, Edge: 94 },
-      { quarter: 'Q2', Cloud: 168, Edge: 118 }
-    ],
-    indexBy: 'quarter',
-    keys: ['Cloud', 'Edge']
+  const chart = document.getElementById('sales-chart');
+  // Reload with autoSize set to false to compare.
+  chart.setConfig(${formatConfigAsJsObject(workedBarConfig, 2)});
+
+  document.getElementById('shrink-chart').addEventListener('click', () => {
+    document.getElementById('chart-container').style.width = '360px';
   });
 </script>
 `;
@@ -34,32 +60,129 @@ export function renderAutoSizeGuide(
   container: HTMLElement,
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
-  const intro = document.createElement('section');
-  intro.className = 'panel-card guide-section';
-  intro.innerHTML = `
-    <h2 class="panel-title">Make a chart fit its container</h2>
+  const comparison = document.createElement('section');
+  comparison.className = 'panel-card guide-section';
+  comparison.innerHTML = `
+    <h2 class="panel-title">Same bar chart, narrower container</h2>
+    <p class="guide-prose">
+      Q1 is 50 and Q2 is 75. Both charts first draw in a 600 × 320 px container.
+      Then the container shrinks to 360 × 320 px, with the data and height held constant.
+    </p>
+    <figure class="auto-size-figure">
+      <a href="${comparisonImage}" target="_blank" rel="noopener">
+        <img src="${comparisonImage}" alt="Both charts start at 600 by 320. In a 360 by 320 container, autoSize on redraws the plot at 280 by 240. AutoSize off keeps the starting geometry and fits it at 60 percent scale." />
+      </a>
+      <figcaption class="guide-prose">
+        The CSS box is the screen space available to the chart. The SVG <code>viewBox</code>
+        defines the coordinates used to draw it. Open the image to see the annotations at full size.
+      </figcaption>
+    </figure>
+    <ul class="guide-prose auto-size-steps">
+      <li><strong>On.</strong> The chart recalculates the <code>viewBox</code> at 360 × 320.
+        The plot narrows from 520 to 280 units while its height stays 240.</li>
+      <li><strong>Off.</strong> On a CSS resize alone, the previous 600 × 320 <code>viewBox</code>
+        and bar coordinates stay in place. The browser fits that geometry into 360 × 192 px
+        at <code>360 ÷ 600 = 0.6</code> scale, centered with 64 px above and below.
+        Call <code>chart.resize()</code> to redraw at the new size.</li>
+    </ul>
+    <details class="auto-size-example">
+      <summary>Copy the example</summary>
+    </details>
+  `;
+  comparison.querySelector('details')!.append(createCodeBlock(responsiveExample, 'Bar chart resize example'));
+
+  const calculations = document.createElement('section');
+  calculations.className = 'panel-card guide-section';
+  calculations.innerHTML = `
+    <h2 class="panel-title">Calculate the resized bar chart</h2>
+    <figure class="auto-size-figure">
+      <a href="${anatomyImage}" target="_blank" rel="noopener">
+        <img src="${anatomyImage}" alt="The resized chart has a 360 by 320 SVG and a 280 by 240 plot starting at SVG coordinate 50, 24. Q1 starts 14 units from the plot's left edge and 120 from the top. The bar is 112 units wide and 120 high." />
+      </a>
+      <figcaption class="guide-prose">
+        The annotated chart uses the 360 × 320 layout with <code>autoSize</code> on.
+        Coordinates for axes and bars are measured from the plot origin unless marked as SVG coordinates.
+      </figcaption>
+    </figure>
+    <ol class="guide-prose auto-size-steps">
+      <li><strong>Measure the SVG.</strong> The chart host fills its container, so the
+        outside dimensions resolve to 360 × 320. The SVG uses <code>viewBox="0 0 360 320"</code>.</li>
+      <li><strong>Reserve margins.</strong> Top 24, right 30, bottom 56, and left 50 give a
+        plot of <code>360 − 50 − 30 = 280</code> by <code>320 − 24 − 56 = 240</code>.
+        Plot <code>(0, 0)</code> is SVG <code>(50, 24)</code>.</li>
+      <li><strong>Map the categories.</strong> The X band scale maps Q1 and Q2 across
+        <code>[0, 280]</code>. Inner padding is 0.2 and outer padding is 0.1.
+        The step is <code>280 ÷ (2 − 0.2 + 2 × 0.1) = 140</code>. Each band is
+        <code>140 × 0.8 = 112</code> wide. Q1 starts at <code>140 × 0.1 = 14</code>.
+        Q2 starts at <code>14 + 140 = 154</code>. Their X ticks sit at band centers, 70 and 210.</li>
+      <li><strong>Map the values.</strong> The Y scale maps <code>[0, 100]</code> onto
+        <code>[240, 0]</code>. SVG Y increases downward, so <code>y(v) = 240 × (1 − v ÷ 100)</code>.
+        The left axis is at <code>x = 0</code> with 100, 50, and 0 at Y positions 0, 120, and 240.
+        The bottom axis and zero baseline sit at <code>y = 240</code>.</li>
+      <li><strong>Calculate each rectangle.</strong> With one series, each bar fills its band.
+        Its top is <code>y(value)</code> and its height is <code>240 − y(value)</code>.
+        Add the left and top margins to get the SVG position.</li>
+    </ol>
+    <div class="guide-table-wrap">
+      <table class="guide-table">
+        <thead><tr><th scope="col">Bar</th><th scope="col">Plot (x, y)</th><th scope="col">SVG (x, y)</th><th scope="col">Width × height</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Q1 = 50</th><td>(14, 120)</td><td>(64, 144)</td><td>112 × 120</td></tr>
+          <tr><th scope="row">Q2 = 75</th><td>(154, 60)</td><td>(204, 84)</td><td>112 × 180</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  const flow = document.createElement('section');
+  flow.className = 'panel-card guide-section';
+  flow.innerHTML = `
+    <h2 class="panel-title">When calculations run</h2>
+    <figure class="auto-size-figure">
+      <a href="${flowImage}" target="_blank" rel="noopener">
+        <img src="${flowImage}" alt="Flow chart. On first render or an explicit redraw, resolve the SVG size and margins, derive the plot bounds, build scales, compute geometry, and draw layers. On CSS resize alone, autoSize checks the resolved size before redrawing." />
+      </a>
+      <figcaption class="guide-prose">
+        Both settings calculate on the first draw. On later CSS resizes, <code>autoSize</code>
+        uses <code>ResizeObserver</code> to check the host and its parent. A change in resolved
+        width or height repeats the layout. Explicit redraws such as <code>chart.resize()</code>
+        work with either setting. In this example the model computes the scales and bar
+        rectangles, then the renderer draws the axes followed by the bars.
+      </figcaption>
+    </figure>
+  `;
+
+  const layout = document.createElement('section');
+  layout.className = 'panel-card guide-section';
+  layout.innerHTML = `
+    <h2 class="panel-title">Sizing rules for any chart</h2>
     <p class="guide-prose">
       Set <code>autoSize: true</code> in the chart config or add the HTML
       <code>auto-size</code> attribute. Give the container a width and a height
-      with CSS. In browsers with <code>ResizeObserver</code>, the chart observes
-      its host and its parent when present at setup. It redraws when its
-      resolved width or height changes. All ten chart types share this behavior.
+      with CSS. All ten chart types share these rules.
     </p>
-    <p class="guide-prose">
-      The host has a 240 px CSS minimum height by default. Override its
-      <code>min-height</code> if you need a shorter host.
-    </p>
+    <ul class="guide-prose auto-size-steps">
+      <li>Resolve width and height independently. Use the first positive value from
+        config, a numeric attribute, the measured host, or the measured parent.</li>
+      <li>When none of those provides a size, width falls back to 640 px. Height falls
+        back to the greater of 280 px and 56% of width with <code>autoSize</code> on, or
+        380 px with it off. The SVG dimensions are rounded and clamped to at least
+        160 × 140. The host has a separate 240 px CSS minimum height by default.</li>
+      <li>Merge default margins with <code>config.margin</code>, then apply the HTML
+        <code>margin</code> attribute. Top or right axes, outside marker annotations,
+        and legends can reserve extra space. Plot width and height each have a
+        40-unit minimum.</li>
+    </ul>
   `;
-  intro.append(createCodeBlock(responsiveExample, 'Responsive bar chart'));
 
   const demo = document.createElement('section');
   demo.className = 'panel-card guide-section';
   demo.innerHTML = `
     <h2 class="panel-title">Resize the container</h2>
     <p class="guide-prose">
+      The example starts with the same Q1 and Q2 values and adapts to the space here.
       The dotted outline marks the plot area. Set <code>autoSize</code> to
-      <code>false</code> in the editor to see the SVG keep its last layout when
-      the container changes.
+      <code>false</code> in the editor, then move a slider to see the SVG keep its last layout.
     </p>
     <div class="guide-controls-row auto-size-controls">
       <label for="auto-size-chart">
@@ -80,28 +203,6 @@ export function renderAutoSizeGuide(
     </div>
     <output id="auto-size-dimensions" class="guide-prose"
       for="auto-size-chart auto-size-width auto-size-height"></output>
-  `;
-
-  const layout = document.createElement('section');
-  layout.className = 'panel-card guide-section';
-  layout.innerHTML = `
-    <h2 class="panel-title">From container to plot area</h2>
-    <ol class="guide-prose auto-size-steps">
-      <li>Resolve each dimension in order from a positive config value, a positive
-        numeric attribute, the host's measured size, the parent's measured size,
-        or a fallback. The fallback width is 640 px. Fallback height is the
-        greater of 280 px or 56% of width rounded to a pixel with
-        <code>autoSize</code>, and 380 px otherwise.</li>
-      <li>Round the outside dimensions to whole pixels and clamp them to at least
-        160 × 140 px. Set the SVG <code>viewBox</code> to <code>0 0 width height</code>.</li>
-      <li>Merge the chart's default margins with <code>config.margin</code>, then
-        apply any HTML <code>margin</code> attribute. The layout can reserve more
-        room for top or right axes, outside marker annotations, and legends.</li>
-      <li>Subtract left and right margins from width and top and bottom margins
-        from height, with a 40 px minimum on each plot dimension. The plot origin
-        is <code>(margin.left, margin.top)</code> in the SVG and
-        <code>(0, 0)</code> inside a custom layer.</li>
-    </ol>
   `;
 
   const positioning = document.createElement('section');
@@ -130,7 +231,7 @@ export function renderAutoSizeGuide(
     </p>
   `;
 
-  container.append(intro, demo, layout, positioning);
+  container.append(comparison, calculations, flow, demo, layout, positioning);
 
   const chartSelect = demo.querySelector<HTMLSelectElement>('#auto-size-chart')!;
   const widthInput = demo.querySelector<HTMLInputElement>('#auto-size-width')!;
@@ -172,17 +273,19 @@ export function renderAutoSizeGuide(
   };
 
   const charts: MCBaseChart<any>[] = [];
-  let entry = CHART_CATALOG[0];
+  let entry = BAR_CHART_ENTRY;
   let sizing: SizingConfig = { autoSize: true };
   const applySizing = () => {
+    const chartConfig = entry === BAR_CHART_ENTRY ? workedBarConfig : entry.createDefaultConfig(themeMode);
     charts[0].setConfig({
-      ...entry.createDefaultConfig(themeMode),
+      ...chartConfig,
       width: sizing.width,
       height: sizing.height,
-      margin: sizing.margin,
+      margin: sizing.margin ?? chartConfig.margin,
       autoSize: sizing.autoSize === true,
       animate: false,
       isInteractive: false,
+      themeMode,
       palette: getGlobalPalette()
     });
   };

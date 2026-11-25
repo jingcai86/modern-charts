@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="812" viewBox="0 0 640 812" role="img" aria-labelledby="title desc">
+  <title id="title">Annotated geometry of the 360 by 320 bar chart</title>
+  <desc id="desc">The SVG is 360 by 320. Margins are top 24, right 30, bottom 56, and left 50. Plot origin is (50,24) in SVG coordinates and the plot is 280 by 240. The y axis maps values 0, 50 and 100 to plot y positions 240, 120 and 0. Q1, value 50, starts at plot coordinates (14,120) and measures 112 by 120. Q2, value 75, starts at (154,60) and measures 112 by 180. Category labels align with band centers.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
+    .heading { font-size: 32px; font-weight: 750; }
+    .label { font-size: 24px; font-weight: 680; }
+    .body { font-size: 22px; }
+    .small { font-size: 20px; }
+    .muted { fill: #485b75; }
+    .center { text-anchor: middle; }
+    .viewport { fill: #e9eeff; stroke: #586bbe; stroke-width: 2.5; }
+    .plot { fill: #fff; stroke: #96a9d0; stroke-width: 2; stroke-dasharray: 5 5; }
+    .axis { fill: none; stroke: #3d5372; stroke-width: 2; }
+    .guide { fill: none; stroke: #8a9abd; stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .measure { fill: none; stroke: #187053; stroke-width: 2; }
+    .annotation { fill: #135c47; }
+    .bar { fill: #245e95; }
+    .inverse { fill: #fff; }
+    .callout { fill: #fff; stroke: #b6c8e5; stroke-width: 1.5; }
+  </style>
+  <rect width="640" height="812" rx="24" fill="#f5f7ff"/>
+  <text x="32" y="49" class="heading">Anatomy of the narrower chart</text>
+  <text x="32" y="83" class="body muted">SVG viewBox 0 0 360 320</text>
+
+  <rect class="viewport" x="140" y="145" width="360" height="320"/>
+  <rect class="plot" x="190" y="169" width="280" height="240"/>
+  <path class="guide" d="M190 289H470"/>
+  <path class="axis" d="M184 169h6v240h280M184 289h6m-6 120h6M260 409v8m140-8v8"/>
+  <rect class="bar" x="204" y="289" width="112" height="120"/>
+  <rect class="bar" x="344" y="229" width="112" height="180"/>
+  <g text-anchor="end" class="small muted">
+    <text x="178" y="177">100</text>
+    <text x="178" y="297">50</text>
+    <text x="178" y="417">0</text>
+  </g>
+  <g class="body center">
+    <text x="260" y="443">Q1</text>
+    <text x="400" y="443">Q2</text>
+    <text x="260" y="356" class="inverse">50</text>
+    <text x="400" y="331" class="inverse">75</text>
+  </g>
+
+  <path class="measure" d="M190 167v-43h26"/>
+  <circle cx="190" cy="169" r="4.5" fill="#187053"/>
+  <text x="224" y="131" class="body annotation">Plot origin (50, 24)</text>
+
+  <path class="measure" d="M502 145h21m-5 0v24m-16 0h21M140 218v20m0-10h50m0-10v20M470 195v20m0-10h30m0-10v20M502 409h17m-5 0v56m-12 0h17"/>
+  <g class="small annotation">
+    <text x="529" y="157">Top</text>
+    <text x="529" y="180">24 px</text>
+    <text x="126" y="219" text-anchor="end">Left</text>
+    <text x="126" y="243" text-anchor="end">50 px</text>
+    <text x="514" y="209">Right</text>
+    <text x="514" y="233">30 px</text>
+    <text x="525" y="434">Bottom</text>
+    <text x="525" y="458">56 px</text>
+  </g>
+
+  <path class="measure" d="M190 483v17m0-8h280m0-9v17"/>
+  <text x="330" y="525" class="label center annotation">Plot width 280 px</text>
+  <path class="measure" d="M66 169H52m7 0v240m-7 0h14"/>
+  <text x="42" y="289" transform="rotate(-90 42 289)" class="small annotation center">Plot height 240 px</text>
+  <path class="measure" d="M204 289l24-29"/>
+  <circle cx="204" cy="289" r="4.5" fill="#f4fff8" stroke="#187053" stroke-width="2"/>
+  <text x="201" y="227" class="small annotation">Q1 starts at</text>
+  <text x="201" y="252" class="small annotation">(14, 120)</text>
+  <path d="M204 379h112m-112-6v12m112-12v12" fill="none" stroke="#fff" stroke-width="2"/>
+  <text x="260" y="400" class="small center inverse">112 px</text>
+  <path class="measure" d="M319 289h9m-5 0v120m-4 0h9"/>
+  <text x="342" y="349" transform="rotate(-90 342 349)" class="small annotation center">120 px</text>
+
+  <rect x="24" y="560" width="288" height="157" rx="14" class="callout"/>
+  <rect x="328" y="560" width="288" height="157" rx="14" class="callout"/>
+  <text x="44" y="600" class="label">Q1 rectangle</text>
+  <text x="348" y="600" class="label">Q2 rectangle</text>
+  <text x="44" y="639" class="body">x = 14, y = 120</text>
+  <text x="348" y="639" class="body">x = 154, y = 60</text>
+  <text x="44" y="678" class="body">112 wide × 120 high</text>
+  <text x="348" y="678" class="body">112 wide × 180 high</text>
+  <text x="32" y="756" class="body muted">Rectangle positions are relative to the plot origin.</text>
+  <text x="32" y="786" class="body muted">Category labels sit at the center of each band.</text>
+</svg>

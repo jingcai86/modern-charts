@@ -162,6 +162,30 @@
   margin-top: 8px;
 }
 
+.auto-size-figure {
+  display: grid;
+  gap: 8px;
+  max-width: 40rem;
+  margin: 0;
+}
+
+.auto-size-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.auto-size-example summary {
+  color: var(--text-main);
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.auto-size-example[open] summary {
+  margin-bottom: 8px;
+}
+
 .guide-code-wrap {
   display: flex;
   flex-direction: column;

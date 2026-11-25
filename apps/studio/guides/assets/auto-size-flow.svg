@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="1265" viewBox="0 0 640 1265" role="img" aria-labelledby="title desc">
+  <title id="title">Flowchart of chart sizing and rendering</title>
+  <desc id="desc">An initial render or explicit redraw starts the render pipeline. On a container resize, autoSize with an available ResizeObserver measures the resolved size. If the width or height changes, the chart redraws. Otherwise the browser fits the previous viewBox. A render resolves outer width and height, resolves margins, computes the plot and sets the viewBox and translation, builds scales, computes bar rectangles, draws enabled layers, then the browser fits the SVG into the CSS box.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
+    .heading { font-size: 32px; font-weight: 750; }
+    .label { font-size: 24px; font-weight: 680; }
+    .body { font-size: 22px; }
+    .small { font-size: 20px; }
+    .muted { fill: #485b75; }
+    .center { text-anchor: middle; }
+    .event { fill: #edf1ff; stroke: #99abd8; stroke-width: 1.8; }
+    .resize { fill: #eaf7f0; stroke: #83b9a0; stroke-width: 1.8; }
+    .keep { fill: #fff1e2; stroke: #d3a47b; stroke-width: 1.8; }
+    .calc { fill: #fff; stroke: #bccae4; stroke-width: 1.8; }
+    .edge { fill: none; stroke: #52688d; stroke-width: 2.5; marker-end: url(#arrow); }
+    .edge-text { fill: #354e6f; font-size: 20px; font-weight: 650; }
+    .num { fill: #354f94; }
+    .num-text { fill: #fff; font-size: 21px; font-weight: 750; text-anchor: middle; }
+  </style>
+  <rect width="640" height="1265" rx="24" fill="#f5f7ff"/>
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M1 1l10 5-10 5z" fill="#52688d"/>
+    </marker>
+  </defs>
+  <text x="32" y="52" class="heading">What gets calculated first?</text>
+
+  <rect x="24" y="86" width="276" height="76" rx="13" class="event"/>
+  <rect x="324" y="86" width="292" height="76" rx="13" class="event"/>
+  <text x="162" y="117" class="label center">First render or</text>
+  <text x="162" y="146" class="body center">explicit redraw</text>
+  <text x="470" y="132" class="label center">Container resizes</text>
+
+  <path class="edge" d="M75 162v293h124v34"/>
+  <path class="edge" d="M470 162v33"/>
+  <rect x="324" y="199" width="292" height="83" rx="13" class="resize"/>
+  <text x="470" y="233" class="label center">autoSize on and</text>
+  <text x="470" y="262" class="body center">ResizeObserver available?</text>
+
+  <path class="edge" d="M324 239H207v65"/>
+  <text x="254" y="228" class="edge-text">No</text>
+  <path class="edge" d="M470 282v38"/>
+  <text x="484" y="309" class="edge-text">Yes</text>
+
+  <rect x="98" y="308" width="220" height="110" rx="13" class="keep"/>
+  <text x="208" y="344" class="body center">Browser fits the</text>
+  <text x="208" y="374" class="body center">previous viewBox</text>
+  <text x="208" y="399" class="small center muted">into the new CSS box</text>
+
+  <rect x="365" y="324" width="251" height="105" rx="13" class="resize"/>
+  <text x="490" y="357" class="body center">Measure resolved size.</text>
+  <text x="490" y="389" class="body center">Width or height</text>
+  <text x="490" y="416" class="body center">changed?</text>
+  <path class="edge" d="M365 375h-44"/>
+  <text x="343" y="365" class="edge-text center">No</text>
+  <path class="edge" d="M490 429v26h-49v34"/>
+  <text x="504" y="453" class="edge-text">Yes</text>
+
+  <rect x="24" y="494" width="592" height="84" rx="12" class="calc"/>
+  <circle cx="59" cy="533" r="18" class="num"/>
+  <text x="59" y="541" class="num-text">1</text>
+  <text x="94" y="526" class="label">Resolve the outer size</text>
+  <text x="94" y="555" class="small muted">Config → attributes → host → parent → fallback</text>
+
+  <path class="edge" d="M320 578v18"/>
+  <rect x="24" y="601" width="592" height="84" rx="12" class="calc"/>
+  <circle cx="59" cy="640" r="18" class="num"/>
+  <text x="59" y="648" class="num-text">2</text>
+  <text x="94" y="633" class="label">Resolve the margins</text>
+  <text x="94" y="662" class="small muted">Merge defaults and overrides, then reserve room.</text>
+
+  <path class="edge" d="M320 685v18"/>
+  <rect x="24" y="708" width="592" height="84" rx="12" class="calc"/>
+  <circle cx="59" cy="747" r="18" class="num"/>
+  <text x="59" y="755" class="num-text">3</text>
+  <text x="94" y="740" class="label">Set the viewBox and plot</text>
+  <text x="94" y="769" class="small muted">360 × 320 SVG · 280 × 240 plot at (50, 24)</text>
+
+  <path class="edge" d="M320 792v18"/>
+  <rect x="24" y="815" width="592" height="84" rx="12" class="calc"/>
+  <circle cx="59" cy="854" r="18" class="num"/>
+  <text x="59" y="862" class="num-text">4</text>
+  <text x="94" y="847" class="label">Build the chart’s scales</text>
+  <text x="94" y="876" class="small muted">Categories → X bands · Values → Y coordinates</text>
+
+  <path class="edge" d="M320 899v18"/>
+  <rect x="24" y="922" width="592" height="84" rx="12" class="calc"/>
+  <circle cx="59" cy="961" r="18" class="num"/>
+  <text x="59" y="969" class="num-text">5</text>
+  <text x="94" y="954" class="label">Compute each item’s geometry</text>
+  <text x="94" y="983" class="small muted">Q1 bar: x 14 · y 120 · width 112 · height 120</text>
+
+  <path class="edge" d="M320 1006v18"/>
+  <rect x="24" y="1029" width="592" height="84" rx="12" class="calc"/>
+  <circle cx="59" cy="1068" r="18" class="num"/>
+  <text x="59" y="1076" class="num-text">6</text>
+  <text x="94" y="1061" class="label">Draw the SVG layers</text>
+  <text x="94" y="1090" class="small muted">The example draws its axes, then its bars.</text>
+
+  <path class="edge" d="M320 1113v18"/>
+  <rect x="24" y="1136" width="592" height="103" rx="12" class="event"/>
+  <text x="48" y="1179" class="label">Browser fits the SVG into the CSS box</text>
+  <text x="48" y="1209" class="small muted">The viewBox determines the displayed scale.</text>
+</svg>
