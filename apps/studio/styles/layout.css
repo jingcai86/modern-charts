@@ -494,6 +494,8 @@ button.btn-primary:hover {
   border-radius: 16px;
   padding: 16px 18px 18px;
   display: flex;
+  color: var(--text-main);
+  text-decoration: none;
   flex-direction: column;
   gap: 12px;
   box-shadow: var(--card-shadow);
@@ -506,6 +508,11 @@ button.btn-primary:hover {
     background 180ms ease,
     box-shadow 220ms ease;
   position: relative;
+}
+
+.overview-card:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
 }
 
 .overview-grid:has(.overview-card:hover, .overview-card:focus-visible)
