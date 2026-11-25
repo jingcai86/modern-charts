@@ -193,7 +193,7 @@ function createGuidesGrid(): HTMLElement {
     }
     link.innerHTML = `
       <div class="overview-guide-card-header">
-        <h3 class="overview-guide-card-title">${item.icon} ${escapeHtml(item.title)}</h3>
+        <h2 class="overview-guide-card-title">${item.icon} ${escapeHtml(item.title)}</h2>
         <span class="overview-guide-arrow" aria-hidden="true">${item.external ? '↗' : '→'}</span>
       </div>
       <div class="overview-guide-preview">
@@ -346,30 +346,17 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
       : null;
 
   CHART_CATALOG.forEach((entry) => {
-    const card = document.createElement('article');
+    const card = document.createElement('a');
     card.className = 'overview-card';
-    card.setAttribute('role', 'link');
-    card.setAttribute('tabindex', '0');
-    card.setAttribute('aria-label', `Open ${entry.title}`);
+    card.href = `#/chart/${entry.id}`;
+    card.setAttribute('aria-labelledby', `preview-title-${entry.id}`);
 
     card.innerHTML = `
       <div class="overview-card-header">
-        <h3 class="overview-card-title">${escapeHtml(entry.title)}</h3>
+        <h2 class="overview-card-title" id="preview-title-${entry.id}">${escapeHtml(entry.title)}</h2>
       </div>
-      <div class="overview-preview-stage" id="preview-stage-${entry.id}"></div>
+      <div class="overview-preview-stage" id="preview-stage-${entry.id}" aria-hidden="true"></div>
     `;
-
-    const navigateToChart = () => {
-      window.location.hash = `#/chart/${entry.id}`;
-    };
-
-    card.addEventListener('click', navigateToChart);
-    card.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        navigateToChart();
-      }
-    });
 
     examplesGrid.appendChild(card);
 
@@ -383,6 +370,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
       ...cfg,
       themeMode: getGlobalThemeMode(),
       isInteractive: false,
+      isFocusable: false,
       animate: false,
       labelMode: 'svg',
       xTitle: undefined,
