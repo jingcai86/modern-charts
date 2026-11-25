@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { gzipSync } from 'node:zlib';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const version = process.env.RELEASE_VERSION || pkg.version;
@@ -77,14 +76,17 @@ const sections = [
   .map(([heading, items]) => `${heading}\n\n${items.join('\n')}`)
   .join('\n\n');
 
-// Compute bundle size info if dist/index.js is built
-let bundleLine = '';
-if (existsSync('dist/index.js')) {
-  const raw = readFileSync('dist/index.js');
-  const rawKb = (raw.length / 1024).toFixed(2);
-  const gzipKb = (gzipSync(raw, { level: 9 }).length / 1024).toFixed(2);
-  bundleLine = `- **Bundle Size (\`dist/index.js\`)**: \`${rawKb} kB\` (\`${gzipKb} kB\` gzipped)\n`;
+const sizeReport = JSON.parse(readFileSync(0, 'utf8'));
+if (!Array.isArray(sizeReport)) throw new Error('Expected Size Limit measurements.');
+
+function formatFullLibrarySize(compression) {
+  const name = `Full library (modern-charts) [${compression}]`;
+  const measurement = sizeReport.find((result) => result.name === name);
+  if (!Number.isFinite(measurement?.size)) throw new Error(`Missing Size Limit measurement for ${name}.`);
+  return `${(measurement.size / 1000).toFixed(2)} kB`;
 }
+
+const bundleLine = `- **Full library bundle with dependencies** — \`${formatFullLibrarySize('brotli')}\` Brotli · \`${formatFullLibrarySize('gzip')}\` gzip\n`;
 
 const installCmd =
   distTag === 'latest'
