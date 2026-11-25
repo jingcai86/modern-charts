@@ -430,7 +430,7 @@ export function renderAccessibilityGuide(
           </tr>
         </thead>
         <tbody>
-          <tr><td><code>Tab</code> / <code>Shift + Tab</code></td><td>Moves focus into and out of focusable chart items, legends, and truncated labels (when <code>isInteractive: true</code> and <code>isFocusable: true</code>).</td></tr>
+          <tr><td><code>Tab</code> / <code>Shift + Tab</code></td><td>Moves focus through chart items, legends, and labels with full-text tooltips when <code>isInteractive</code> and <code>isFocusable</code> are enabled.</td></tr>
           <tr><td><code>ArrowRight</code> / <code>ArrowDown</code> / <code>ArrowLeft</code> / <code>ArrowUp</code></td><td>Navigates sequentially between rendered chart data items, showing an item-anchored tooltip and polite live announcement.</td></tr>
           <tr><td><code>Home</code> / <code>End</code></td><td>Jumps directly to the first or last focusable item in the chart.</td></tr>
           <tr><td><code>Enter</code> / <code>Space</code></td><td>Activates the focused item, emitting <code>mc-item-activate</code> and synthesizing a click.</td></tr>

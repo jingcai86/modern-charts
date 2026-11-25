@@ -29,6 +29,14 @@
       "timeZone": "Intl timezone identifier (for example UTC); default runtime local timezone",
       "direction": ["ltr", "rtl"],
       "messages": "Partial<ChartMessages>; shared translatable strings with {{name}} placeholders"
+    },
+    "labelOverflow": {
+      "strategy": {
+        "enum": ["truncate", "rotate", "both", "wrap", "wrap-truncate", "rotate-wrap-truncate", "none"],
+        "default": "truncate"
+      },
+      "maxLines": "Maximum line count in truncating modes. The wrap strategy preserves all lines.",
+      "enableTooltip": "Shows full text on hover and keyboard focus when the label is truncated or automatically rotated. Enabled by default."
     }
   },
   "palettes": ["shadcn", "material", "bootstrap", "antd"],

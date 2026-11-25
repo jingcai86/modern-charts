@@ -30,7 +30,7 @@ export function renderEventsGuide(
         <tbody>
           <tr>
             <td><code>mc-tooltip-show</code> / <code>mc-tooltip-hide</code></td>
-            <td>Data items, truncated labels, marker annotations</td>
+            <td>Data items, labels with full-text tooltips, marker annotations</td>
             <td><code>TooltipPayload</code> (<code>chartType</code>, <code>seriesId</code>, <code>category</code>, <code>value</code>, <code>datum</code>, <code>positionMode</code>, <code>source</code>, <code>clientX</code>, <code>clientY</code>)</td>
           </tr>
           <tr>
