@@ -3,6 +3,10 @@ import { escapeHtml } from '../../guides/shared';
 let globalListenersWired = false;
 let supportsHintPopover: boolean | null = null;
 
+function escapeHtmlAttribute(value: string): string {
+  return escapeHtml(value).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function checkHintPopoverSupport(): boolean {
   if (supportsHintPopover !== null) return supportsHintPopover;
   if (typeof document === 'undefined') return false;
@@ -70,9 +74,10 @@ function ensureGlobalInfoListeners(): void {
       const isOpen = (event as any).newState === 'open';
       target.classList.toggle('is-open', isOpen);
       const triggers = document.querySelectorAll<HTMLElement>(
-        `[data-info-target="${target.id}"]`
+        '.section-info-btn[data-info-target]'
       );
       triggers.forEach((btn) => {
+        if (btn.dataset.infoTarget !== target.id) return;
         btn.setAttribute('aria-expanded', String(isOpen));
         btn.classList.toggle('interest-source', isOpen);
         if (isOpen) {
@@ -87,14 +92,15 @@ function ensureGlobalInfoListeners(): void {
 /**
  * Renders an info icon button (`ⓘ`) and its paired `popover="hint"` tooltip
  * to sit beside a chart page section title.
+ * `contentHtml` is trusted HTML; callers must escape any dynamic text within it.
  */
 export function renderSectionInfoTooltip(
   id: string,
   ariaLabel: string,
   contentHtml: string
 ): string {
-  const safeId = escapeHtml(id);
-  const safeLabel = escapeHtml(ariaLabel);
+  const safeId = escapeHtmlAttribute(id);
+  const safeLabel = escapeHtmlAttribute(ariaLabel);
   return `
     <button
       type="button"
