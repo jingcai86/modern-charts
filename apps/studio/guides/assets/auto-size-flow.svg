@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="640" height="1265" viewBox="0 0 640 1265" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="1509" viewBox="0 0 640 1509" role="img" aria-labelledby="title desc">
   <title id="title">Flowchart of chart sizing and rendering</title>
-  <desc id="desc">An initial render or explicit redraw starts the render pipeline. On a container resize, autoSize with an available ResizeObserver measures the resolved size. If the width or height changes, the chart redraws. Otherwise the browser fits the previous viewBox. A render resolves outer width and height, resolves margins, computes the plot and sets the viewBox and translation, builds scales, computes bar rectangles, draws enabled layers, then the browser fits the SVG into the CSS box.</desc>
+  <desc id="desc">An initial render or explicit redraw starts the render pipeline. On a container resize, autoSize with an available ResizeObserver measures the resolved size. If the width or height changes, the chart redraws. Otherwise the browser fits the previous viewBox. A render resolves the size and margins, computes the plot, builds scales, computes bar rectangles, and draws axes and bars. Then it measures legend text with Pretext, adds the swatch and gap, packs and centers the legend rows, and draws them below the axes. The browser fits the SVG into the CSS box.</desc>
   <style>
     text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
     .heading { font-size: 32px; font-weight: 750; }
@@ -18,7 +18,7 @@
     .num { fill: #354f94; }
     .num-text { fill: #fff; font-size: 21px; font-weight: 750; text-anchor: middle; }
   </style>
-  <rect width="640" height="1265" rx="24" fill="#f5f7ff"/>
+  <rect width="640" height="1509" rx="24" fill="#f5f7ff"/>
   <defs>
     <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
       <path d="M1 1l10 5-10 5z" fill="#52688d"/>
@@ -68,14 +68,14 @@
   <circle cx="59" cy="640" r="18" class="num"/>
   <text x="59" y="648" class="num-text">2</text>
   <text x="94" y="633" class="label">Resolve the margins</text>
-  <text x="94" y="662" class="small muted">Merge defaults and overrides, then reserve room.</text>
+  <text x="94" y="662" class="small muted">112 px below the plot for the axis and legend.</text>
 
   <path class="edge" d="M320 685v18"/>
   <rect x="24" y="708" width="592" height="84" rx="12" class="calc"/>
   <circle cx="59" cy="747" r="18" class="num"/>
   <text x="59" y="755" class="num-text">3</text>
   <text x="94" y="740" class="label">Set the viewBox and plot</text>
-  <text x="94" y="769" class="small muted">360 × 320 SVG · 280 × 240 plot at (50, 24)</text>
+  <text x="94" y="769" class="small muted">360 × 320 SVG · 280 × 184 plot at (50, 24)</text>
 
   <path class="edge" d="M320 792v18"/>
   <rect x="24" y="815" width="592" height="84" rx="12" class="calc"/>
@@ -89,17 +89,33 @@
   <circle cx="59" cy="961" r="18" class="num"/>
   <text x="59" y="969" class="num-text">5</text>
   <text x="94" y="954" class="label">Compute each item’s geometry</text>
-  <text x="94" y="983" class="small muted">Q1 bar: x 14 · y 120 · width 112 · height 120</text>
+  <text x="94" y="983" class="small muted">Q1 blue: x 14 · y 92 · width 36 · height 92</text>
 
   <path class="edge" d="M320 1006v18"/>
   <rect x="24" y="1029" width="592" height="84" rx="12" class="calc"/>
   <circle cx="59" cy="1068" r="18" class="num"/>
   <text x="59" y="1076" class="num-text">6</text>
-  <text x="94" y="1061" class="label">Draw the SVG layers</text>
-  <text x="94" y="1090" class="small muted">The example draws its axes, then its bars.</text>
+  <text x="94" y="1061" class="label">Draw axes and grouped bars</text>
+  <text x="94" y="1090" class="small muted">Plot both quarters using the same three series.</text>
 
   <path class="edge" d="M320 1113v18"/>
-  <rect x="24" y="1136" width="592" height="103" rx="12" class="event"/>
-  <text x="48" y="1179" class="label">Browser fits the SVG into the CSS box</text>
-  <text x="48" y="1209" class="small muted">The viewBox determines the displayed scale.</text>
+  <rect x="24" y="1136" width="592" height="100" rx="12" class="resize"/>
+  <circle cx="59" cy="1183" r="18" class="num"/>
+  <text x="59" y="1191" class="num-text">7</text>
+  <text x="94" y="1167" class="label">Measure legend labels and entries</text>
+  <text x="94" y="1196" class="small muted">Pretext wraps each label up to 2 lines at 110 px.</text>
+  <text x="94" y="1220" class="small muted">Entry width = 10 px swatch + 5 px gap + text.</text>
+
+  <path class="edge" d="M320 1236v18"/>
+  <rect x="24" y="1259" width="592" height="101" rx="12" class="resize"/>
+  <circle cx="59" cy="1307" r="18" class="num"/>
+  <text x="59" y="1315" class="num-text">8</text>
+  <text x="94" y="1290" class="label">Pack, center, and draw legend rows</text>
+  <text x="94" y="1319" class="small muted">280 − 12 − 12 = 256 px available per row.</text>
+  <text x="94" y="1343" class="small muted">Two entries use 240 px. The third moves down.</text>
+
+  <path class="edge" d="M320 1360v18"/>
+  <rect x="24" y="1383" width="592" height="102" rx="12" class="event"/>
+  <text x="48" y="1425" class="label">Browser fits the SVG into the CSS box</text>
+  <text x="48" y="1455" class="small muted">The viewBox determines the displayed scale.</text>
 </svg>

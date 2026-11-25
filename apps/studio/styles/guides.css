@@ -150,8 +150,12 @@
   width: 7rem;
 }
 
+.auto-size-preview {
+  overflow-x: auto;
+}
+
 .auto-size-stage {
-  min-width: min(160px, 100%);
+  border: 0;
 }
 
 .auto-size-steps {
