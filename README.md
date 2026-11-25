@@ -58,6 +58,8 @@ In an application served by a JavaScript bundler, import a chart and assign its 
 
 Give the chart a sized container. Import `modern-charts` to register every chart, or use a [per-chart entry point](https://github.com/jingcai86/modern-charts/wiki/Chart-Components). Replace `chart.data` or assign a new `chart.config` to update it.
 
+Studio automatically lazy-loads each chart as its gallery preview approaches the viewport or its playground opens. In your app, call `await import('modern-charts/bar')` when you need the bar chart, then assign its config.
+
 For server-rendered apps, emit a sized chart host from the server and assign its config after the browser mounts. [Server-side rendering guide](https://jingcai86.github.io/modern-charts/#/guide/ssr).
 
 See the wiki for [features](https://github.com/jingcai86/modern-charts/wiki/Features), [components](https://github.com/jingcai86/modern-charts/wiki/Component-Architecture), [Studio guides](https://github.com/jingcai86/modern-charts/wiki/Studio-and-Guides), [internationalization](https://github.com/jingcai86/modern-charts/wiki/Internationalization), and [AI context](https://github.com/jingcai86/modern-charts/wiki/AI-Context).

@@ -142,6 +142,12 @@ export function renderSsrGuide(
       it, a browser effect imports the chart and assigns <code>chart.config</code>
       through a ref. Define formatter or event callbacks in the client component.
     </p>
+    <p class="guide-prose">
+      Studio automatically lazy-loads each chart module as its gallery preview
+      approaches the viewport or when you open its playground. In your own app,
+      call a dynamic import such as <code>import('modern-charts/bar')</code>
+      when you need the chart.
+    </p>
   `;
   react.append(
     createCodeBlock(salesServerPage, 'app/sales/page.tsx · server page'),

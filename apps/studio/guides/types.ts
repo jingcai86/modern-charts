@@ -92,7 +92,7 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     shortLabel: 'Server-Side Rendering',
     icon: '🖥️',
     summary:
-      'Render the chart host and a data table on the server, then initialize the chart in the browser. Includes plain HTML and Next.js examples.'
+      'Render a chart host and data table on the server, then load the chart in the browser. Includes plain HTML and a Next.js lazy-loading example.'
   },
   {
     id: 'i18n',
