@@ -2,7 +2,7 @@ import type { ChartI18n, ChartI18nConfig } from './i18n';
 export type { ChartI18n, ChartI18nConfig, ChartMessages } from './i18n';
 import type * as d3 from 'd3';
 
-export const VERSION = '0.1.0-alpha.2';
+export const VERSION = '0.1.0';
 
 export type BuiltInPaletteName =
   | 'material'
