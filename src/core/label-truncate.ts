@@ -364,7 +364,7 @@ export function truncateWithPretext(
     options.getPrepared ?? ((t: string, f: string) => prepareWithSegments(t, f));
   const measureWidth = (s: string): number => {
     if (!s) return 0;
-    return Math.ceil(measureNaturalWidth(prepareWithSegments(s, font)));
+    return Math.ceil(measureNaturalWidth(getPrepared(s, font)));
   };
 
   if (originalText.length === 0) {
@@ -384,24 +384,17 @@ export function truncateWithPretext(
   const explicitLines = originalText.split('\n');
   const explicitLineMetrics: MeasuredLabelLine[] = explicitLines.map((line) => ({
     text: line,
-    width:
-      line.length > 0
-        ? Math.ceil(measureNaturalWidth(getPrepared(line, font)))
-        : 0
+    width: measureWidth(line)
   }));
 
   const naturalWidth =
     explicitLineMetrics.length > 0
       ? Math.max(...explicitLineMetrics.map((l) => l.width))
       : 0;
-  const maxExplicitGraphemes = Math.max(
-    ...explicitLines.map((l) => splitGraphemes(l).length)
-  );
-
   const hasMaxWidth =
     availWidth !== undefined && Number.isFinite(availWidth) && availWidth > 0;
-  const hasMaxChars =
-    overflow.maxChars !== undefined && overflow.maxChars > 0;
+  const maxChars = overflow.maxChars;
+  const hasMaxChars = maxChars !== undefined && maxChars > 0;
 
   let maxLinesCap = overflow.maxLines;
   if (maxHeight !== undefined && Number.isFinite(maxHeight) && maxHeight > 0) {
@@ -413,7 +406,9 @@ export function truncateWithPretext(
   }
 
   const exceedsWidth = hasMaxWidth && naturalWidth > availWidth!;
-  const exceedsChars = hasMaxChars && maxExplicitGraphemes > overflow.maxChars!;
+  const exceedsChars = hasMaxChars && explicitLines.some(
+    (line) => line.length > maxChars && splitGraphemes(line).length > maxChars
+  );
   const exceedsLines =
     maxLinesCap !== undefined && explicitLines.length > maxLinesCap;
   const overflowTriggered = exceedsWidth || exceedsChars || exceedsLines;

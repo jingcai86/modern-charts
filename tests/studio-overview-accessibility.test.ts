@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../src/index';
+import type { MCBaseChart } from '../src/index';
 import { disposeOverviewPage, renderOverviewPage } from '../apps/studio/pages/overview';
 
 afterEach(() => {
@@ -13,7 +14,7 @@ describe('Studio overview navigation', () => {
   it('uses native chart links with accessible names and sequential headings', () => {
     const root = document.createElement('main');
     document.body.append(root);
-    const charts = renderOverviewPage(root);
+    renderOverviewPage(root);
     const cards = Array.from(root.querySelectorAll<HTMLAnchorElement>('a.overview-card'));
     expect(cards).toHaveLength(10);
     for (const card of cards) {
@@ -24,7 +25,6 @@ describe('Studio overview navigation', () => {
       expect(card.querySelector('.overview-preview-stage')?.getAttribute('aria-hidden')).toBe('true');
       expect(card.tabIndex).toBe(0);
     }
-    expect(charts.every((chart) => chart.config.isFocusable === false)).toBe(true);
     expect(root.querySelectorAll('.overview-guide-card-title').length).toBeGreaterThan(0);
     expect(root.querySelectorAll('h3.overview-guide-card-title')).toHaveLength(0);
     expect(cards[0].getAttribute('href')).toBe('#/chart/line');
@@ -32,7 +32,7 @@ describe('Studio overview navigation', () => {
     expect(window.location.hash).toBe('#/chart/line');
   });
 
-  it('keeps previews unrendered until their cards approach the viewport', async () => {
+  it('mounts previews only as their cards approach the viewport', async () => {
     let deliverIntersections!: IntersectionObserverCallback;
     const disconnect = vi.fn();
     class PreviewObserver {
@@ -49,21 +49,44 @@ describe('Studio overview navigation', () => {
     const root = document.createElement('main');
     document.body.append(root);
     const charts = renderOverviewPage(root);
-    const [nearby, offscreen] = charts;
-    const plot = (chart: typeof nearby) => chart.shadowRoot!.querySelector('.mc-chart-root')!;
-    const layer = offscreen.shadowRoot!.querySelector('mc-theme-layer')!;
-    layer.dispatchEvent(new CustomEvent('mc-layer-change', { bubbles: true, composed: true }));
-    expect(plot(offscreen).childElementCount).toBe(0);
+    const [line, bar] = Array.from(root.querySelectorAll('.overview-card'));
+    const preview = (card: Element) =>
+      card.querySelector<MCBaseChart<any>>('.overview-preview-stage > *');
+    const entry = (target: Element, isIntersecting: boolean) =>
+      ({ target, isIntersecting }) as IntersectionObserverEntry;
+    const observer = {} as IntersectionObserver;
 
-    const card = nearby.closest('.overview-card')!;
-    deliverIntersections(
-      [{ target: card, isIntersecting: true } as IntersectionObserverEntry],
-      {} as IntersectionObserver
-    );
-    await vi.waitFor(() => expect(plot(nearby).childElementCount).toBeGreaterThan(0));
-    expect(plot(offscreen).childElementCount).toBe(0);
+    expect(charts).toHaveLength(0);
+    expect(preview(line)).toBeNull();
+    expect(preview(bar)).toBeNull();
+
+    deliverIntersections([entry(line, true), entry(bar, true)], observer);
+    deliverIntersections([entry(bar, false)], observer);
+    await vi.waitFor(() => expect(charts).toHaveLength(1));
+    expect(charts[0]).toBe(preview(line));
+    expect(charts[0].config.isFocusable).toBe(false);
+    expect(charts[0].shadowRoot!.querySelector('.mc-line-path')).not.toBeNull();
+    expect(preview(bar)).toBeNull();
+
+    deliverIntersections([entry(bar, true)], observer);
+    await vi.waitFor(() => expect(charts).toHaveLength(2));
+    expect(charts[1]).toBe(preview(bar));
+    expect(charts[1].shadowRoot!.querySelector('.mc-bar-rect')).not.toBeNull();
 
     disposeOverviewPage(root);
     expect(disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('loads the previews on the Chart Types tab when intersection observation is unavailable', async () => {
+    vi.stubGlobal('IntersectionObserver', undefined);
+    localStorage.setItem('modern-charts-studio-home-tab', 'guides');
+    const root = document.createElement('main');
+    document.body.append(root);
+    const charts = renderOverviewPage(root);
+
+    expect(charts).toHaveLength(0);
+    root.querySelector<HTMLButtonElement>('#overview-tab-examples')!.click();
+    await vi.waitFor(() => expect(charts).toHaveLength(10));
+    disposeOverviewPage(root);
   });
 });

@@ -215,9 +215,9 @@ function createGuidesGrid(): HTMLElement {
 
 /**
  * Renders the Home Overview page (`#/`) with a clean two-tab interface:
- * - Tab 1: Chart Examples (all 10 live interactive preview cards)
+ * - Tab 1: Chart Examples (live previews mount as their cards approach the viewport)
  * - Tab 2: Guides & Resources (all documentation guides + AI Context)
- * Returns the mounted chart elements so the theme switcher can update them in-place.
+ * The returned array is populated as previews mount so the theme switcher can update them in-place.
  */
 export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   const mountedCharts: MCBaseChart<any>[] = [];
@@ -291,7 +291,8 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   const examplesGrid = document.createElement('section');
   examplesGrid.className = 'overview-grid';
 
-  const pendingQueue: MCBaseChart<any>[] = [];
+  const previewMounts = new Map<Element, () => void>();
+  const pendingCards = new Set<Element>();
   let isDrainingQueue = false;
   let disposed = false;
 
@@ -305,7 +306,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   }
 
   async function drainRenderQueue(): Promise<void> {
-    if (isDrainingQueue || examplesPanel.hidden || disposed || pendingQueue.length === 0) return;
+    if (isDrainingQueue || examplesPanel.hidden || disposed || pendingCards.size === 0) return;
     isDrainingQueue = true;
     await new Promise<void>((resolve) => {
       if (typeof requestAnimationFrame === 'function') {
@@ -314,22 +315,23 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
         setTimeout(resolve, 0);
       }
     });
-    while (pendingQueue.length > 0) {
-      await yieldToMain();
-      if (examplesPanel.hidden || disposed) break;
-      const nextChart = pendingQueue.shift()!;
-      if (!nextChart.isConnected) continue;
-      nextChart.removeAttribute('data-defer-initial-render');
-      nextChart.render();
-    }
-    isDrainingQueue = false;
-  }
+    try {
+      while (pendingCards.size > 0) {
+        await yieldToMain();
+        if (examplesPanel.hidden || disposed) break;
+        const card = pendingCards.values().next().value;
+        if (!card) break;
+        pendingCards.delete(card);
+        if (!card.isConnected) continue;
 
-  function enqueueChartRender(chart: MCBaseChart<any>): void {
-    if (!disposed && !pendingQueue.includes(chart)) {
-      pendingQueue.push(chart);
+        cardObserver?.unobserve(card);
+        const mount = previewMounts.get(card);
+        previewMounts.delete(card);
+        mount?.();
+      }
+    } finally {
+      isDrainingQueue = false;
     }
-    void drainRenderQueue();
   }
 
   const cardObserver =
@@ -337,22 +339,21 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
       ? new IntersectionObserver(
           (entries) => {
             for (const entry of entries) {
-              if (!entry.isIntersecting) continue;
-              cardObserver?.unobserve(entry.target);
-              const chart = (entry.target as any).__overviewChart as
-                | MCBaseChart<any>
-                | undefined;
-              if (chart) {
-                enqueueChartRender(chart);
+              if (entry.isIntersecting && previewMounts.has(entry.target)) {
+                pendingCards.add(entry.target);
+              } else {
+                pendingCards.delete(entry.target);
               }
             }
+            void drainRenderQueue();
           },
           { rootMargin: '160px 0px' }
         )
       : null;
   overviewCleanups.set(root, () => {
     disposed = true;
-    pendingQueue.length = 0;
+    pendingCards.clear();
+    previewMounts.clear();
     cardObserver?.disconnect();
   });
 
@@ -374,28 +375,32 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
     const stage = card.querySelector(
       `#preview-stage-${entry.id}`
     ) as HTMLElement;
-    const chartEl = document.createElement(entry.tagName) as MCBaseChart<any>;
-    chartEl.setAttribute('data-defer-initial-render', '');
-    const cfg = getOrInitChartConfig(entry);
-    chartEl.setConfig({
-      ...cfg,
-      themeMode: getGlobalThemeMode(),
-      isInteractive: false,
-      isFocusable: false,
-      animate: false,
-      labelMode: 'svg',
-      xTitle: undefined,
-      yTitle: undefined,
-      view: cfg.view ? { ...cfg.view, showControls: false } : undefined
+    previewMounts.set(card, () => {
+      const chart = document.createElement(entry.tagName) as MCBaseChart<any>;
+      // Prevent internal layer notifications during connection from drawing extra frames.
+      chart.setAttribute('data-defer-initial-render', '');
+      const cfg = getOrInitChartConfig(entry);
+      chart.setConfig({
+        ...cfg,
+        themeMode: getGlobalThemeMode(),
+        isInteractive: false,
+        isFocusable: false,
+        animate: false,
+        labelMode: 'svg',
+        xTitle: undefined,
+        yTitle: undefined,
+        view: cfg.view ? { ...cfg.view, showControls: false } : undefined
+      });
+      stage.appendChild(chart);
+      mountedCharts.push(chart);
+      chart.removeAttribute('data-defer-initial-render');
+      chart.render();
     });
-    stage.appendChild(chartEl);
-    (card as any).__overviewChart = chartEl;
-    mountedCharts.push(chartEl);
 
     if (cardObserver) {
       cardObserver.observe(card);
     } else {
-      enqueueChartRender(chartEl);
+      pendingCards.add(card);
     }
   });
 
@@ -414,6 +419,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   panelsContainer.append(examplesPanel, guidesPanel);
   tabsWrapper.append(tablist, panelsContainer);
   root.appendChild(tabsWrapper);
+  if (!cardObserver) void drainRenderQueue();
 
   const tabs: Array<{ id: HomeTabId; btn: HTMLButtonElement; panel: HTMLElement }> = [
     { id: 'examples', btn: examplesTab, panel: examplesPanel },

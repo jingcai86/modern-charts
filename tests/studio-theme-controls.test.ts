@@ -8,6 +8,7 @@ let paletteSelect: HTMLSelectElement;
 let appearanceSelect: HTMLSelectElement;
 let systemIsDark = false;
 let onSystemAppearanceChange: (() => void) | undefined;
+let deliverPreviewIntersections: IntersectionObserverCallback;
 
 function select(control: HTMLSelectElement, value: string) {
   control.value = value;
@@ -21,6 +22,25 @@ function route(hash: string) {
 
 function detailChart() {
   return document.querySelector<MCBaseChart<any>>('#detail-chart-stage > *')!;
+}
+
+async function revealPreview(chartId: string) {
+  let observedStage: HTMLElement | null = null;
+  return vi.waitFor(() => {
+    const stage = document.getElementById(`preview-stage-${chartId}`)!;
+    expect(stage).not.toBeNull();
+    // Happy DOM can deliver a queued hashchange after a test has dispatched one.
+    if (observedStage !== stage) {
+      observedStage = stage;
+      deliverPreviewIntersections(
+        [{ target: stage.closest('.overview-card')!, isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver
+      );
+    }
+    const chart = stage.querySelector<MCBaseChart<any>>(':scope > *');
+    expect(chart).not.toBeNull();
+    return chart!;
+  });
 }
 
 beforeAll(async () => {
@@ -45,6 +65,14 @@ beforeAll(async () => {
     },
     removeEventListener: () => {}
   }) as unknown as MediaQueryList);
+  vi.stubGlobal('IntersectionObserver', class PreviewObserver {
+    constructor(callback: IntersectionObserverCallback) {
+      deliverPreviewIntersections = callback;
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  });
   await import('../apps/studio/main');
   paletteSelect = document.querySelector('#global-palette-select')!;
   appearanceSelect = document.querySelector('#global-appearance-select')!;
@@ -60,6 +88,7 @@ afterAll(() => {
   document.body.replaceChildren();
   localStorage.clear();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('Studio Theme and Appearance controls', () => {
@@ -76,12 +105,11 @@ describe('Studio Theme and Appearance controls', () => {
     expect(help.querySelector('a')!.getAttribute('href')).toBe('#/guide/themes');
   }, 15_000);
 
-  it('updates mounted gallery charts while preserving appearance, data, and other chart settings', () => {
-    const charts = Array.from(document.querySelectorAll<MCBaseChart<any>>('.overview-preview-stage > *'));
-    const bar = charts.find((chart) => chart.chartType === 'bar')!;
+  it('applies the selected palette and appearance to existing and newly visible previews', async () => {
+    const bar = await revealPreview('bar');
     const { data, markers, layers } = bar.config;
     select(paletteSelect, 'neutral');
-    expect(charts.every((chart) => chart.config.palette === 'neutral')).toBe(true);
+    expect(bar.config.palette).toBe('neutral');
     expect(bar.resolveTheme().colors).toEqual(PALETTES.neutral);
     expect(bar.config.data).toBe(data);
     expect(bar.config.markers).toBe(markers);
@@ -92,6 +120,10 @@ describe('Studio Theme and Appearance controls', () => {
     expect(bar.resolveTheme().mode).toBe('dark');
     expect(bar.resolveTheme().colors).toEqual(PALETTES.neutral);
     expect(localStorage.getItem(appearanceKey)).toBe('dark');
+
+    const line = await revealPreview('line');
+    expect(line.resolveTheme().mode).toBe('dark');
+    expect(line.resolveTheme().colors).toEqual(PALETTES.neutral);
   }, 15_000);
 
   it('retains the chosen theme across detail navigation and reset while respecting custom colors', () => {
@@ -121,12 +153,8 @@ describe('Studio Theme and Appearance controls', () => {
     expect(detailChart().resolveTheme().colors).toEqual(PALETTES.antd);
   }, 15_000);
 
-  it('recolors the heatmap and its legend while preserving an explicit color scheme', () => {
-    const galleryChart = document.querySelector<MCBaseChart<any>>(
-      '#preview-stage-heatmap > mc-heatmap-chart'
-    )!;
-    galleryChart.removeAttribute('data-defer-initial-render');
-    galleryChart.render();
+  it('recolors the heatmap and its legend while preserving an explicit color scheme', async () => {
+    const galleryChart = await revealPreview('heatmap');
 
     const readColors = (chart: MCBaseChart<any>) => {
       const root = chart.shadowRoot!;
@@ -216,20 +244,13 @@ describe('Studio Theme and Appearance controls', () => {
     systemIsDark = false;
   }, 15_000);
 
-  it('recolors rendered line and bar series when switching to Neutral while keeping threshold overrides scoped and preserving explicit series colors (Issue #99)', () => {
+  it('recolors rendered line and bar series when switching to Neutral while keeping threshold overrides scoped and preserving explicit series colors (Issue #99)', async () => {
     select(paletteSelect, 'neutral');
     const [neutral0, neutral1, neutral2] = PALETTES.neutral;
 
     // 1. Overview gallery: Line & Area and Bar & Stack reflect Neutral palette in rendered SVG
-    const overviewCharts = Array.from(
-      document.querySelectorAll<MCBaseChart<any>>('.overview-preview-stage > *')
-    );
-    const overviewLine = overviewCharts.find((c) => c.chartType === 'line')!;
-    const overviewBar = overviewCharts.find((c) => c.chartType === 'bar')!;
-    overviewLine.removeAttribute('data-defer-initial-render');
-    overviewLine.render();
-    overviewBar.removeAttribute('data-defer-initial-render');
-    overviewBar.render();
+    const overviewLine = await revealPreview('line');
+    const overviewBar = await revealPreview('bar');
 
     // Inference (120..276) is completely above SLA < 90, so its path and area use neutral0 (#737373)
     const inferencePath = overviewLine.shadowRoot!.querySelector<SVGPathElement>(

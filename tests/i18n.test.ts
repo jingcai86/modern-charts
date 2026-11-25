@@ -80,6 +80,26 @@ describe('shared chart internationalization', () => {
     expect(formatAxisDate(new Date('invalid'), la)).toBe('');
   });
 
+  it('defers runtime time zone lookup for numeric charts while preserving date defaults', () => {
+    const instant = new Date('2026-01-01T01:00:00Z');
+    const defaultFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric' });
+    const formatDate = vi.spyOn(Intl, 'DateTimeFormat');
+    try {
+      const i18n = createChartI18n();
+      expect(i18n.formatNumber(1234)).toBe('1,234');
+      expect(formatDate).not.toHaveBeenCalled();
+      expect(i18n.timeZone).toBe(defaultFormatter.resolvedOptions().timeZone);
+      expect(i18n.formatDate(instant, { year: 'numeric' })).toBe(defaultFormatter.format(instant));
+    } finally {
+      formatDate.mockRestore();
+    }
+  });
+
+  it('rejects invalid locale and time zone overrides before formatting', () => {
+    expect(() => createChartI18n({ locale: 'invalid_locale' })).toThrow(RangeError);
+    expect(() => createChartI18n({ timeZone: 'Invalid/TimeZone' })).toThrow(RangeError);
+  });
+
   it('keeps logical text direction separate from physical SVG geometry', () => {
     expect(physicalTextAnchor('start', 'rtl')).toBe('end');
     expect(physicalTextAnchor('end', 'rtl')).toBe('start');
