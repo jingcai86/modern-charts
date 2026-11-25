@@ -17,6 +17,7 @@ type SizingConfig = Pick<ChartConfig, 'autoSize' | 'width' | 'height' | 'margin'
 const comparisonImage = new URL('./assets/auto-size-comparison.svg', import.meta.url).href;
 const anatomyImage = new URL('./assets/auto-size-anatomy.svg', import.meta.url).href;
 const flowImage = new URL('./assets/auto-size-flow.svg', import.meta.url).href;
+const legendImage = new URL('./assets/auto-size-legend.svg', import.meta.url).href;
 
 const workedBarConfig: ChartConfig<BarDatum[]> = {
   autoSize: true,
@@ -52,6 +53,47 @@ const responsiveExample = `
 
   document.getElementById('shrink-chart').addEventListener('click', () => {
     document.getElementById('chart-container').style.width = '360px';
+  });
+</script>
+`;
+
+const legendKeys = ['North America Enterprise Sales', 'Europe Commercial Sales', 'Asia Pacific Online Sales'];
+const legendExampleConfig: ChartConfig<BarDatum[]> = {
+  ...workedBarConfig,
+  data: [
+    { quarter: 'Q1', [legendKeys[0]]: 40, [legendKeys[1]]: 55, [legendKeys[2]]: 68 },
+    { quarter: 'Q2', [legendKeys[0]]: 53, [legendKeys[1]]: 63, [legendKeys[2]]: 75 }
+  ],
+  keys: legendKeys,
+  themeMode: 'light',
+  theme: { fontFamily: 'Arial' },
+  margin: { top: 24, right: 30, bottom: 112, left: 50 },
+  legend: {
+    position: 'bottom',
+    wrap: true,
+    fontSize: 12,
+    padding: { top: 4, right: 12, bottom: 4, left: 12 },
+    maxItemWidth: 110
+  },
+  label: { target: 'legend', overflow: 'wrap', maxLines: 2 },
+  layers: ['axes', 'bars', 'legends']
+};
+
+const legendExample = `
+<div id="legend-container" style="width: 600px; height: 320px;">
+  <mc-bar-chart id="legend-chart"></mc-bar-chart>
+</div>
+<button id="resize-legend" type="button">Toggle width between 600 and 360 px</button>
+
+<script type="module">
+  import 'modern-charts/bar';
+
+  const container = document.getElementById('legend-container');
+  const chart = document.getElementById('legend-chart');
+  chart.setConfig(${formatConfigAsJsObject(legendExampleConfig, 2)});
+
+  document.getElementById('resize-legend').addEventListener('click', () => {
+    container.style.width = container.style.width === '600px' ? '360px' : '600px';
   });
 </script>
 `;
@@ -152,6 +194,54 @@ export function renderAutoSizeGuide(
     </figure>
   `;
 
+  const legend = document.createElement('section');
+  legend.className = 'panel-card guide-section';
+  legend.innerHTML = `
+    <h2 class="panel-title">How legends wrap when the chart resizes</h2>
+    <p class="guide-prose">
+      A categorical legend can wrap a label's words into lines and move entire entries
+      onto new rows or columns. The engine measures the labels first, then packs each
+      swatch and its label as one entry.
+    </p>
+    <figure class="auto-size-figure">
+      <a href="${legendImage}" target="_blank" rel="noopener">
+        <img src="${legendImage}" alt="Three two-line legend entries fit on one row in the 600-pixel chart. With autoSize on, the narrower 360-pixel chart moves the third entry to a second row. With autoSize off, the original row scales with the SVG." />
+      </a>
+      <figcaption class="guide-prose">
+        The example keeps the label width limit at 110 units. The words keep their
+        line breaks as the legend moves entries between rows.
+      </figcaption>
+    </figure>
+    <ol class="guide-prose auto-size-steps">
+      <li><strong>Wrap the label text.</strong> Set <code>legend.maxItemWidth</code> to 110 and use
+        <code>label: { target: 'legend', overflow: 'wrap', maxLines: 2 }</code>.
+        Pretext measures each label with the configured font and uses up to two lines.
+        With the width limit alone, long labels use a single line with an ellipsis.
+        In this example, the entry width also includes a 10-unit swatch and a 5-unit gap.</li>
+      <li><strong>Pack the entries.</strong> With <code>legend.wrap: true</code> (the default),
+        top and bottom legends start a new row when the next entry would exceed the
+        plot width minus horizontal legend padding. Left and right legends start a new
+        column using the plot height minus vertical padding. Set <code>legend.wrap: false</code>
+        to keep one row or column while retaining multi-line labels.</li>
+      <li><strong>Repack after a resize.</strong> After subtracting 12 units of padding on
+        each side, the available width drops from <code>520 − 24 = 496</code> to
+        <code>280 − 24 = 256</code>. In the illustrated run with Arial at 12 px, the
+        entries measure 104, 122, and 116 units. All three and two 14-unit gaps take
+        370 units. The narrower legend fits <code>104 + 14 + 122 = 240</code> on the
+        first row and centers the third entry below. With <code>autoSize</code> off,
+        the existing single row scales with the SVG until the next redraw.</li>
+    </ol>
+    <p class="guide-prose">
+      The initial margin calculation reserves a baseline allowance. Give a multi-row
+      legend enough room with <code>margin.bottom</code> or <code>margin.top</code>.
+      This example uses a 112-unit bottom margin for the axis and two rows.
+    </p>
+    <details class="auto-size-example">
+      <summary>Copy the legend example</summary>
+    </details>
+  `;
+  legend.querySelector('details')!.append(createCodeBlock(legendExample, 'Bar chart with a wrapping legend'));
+
   const layout = document.createElement('section');
   layout.className = 'panel-card guide-section';
   layout.innerHTML = `
@@ -231,7 +321,7 @@ export function renderAutoSizeGuide(
     </p>
   `;
 
-  container.append(comparison, calculations, flow, demo, layout, positioning);
+  container.append(comparison, calculations, flow, legend, demo, layout, positioning);
 
   const chartSelect = demo.querySelector<HTMLSelectElement>('#auto-size-chart')!;
   const widthInput = demo.querySelector<HTMLInputElement>('#auto-size-width')!;

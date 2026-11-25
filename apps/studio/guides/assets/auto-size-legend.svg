@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="864" viewBox="0 0 640 864" role="img" aria-labelledby="title desc">
+  <title id="title">How AutoSize repacks a bottom legend with wrapped labels</title>
+  <desc id="desc">At 600 pixels wide, the 520 pixel plot leaves 496 pixels after two 12 pixel pads. All three legend entries fit on one row. With AutoSize on at 360 pixels, the 280 pixel plot leaves 256 pixels after padding. The first two legend entries fit on one centered row, and the third moves to a centered second row. North America Enterprise Sales, Europe Commercial Sales, and Asia Pacific Online Sales each remain split across two lines within the fixed 110 pixel label limit. With AutoSize off, the browser scales the existing one-row SVG to 60 percent.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
+    .heading { font-size: 32px; font-weight: 750; }
+    .label { font-size: 24px; font-weight: 680; }
+    .body { font-size: 22px; }
+    .small { font-size: 20px; }
+    .muted { fill: #485b75; }
+    .center { text-anchor: middle; }
+    .card { fill: #fff; stroke: #b6c8e5; stroke-width: 1.5; }
+    .area { fill: #f0f4ff; stroke: #96a9d0; stroke-width: 1.5; }
+    .padding { fill: #d9e2fb; }
+    .guide { fill: none; stroke: #7487ac; stroke-width: 1.5; stroke-dasharray: 4 4; }
+    .entry { fill: #fff; stroke: #a5b8dc; stroke-width: 1.25; }
+    .names { font-size: 11.5px; }
+    .blue { fill: #2563eb; }
+    .green { fill: #10b981; }
+    .gold { fill: #f59e0b; }
+    .annotation { fill: #135c47; }
+    .leader { fill: none; stroke: #187053; stroke-width: 1.75; }
+  </style>
+  <defs>
+    <g id="north">
+      <rect class="entry" width="104" height="32" rx="5"/>
+      <rect class="blue" y="11" width="10" height="10" rx="2"/>
+      <text class="names" x="15" y="13">North America</text>
+      <text class="names" x="15" y="26">Enterprise Sales</text>
+    </g>
+    <g id="europe">
+      <rect class="entry" width="122" height="32" rx="5"/>
+      <rect class="green" y="11" width="10" height="10" rx="2"/>
+      <text class="names" x="15" y="13">Europe Commercial</text>
+      <text class="names" x="15" y="26">Sales</text>
+    </g>
+    <g id="asia">
+      <rect class="entry" width="116" height="32" rx="5"/>
+      <rect class="gold" y="11" width="10" height="10" rx="2"/>
+      <text class="names" x="15" y="13">Asia Pacific Online</text>
+      <text class="names" x="15" y="26">Sales</text>
+    </g>
+  </defs>
+
+  <rect width="640" height="864" rx="24" fill="#f5f7ff"/>
+  <text x="32" y="49" class="heading">What wraps in a legend?</text>
+  <text x="32" y="83" class="body muted">Same bottom legend, two chart widths</text>
+
+  <rect x="24" y="106" width="592" height="186" rx="14" class="card"/>
+  <text x="44" y="144" class="label">600 px chart · one row</text>
+  <text x="44" y="173" class="small muted">520 px plot − 12 px − 12 px = 496 px usable</text>
+  <rect x="60" y="190" width="520" height="52" class="area"/>
+  <path class="padding" d="M60 191h12v50H60zm508 0h12v50h-12z"/>
+  <path class="guide" d="M72 190v52m496-52v52"/>
+  <use href="#north" x="135" y="200"/>
+  <use href="#europe" x="253" y="200"/>
+  <use href="#asia" x="389" y="200"/>
+  <text x="320" y="273" class="small center annotation">All three entries and gaps take 370 px.</text>
+
+  <rect x="24" y="310" width="592" height="228" rx="14" class="card"/>
+  <text x="44" y="348" class="label">360 px chart · AutoSize on</text>
+  <text x="44" y="377" class="small muted">280 px plot − 12 px − 12 px = 256 px usable</text>
+  <rect x="180" y="395" width="280" height="88" class="area"/>
+  <path class="padding" d="M180 396h12v86h-12zm268 0h12v86h-12z"/>
+  <path class="guide" d="M192 395v88m256-88v88"/>
+  <use href="#north" x="200" y="403"/>
+  <use href="#europe" x="318" y="403"/>
+  <use href="#asia" x="262" y="443"/>
+  <path class="leader" d="M470 419h15m-15 40h15M184 418h-26"/>
+  <text x="494" y="426" class="small annotation">Row 1</text>
+  <text x="494" y="466" class="small annotation">Row 2</text>
+  <text x="150" y="425" class="small muted" text-anchor="end">12 px pad</text>
+  <text x="320" y="515" class="small center annotation">Two entries take 240 px. The third moves down.</text>
+
+  <rect x="24" y="556" width="592" height="185" rx="14" class="card"/>
+  <text x="44" y="594" class="label">One label, two lines</text>
+  <rect x="55" y="635" width="18" height="18" rx="3" class="blue"/>
+  <text x="83" y="635" class="body">North America</text>
+  <text x="83" y="663" class="body">Enterprise Sales</text>
+  <path class="leader" d="M62 657v23h-15m236-42h-12m12 28h-12m12-28v28"/>
+  <text x="46" y="703" class="small muted">Swatch</text>
+  <text x="302" y="651" class="small annotation">Fixed 110 px label cap</text>
+  <text x="302" y="680" class="small muted">Same line breaks at both widths</text>
+
+  <rect x="24" y="759" width="592" height="81" rx="14" fill="#fff6e6" stroke="#ddaa67" stroke-width="1.5"/>
+  <text x="44" y="791" class="label">360 px chart · AutoSize off</text>
+  <text x="44" y="819" class="small muted">The browser fits the saved one-row SVG at 60%.</text>
+</svg>
