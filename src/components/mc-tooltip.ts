@@ -1,3 +1,4 @@
+import { HTMLElementBase, lazyTemplate } from '../core/dom';
 import { createChartI18n } from '../core/i18n';
 import type { ChartI18n } from '../core/i18n';
 import type {
@@ -23,14 +24,13 @@ export function normalizeTooltipPosition(
   return undefined;
 }
 
-const tooltipTemplate = document.createElement('template');
-tooltipTemplate.innerHTML = `
+const getTooltipTemplate = lazyTemplate(`
   <div class="mc-tooltip-surface" part="tooltip container">
     <div class="mc-tooltip-header" part="header" hidden></div>
     <div class="mc-tooltip-body" part="body"></div>
   </div>
   <slot style="display:none"></slot>
-`;
+`);
 
 let sharedTooltipSheet: CSSStyleSheet | null = null;
 function getTooltipStyleSheet(): CSSStyleSheet | null {
@@ -203,7 +203,7 @@ function interpolateTooltipTemplate(
  *    (supporting `enabled`, `offset-x`, `offset-y`, `class-name`, `.formatter`,
  *    `.renderer`, and `<template>` interpolation).
  */
-export class MCTooltipElement extends HTMLElement {
+export class MCTooltipElement extends HTMLElementBase {
   static observedAttributes = [
     'enabled',
     'position',
@@ -230,7 +230,7 @@ export class MCTooltipElement extends HTMLElement {
     if (sheet && 'adoptedStyleSheets' in shadow) {
       shadow.adoptedStyleSheets = [sheet];
     }
-    shadow.append(tooltipTemplate.content.cloneNode(true));
+    shadow.append(getTooltipTemplate().content.cloneNode(true));
   }
 
   connectedCallback(): void {

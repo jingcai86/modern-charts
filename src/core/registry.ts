@@ -48,7 +48,11 @@ export function defineCustomElement(
   tag: string,
   ctor: CustomElementConstructor
 ): void {
-  if (typeof customElements === 'undefined') return;
+  if (
+    typeof document === 'undefined' ||
+    typeof HTMLElement === 'undefined' ||
+    typeof customElements === 'undefined'
+  ) return;
   if (!customElements.get(tag)) {
     customElements.define(tag, ctor);
   }

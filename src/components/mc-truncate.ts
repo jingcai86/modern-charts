@@ -1,3 +1,4 @@
+import { HTMLElementBase, lazyTemplate } from '../core/dom';
 import {
   DEFAULT_MAX_ROTATION,
   DEFAULT_TRUNCATE_ELLIPSIS,
@@ -20,8 +21,7 @@ import type {
 } from '../core/types';
 import { MCTooltipElement } from './mc-tooltip';
 
-const truncateTemplate = document.createElement('template');
-truncateTemplate.innerHTML = `
+const getTruncateTemplate = lazyTemplate(`
   <span class="mc-truncate-host" part="container">
     <span class="mc-truncate-text" part="text"></span>
     <mc-tooltip
@@ -32,7 +32,7 @@ truncateTemplate.innerHTML = `
     ></mc-tooltip>
   </span>
   <slot style="display:none"></slot>
-`;
+`);
 
 let sharedTruncateSheet: CSSStyleSheet | null = null;
 function getTruncateStyleSheet(): CSSStyleSheet | null {
@@ -107,7 +107,7 @@ function parseOptionalNumber(raw: string | null): number | undefined {
  * 1. **Declarative config element** inside any `<mc-*-chart>` or `<mc-label>` (with optional `for="axis-tick|data|title|..."` targeting and nested `<mc-tooltip>`).
  * 2. **Standalone reusable `<mc-truncate>` component** for rendering truncated/rotated text anywhere in an app.
  */
-export class MCTruncateElement extends HTMLElement {
+export class MCTruncateElement extends HTMLElementBase {
   static observedAttributes = [
     'for',
     'text',
@@ -138,7 +138,7 @@ export class MCTruncateElement extends HTMLElement {
     if (sheet && 'adoptedStyleSheets' in shadow) {
       shadow.adoptedStyleSheets = [sheet];
     }
-    shadow.append(truncateTemplate.content.cloneNode(true));
+    shadow.append(getTruncateTemplate().content.cloneNode(true));
   }
 
   connectedCallback(): void {

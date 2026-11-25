@@ -30,6 +30,8 @@ import 'modern-charts/core'; // BaseChart, engines, and shared capability layers
 import 'modern-charts';
 ```
 
+The JavaScript entry points can be imported in Node without a DOM. Custom element registration and SVG rendering happen in the browser. In an SSR app, output a sized `<mc-*-chart>` host and assign `chart.config` after the element is defined on the client. Pass serializable chart data across the server/client boundary and create formatter or renderer functions in the client component. See the [SSR guide](https://jingcai86.github.io/modern-charts/#/guide/ssr).
+
 ---
 
 ## 2. Shared `chart.config` Options (All 10 Charts)

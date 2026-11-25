@@ -1,3 +1,4 @@
+import { HTMLElementBase, lazyTemplate } from './dom';
 import { getChartD3 } from './d3-context';
 import {
   AnimationEngine,
@@ -88,8 +89,7 @@ import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-const baseChartTemplate = document.createElement('template');
-baseChartTemplate.innerHTML = `
+const getBaseChartTemplate = lazyTemplate(`
   <div class="mc-chart-container" part="container">
     <svg class="mc-chart-svg" part="svg" role="img" xmlns="http://www.w3.org/2000/svg" aria-labelledby="mc-svg-title" aria-describedby="mc-svg-desc">
       <title id="mc-svg-title">Interactive Chart</title>
@@ -125,7 +125,7 @@ baseChartTemplate.innerHTML = `
     </div>
     <slot class="mc-config-slot" style="display:none"></slot>
   </div>
-`;
+`);
 
 let sharedChartSheet: CSSStyleSheet | null = null;
 function getBaseChartStyleSheet(): CSSStyleSheet | null {
@@ -333,7 +333,7 @@ function getBaseChartStyleSheet(): CSSStyleSheet | null {
   return sharedChartSheet;
 }
 
-export abstract class MCBaseChart<TData = any> extends HTMLElement {
+export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   static get baseObservedAttributes(): string[] {
     return [
       'config',
@@ -432,7 +432,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (sheet && 'adoptedStyleSheets' in shadow) {
       shadow.adoptedStyleSheets = [sheet];
     }
-    shadow.append(baseChartTemplate.content.cloneNode(true));
+    shadow.append(getBaseChartTemplate().content.cloneNode(true));
   }
 
   abstract get chartType(): string;

@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../../core/dom';
 import { createDefaultTheme, resolvePaletteColors } from '../../core/theme';
 import type {
   AxisPosition,
@@ -18,7 +19,7 @@ export { MCAnimationLayer, MCAriaLayer };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-abstract class MCConfigBaseElement extends HTMLElement {
+abstract class MCConfigBaseElement extends HTMLElementBase {
   constructor() {
     super();
   }

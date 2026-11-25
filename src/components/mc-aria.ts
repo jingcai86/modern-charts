@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../core/dom';
 import { createDefaultAriaConfig } from '../core/aria-engine';
 import type {
   AriaConfig,
@@ -13,7 +14,7 @@ import type {
  * treemap tiles, and gauge arcs) exposes customizable `aria-label`, `role`,
  * `aria-roledescription`, keyboard tab/arrow focusability, and screen-reader announcements.
  */
-export class MCAriaLayer extends HTMLElement {
+export class MCAriaLayer extends HTMLElementBase {
   static observedAttributes = [
     'enabled',
     'role',

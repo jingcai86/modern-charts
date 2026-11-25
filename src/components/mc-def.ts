@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../core/dom';
 import type { FillRule, SvgFillDef } from '../core/types';
 
 /**
@@ -12,7 +13,7 @@ import type { FillRule, SvgFillDef } from '../core/types';
  * </mc-bar-chart>
  * ```
  */
-export class MCDefElement extends HTMLElement {
+export class MCDefElement extends HTMLElementBase {
   static observedAttributes = [
     'id',
     'def-id',
