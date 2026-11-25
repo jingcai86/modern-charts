@@ -194,6 +194,9 @@ function syncActiveViewTheme(pref: ThemeModePreference): void {
       chart.setConfig({
         ...chart.config,
         themeMode: pref,
+        isInteractive: false,
+        animate: false,
+        labelMode: 'svg',
         xTitle: undefined,
         yTitle: undefined,
         view: chart.config.view

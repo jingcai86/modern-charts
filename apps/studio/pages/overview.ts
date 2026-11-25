@@ -317,14 +317,17 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
     ) as HTMLElement;
     const chartEl = document.createElement(entry.tagName) as MCBaseChart<any>;
     const cfg = getOrInitChartConfig(entry);
-    stage.appendChild(chartEl);
     chartEl.setConfig({
       ...cfg,
       themeMode: getGlobalThemeMode(),
+      isInteractive: false,
+      animate: false,
+      labelMode: 'svg',
       xTitle: undefined,
       yTitle: undefined,
       view: cfg.view ? { ...cfg.view, showControls: false } : undefined
     });
+    stage.appendChild(chartEl);
     mountedCharts.push(chartEl);
   });
 

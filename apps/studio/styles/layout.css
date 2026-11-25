@@ -524,6 +524,11 @@ button.btn-primary:hover {
   z-index: 2;
 }
 
+.overview-card:nth-child(n+5) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 336px;
+}
+
 .overview-card-header {
   display: flex;
   align-items: center;
@@ -544,6 +549,7 @@ button.btn-primary:hover {
   border: 1px solid var(--border-subtle);
   background: var(--bg-code);
   pointer-events: none;
+  contain: layout style paint;
 }
 
 /* Home Page Two-Tab Interface (Chart Examples vs. Guides & Resources) */
@@ -717,6 +723,11 @@ button.btn-primary:hover {
   outline-offset: 2px;
 }
 
+.overview-guide-card:nth-child(n+5) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 244px;
+}
+
 .overview-guide-preview {
   height: 124px;
   width: 100%;
@@ -728,6 +739,7 @@ button.btn-primary:hover {
   justify-content: center;
   padding: 10px 16px;
   color: var(--text-main);
+  contain: layout style paint;
 }
 
 .overview-guide-preview svg {

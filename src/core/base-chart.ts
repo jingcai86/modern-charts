@@ -363,6 +363,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
   #internals: ElementInternals | null = null;
   #resizeObserver: ResizeObserver | null = null;
+  #lastRenderedWidth = 0;
+  #lastRenderedHeight = 0;
   #mutationObserver: MutationObserver | null = null;
   #viewTransform = { k: 1, x: 0, y: 0 };
   #viewController: {
@@ -2071,6 +2073,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (!svg || !rootGroup || !viewportGroup) return;
 
     const dims = this.resolveDimensions();
+    this.#lastRenderedWidth = dims.width;
+    this.#lastRenderedHeight = dims.height;
     const isInteractive = this.resolveIsInteractive();
     this._lastMargin = dims.margin;
     this.eventEngine.resetHoverState();
@@ -3309,14 +3313,25 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   }
 
   #syncAutoSizeObserver(): void {
-    this.#teardownAutoSizeObserver();
     this.#setCustomState('auto-size', this.autoSize);
-    if (!this.autoSize || typeof ResizeObserver === 'undefined') return;
+    if (!this.autoSize || typeof ResizeObserver === 'undefined') {
+      this.#teardownAutoSizeObserver();
+      return;
+    }
+    if (this.#resizeObserver) return;
 
     this.#resizeObserver = new ResizeObserver(() => {
-      if (this._isConnected) {
-        this.render();
+      if (!this._isConnected) return;
+      const dims = this.resolveDimensions();
+      if (
+        dims.width > 0 &&
+        dims.height > 0 &&
+        dims.width === this.#lastRenderedWidth &&
+        dims.height === this.#lastRenderedHeight
+      ) {
+        return;
       }
+      this.render();
     });
 
     this.#resizeObserver.observe(this);

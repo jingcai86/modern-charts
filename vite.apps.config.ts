@@ -12,7 +12,17 @@ export default defineConfig({
   },
   build: {
     outDir: resolve(import.meta.dirname, 'dist-examples'),
-    emptyOutDir: true
+    emptyOutDir: true,
+    rolldownOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules')) return 'vendor';
+          if (id.includes('/apps/studio/guides/')) return 'studio-guides';
+          if (id.includes('/src/')) return 'modern-charts';
+          return undefined;
+        }
+      }
+    }
   },
   server: {
     port: 5173
