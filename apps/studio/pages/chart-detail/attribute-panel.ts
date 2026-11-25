@@ -8,7 +8,7 @@ import {
   buildMarkersForVirtualState,
   type ChartVirtualState
 } from '../../state/config-store';
-import { escapeHtml } from '../../guides/shared';
+import { escapeHtml } from '../../utils/html';
 import { getByPath, setByPath } from '../../utils/object-path';
 import {
   renderSectionInfoTooltip,

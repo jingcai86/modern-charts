@@ -1,4 +1,4 @@
-import { escapeHtml } from '../../guides/shared';
+import { escapeHtml } from '../../utils/html';
 
 let globalListenersWired = false;
 let supportsHintPopover: boolean | null = null;

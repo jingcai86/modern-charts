@@ -1,13 +1,19 @@
 import type { MCBaseChart } from '../../../src/index';
 import { CHART_CATALOG } from '../catalog';
-import { GUIDES_CATALOG, type GuideId } from '../guides';
-import { escapeHtml } from '../guides/shared';
+import { GUIDES_CATALOG, type GuideId } from '../guides/types';
+import { escapeHtml } from '../utils/html';
 import { getOrInitChartConfig } from '../state/config-store';
 import { getGlobalThemeMode } from '../state/theme';
 
 type HomeTabId = 'examples' | 'guides';
 
 const HOME_TAB_STORAGE_KEY = 'modern-charts-studio-home-tab';
+const overviewCleanups = new WeakMap<HTMLElement, () => void>();
+
+export function disposeOverviewPage(root: HTMLElement): void {
+  overviewCleanups.get(root)?.();
+  overviewCleanups.delete(root);
+}
 
 function readStoredHomeTab(): HomeTabId {
   try {
@@ -215,6 +221,7 @@ function createGuidesGrid(): HTMLElement {
  */
 export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   const mountedCharts: MCBaseChart<any>[] = [];
+  disposeOverviewPage(root);
   root.replaceChildren();
 
   const initialTab = readStoredHomeTab();
@@ -286,6 +293,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
 
   const pendingQueue: MCBaseChart<any>[] = [];
   let isDrainingQueue = false;
+  let disposed = false;
 
   async function yieldToMain(): Promise<void> {
     const g = globalThis as any;
@@ -297,7 +305,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   }
 
   async function drainRenderQueue(): Promise<void> {
-    if (isDrainingQueue) return;
+    if (isDrainingQueue || examplesPanel.hidden || disposed || pendingQueue.length === 0) return;
     isDrainingQueue = true;
     await new Promise<void>((resolve) => {
       if (typeof requestAnimationFrame === 'function') {
@@ -307,20 +315,18 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
       }
     });
     while (pendingQueue.length > 0) {
+      await yieldToMain();
+      if (examplesPanel.hidden || disposed) break;
       const nextChart = pendingQueue.shift()!;
       if (!nextChart.isConnected) continue;
-      await yieldToMain();
-      if (!nextChart.isConnected) continue;
       nextChart.removeAttribute('data-defer-initial-render');
-      if (typeof nextChart.render === 'function') {
-        nextChart.render();
-      }
+      nextChart.render();
     }
     isDrainingQueue = false;
   }
 
   function enqueueChartRender(chart: MCBaseChart<any>): void {
-    if (!pendingQueue.includes(chart)) {
+    if (!disposed && !pendingQueue.includes(chart)) {
       pendingQueue.push(chart);
     }
     void drainRenderQueue();
@@ -341,9 +347,14 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
               }
             }
           },
-          { rootMargin: '240px 0px' }
+          { rootMargin: '160px 0px' }
         )
       : null;
+  overviewCleanups.set(root, () => {
+    disposed = true;
+    pendingQueue.length = 0;
+    cardObserver?.disconnect();
+  });
 
   CHART_CATALOG.forEach((entry) => {
     const card = document.createElement('a');
@@ -428,10 +439,12 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
     // Re-render overview charts once Examples becomes visible so responsive widths are exact
     if (nextId === 'examples') {
       requestAnimationFrame(() => {
+        if (disposed || examplesPanel.hidden) return;
         mountedCharts.forEach((chart) => {
           if (typeof chart.render === 'function') chart.render();
         });
       });
+      void drainRenderQueue();
     }
   };
 

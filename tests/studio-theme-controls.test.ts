@@ -171,17 +171,21 @@ describe('Studio Theme and Appearance controls', () => {
     expect(readColors(detailChart())).toEqual(neutral);
   }, 15_000);
 
-  it('keeps guide editors consistent with the selected default and preserves custom theme examples', () => {
+  it('keeps lazy guide navigation and editors consistent with the selected theme', async () => {
     select(paletteSelect, 'bootstrap');
+    route('#/guide/i18n');
     route('#/guide/themes');
+    select(appearanceSelect, 'dark');
     const guideBar = () => document.querySelector<MCBaseChart<any>>('#guide-theme-bar > *')!;
     const editor = () => document.querySelector<HTMLTextAreaElement>('#guide-theme-code-1 textarea')!;
+    await vi.waitFor(() => expect(guideBar()).not.toBeNull());
     expect(guideBar().config.palette).toBe('bootstrap');
     expect(document.querySelector<HTMLSelectElement>('#grad-palette-select')!.value).toBe('bootstrap');
     expect(parseConfigObjectLiteral(editor().value).palette).toBe('bootstrap');
-    select(appearanceSelect, 'dark');
-    expect(guideBar().config.palette).toBe('bootstrap');
     expect(guideBar().resolveTheme().mode).toBe('dark');
+    select(appearanceSelect, 'light');
+    expect(guideBar().config.palette).toBe('bootstrap');
+    expect(guideBar().resolveTheme().mode).toBe('light');
     select(paletteSelect, 'neutral');
     expect(document.querySelector<HTMLSelectElement>('#grad-palette-select')!.value).toBe('neutral');
     const custom = document.querySelector<MCBaseChart<any>>('#guide-custom-theme-chart > *')!;
