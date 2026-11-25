@@ -61,7 +61,6 @@ export function renderTruncationGuide(
       <div>
         <h2 class="panel-title">Example 1: Long Axis Categories, Rotation &amp; Full-Text Tooltips</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          <span id="tr-tooltip-hint">Hover or press <strong>Tab</strong> to read the full text of rotated or truncated labels.</span>
           Use the controls or edit <code>data</code> and <code>label.overflow</code> in the live config editor.
         </p>
       </div>
@@ -101,6 +100,9 @@ export function renderTruncationGuide(
           <code>enableTooltip</code>
         </label>
       </div>
+      <p id="tr-tooltip-hint" class="guide-prose">
+        Hover or press <strong>Tab</strong> to read the full text of rotated or truncated labels.
+      </p>
     </div>
     <div class="guide-example-grid">
       <div style="overflow-x:auto;">

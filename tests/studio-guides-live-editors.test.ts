@@ -227,6 +227,9 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     const button = root.querySelector<HTMLButtonElement>(`[data-trunc-strat="${strategy}"]`)!;
     button.click();
     expect(button.getAttribute('aria-pressed')).toBe('true');
+    const tooltipHint = root.querySelector<HTMLElement>('#tr-tooltip-hint')!;
+    expect(tooltipHint.closest('.panel-header')).toBeNull();
+    expect(tooltipHint.hidden).toBe(!visible.some((control) => control === 'enableTooltip'));
     const labels = root.querySelectorAll<HTMLLabelElement>('[data-trunc-control]');
     expect(Array.from(labels).filter(label => !label.hidden).map(label => label.dataset.truncControl))
       .toEqual(visible);
