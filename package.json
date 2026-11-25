@@ -1,6 +1,6 @@
 {
   "name": "modern-charts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Composable, framework-agnostic Web Component charting library inspired by Nivo and Apache ECharts, powered solely by D3 and @chenglou/pretext.",
   "type": "module",
   "main": "./dist/index.js",
