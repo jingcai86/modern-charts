@@ -3,15 +3,11 @@ import {
   parseConfigObjectLiteral,
   restoreSerializedFunctions
 } from '../utils/code-sync';
+import { escapeHtml } from '../utils/html';
 import { isUnsafePathKey } from '../utils/object-path';
 import { GUIDES_CATALOG, type GuideId } from './types';
 
-export function escapeHtml(raw: string): string {
-  return raw
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
+export { escapeHtml } from '../utils/html';
 
 // ============================================================================
 // Accessible Copy-Button Wiring (Invoker Commands + Fallback)

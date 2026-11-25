@@ -3,7 +3,7 @@ import {
   getAllAttributesForChart,
   type ChartCatalogEntry
 } from '../../catalog';
-import { escapeHtml } from '../../guides/shared';
+import { escapeHtml } from '../../utils/html';
 import { generateRandomDataForChart } from '../../sample-data';
 import {
   getChartVirtualState,

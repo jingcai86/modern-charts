@@ -1,6 +1,6 @@
 import type { ChartConfig } from '../../../../src/index';
 import type { ChartAttributeSpec, ChartCatalogEntry } from '../../catalog';
-import { escapeHtml } from '../../guides/shared';
+import { escapeHtml } from '../../utils/html';
 import { getGlobalThemeMode } from '../../state/theme';
 import {
   renderSectionInfoTooltip,

@@ -6,8 +6,8 @@ import {
   type ThemeModePreference
 } from '../../src/index';
 import { CHART_CATALOG, type ChartCatalogEntry } from './catalog';
-import { GUIDES_CATALOG, renderGuidePage, type GuideId } from './guides';
-import { renderOverviewPage, writeStoredHomeTab } from './pages/overview';
+import { GUIDES_CATALOG, type GuideId } from './guides/types';
+import { disposeOverviewPage, renderOverviewPage, writeStoredHomeTab } from './pages/overview';
 import { renderChartDetailPage } from './pages/chart-detail';
 import { syncAllStoredConfigsPalette, syncAllStoredConfigsTheme } from './state/config-store';
 import {
@@ -31,7 +31,8 @@ document.title = `modern-charts v${VERSION} — Composable Web Component Charts`
 let activeOverviewCharts: MCBaseChart<any>[] = [];
 let activeDetailChart: MCBaseChart<any> | null = null;
 let activeDetailEntry: ChartCatalogEntry | null = null;
-let activeGuideId: GuideId | null = null;
+let activeGuide: { id: GuideId } | null = null;
+let renderGuidePage: typeof import('./guides/index').renderGuidePage | undefined;
 
 // Primary Navigation Popover Dropdown
 const siteNav = document.querySelector('.site-nav') as HTMLElement | null;
@@ -123,6 +124,31 @@ function syncTopNavActiveState(activeKey: string, showDropdown: boolean): void {
   }
 }
 
+async function loadGuidePage(root: HTMLElement, id: GuideId, hash: string): Promise<void> {
+  const guide = { id };
+  activeGuide = guide;
+  if (renderGuidePage) {
+    renderGuidePage(root, id, getGlobalThemeMode());
+    return;
+  }
+
+  const status = document.createElement('p');
+  status.setAttribute('role', 'status');
+  status.textContent = 'Loading guide…';
+  root.replaceChildren(status);
+
+  const isCurrentGuide = () => activeGuide === guide && window.location.hash === hash;
+  try {
+    ({ renderGuidePage } = await import('./guides/index'));
+  } catch {
+    if (isCurrentGuide()) {
+      status.textContent = 'Could not load this guide. Reload the page to try again.';
+    }
+    return;
+  }
+  if (isCurrentGuide()) renderGuidePage(root, id, getGlobalThemeMode());
+}
+
 function handleRoute(): void {
   const root = document.getElementById('app-root');
   if (!root) return;
@@ -131,14 +157,14 @@ function handleRoute(): void {
 
   const guideMatch = hash.match(/^#\/guides?(?:\/([a-z0-9-]+))?$/i);
   if (guideMatch) {
+    disposeOverviewPage(root);
     const requested = (guideMatch[1] ?? 'custom-layers').toLowerCase() as GuideId;
     const found = GUIDES_CATALOG.find((g) => g.id === requested);
     const resolvedId: GuideId = found ? found.id : 'custom-layers';
     activeDetailChart = null;
     activeDetailEntry = null;
     activeOverviewCharts = [];
-    activeGuideId = resolvedId;
-    renderGuidePage(root, resolvedId, getGlobalThemeMode());
+    void loadGuidePage(root, resolvedId, hash);
     syncTopNavActiveState(`guide:${resolvedId}`, true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
@@ -149,7 +175,8 @@ function handleRoute(): void {
     const chartId = chartMatch[1].toLowerCase();
     const entry = CHART_CATALOG.find((c) => c.id === chartId);
     if (entry) {
-      activeGuideId = null;
+      disposeOverviewPage(root);
+      activeGuide = null;
       activeOverviewCharts = [];
       activeDetailEntry = entry;
       activeDetailChart = renderChartDetailPage(root, entry);
@@ -161,7 +188,7 @@ function handleRoute(): void {
 
   activeDetailChart = null;
   activeDetailEntry = null;
-  activeGuideId = null;
+  activeGuide = null;
   activeOverviewCharts = renderOverviewPage(root);
   syncTopNavActiveState('overview', false);
 }
@@ -185,8 +212,8 @@ function syncActiveViewTheme(pref: ThemeModePreference): void {
   syncAllStoredConfigsTheme(pref);
 
   const root = document.getElementById('app-root')!;
-  if (activeGuideId) {
-    renderGuidePage(root, activeGuideId, pref);
+  if (activeGuide) {
+    renderGuidePage?.(root, activeGuide.id, pref);
   } else if (activeDetailChart && activeDetailEntry) {
     activeDetailChart = renderChartDetailPage(root, activeDetailEntry);
   } else {
@@ -225,8 +252,8 @@ function syncActiveViewPalette(palette: BuiltInPaletteName): void {
   syncAllStoredConfigsPalette(palette);
   const root = document.getElementById('app-root');
   if (!root) return;
-  if (activeGuideId) {
-    renderGuidePage(root, activeGuideId, getGlobalThemeMode());
+  if (activeGuide) {
+    renderGuidePage?.(root, activeGuide.id, getGlobalThemeMode());
   } else if (activeDetailChart && activeDetailEntry) {
     activeDetailChart = renderChartDetailPage(root, activeDetailEntry);
   } else {

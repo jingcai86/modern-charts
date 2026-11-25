@@ -2062,7 +2062,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   protected afterRender(_ctx: ChartRenderContext<TData>): void {}
 
   public render(): void {
-    if (!this.shadowRoot) return;
+    // Internal layers can request a render during connection, before a deferred chart is visible.
+    if (!this.shadowRoot || this.hasAttribute('data-defer-initial-render')) return;
 
     const svg = this.shadowRoot.querySelector(
       '.mc-chart-svg'

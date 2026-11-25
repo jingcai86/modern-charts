@@ -1,11 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../src/index';
-import { renderOverviewPage } from '../apps/studio/pages/overview';
+import { disposeOverviewPage, renderOverviewPage } from '../apps/studio/pages/overview';
 
 afterEach(() => {
   document.body.replaceChildren();
   localStorage.clear();
   history.replaceState(null, '', '#/');
+  vi.unstubAllGlobals();
 });
 
 describe('Studio overview navigation', () => {
@@ -29,5 +30,40 @@ describe('Studio overview navigation', () => {
     expect(cards[0].getAttribute('href')).toBe('#/chart/line');
     cards[0].click();
     expect(window.location.hash).toBe('#/chart/line');
+  });
+
+  it('keeps previews unrendered until their cards approach the viewport', async () => {
+    let deliverIntersections!: IntersectionObserverCallback;
+    const disconnect = vi.fn();
+    class PreviewObserver {
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = disconnect;
+
+      constructor(callback: IntersectionObserverCallback) {
+        deliverIntersections = callback;
+      }
+    }
+    vi.stubGlobal('IntersectionObserver', PreviewObserver);
+
+    const root = document.createElement('main');
+    document.body.append(root);
+    const charts = renderOverviewPage(root);
+    const [nearby, offscreen] = charts;
+    const plot = (chart: typeof nearby) => chart.shadowRoot!.querySelector('.mc-chart-root')!;
+    const layer = offscreen.shadowRoot!.querySelector('mc-theme-layer')!;
+    layer.dispatchEvent(new CustomEvent('mc-layer-change', { bubbles: true, composed: true }));
+    expect(plot(offscreen).childElementCount).toBe(0);
+
+    const card = nearby.closest('.overview-card')!;
+    deliverIntersections(
+      [{ target: card, isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver
+    );
+    await vi.waitFor(() => expect(plot(nearby).childElementCount).toBeGreaterThan(0));
+    expect(plot(offscreen).childElementCount).toBe(0);
+
+    disposeOverviewPage(root);
+    expect(disconnect).toHaveBeenCalledOnce();
   });
 });
