@@ -130,11 +130,19 @@ jobs:
         run: npm run build
 
       - name: Verify build artifacts & bundle size
+        shell: bash
         run: |
           test -f dist/index.js
           test -f dist/index.d.ts
           test -f LICENSE
-          npm run size
+          npm run --silent size -- --json | tee "$RUNNER_TEMP/release-size-limit.json"
+
+      - name: Generate standardized release notes
+        env:
+          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+          RELEASE_TAG: ${{ steps.meta.outputs.tag }}
+          RELEASE_DIST_TAG: ${{ steps.meta.outputs.dist_tag }}
+        run: node .github/scripts/generate-release-notes.mjs < "$RUNNER_TEMP/release-size-limit.json"
 
       - name: Pack distribution tarball
         id: pack
@@ -151,13 +159,6 @@ jobs:
       - name: Dry-run npm publish check
         if: ${{ inputs.dry_run == true }}
         run: npm publish --dry-run --access public --tag "${{ steps.meta.outputs.dist_tag }}"
-
-      - name: Generate standardized release notes
-        env:
-          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
-          RELEASE_TAG: ${{ steps.meta.outputs.tag }}
-          RELEASE_DIST_TAG: ${{ steps.meta.outputs.dist_tag }}
-        run: node .github/scripts/generate-release-notes.mjs
 
       - name: Create GitHub Release & Git Tag
         if: ${{ inputs.dry_run != true }}
