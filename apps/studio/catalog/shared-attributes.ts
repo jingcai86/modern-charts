@@ -245,11 +245,13 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
       { label: 'truncate (default ellipsis)', value: 'truncate' },
       { label: 'rotate (tilt up to maxRotation)', value: 'rotate' },
       { label: 'both (rotate + truncate)', value: 'both' },
-      { label: 'wrap (multi-line Pretext)', value: 'wrap' },
+      { label: 'wrap (keep all text)', value: 'wrap' },
+      { label: 'wrap + truncate', value: 'wrap-truncate' },
+      { label: 'rotate + wrap + truncate', value: 'rotate-wrap-truncate' },
       { label: 'none (no overflow handling)', value: 'none' }
     ],
     description:
-      'Overflow strategy applied via @chenglou/pretext whenever a label exceeds maxWidth or maxChars.',
+      'Choose how @chenglou/pretext lays out long labels. Wrap keeps all text, and the truncating modes apply the configured limits.',
     defaultValue: 'truncate'
   },
   {
@@ -273,7 +275,7 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     max: 32,
     step: 1,
     description:
-      'Maximum grapheme character count before overflow triggers (0 = unlimited).',
+      'Grapheme limit for truncating modes, or a trigger for Rotate. Set 0 for unlimited.',
     defaultValue: 0
   },
   {
@@ -285,7 +287,7 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     max: 90,
     step: 5,
     description:
-      'Maximum rotation angle in degrees when strategy is "rotate" or "both" (default 45; supports negative angles like -45).',
+      'Automatic rotation angle in degrees for rotate, both, and rotate-wrap-truncate. Defaults to 45 and accepts negative angles.',
     defaultValue: 45
   },
   {
@@ -294,7 +296,7 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     category: 'Universal Label (<mc-label>)',
     control: 'boolean',
     description:
-      'Reveals full untruncated label text in a tooltip on hover and keyboard focus (enabled by default).',
+      'Shows the full text of truncated or automatically rotated labels on hover and keyboard focus. Enabled by default.',
     defaultValue: true
   },
 

@@ -69,7 +69,7 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     shortLabel: 'Truncation',
     icon: '✂️',
     summary:
-      'Zero-reflow @chenglou/pretext truncation, character caps, ellipsis, 45°/-45° text rotation, and automatic full-text tooltips across axes, legends, and standalone <mc-truncate>.'
+      'Explore wrapping, character and line limits, ellipses, rotation, and full-text tooltips across axes, legends, and standalone <mc-truncate>.'
   },
   {
     id: 'events',

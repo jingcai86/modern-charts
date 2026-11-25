@@ -131,14 +131,14 @@ interface SharedChartConfig<TData> {
   labelMode?: 'svg' | 'foreignObject' | 'custom';
   label?: Partial<LabelStyleOverride> | Partial<LabelStyleOverride>[];
   labelRenderer?: CustomLabelRenderer;
-  labelOverflow?: 'truncate' | 'rotate' | 'both' | 'wrap' | 'none' | {
-    strategy?: 'truncate' | 'rotate' | 'both' | 'wrap' | 'none'; // default 'truncate'
+  labelOverflow?: 'truncate' | 'rotate' | 'both' | 'wrap' | 'wrap-truncate' | 'rotate-wrap-truncate' | 'none' | {
+    strategy?: 'truncate' | 'rotate' | 'both' | 'wrap' | 'wrap-truncate' | 'rotate-wrap-truncate' | 'none'; // default 'truncate'
     maxWidth?: number;    // Pretext pixel width threshold
     maxChars?: number;    // grapheme character count threshold
-    maxLines?: number;    // max lines for multi-line / 'wrap'
+    maxLines?: number;    // maximum lines in truncating modes
     ellipsis?: string;    // default '…'
-    maxRotation?: number; // default 45 (supports negative e.g. -45) for 'rotate' | 'both'
-    enableTooltip?: boolean; // default true on truncated labels; set false to disable
+    maxRotation?: number; // default 45 (supports negatives) for strategies that rotate
+    enableTooltip?: boolean; // default true for truncated and automatically rotated labels
     tooltip?: boolean | TooltipConfig<LabelDescriptor>; // customizable full-text tooltip
   };
 
@@ -282,7 +282,17 @@ Note: When any marker defines an outside `annotation` (`left`, `right`, `top`, o
 
 Every text label in every chart (ticks, titles, bar/point/arc/cell values, markers, legends, center labels) renders via `@chenglou/pretext` with zero DOM reflow.
 
-When a label exceeds `maxWidth` or `maxChars`, overflow defaults to `'truncate'` (ellipsis with an automatic hover/keyboard tooltip revealing the full text, customizable via `tooltip` and disableable via `enableTooltip: false`). Clients can also select `'rotate'` (45° default max rotation, customizable including negative angles like `-45`), `'both'` (rotate + truncate), `'wrap'` (multi-line Pretext wrapping), or `'none'`.
+Label overflow defaults to `'truncate'`. Select a strategy to control how long labels render.
+
+- `'truncate'` fits text to its limits and adds an ellipsis when text is removed.
+- `'rotate'` turns overflowing labels by `maxRotation`, which defaults to 45° and accepts negative angles.
+- `'both'` combines rotation and truncation.
+- `'wrap'` breaks the label into lines based on available width and keeps the full text.
+- `'wrap-truncate'` wraps the label and applies character or line limits. Use this strategy when migrating an existing `'wrap'` config that relied on truncation.
+- `'rotate-wrap-truncate'` adds automatic rotation to the wrapping and truncation mode.
+- `'none'` leaves the label unchanged by automatic overflow handling.
+
+Truncated and automatically rotated labels show the full text on hover and keyboard focus by default. Use `tooltip` to customize the tooltip or set `enableTooltip: false` to disable it.
 
 Target types (`for` attribute on `<mc-label>` / `<mc-truncate>` or `target` in `config.label`):
 `'all' | 'axis-tick' | 'axis-title' | 'data' | 'bar-outer' | 'arc' | 'arc-link' | 'cell' | 'radar-axis' | 'radar-point' | 'node' | 'link' | 'legend' | 'title' | 'center' | 'marker' | 'custom'`.

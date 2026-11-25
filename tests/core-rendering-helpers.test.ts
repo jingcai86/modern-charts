@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSequentialColorScale } from '../src/core/color-schemes';
 import { formatAxisNumber, formatDisplayValue, formatGroupedNumber } from '../src/core/format';
 import { createChartI18n } from '../src/core/i18n';
+import { needsFullTextTooltip } from '../src/core/label-overflow';
 import {
+  normalizeOverflowStrategy,
   resolveLabelOverflowConfig,
   splitGraphemes,
   truncateSingleLine,
@@ -104,6 +106,9 @@ describe('label clipping and wrapping', () => {
       ellipsis: '...', maxRotation: 45, enableTooltip: false
     });
     expect(resolveLabelOverflowConfig({ overflow: 'invalid' as 'none' }).strategy).toBe('truncate');
+    expect(normalizeOverflowStrategy(' WRAP-TRUNCATE ')).toBe('wrap-truncate');
+    expect(normalizeOverflowStrategy(' ROTATE-WRAP-TRUNCATE ')).toBe('rotate-wrap-truncate');
+    expect(resolveLabelOverflowConfig({ maxLines: 0.5 }).maxLines).toBe(1);
   });
 
   it('fits ellipses without splitting emoji or combining marks', () => {
@@ -125,17 +130,53 @@ describe('label clipping and wrapping', () => {
     });
   });
 
-  it('truncates wrapped content at the final visible line', () => {
+  it('wraps all the text even when character, line, and height limits are supplied', () => {
     const wrapped = truncateTextWithPretext('day week month', {
-      strategy: 'wrap', maxWidth: 48, maxLines: 3, maxHeight: 20, lineHeight: 10
+      strategy: 'wrap', maxWidth: 48, maxChars: 3, maxLines: 1, maxHeight: 10, lineHeight: 10
+    });
+    expect(wrapped.lines.map((line) => line.text.trimEnd())).toEqual(['day', 'week', 'month']);
+    expect(wrapped).toMatchObject({ truncated: false, overflowTriggered: true, appliedRotation: 0 });
+    expect(needsFullTextTooltip(wrapped)).toBe(false);
+
+    const explicitBreaks = truncateTextWithPretext('Q1\n\nQ3', { strategy: 'wrap', maxWidth: 100 });
+    expect(explicitBreaks.text).toBe('Q1\n\nQ3');
+    expect(explicitBreaks.overflowTriggered).toBe(false);
+
+    const emoji = '👨‍👩‍👧‍👦';
+    const widerGlyph = truncateTextWithPretext(emoji, { strategy: 'wrap', maxWidth: 12 });
+    expect(widerGlyph.text).toBe(emoji);
+    expect(widerGlyph.width).toBeGreaterThan(12);
+    expect(widerGlyph.width).toBe(widerGlyph.naturalWidth);
+  });
+
+  it('truncates wrapped content at the final visible line only in the combined modes', () => {
+    const wrapped = truncateTextWithPretext('day week month', {
+      strategy: 'wrap-truncate', maxWidth: 48, maxLines: 3, maxHeight: 20, lineHeight: 10
     });
     expect(wrapped.lines.map((line) => line.text.trimEnd())).toEqual(['day', 'week…']);
     expect(wrapped.width).toBeLessThanOrEqual(48);
     expect(wrapped.truncated).toBe(true);
+    expect(needsFullTextTooltip(wrapped)).toBe(true);
 
-    const limited = truncateTextWithPretext('abcdefghij', { strategy: 'wrap', maxChars: 5 });
+    const limited = truncateTextWithPretext('abcdefghij', { strategy: 'wrap-truncate', maxChars: 5 });
     expect(limited.text).toBe('abcd…');
     expect(limited.truncated).toBe(true);
+  });
+
+  it('combines rotation, wrapping, and truncation when a label overflows', () => {
+    const options = { strategy: 'rotate-wrap-truncate' as const, maxWidth: 48, maxRotation: -35 };
+    const truncated = truncateTextWithPretext('day week month', { ...options, maxLines: 2 });
+    expect(truncated.lines.map((line) => line.text.trimEnd())).toEqual(['day', 'week…']);
+    expect(truncated).toMatchObject({ truncated: true, overflowTriggered: true, appliedRotation: -35 });
+
+    const wrapped = truncateTextWithPretext('day week month', options);
+    expect(wrapped.lines.map((line) => line.text.trimEnd())).toEqual(['day', 'week', 'month']);
+    expect(wrapped).toMatchObject({ truncated: false, overflowTriggered: true, appliedRotation: -35 });
+    expect(needsFullTextTooltip(wrapped)).toBe(true);
+
+    const fitting = truncateTextWithPretext('day', { ...options, maxChars: 9 });
+    expect(fitting).toMatchObject({ text: 'day', truncated: false, overflowTriggered: false, appliedRotation: 0 });
+    expect(needsFullTextTooltip(fitting)).toBe(false);
   });
 
   it('marks omitted explicit lines and respects custom ellipses and character limits', () => {
@@ -153,8 +194,10 @@ describe('label clipping and wrapping', () => {
     expect(rotated).toMatchObject({
       text: 'Long label', appliedRotation: -25, truncated: false, overflowTriggered: true
     });
-    expect(truncateTextWithPretext('Long label', { ...options, maxRotation: 0 }).appliedRotation)
-      .toBe(0);
+    expect(needsFullTextTooltip(rotated)).toBe(true);
+    const disabledRotation = truncateTextWithPretext('Long label', { ...options, maxRotation: 0 });
+    expect(disabledRotation.appliedRotation).toBe(0);
+    expect(needsFullTextTooltip(disabledRotation)).toBe(false);
     expect(truncateTextWithPretext('Short', { ...options, maxWidth: 100 }).appliedRotation)
       .toBe(-60);
   });

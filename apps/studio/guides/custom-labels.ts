@@ -1,10 +1,13 @@
 import { getGlobalPalette } from '../state/theme';
 import type {
   LabelDescriptor,
+  LabelOverflowConfig,
+  LabelOverflowStrategy,
   MCBaseChart,
   MeasuredLabel,
   ThemeModePreference
 } from '../../../src/index';
+import { getLabelOverflowCapabilities, LABEL_OVERFLOW_MODES } from './label-overflow-controls';
 import { createLiveConfigEditor } from './shared';
 
 export function renderCustomLabelsGuide(
@@ -264,11 +267,9 @@ export function renderCustomLabelsGuide(
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
-        <button type="button" data-ov-strat="truncate" class="btn-primary">truncate</button>
-        <button type="button" data-ov-strat="rotate">rotate</button>
-        <button type="button" data-ov-strat="both">both</button>
-        <button type="button" data-ov-strat="wrap">wrap</button>
-        <button type="button" data-ov-strat="none">none</button>
+        ${LABEL_OVERFLOW_MODES.map(({ strategy, label }) =>
+          `<button type="button" data-ov-strat="${strategy}">${label}</button>`
+        ).join('')}
       </div>
     </div>
     <div class="guide-controls-row" style="flex-wrap:wrap;gap:14px;margin:0 0 12px;">
@@ -280,13 +281,17 @@ export function renderCustomLabelsGuide(
         <code>maxChars</code>: <strong id="lbl-maxchars-val">off</strong>
         <input type="range" id="lbl-maxchars-slider" min="0" max="26" step="1" value="0" style="vertical-align:middle;margin-left:6px;" />
       </label>
+      <label for="lbl-maxlines-slider" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
+        <code>maxLines</code>: <strong id="lbl-maxlines-val">2</strong>
+        <input type="range" id="lbl-maxlines-slider" min="0" max="6" step="1" value="2" style="vertical-align:middle;margin-left:6px;" />
+      </label>
       <label for="lbl-maxrot-slider" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">
         <code>maxRotation</code>: <strong id="lbl-maxrot-val">-45°</strong>
         <input type="range" id="lbl-maxrot-slider" min="-90" max="90" step="5" value="-45" style="vertical-align:middle;margin-left:6px;" />
       </label>
-      <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+      <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;cursor:pointer;">
         <input type="checkbox" id="lbl-tooltip-toggle" checked />
-        <code>enableTooltip</code> (hover/Tab truncated labels)
+        <code>enableTooltip</code>
       </label>
     </div>
     <div class="guide-example-grid">
@@ -302,9 +307,10 @@ export function renderCustomLabelsGuide(
 
   const code2Host = ex2.querySelector('#guide-label-code-2') as HTMLElement;
 
-  let ovStrategy: 'truncate' | 'rotate' | 'both' | 'wrap' | 'none' = 'truncate';
+  let ovStrategy: LabelOverflowStrategy = 'truncate';
   let tickMaxWidth = 82;
   let tickMaxChars = 0;
+  let tickMaxLines = 2;
   let tickMaxRotation = -45;
   let tickEnableTooltip = true;
 
@@ -316,18 +322,16 @@ export function renderCustomLabelsGuide(
   ];
 
   const buildOverflowConfig = () => {
-    const overflowCfg: Record<string, any> = {
-      strategy: ovStrategy,
-      maxWidth: tickMaxWidth,
-      maxRotation: tickMaxRotation,
-      enableTooltip: tickEnableTooltip
-    };
-    if (tickMaxChars > 0) overflowCfg.maxChars = tickMaxChars;
+    const capabilities = getLabelOverflowCapabilities(ovStrategy);
+    const overflowCfg: LabelOverflowConfig = { strategy: ovStrategy };
+    if (capabilities.maxWidth) overflowCfg.maxWidth = tickMaxWidth;
+    if (capabilities.maxChars && tickMaxChars > 0) overflowCfg.maxChars = tickMaxChars;
+    if (capabilities.maxLines && tickMaxLines > 0) overflowCfg.maxLines = tickMaxLines;
+    if (capabilities.maxRotation) overflowCfg.maxRotation = tickMaxRotation;
+    if (capabilities.enableTooltip) overflowCfg.enableTooltip = tickEnableTooltip;
 
     return {
-      title: `Pretext Overflow: strategy="${ovStrategy}" (maxWidth: ${tickMaxWidth}px${
-        tickMaxChars > 0 ? `, maxChars: ${tickMaxChars}` : ''
-      })`,
+      title: `Pretext Overflow — strategy="${ovStrategy}"`,
       data: deptData,
       label: {
         target: 'axis-tick',
@@ -339,6 +343,7 @@ export function renderCustomLabelsGuide(
 
   const applyOverflowConfig = (cfg: Record<string, any>) => {
     const strat = cfg.label?.overflow?.strategy ?? ovStrategy;
+    const { maxRotation: rotates } = getLabelOverflowCapabilities(strat);
     wrapChart.setConfig({
       autoSize: true,
       themeMode,
@@ -349,7 +354,7 @@ export function renderCustomLabelsGuide(
       margin: {
         top: 44,
         right: 24,
-        bottom: strat === 'rotate' || strat === 'both' ? 116 : 84,
+        bottom: rotates || strat === 'wrap' ? 116 : 84,
         left: 50
       },
       layers: ['grid', 'axes', 'bars', 'labels'],
@@ -364,36 +369,55 @@ export function renderCustomLabelsGuide(
   const mwVal = ex2.querySelector('#lbl-maxwidth-val') as HTMLElement;
   const mcSlider = ex2.querySelector('#lbl-maxchars-slider') as HTMLInputElement;
   const mcVal = ex2.querySelector('#lbl-maxchars-val') as HTMLElement;
+  const linesSlider = ex2.querySelector('#lbl-maxlines-slider') as HTMLInputElement;
+  const linesVal = ex2.querySelector('#lbl-maxlines-val') as HTMLElement;
   const rotSlider = ex2.querySelector('#lbl-maxrot-slider') as HTMLInputElement;
   const rotVal = ex2.querySelector('#lbl-maxrot-val') as HTMLElement;
   const tipToggle = ex2.querySelector('#lbl-tooltip-toggle') as HTMLInputElement;
+  const overflowControls = {
+    maxWidth: mwSlider,
+    maxChars: mcSlider,
+    maxLines: linesSlider,
+    maxRotation: rotSlider,
+    enableTooltip: tipToggle
+  };
 
   const syncOverflowControls = () => {
-    stratButtons.forEach((b) =>
-      b.classList.toggle('btn-primary', b.dataset.ovStrat === ovStrategy)
-    );
+    const capabilities = getLabelOverflowCapabilities(ovStrategy);
+    for (const [key, input] of Object.entries(overflowControls)) {
+      input.closest('label')!.hidden = !capabilities[key as keyof typeof overflowControls];
+    }
+    for (const button of stratButtons) {
+      const selected = button.dataset.ovStrat === ovStrategy;
+      button.classList.toggle('btn-primary', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    }
     mwSlider.value = String(tickMaxWidth);
     mwVal.textContent = `${tickMaxWidth}px`;
     mcSlider.value = String(tickMaxChars);
     mcVal.textContent = tickMaxChars > 0 ? String(tickMaxChars) : 'off';
+    linesSlider.value = String(tickMaxLines);
+    linesVal.textContent = tickMaxLines > 0 ? String(tickMaxLines) : 'off';
     rotSlider.value = String(tickMaxRotation);
     rotVal.textContent = `${tickMaxRotation}°`;
     tipToggle.checked = tickEnableTooltip;
   };
 
+  syncOverflowControls();
   const initialOvCfg = buildOverflowConfig();
   applyOverflowConfig(initialOvCfg);
 
   const editor2 = createLiveConfigEditor({
     title: 'Pretext Truncation, Rotation & Tooltip Config (Live)',
     initialConfig: initialOvCfg,
-    hint: 'Edit strategy, maxWidth, maxChars, maxRotation, enableTooltip, or category text live.',
+    hint: 'Edit the overflow strategy, its settings, or the category text.',
     onConfigChange: (nextCfg) => {
       const ov = nextCfg.label?.overflow;
       if (ov) {
         if (ov.strategy) ovStrategy = ov.strategy;
         if (typeof ov.maxWidth === 'number') tickMaxWidth = ov.maxWidth;
         if (typeof ov.maxChars === 'number') tickMaxChars = ov.maxChars;
+        if (typeof ov.maxLines === 'number') tickMaxLines = ov.maxLines;
         if (typeof ov.maxRotation === 'number') tickMaxRotation = ov.maxRotation;
         if (typeof ov.enableTooltip === 'boolean') tickEnableTooltip = ov.enableTooltip;
         syncOverflowControls();
@@ -404,6 +428,7 @@ export function renderCustomLabelsGuide(
       ovStrategy = 'truncate';
       tickMaxWidth = 82;
       tickMaxChars = 0;
+      tickMaxLines = 2;
       tickMaxRotation = -45;
       tickEnableTooltip = true;
       syncOverflowControls();
@@ -423,7 +448,7 @@ export function renderCustomLabelsGuide(
 
   stratButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      ovStrategy = btn.dataset.ovStrat as typeof ovStrategy;
+      ovStrategy = btn.dataset.ovStrat as LabelOverflowStrategy;
       updateFromControls();
     });
   });
@@ -435,6 +460,11 @@ export function renderCustomLabelsGuide(
 
   mcSlider.addEventListener('input', () => {
     tickMaxChars = Number(mcSlider.value);
+    updateFromControls();
+  });
+
+  linesSlider.addEventListener('input', () => {
+    tickMaxLines = Number(linesSlider.value);
     updateFromControls();
   });
 

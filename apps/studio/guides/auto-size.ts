@@ -42,7 +42,7 @@ const workedBarConfig: ChartConfig<BarDatum[]> = {
     padding: { top: 4, right: 12, bottom: 4, left: 12 },
     maxItemWidth: 110
   },
-  label: { target: 'legend', overflow: 'wrap', maxLines: 2 },
+  label: { target: 'legend', overflow: 'wrap-truncate', maxLines: 2 },
   enableLabels: false,
   animate: false,
   layers: ['axes', 'bars', 'legends']
@@ -154,7 +154,7 @@ export function renderAutoSizeGuide(
     </div>
     <ol class="guide-prose auto-size-steps" start="6">
       <li><strong>Measure and wrap the legend labels.</strong> With <code>legend.maxItemWidth</code>
-        set to 110 and <code>label: { target: 'legend', overflow: 'wrap', maxLines: 2 }</code>,
+        set to 110 and <code>label: { target: 'legend', overflow: 'wrap-truncate', maxLines: 2 }</code>,
         Pretext measures each label and wraps it to up to two lines. The fixed width
         limit gives the same line breaks at both chart widths. Adding the 10-unit swatch
         and 5-unit gap gives measured entry widths of 104, 122, and 116 units with Arial at 12 px.</li>

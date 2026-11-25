@@ -590,6 +590,7 @@ const SAFE_ATTR_NAMES = new Set([
   'strategy',
   'max-width',
   'max-chars',
+  'max-lines',
   'max-rotation',
   'ellipsis',
   'enable-tooltip',

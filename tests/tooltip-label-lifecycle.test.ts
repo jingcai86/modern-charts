@@ -32,6 +32,43 @@ function tooltipPayload(): TooltipPayload {
 afterEach(() => document.body.replaceChildren());
 
 describe('tooltip customization', () => {
+  it('shows full-text tooltips on overflow-rotated chart labels while leaving short labels alone', () => {
+    const chart = document.createElement('mc-bar-chart') as MCBarChart;
+    const longCategory = 'Global Cloud Platform Infrastructure';
+    chart.config = {
+      width: 550, height: 420, indexBy: 'dept', keys: ['Spend'], animate: false,
+      data: [{ dept: longCategory, Spend: 45 }, { dept: 'Ops', Spend: 35 }],
+      label: { target: 'axis-tick', overflow: { strategy: 'rotate', maxWidth: 106, maxChars: 14, maxRotation: -45 } }
+    };
+    document.body.append(chart);
+    const tick = (index: number) => chart.shadowRoot!.querySelector<SVGGElement>(`[data-label-id="x-tick-${index}"]`)!;
+    const tooltip = chart.getTooltipElement()!;
+    const rotated = tick(0);
+    expect(rotated.textContent).toBe(longCategory);
+    expect(rotated.getAttribute('data-applied-rotation')).toBe('-45');
+    expect(rotated.getAttribute('data-truncated')).toBe('false');
+    expect(rotated.getAttribute('tabindex')).toBe('0');
+    expect(tick(1).classList.contains('mc-label--interactive')).toBe(false);
+
+    rotated.dispatchEvent(new MouseEvent('mouseenter', { clientX: 104, clientY: 292 }));
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.shadowRoot?.querySelector('[part="header"]')?.textContent).toBe(longCategory);
+    rotated.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(tooltip.hidden).toBe(true);
+
+    rotated.dispatchEvent(new FocusEvent('focus'));
+    expect(tooltip.hidden).toBe(false);
+    rotated.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(tooltip.hidden).toBe(true);
+
+    chart.config = {
+      ...chart.config,
+      label: { target: 'axis-tick', overflow: { strategy: 'rotate', maxWidth: 106, enableTooltip: false } }
+    };
+    tick(0).dispatchEvent(new MouseEvent('mouseenter'));
+    expect(tooltip.hidden).toBe(true);
+  });
+
   it('gives declarative position and gap priority until they are cleared', () => {
     const chart = document.createElement('mc-bar-chart') as MCBarChart;
     const tooltip = document.createElement('mc-tooltip') as MCTooltipElement;
@@ -134,6 +171,34 @@ describe('tooltip customization', () => {
 });
 
 describe('standalone label and truncation updates', () => {
+  it('reserves space for rotated lines and exposes the original text with a tooltip when truncated', () => {
+    const truncate = document.createElement('mc-truncate') as MCTruncateElement;
+    const fullText = 'Global Cloud Platform Infrastructure';
+    truncate.text = fullText;
+    truncate.strategy = 'rotate-wrap-truncate';
+    truncate.maxWidth = 80;
+    truncate.maxLines = 2;
+    truncate.maxRotation = -45;
+    document.body.append(truncate);
+
+    const text = truncate.shadowRoot!.querySelector('.mc-truncate-text')!;
+    const host = truncate.shadowRoot!.querySelector<HTMLElement>('.mc-truncate-host')!;
+    const tooltip = truncate.getTooltipElement()!;
+    expect(truncate.lastResult).toMatchObject({ truncated: true, appliedRotation: -45 });
+    expect(text.textContent?.split('\n')).toHaveLength(2);
+    expect(text.textContent).toMatch(/…$/);
+    expect(text.getAttribute('aria-label')).toBe(fullText);
+    expect(host.style.minHeight).toBe(`${Math.ceil((truncate.lastResult!.width + 32) / Math.SQRT2)}px`);
+    text.dispatchEvent(new FocusEvent('focus'));
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.shadowRoot?.querySelector('[part="header"]')?.textContent).toBe(fullText);
+
+    truncate.strategy = 'wrap';
+    expect(truncate.lastResult?.truncated).toBe(false);
+    expect(text.hasAttribute('tabindex')).toBe(false);
+    expect(tooltip.hidden).toBe(true);
+  });
+
   it('restores the full standalone label when property limits are cleared', () => {
     const label = document.createElement('mc-label') as MCLabelElement;
     label.textContent = 'September sales';
