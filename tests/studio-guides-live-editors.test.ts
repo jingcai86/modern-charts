@@ -247,6 +247,11 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     document.body.appendChild(root);
     const [chart] = renderGuidePage(root, 'truncation', 'dark');
     const editor = root.querySelector<HTMLTextAreaElement>('#guide-trunc-code-1 textarea')!;
+    const ellipsisSelect = root.querySelector<HTMLSelectElement>('#tr-ellipsis-select')!;
+    const presets = () => Array.from(ellipsisSelect.options, (option) => option.value);
+    expect(presets()).toEqual(['…', '...']);
+    expect(ellipsisSelect.value).toBe('…');
+
     const config = parseConfigObjectLiteral(editor.value);
     const category = 'Long renamed department for the responsive chart';
     config.data[0].dept = category;
@@ -260,6 +265,8 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     };
     editor.value = formatConfigAssignment(config);
     editor.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(presets()).toEqual(['…', '...']);
+    expect(ellipsisSelect.selectedIndex).toBe(-1);
 
     const tick = () => chart.shadowRoot?.querySelector('[data-label-id="x-tick-0"]');
     const select = (strategy: string) => root.querySelector<HTMLButtonElement>(`[data-trunc-strat="${strategy}"]`)!.click();
@@ -281,7 +288,12 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
       maxRotation: -45
     });
 
+    ellipsisSelect.value = '...';
+    ellipsisSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(parseConfigObjectLiteral(editor.value).label.overflow.ellipsis).toBe('...');
+
     editor.closest('.guide-code-wrap')?.querySelector<HTMLButtonElement>('button.guide-reset-btn')?.click();
+    expect(ellipsisSelect.value).toBe('…');
     expect(parseConfigObjectLiteral(editor.value).data[0].dept).toBe('Global Cloud Platform Infrastructure');
   });
 

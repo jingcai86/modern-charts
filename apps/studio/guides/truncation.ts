@@ -91,8 +91,6 @@ export function renderTruncationGuide(
           <select id="tr-ellipsis-select" style="margin-left:4px;">
             <option value="…">… (default)</option>
             <option value="...">...</option>
-            <option value="→">→</option>
-            <option id="tr-ellipsis-custom" hidden></option>
           </select>
         </label>
         <label data-trunc-control="enableTooltip">
@@ -151,7 +149,6 @@ export function renderTruncationGuide(
   const controlLabels = controlRow.querySelectorAll<HTMLLabelElement>('[data-trunc-control]');
   const tooltipHint = ex1.querySelector<HTMLElement>('#tr-tooltip-hint')!;
   const ellSelect = ex1.querySelector<HTMLSelectElement>('#tr-ellipsis-select')!;
-  const ellCustom = ex1.querySelector<HTMLOptionElement>('#tr-ellipsis-custom')!;
   const tipToggle = ex1.querySelector<HTMLInputElement>('#tr-tip-toggle')!;
   const numericControls = ([
     { key: 'maxWidth', id: 'mw', unit: 'px' },
@@ -183,9 +180,7 @@ export function renderTruncationGuide(
         ? 'off'
         : `${value}${'unit' in control ? control.unit : ''}`;
     }
-    ellCustom.hidden = ['…', '...', '→'].includes(options.ellipsis);
-    ellCustom.value = options.ellipsis;
-    ellCustom.textContent = options.ellipsis || 'No ellipsis';
+    // Custom suffixes from the live editor leave the presets unselected.
     ellSelect.value = options.ellipsis;
     tipToggle.checked = options.enableTooltip;
   };
