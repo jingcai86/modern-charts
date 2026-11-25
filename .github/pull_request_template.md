@@ -1,3 +1,5 @@
+<!-- Use a scoped Conventional Commit title such as feat(studio): add chart export, fix(core): correct axis labels, or ci(release): verify bundle sizes. -->
+
 ## Summary & Motivation
 
 <!-- Brief summary of what this PR does and why it was created -->
