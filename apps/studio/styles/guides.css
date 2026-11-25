@@ -133,6 +133,35 @@
   background: var(--bg-code);
 }
 
+.auto-size-controls {
+  gap: 10px 16px;
+}
+
+.auto-size-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.auto-size-controls input[type="range"] {
+  width: 7rem;
+}
+
+.auto-size-stage {
+  min-width: min(160px, 100%);
+}
+
+.auto-size-steps {
+  padding-inline-start: 1.25rem;
+}
+
+.auto-size-steps li + li {
+  margin-top: 8px;
+}
+
 .guide-code-wrap {
   display: flex;
   flex-direction: column;
