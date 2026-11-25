@@ -1,11 +1,25 @@
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/jingcai86/modern-charts/main/assets/banner.svg" alt="modern-charts banner" width="100%" />
+
 # modern-charts
 
 Web Component charts built with D3 and Pretext.
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/modern-charts"><img src="https://img.shields.io/npm/v/modern-charts/alpha?label=npm&color=cb3837" alt="npm version" /></a>
+  <a href="https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml/badge.svg" alt="CI Pipeline" /></a>
+  <a href="https://github.com/jingcai86/modern-charts/actions/workflows/lighthouse.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/lighthouse.yml/badge.svg" alt="Lighthouse CI Audit" /></a>
+  <a href="https://github.com/jingcai86/modern-charts/actions/workflows/codeql.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/codeql.yml/badge.svg" alt="CodeQL Analysis" /></a>
+  <a href="https://github.com/jingcai86/modern-charts/blob/main/.size-limit.json"><img src="https://img.shields.io/badge/bundle%20budget-160kB%20gzip-blueviolet" alt="Bundle size budget: 160 kB gzip with dependencies" /></a>
+  <a href="https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-210%20passed%20(33%20files)-brightgreen.svg" alt="Tests" /></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-7.0-blue.svg" alt="TypeScript" /></a>
+</p>
+
 [Live Studio](https://jingcai86.github.io/modern-charts/) · [Documentation wiki](https://github.com/jingcai86/modern-charts/wiki) · [npm](https://www.npmjs.com/package/modern-charts)
 
-[![CI](https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml/badge.svg)](https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml)
-[![npm alpha](https://img.shields.io/npm/v/modern-charts/alpha?label=npm%20alpha)](https://www.npmjs.com/package/modern-charts)
+</div>
 
 ## Use
 
@@ -16,6 +30,10 @@ npm install modern-charts@alpha
 ```
 
 In an application served by a JavaScript bundler, import a chart and assign its configuration:
+
+<p align="center">
+  <a href="https://jingcai86.github.io/modern-charts/#/chart/bar"><img src="https://raw.githubusercontent.com/jingcai86/modern-charts/main/assets/studio-playground.png" alt="Studio bar-chart example" width="92%" /></a>
+</p>
 
 ```html
 <mc-bar-chart id="spending" style="display: block; width: 100%; height: 360px;"></mc-bar-chart>
