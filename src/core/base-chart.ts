@@ -585,11 +585,15 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this.#parseDataAttribute(this.getAttribute('data'));
     }
 
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   connectedMoveCallback(): void {
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   disconnectedCallback(): void {
@@ -721,7 +725,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this.#suppressAttributeRender = prevSuppress;
     }
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -916,7 +920,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customMarkers = val ? [...val] : [];
     this._config.markers = this._customMarkers;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -1002,7 +1006,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customTheme = val;
     this._config.theme = val ?? undefined;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -1014,7 +1018,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customScaleConfig = val;
     this._config.scales = val ?? undefined;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -1026,7 +1030,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customViewConfig = val;
     this._config.view = val ?? undefined;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -1038,7 +1042,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customAnimationConfig = val;
     this._config.animation = val ?? undefined;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -1050,14 +1054,16 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customAriaConfig = val;
     this._config.aria = val ?? undefined;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
 
   public replayAnimation(): void {
     this._renderedLayerSet.clear();
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   public resize(width?: number, height?: number): void {
@@ -1069,7 +1075,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this._config.height = height;
       this.setAttribute('height', String(height));
     }
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   public appendLayer(layer: LayerInput<TData>): void {
@@ -1077,7 +1085,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     current.push(layer);
     this._customLayers = current;
     this._config.layers = current;
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   public removeLayer(layerName: string): void {
@@ -1099,7 +1109,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     });
     this._config.layers = this._customLayers;
     this._renderedLayerSet.delete(layerName);
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   public async streamLayers(
@@ -3321,7 +3333,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (this.#resizeObserver) return;
 
     this.#resizeObserver = new ResizeObserver(() => {
-      if (!this._isConnected) return;
+      if (!this._isConnected || this.hasAttribute('data-defer-initial-render')) {
+        return;
+      }
       const dims = this.resolveDimensions();
       if (
         dims.width > 0 &&
