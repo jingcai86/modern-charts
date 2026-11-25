@@ -45,7 +45,7 @@ describe('color ramps and gradients', () => {
   });
 
   it('uses explicit theme ramp colors and falls back to the preset when no seed remains', () => {
-    const theme = createDefaultTheme('light', 'neutral');
+    const theme = createDefaultTheme('light', '#737373');
     const config = { colors: ['#608', 'no color', 'rgb(40 80 120)'] };
     expect(resolveSequentialColorRamp({ theme, config }, 'magma')).toBe('magma');
     const ramp = resolveSequentialColorRamp({ theme, config }, 'theme');

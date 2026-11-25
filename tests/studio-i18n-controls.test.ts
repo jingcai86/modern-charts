@@ -42,7 +42,8 @@ describe('Studio chart internationalization controls', () => {
       allAttributes: COMMON_ATTRIBUTES.filter((attribute) =>
         attribute.configPath.startsWith('i18n.')
       ),
-      onConfigChanged
+      onConfigChanged,
+      onResetDefault: vi.fn()
     });
     document.body.appendChild(panel.element);
 

@@ -18,7 +18,8 @@ function mount(entryId = 'bar', attributes?: ChartAttributeSpec[]) {
   const panel = createAttributePanel({
     entry, config, allAttributes,
     vState: {} as ChartVirtualState,
-    onConfigChanged: changed
+    onConfigChanged: changed,
+    onResetDefault: vi.fn()
   });
   document.body.appendChild(panel.element);
   const root = panel.element;

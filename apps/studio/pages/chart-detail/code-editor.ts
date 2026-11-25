@@ -1,7 +1,7 @@
 import type { ChartConfig } from '../../../../src/index';
 import type { ChartAttributeSpec, ChartCatalogEntry } from '../../catalog';
 import { escapeHtml } from '../../utils/html';
-import { getGlobalThemeMode } from '../../state/theme';
+import { getGlobalThemeMode, STUDIO_PALETTES } from '../../state/theme';
 import {
   renderSectionInfoTooltip,
   wireSectionInfoTooltips
@@ -85,9 +85,13 @@ export function createCodeEditorPanel(opts: {
   let lastSyncedTagAttrs: Record<string, string> = {};
 
   const syncFromConfig = (nextCfg: ChartConfig<any>): void => {
+    // Include Studio's generated colors so the snippet works as a standalone example.
+    const snippetConfig = nextCfg.palette === 'neutral' && !nextCfg.colors?.length
+      ? { ...nextCfg, colors: STUDIO_PALETTES.neutral }
+      : nextCfg;
     const nextSnippet = generateWebComponentHtmlSnippet(
       entry,
-      nextCfg,
+      snippetConfig,
       getGlobalThemeMode()
     );
     htmlPreviewBox.value = nextSnippet;
@@ -110,6 +114,16 @@ export function createCodeEditorPanel(opts: {
         const parsedRaw = parseConfigObjectLiteral(configBlock);
         if (parsedRaw && typeof parsedRaw === 'object' && !Array.isArray(parsedRaw)) {
           nextCfg = restoreSerializedFunctions(parsedRaw, config);
+          // Treat the generated array as inherited unless the user edits its colors.
+          if (
+            config.palette === 'neutral' &&
+            !config.colors?.length &&
+            Array.isArray(nextCfg.colors) &&
+            nextCfg.colors.length === STUDIO_PALETTES.neutral.length &&
+            nextCfg.colors.every((color, index) => color === STUDIO_PALETTES.neutral[index])
+          ) {
+            delete nextCfg.colors;
+          }
           editorHelperDesc.textContent = '';
           editorHelperDesc.hidden = true;
         }

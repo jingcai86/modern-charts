@@ -78,6 +78,8 @@ describe('Chart Detail Page Layout — Event Inspector beside HTML Markup', () =
       );
       expect(infoButtons, entry.id).toHaveLength(4);
       expect(infoPopovers, entry.id).toHaveLength(4);
+      const reset = root.querySelector('.attributes-section-header #btn-reset-default-attrs');
+      expect(reset?.textContent?.trim(), entry.id).toBe('Reset Default');
 
       expect(infoPopovers[0].textContent).toContain(entry.summary);
       expect(infoPopovers[1].textContent).toContain('Interactive controls for chart-specific options');

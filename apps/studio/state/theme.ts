@@ -1,5 +1,6 @@
 import {
   DEFAULT_PALETTE,
+  generateColorPalette,
   PALETTES,
   resolveEffectiveThemeMode
 } from '../../../src/core/theme';
@@ -8,29 +9,49 @@ import type { BuiltInPaletteName, ThemeModePreference } from '../../../src/core/
 const THEME_STORAGE_KEY = 'modern-charts-theme-mode';
 const PALETTE_STORAGE_KEY = 'modern-charts-palette';
 
-function isBuiltInPalette(value: unknown): value is BuiltInPaletteName {
-  return typeof value === 'string' && Object.hasOwn(PALETTES, value);
+export type StudioPaletteName = BuiltInPaletteName | 'neutral';
+
+function createNeutralPalette(): string[] {
+  // Drop the extremes to keep the grayscale marks visible on light and dark surfaces.
+  const shades = generateColorPalette('#737373', 32).slice(6, -6);
+  const midpoint = Math.floor((shades.length - 1) / 2);
+  const lighter = shades.slice(0, midpoint);
+  const darker = shades.slice(midpoint + 1).reverse();
+  return [
+    shades[midpoint],
+    ...lighter.flatMap((shade, index) => [shade, darker[index]]),
+    ...darker.slice(lighter.length)
+  ];
 }
 
-function readStoredPalette(): BuiltInPaletteName {
+// Install the generated palette only in the Studio runtime so existing chart configs
+// and the locally saved selection can continue to use the Neutral name.
+export const STUDIO_PALETTES: Record<StudioPaletteName, string[]> =
+  Object.assign(PALETTES, { neutral: createNeutralPalette() });
+
+function isStudioPalette(value: unknown): value is StudioPaletteName {
+  return typeof value === 'string' && Object.hasOwn(STUDIO_PALETTES, value);
+}
+
+function readStoredPalette(): StudioPaletteName {
   try {
     const saved = localStorage.getItem(PALETTE_STORAGE_KEY);
-    if (isBuiltInPalette(saved)) return saved;
+    if (isStudioPalette(saved)) return saved;
   } catch {
     // Use the default when storage is unavailable.
   }
   return DEFAULT_PALETTE;
 }
 
-let currentPalette: BuiltInPaletteName = readStoredPalette();
+let currentPalette = readStoredPalette();
 
-/** The design-system palette used for new Studio chart configurations. */
-export function getGlobalPalette(): BuiltInPaletteName {
+/** The selected palette used for new Studio chart configurations. */
+export function getGlobalPalette(): StudioPaletteName {
   return currentPalette;
 }
 
-export function setGlobalPalette(palette: BuiltInPaletteName): BuiltInPaletteName {
-  if (!isBuiltInPalette(palette)) return currentPalette;
+export function setGlobalPalette(palette: string): StudioPaletteName {
+  if (!isStudioPalette(palette)) return currentPalette;
   currentPalette = palette;
   try {
     if (palette === DEFAULT_PALETTE) localStorage.removeItem(PALETTE_STORAGE_KEY);
@@ -41,7 +62,7 @@ export function setGlobalPalette(palette: BuiltInPaletteName): BuiltInPaletteNam
   return currentPalette;
 }
 
-export function subscribePaletteChanges(onPaletteChange: (palette: BuiltInPaletteName) => void): void {
+export function subscribePaletteChanges(onPaletteChange: (palette: StudioPaletteName) => void): void {
   window.addEventListener('storage', (event) => {
     if (event.key === PALETTE_STORAGE_KEY || event.key === null) {
       currentPalette = readStoredPalette();

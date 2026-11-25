@@ -12,7 +12,6 @@ import {
   type GradientStop,
   type MCBarChart
 } from '../src/index';
-import { renderThemesGuide } from '../apps/studio/guides/themes';
 
 function hexLuminance(hex: string): number {
   const n = parseInt(hex.slice(1), 16);
@@ -31,9 +30,9 @@ describe('Built-In Palettes & Single-Color Light-to-Dark Generator (Issue #13)',
     document.body.innerHTML = '';
   });
 
-  it('ships five built-in palettes (material, bootstrap, antd, shadcn, neutral) with 20 hex colors each and excludes legacy presets', () => {
+  it('ships four built-in palettes with 20 distinct hex colors each', () => {
     const keys = Object.keys(PALETTES).sort();
-    expect(keys).toEqual(['antd', 'bootstrap', 'material', 'neutral', 'shadcn']);
+    expect(keys).toEqual(['antd', 'bootstrap', 'material', 'shadcn']);
     expect(DEFAULT_PALETTE).toBe('shadcn');
 
     for (const removed of [
@@ -43,7 +42,8 @@ describe('Built-In Palettes & Single-Color Light-to-Dark Generator (Issue #13)',
       'emerald',
       'sunset',
       'ocean',
-      'cyber'
+      'cyber',
+      'neutral'
     ]) {
       expect(Object.prototype.hasOwnProperty.call(PALETTES, removed)).toBe(false);
     }
@@ -59,11 +59,11 @@ describe('Built-In Palettes & Single-Color Light-to-Dark Generator (Issue #13)',
     }
   });
 
-  it('provides Neutral as twenty distinct grayscale shades centered around a mid-gray first series', () => {
-    const colors = resolvePaletteColors('neutral');
-    expect(colors).toEqual(PALETTES.neutral);
+  it('generates twenty distinct grayscale shades from a mid-gray seed', () => {
+    const colors = resolvePaletteColors('#737373');
+    expect(colors).toEqual(generateColorPalette('#737373'));
     expect(colors).toHaveLength(20);
-    expect(colors[0]).toBe('#737373');
+    expect(colors[9]).toBe('#737373');
     expect(new Set(colors).size).toBe(20);
     const levels = colors.map((color) => {
       const r = parseInt(color.slice(1, 3), 16);
@@ -77,21 +77,23 @@ describe('Built-In Palettes & Single-Color Light-to-Dark Generator (Issue #13)',
     });
     expect(Math.max(...levels) - Math.min(...levels)).toBeGreaterThan(100);
     for (const mode of ['light', 'dark'] as const) {
-      const theme = createDefaultTheme(mode, 'neutral');
-      expect(theme.palette).toBe('neutral');
+      const theme = createDefaultTheme(mode, '#737373');
+      expect(theme.palette).toBe('#737373');
       expect(theme.colors).toEqual(colors);
     }
     expect(createDefaultTheme().palette).toBe('shadcn');
   });
 
-  it('renders Neutral chart series through config and attributes and generates matching gradients', () => {
+  it('renders a gray seed palette through config and attributes and generates matching gradients', () => {
+    const seed = '#737373';
+    const palette = generateColorPalette(seed);
     const bar = document.createElement('mc-bar-chart') as MCBarChart;
     document.body.appendChild(bar);
     bar.config = {
       width: 480,
       height: 300,
       animate: false,
-      palette: 'neutral',
+      palette: seed,
       indexBy: 'q',
       keys: ['A', 'B'],
       data: [{ q: 'Q1', A: 10, B: 20 }]
@@ -99,17 +101,17 @@ describe('Built-In Palettes & Single-Color Light-to-Dark Generator (Issue #13)',
     const fills = () => Array.from(
       bar.shadowRoot!.querySelectorAll('rect.mc-bar-rect')
     ).map((rect) => rect.getAttribute('fill'));
-    expect(fills()).toEqual(PALETTES.neutral.slice(0, 2));
+    expect(fills()).toEqual(palette.slice(0, 2));
     bar.config = { ...bar.config, palette: undefined };
-    bar.setAttribute('palette', 'neutral');
-    expect(fills()).toEqual(PALETTES.neutral.slice(0, 2));
+    bar.setAttribute('palette', seed);
+    expect(fills()).toEqual(palette.slice(0, 2));
 
-    const gradient = generateGradientPalette('neutral');
-    expect(gradient.colors).toEqual(PALETTES.neutral);
+    const gradient = generateGradientPalette(seed);
+    expect(gradient.colors).toEqual(palette);
     expect(gradient.gradients).toHaveLength(20);
     expect(gradient.negativeGradients).toHaveLength(20);
-    const stops = gradient.gradients[0].colors as GradientStop[];
-    expect(stops[1].color).toBe('#737373');
+    const stops = gradient.gradients[9].colors as GradientStop[];
+    expect(stops[1].color).toBe(seed);
     for (const stop of stops) {
       expect(stop.color.slice(1, 3)).toBe(stop.color.slice(3, 5));
       expect(stop.color.slice(3, 5)).toBe(stop.color.slice(5, 7));
@@ -361,7 +363,8 @@ describe('Directional Gradient Generator & Chart Gradient Config', () => {
     expect(sameRects[0].getAttribute('fill')).toBe(sameRects[1].getAttribute('fill'));
   });
 
-  it('mounts the interactive directional gradient demo in the Themes guide and toggles layout & direction live', () => {
+  it('mounts the interactive directional gradient demo in the Themes guide and toggles layout & direction live', async () => {
+    const { renderThemesGuide } = await import('../apps/studio/guides/themes');
     const root = document.createElement('div');
     document.body.appendChild(root);
 

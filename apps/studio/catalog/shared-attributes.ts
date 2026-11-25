@@ -128,10 +128,10 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
       { label: 'material (20 colors)', value: 'material' },
       { label: 'bootstrap (20 colors)', value: 'bootstrap' },
       { label: 'antd (20 colors)', value: 'antd' },
-      { label: 'neutral (20 grayscale colors)', value: 'neutral' }
+      { label: 'Neutral (generated)', value: 'neutral' }
     ],
     description:
-      '20-color built-in chart palette, including mid gray Neutral (or pass any hex/rgb/hsl seed color in config.palette to auto-generate a 20-color light-to-dark ramp).',
+      'Choose a 20-color chart palette or Studio’s generated Neutral. A hex, RGB, or HSL seed in config.palette generates a light-to-dark ramp.',
     defaultValue: 'shadcn'
   },
   {
