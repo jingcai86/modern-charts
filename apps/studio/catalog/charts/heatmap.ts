@@ -23,7 +23,7 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
     data: SAMPLE_HEATMAP_DATA,
     autoSize: true,
     title: 'CPU Load (%)',
-    colorScheme: 'viridis',
+    colorScheme: 'theme',
     cellShape: 'rect',
     cellPadding: 0.1,
     sizeVariation: 0,
@@ -46,6 +46,7 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
       category: 'Chart-Specific',
       control: 'select',
       options: [
+        { label: 'theme (active palette)', value: 'theme' },
         { label: 'viridis', value: 'viridis' },
         { label: 'plasma', value: 'plasma' },
         { label: 'inferno', value: 'inferno' },
@@ -56,8 +57,8 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
         { label: 'cool', value: 'cool' },
         { label: 'warm', value: 'warm' }
       ],
-      description: 'D3 sequential color interpolator scheme.',
-      defaultValue: 'viridis'
+      description: 'Sequential color ramp (follows active theme palette by default, or fixed D3 scheme).',
+      defaultValue: 'theme'
     },
     {
       configPath: 'cellShape',

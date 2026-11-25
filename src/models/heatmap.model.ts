@@ -1,6 +1,18 @@
 import { buildAxisScale } from '../core/scale-manager';
-import { createSequentialColorScale } from '../core/color-schemes';
+import { createSequentialColorScale, type SequentialColorScale } from '../core/color-schemes';
+import { parseColorToRgb, resolveSequentialColorRamp } from '../core/theme';
 import type { ChartRenderContext, HeatmapRow } from '../core/types';
+
+function getContrastingCellTextColor(bgColor: string): string {
+  const [r, g, b] = parseColorToRgb(bgColor) ?? [0, 0, 0];
+  const toLinear = (c: number) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  // Black and white give equal contrast at a relative luminance of about 0.179.
+  return lum >= 0.179 ? '#000' : '#fff';
+}
 
 export interface ComputedHeatmapCellModel {
   index: number;
@@ -28,7 +40,7 @@ export interface HeatmapChartModel {
   sizeVariation: number;
   emptyColor: string;
   forceSquare: boolean;
-  seqScale: (val: number) => string;
+  seqScale: SequentialColorScale;
   enableLabels: boolean;
 }
 
@@ -121,10 +133,8 @@ export function computeHeatmapChartModel(
       ? Number(input.max)
       : dataMax;
 
-  const seqScale = createSequentialColorScale(input.colorScheme, [
-    minVal,
-    maxVal
-  ]).clamp(true);
+  const ramp = resolveSequentialColorRamp(ctx, input.colorScheme);
+  const seqScale = createSequentialColorScale(ramp, [minVal, maxVal]).clamp(true);
 
   const bandW =
     typeof ctx.xScale.bandwidth === 'function' ? ctx.xScale.bandwidth() : 36;
@@ -176,7 +186,9 @@ export function computeHeatmapChartModel(
       const y = bandY + (bandH - h) / 2;
 
       const color = isEmpty ? emptyColor : seqScale(val);
-      const textColor = norm > 0.62 ? '#0f172a' : '#f8fafc';
+      const textColor = isEmpty
+        ? ctx.theme.mutedTextColor
+        : getContrastingCellTextColor(color);
 
       rawCells.push({
         rowId: row.id,

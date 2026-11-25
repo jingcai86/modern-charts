@@ -22,7 +22,7 @@ interface HeatmapRow {
 
 | `chart.config` Key | HTML Attribute | Type | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `colorScheme` | `color-scheme` | `'viridis' \| 'plasma' \| 'inferno' \| 'magma' \| 'cividis' \| 'turbo' \| 'warm' \| 'cool' \| 'blues' \| 'greens' \| 'oranges' \| 'purples' \| 'ylGnBu' \| 'rdYlBu' \| 'spectral'` | `'viridis'` | D3 sequential/diverging color interpolator |
+| `colorScheme` | `color-scheme` | `'theme'` or a named scheme | `'viridis'` | Use the active theme or a fixed color ramp |
 | `cellShape` | `cell-shape` | `'rect' \| 'circle'` | `'rect'` | Cell marker geometry |
 | `cellPadding` | `cell-padding` | `number` (`0`–`0.5`) | `0.1` | Padding ratio between cells |
 | `borderRadius` | `border-radius` | `number` | `6` | Corner radius for `'rect'` cells |
@@ -54,4 +54,5 @@ interface HeatmapRow {
 ## Common Pitfalls
 
 - Each cell uses `{ x: '<column>', y: <number> }` (NOT `value`).
+- Studio defaults to `'theme'`. It derives a ramp from the primary theme color or uses explicit `colors` as stops (hex, RGB, or HSL). Named ramps include `'viridis'`, `'plasma'`, `'inferno'`, `'magma'`, `'cividis'`, `'turbo'`, `'warm'`, `'cool'`, `'blues'`, `'greens'`, `'oranges'`, `'purples'`, `'ylGnBu'`, `'rdYlBu'`, and `'spectral'`.
 - `colorScheme` is case-sensitive for `'ylGnBu'` and `'rdYlBu'`.

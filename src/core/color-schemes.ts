@@ -44,10 +44,15 @@ function sampleRamp(ramp: readonly string[], t: number): string {
 }
 
 export function createSequentialColorScale(
-  scheme: string = 'viridis',
+  schemeOrRamp: string | readonly string[] = 'viridis',
   domain: [number, number] = [0, 100]
 ): SequentialColorScale {
-  const ramp = COLOR_RAMPS[scheme] ?? COLOR_RAMPS.viridis;
+  let ramp = COLOR_RAMPS.viridis;
+  if (typeof schemeOrRamp === 'string') {
+    if (Object.hasOwn(COLOR_RAMPS, schemeOrRamp)) ramp = COLOR_RAMPS[schemeOrRamp];
+  } else if (schemeOrRamp.length >= 2) {
+    ramp = schemeOrRamp;
+  }
   let dom: [number, number] = [domain[0], domain[1]];
   let clamped = false;
 
@@ -71,7 +76,7 @@ export function createSequentialColorScale(
   }) as SequentialColorScale['clamp'];
 
   scale.copy = () =>
-    createSequentialColorScale(scheme, [dom[0], dom[1]]).clamp(clamped);
+    createSequentialColorScale(ramp, [dom[0], dom[1]]).clamp(clamped);
 
   return scale;
 }

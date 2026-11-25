@@ -261,7 +261,7 @@
       "configOptions": {
         "colorScheme": {
           "enum": [
-            "viridis", "plasma", "inferno", "magma", "cividis", "turbo",
+            "theme", "viridis", "plasma", "inferno", "magma", "cividis", "turbo",
             "warm", "cool", "blues", "greens", "oranges", "purples",
             "ylGnBu", "rdYlBu", "spectral"
           ],

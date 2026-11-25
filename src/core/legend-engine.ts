@@ -1,4 +1,5 @@
-import { createSequentialColorScale } from './color-schemes';
+import { createSequentialColorScale, type SequentialColorScale } from './color-schemes';
+import { resolveSequentialColorRamp } from './theme';
 import { buildMarkerLegendItems } from './marker-engine';
 import { allocateUniqueSvgId } from './threshold-clip';
 import { createChartI18n } from './i18n';
@@ -377,7 +378,7 @@ export function renderUnifiedLegendLayer(
     | {
         minVal?: number;
         maxVal?: number;
-        seqScale?: (val: number) => string;
+        seqScale?: SequentialColorScale;
       }
     | undefined;
   const effectiveType =
@@ -385,6 +386,16 @@ export function renderUnifiedLegendLayer(
     (ctx.chartType === 'heatmap' && (!items || items.length === 0)
       ? 'continuous'
       : 'categorical');
+
+  const getSequentialScale = (minVal: number, maxVal: number) => {
+    if (!cfg.colorScheme && model?.seqScale) {
+      if (cfg.min === undefined && cfg.max === undefined) return model.seqScale;
+      return model.seqScale.copy().domain([minVal, maxVal]);
+    }
+    const scheme = cfg.colorScheme || ctx.config.colorScheme || ctx.scaleConfig?.color?.scheme;
+    const ramp = resolveSequentialColorRamp(ctx, scheme);
+    return createSequentialColorScale(ramp, [minVal, maxVal]).clamp(true);
+  };
 
   if (effectiveType === 'continuous') {
     const minVal =
@@ -395,15 +406,7 @@ export function renderUnifiedLegendLayer(
       cfg.max !== undefined && Number.isFinite(cfg.max)
         ? cfg.max
         : model?.maxVal ?? 100;
-    const scheme =
-      cfg.colorScheme ||
-      ctx.config.colorScheme ||
-      ctx.scaleConfig?.color?.scheme ||
-      'viridis';
-    const seqScale =
-      cfg.colorScheme || cfg.min !== undefined || cfg.max !== undefined || !model?.seqScale
-        ? createSequentialColorScale(scheme, [minVal, maxVal]).clamp(true)
-        : model.seqScale;
+    const seqScale = getSequentialScale(minVal, maxVal);
 
     const defs = ctx.svg.querySelector('.mc-chart-defs');
     const gradId = allocateUniqueSvgId('mc-legend-continuous-grad');
@@ -545,15 +548,7 @@ export function renderUnifiedLegendLayer(
         ? cfg.max
         : model?.maxVal ?? 100;
     const steps = Math.max(2, cfg.steps ?? 5);
-    const scheme =
-      cfg.colorScheme ||
-      ctx.config.colorScheme ||
-      ctx.scaleConfig?.color?.scheme ||
-      'viridis';
-    const seqScale =
-      cfg.colorScheme || cfg.min !== undefined || cfg.max !== undefined || !model?.seqScale
-        ? createSequentialColorScale(scheme, [minVal, maxVal]).clamp(true)
-        : model.seqScale;
+    const seqScale = getSequentialScale(minVal, maxVal);
     const stepSpan = (maxVal - minVal) / steps;
     baseItems = Array.from({ length: steps }, (_, i) => {
       const lo = Number((minVal + i * stepSpan).toFixed(1));
