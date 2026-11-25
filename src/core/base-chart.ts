@@ -363,6 +363,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
 
   #internals: ElementInternals | null = null;
   #resizeObserver: ResizeObserver | null = null;
+  #lastRenderedWidth = 0;
+  #lastRenderedHeight = 0;
   #mutationObserver: MutationObserver | null = null;
   #viewTransform = { k: 1, x: 0, y: 0 };
   #viewController: {
@@ -583,11 +585,15 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this.#parseDataAttribute(this.getAttribute('data'));
     }
 
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   connectedMoveCallback(): void {
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   disconnectedCallback(): void {
@@ -719,7 +725,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this.#suppressAttributeRender = prevSuppress;
     }
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -914,7 +920,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customMarkers = val ? [...val] : [];
     this._config.markers = this._customMarkers;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -1000,7 +1006,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customTheme = val;
     this._config.theme = val ?? undefined;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -1012,7 +1018,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customScaleConfig = val;
     this._config.scales = val ?? undefined;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -1024,7 +1030,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customViewConfig = val;
     this._config.view = val ?? undefined;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -1036,7 +1042,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customAnimationConfig = val;
     this._config.animation = val ?? undefined;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
@@ -1048,14 +1054,16 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     this._customAriaConfig = val;
     this._config.aria = val ?? undefined;
     this.#syncInternalSubComponentsFromConfig();
-    if (this._isConnected) {
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
   }
 
   public replayAnimation(): void {
     this._renderedLayerSet.clear();
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   public resize(width?: number, height?: number): void {
@@ -1067,7 +1075,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
       this._config.height = height;
       this.setAttribute('height', String(height));
     }
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   public appendLayer(layer: LayerInput<TData>): void {
@@ -1075,7 +1085,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     current.push(layer);
     this._customLayers = current;
     this._config.layers = current;
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   public removeLayer(layerName: string): void {
@@ -1097,7 +1109,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     });
     this._config.layers = this._customLayers;
     this._renderedLayerSet.delete(layerName);
-    this.render();
+    if (!this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
   }
 
   public async streamLayers(
@@ -2071,6 +2085,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
     if (!svg || !rootGroup || !viewportGroup) return;
 
     const dims = this.resolveDimensions();
+    this.#lastRenderedWidth = dims.width;
+    this.#lastRenderedHeight = dims.height;
     const isInteractive = this.resolveIsInteractive();
     this._lastMargin = dims.margin;
     this.eventEngine.resetHoverState();
@@ -3309,14 +3325,27 @@ export abstract class MCBaseChart<TData = any> extends HTMLElement {
   }
 
   #syncAutoSizeObserver(): void {
-    this.#teardownAutoSizeObserver();
     this.#setCustomState('auto-size', this.autoSize);
-    if (!this.autoSize || typeof ResizeObserver === 'undefined') return;
+    if (!this.autoSize || typeof ResizeObserver === 'undefined') {
+      this.#teardownAutoSizeObserver();
+      return;
+    }
+    if (this.#resizeObserver) return;
 
     this.#resizeObserver = new ResizeObserver(() => {
-      if (this._isConnected) {
-        this.render();
+      if (!this._isConnected || this.hasAttribute('data-defer-initial-render')) {
+        return;
       }
+      const dims = this.resolveDimensions();
+      if (
+        dims.width > 0 &&
+        dims.height > 0 &&
+        dims.width === this.#lastRenderedWidth &&
+        dims.height === this.#lastRenderedHeight
+      ) {
+        return;
+      }
+      this.render();
     });
 
     this.#resizeObserver.observe(this);

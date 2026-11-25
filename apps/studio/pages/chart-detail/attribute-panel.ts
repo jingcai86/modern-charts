@@ -10,6 +10,10 @@ import {
 } from '../../state/config-store';
 import { escapeHtml } from '../../guides/shared';
 import { getByPath, setByPath } from '../../utils/object-path';
+import {
+  renderSectionInfoTooltip,
+  wireSectionInfoTooltips
+} from './section-info';
 
 export interface AttributePanelHandle {
   element: HTMLElement;
@@ -62,7 +66,14 @@ export function createAttributePanel(opts: {
   attributesSection.className = 'panel-card attributes-panel-card';
   attributesSection.innerHTML = `
     <div class="attributes-section-header">
-      <h2 class="panel-title">Attributes &amp; Config</h2>
+      <div class="panel-title-group">
+        <h2 class="panel-title">Attributes &amp; Config</h2>
+        ${renderSectionInfoTooltip(
+          `detail-attrs-info-${entry.id}`,
+          'More about Attributes & Config',
+          `Interactive controls for chart-specific options and shared layers on <code>&lt;${escapeHtml(entry.tagName)}&gt;</code>. Changes update the live chart and HTML markup immediately.`
+        )}
+      </div>
       <div class="attributes-filter-bar">
         <button type="button" id="btn-expand-all-attrs">Expand All</button>
         <button type="button" id="btn-collapse-all-attrs">Minimize All</button>
@@ -495,6 +506,8 @@ export function createAttributePanel(opts: {
     ?.addEventListener('click', () => {
       setVisibleCategoriesOpen(false);
     });
+
+  wireSectionInfoTooltips(attributesSection);
 
   return {
     element: attributesSection,

@@ -13,6 +13,10 @@ import {
 } from '../../state/config-store';
 import { createAttributePanel } from './attribute-panel';
 import { createCodeEditorPanel } from './code-editor';
+import {
+  renderSectionInfoTooltip,
+  wireSectionInfoTooltips
+} from './section-info';
 
 /**
  * Renders the Dedicated Chart Playground View (`#/chart/:id`), coordinating:
@@ -38,14 +42,16 @@ export function renderChartDetailPage(
   chartCard.className = 'panel-card';
   chartCard.innerHTML = `
     <div class="panel-header">
-      <div>
+      <div class="panel-title-group">
         <h2 class="panel-title">
           <span>${escapeHtml(entry.title)}</span>
           <span class="comp-pill">&lt;${escapeHtml(entry.tagName)}&gt;</span>
         </h2>
-        <p style="margin:4px 0 0;font-size:0.82rem;color:var(--text-muted);">
-          ${escapeHtml(entry.summary)}
-        </p>
+        ${renderSectionInfoTooltip(
+          `detail-stage-info-${entry.id}`,
+          `More about ${entry.title}`,
+          escapeHtml(entry.summary)
+        )}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" id="btn-detail-ai-stream" class="btn-primary">
@@ -73,12 +79,16 @@ export function renderChartDetailPage(
   inspectorCard.className = 'panel-card event-inspector-card';
   inspectorCard.innerHTML = `
     <div class="panel-header">
-      <h2 class="panel-title">Live Unified Event Inspector</h2>
+      <div class="panel-title-group">
+        <h2 class="panel-title">Live Unified Event Inspector</h2>
+        ${renderSectionInfoTooltip(
+          `detail-events-info-${entry.id}`,
+          'More about Live Unified Event Inspector',
+          `Click, hover, or Tab-focus anywhere on <code>&lt;${escapeHtml(entry.tagName)}&gt;</code> — items, axes, legends, titles, or empty canvas.`
+        )}
+      </div>
       <button type="button" id="btn-detail-clear-events">Clear</button>
     </div>
-    <p class="event-inspector-desc">
-      Click, hover, or Tab-focus anywhere on <code>&lt;${escapeHtml(entry.tagName)}&gt;</code> — items, axes, legends, titles, or empty canvas.
-    </p>
     <div class="inspector-box">
       <div class="inspector-title">Latest Event</div>
       <div class="inspector-readout" id="detail-aria-readout">
@@ -312,6 +322,8 @@ export function renderChartDetailPage(
   studioGrid.appendChild(attrPanel.element);
   root.appendChild(studioGrid);
   root.appendChild(bottomGrid);
+
+  wireSectionInfoTooltips(root);
 
   return chartEl;
 }

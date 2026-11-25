@@ -154,8 +154,14 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-inline-size: 10.5rem;
+  min-inline-size: 9.5rem;
+  min-block-size: 34px;
   justify-content: space-between;
+}
+
+.global-controls .control-group select {
+  min-inline-size: 8.25rem;
+  min-block-size: 34px;
 }
 
 .nav-dropdown-chevron {
@@ -301,14 +307,105 @@ input[type="number"],
   font: inherit;
   font-size: 0.82rem;
   font-weight: 600;
+  line-height: 1.25;
+  min-block-size: 34px;
   border-radius: 8px;
   padding: 6px 11px;
   border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
+  background-color: var(--bg-elevated);
   color: var(--text-main);
   cursor: pointer;
   text-decoration: none;
-  transition: all 140ms ease;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+/* Fallback custom chevron for browsers without Customizable <select> (base-select) */
+@supports not (appearance: base-select) {
+  select {
+    appearance: none;
+    padding-inline-end: 28px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2394a3b8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px 6px;
+  }
+}
+
+/* Branded Select Styling: matches .nav-dropdown-trigger and .nav-dropdown-panel */
+@supports (appearance: base-select) {
+  select,
+  select::picker(select) {
+    appearance: base-select;
+  }
+
+  select {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  select::picker-icon {
+    content: "▾";
+    color: var(--text-main);
+    opacity: 0.8;
+    font-size: 0.72rem;
+    transition: transform 150ms ease;
+  }
+
+  select:open::picker-icon {
+    transform: rotate(180deg);
+  }
+
+  select::picker(select) {
+    margin-block-start: 0.5rem;
+    padding: 6px;
+    min-inline-size: 11rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-card);
+    color: var(--text-main);
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(12px);
+  }
+
+  select option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-block: 1px;
+    border-radius: 8px;
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: var(--text-main);
+    border-inline-start: 3px solid transparent;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+
+  select option:hover,
+  select option:focus-visible {
+    background: var(--bg-elevated);
+    outline: none;
+  }
+
+  select option:checked {
+    background: var(--pill-purple-bg);
+    color: var(--pill-purple-fg);
+    font-weight: 700;
+    border-inline-start-color: var(--pill-purple-fg);
+  }
+
+  select option::checkmark {
+    order: 1;
+    margin-inline-start: auto;
+    content: "✓";
+    color: var(--pill-purple-fg);
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
 }
 
 input[type="text"],
@@ -427,6 +524,11 @@ button.btn-primary:hover {
   z-index: 2;
 }
 
+.overview-card:nth-child(n+5) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 336px;
+}
+
 .overview-card-header {
   display: flex;
   align-items: center;
@@ -447,6 +549,7 @@ button.btn-primary:hover {
   border: 1px solid var(--border-subtle);
   background: var(--bg-code);
   pointer-events: none;
+  contain: layout style paint;
 }
 
 /* Home Page Two-Tab Interface (Chart Examples vs. Guides & Resources) */
@@ -620,6 +723,11 @@ button.btn-primary:hover {
   outline-offset: 2px;
 }
 
+.overview-guide-card:nth-child(n+5) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 244px;
+}
+
 .overview-guide-preview {
   height: 124px;
   width: 100%;
@@ -631,6 +739,7 @@ button.btn-primary:hover {
   justify-content: center;
   padding: 10px 16px;
   color: var(--text-main);
+  contain: layout style paint;
 }
 
 .overview-guide-preview svg {

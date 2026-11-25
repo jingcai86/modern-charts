@@ -56,4 +56,62 @@ describe('Chart Detail Page Layout — Event Inspector beside HTML Markup', () =
     expect(bottomGrid!.querySelectorAll('.event-inspector-row').length).toBe(0);
     expect(bottomGrid!.querySelector('.event-inspector-empty')).not.toBeNull();
   });
+
+  it('minimizes subtext into 4 hoverable info icon tooltips next to the 4 section titles on all 10 chart pages', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+
+    for (const entry of CHART_CATALOG) {
+      renderChartDetailPage(root, entry);
+
+      // Verify no persistent inline subtext paragraphs remain visible
+      expect(root.querySelector('.event-inspector-desc')).toBeNull();
+      const editorError = root.querySelector<HTMLElement>('#editor-helper-desc');
+      expect(editorError?.hidden).toBe(true);
+
+      // Verify all 4 sections have a .panel-title-group with an info icon button and popover tooltip
+      const infoButtons = Array.from(
+        root.querySelectorAll<HTMLButtonElement>('.panel-title-group .section-info-btn')
+      );
+      const infoPopovers = Array.from(
+        root.querySelectorAll<HTMLElement>('.panel-title-group .section-info-popover')
+      );
+      expect(infoButtons, entry.id).toHaveLength(4);
+      expect(infoPopovers, entry.id).toHaveLength(4);
+
+      expect(infoPopovers[0].textContent).toContain(entry.summary);
+      expect(infoPopovers[1].textContent).toContain('Interactive controls for chart-specific options');
+      expect(infoPopovers[2].textContent).toContain('Live-editable Web Component HTML markup');
+      expect(infoPopovers[3].textContent).toContain('Click, hover, or Tab-focus anywhere');
+
+      // Hovering each info icon opens its tooltip popover and sets aria-expanded="true"
+      infoButtons.forEach((btn, idx) => {
+        const pop = infoPopovers[idx];
+        expect(btn.getAttribute('aria-expanded')).toBe('false');
+        expect(pop.classList.contains('is-open')).toBe(false);
+
+        btn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        expect(btn.getAttribute('aria-expanded')).toBe('true');
+        expect(pop.classList.contains('is-open')).toBe(true);
+
+        btn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(btn.getAttribute('aria-expanded')).toBe('false');
+        expect(pop.classList.contains('is-open')).toBe(false);
+      });
+    }
+  });
+
+  it('unifies top-right Studio dropdowns (#nav-pages-trigger, #global-palette-select, #global-appearance-select) with matching branded-select styling', async () => {
+    const fsModule = 'node:fs';
+    const { readFileSync } = await import(/* @vite-ignore */ fsModule);
+    const html = readFileSync('apps/studio/index.html', 'utf8');
+    const css = readFileSync('apps/studio/styles/layout.css', 'utf8');
+
+    expect(html).toContain('id="global-palette-select" name="palette" class="studio-select"');
+    expect(html).toContain('id="global-appearance-select" name="appearance" class="studio-select"');
+    expect(css).toContain('appearance: base-select');
+    expect(css).toContain('select::picker(select)');
+    expect(css).toContain('select::picker-icon');
+    expect(css).toContain('select option::checkmark');
+  });
 });

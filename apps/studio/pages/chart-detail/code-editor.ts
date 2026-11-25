@@ -1,6 +1,11 @@
 import type { ChartConfig } from '../../../../src/index';
 import type { ChartAttributeSpec, ChartCatalogEntry } from '../../catalog';
+import { escapeHtml } from '../../guides/shared';
 import { getGlobalThemeMode } from '../../state/theme';
+import {
+  renderSectionInfoTooltip,
+  wireSectionInfoTooltips
+} from './section-info';
 import {
   applyHtmlAttributeToConfig,
   extractChartConfigBlock,
@@ -40,8 +45,13 @@ export function createCodeEditorPanel(opts: {
   editorCard.className = 'panel-card';
   editorCard.innerHTML = `
     <div class="panel-header">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="panel-title-group">
         <h2 class="panel-title">Web Component HTML Markup</h2>
+        ${renderSectionInfoTooltip(
+          `detail-markup-info-${entry.id}`,
+          'More about Web Component HTML Markup',
+          `Live-editable Web Component HTML markup. Edit attributes on <code>&lt;${escapeHtml(entry.tagName)}&gt;</code> or any field (including <code>data</code>) inside <code>chart.config</code> — changes reflect on the live chart immediately.`
+        )}
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <button type="button" id="btn-copy-ai-context" title="Copy LLM-ready chart context specification">
@@ -56,9 +66,7 @@ export function createCodeEditorPanel(opts: {
       </div>
     </div>
 
-    <p style="margin:0;font-size:0.8rem;color:var(--text-muted);" id="editor-helper-desc">
-      Live-editable Web Component HTML markup. Edit attributes on <code>&lt;${entry.tagName}&gt;</code> or any field (including <code>data</code>) inside <code>chart.config</code> — changes reflect on the live chart immediately.
-    </p>
+    <p style="margin:0;font-size:0.8rem;color:#f87171;" id="editor-helper-desc" hidden></p>
 
     <textarea
       id="detail-html-preview"
@@ -74,7 +82,6 @@ export function createCodeEditorPanel(opts: {
   const editorHelperDesc = editorCard.querySelector(
     '#editor-helper-desc'
   ) as HTMLElement;
-  const defaultHelperHtml = editorHelperDesc.innerHTML;
   let lastSyncedTagAttrs: Record<string, string> = {};
 
   const syncFromConfig = (nextCfg: ChartConfig<any>): void => {
@@ -85,8 +92,8 @@ export function createCodeEditorPanel(opts: {
     );
     htmlPreviewBox.value = nextSnippet;
     lastSyncedTagAttrs = extractTagAttributes(nextSnippet, entry.tagName);
-    editorHelperDesc.innerHTML = defaultHelperHtml;
-    editorHelperDesc.style.color = 'var(--text-muted)';
+    editorHelperDesc.textContent = '';
+    editorHelperDesc.hidden = true;
   };
 
   syncFromConfig(config);
@@ -103,14 +110,14 @@ export function createCodeEditorPanel(opts: {
         const parsedRaw = parseConfigObjectLiteral(configBlock);
         if (parsedRaw && typeof parsedRaw === 'object' && !Array.isArray(parsedRaw)) {
           nextCfg = restoreSerializedFunctions(parsedRaw, config);
-          editorHelperDesc.innerHTML = defaultHelperHtml;
-          editorHelperDesc.style.color = 'var(--text-muted)';
+          editorHelperDesc.textContent = '';
+          editorHelperDesc.hidden = true;
         }
       } catch (err: any) {
         editorHelperDesc.textContent = `Waiting for valid chart.config: ${
           err?.message ?? 'Syntax error'
         }`;
-        editorHelperDesc.style.color = '#f87171';
+        editorHelperDesc.hidden = false;
         return;
       }
     }
@@ -154,6 +161,8 @@ export function createCodeEditorPanel(opts: {
       window.open(`./charts/${entry.id}.md`, '_blank', 'noopener,noreferrer');
     }
   });
+
+  wireSectionInfoTooltips(editorCard);
 
   return {
     element: editorCard,

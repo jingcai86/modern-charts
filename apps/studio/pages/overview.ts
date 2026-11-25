@@ -284,6 +284,67 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   const examplesGrid = document.createElement('section');
   examplesGrid.className = 'overview-grid';
 
+  const pendingQueue: MCBaseChart<any>[] = [];
+  let isDrainingQueue = false;
+
+  async function yieldToMain(): Promise<void> {
+    const g = globalThis as any;
+    if (g.scheduler && typeof g.scheduler.yield === 'function') {
+      await g.scheduler.yield();
+      return;
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+
+  async function drainRenderQueue(): Promise<void> {
+    if (isDrainingQueue) return;
+    isDrainingQueue = true;
+    await new Promise<void>((resolve) => {
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => resolve());
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
+    while (pendingQueue.length > 0) {
+      const nextChart = pendingQueue.shift()!;
+      if (!nextChart.isConnected) continue;
+      await yieldToMain();
+      if (!nextChart.isConnected) continue;
+      nextChart.removeAttribute('data-defer-initial-render');
+      if (typeof nextChart.render === 'function') {
+        nextChart.render();
+      }
+    }
+    isDrainingQueue = false;
+  }
+
+  function enqueueChartRender(chart: MCBaseChart<any>): void {
+    if (!pendingQueue.includes(chart)) {
+      pendingQueue.push(chart);
+    }
+    void drainRenderQueue();
+  }
+
+  const cardObserver =
+    typeof IntersectionObserver === 'function'
+      ? new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              cardObserver?.unobserve(entry.target);
+              const chart = (entry.target as any).__overviewChart as
+                | MCBaseChart<any>
+                | undefined;
+              if (chart) {
+                enqueueChartRender(chart);
+              }
+            }
+          },
+          { rootMargin: '240px 0px' }
+        )
+      : null;
+
   CHART_CATALOG.forEach((entry) => {
     const card = document.createElement('article');
     card.className = 'overview-card';
@@ -316,16 +377,27 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
       `#preview-stage-${entry.id}`
     ) as HTMLElement;
     const chartEl = document.createElement(entry.tagName) as MCBaseChart<any>;
+    chartEl.setAttribute('data-defer-initial-render', '');
     const cfg = getOrInitChartConfig(entry);
-    stage.appendChild(chartEl);
     chartEl.setConfig({
       ...cfg,
       themeMode: getGlobalThemeMode(),
+      isInteractive: false,
+      animate: false,
+      labelMode: 'svg',
       xTitle: undefined,
       yTitle: undefined,
       view: cfg.view ? { ...cfg.view, showControls: false } : undefined
     });
+    stage.appendChild(chartEl);
+    (card as any).__overviewChart = chartEl;
     mountedCharts.push(chartEl);
+
+    if (cardObserver) {
+      cardObserver.observe(card);
+    } else {
+      enqueueChartRender(chartEl);
+    }
   });
 
   examplesPanel.appendChild(examplesGrid);
