@@ -54,7 +54,7 @@ export const BAR_CHART_ENTRY: ChartCatalogEntry = {
         type: 'area',
         axis: 'y',
         from: 0,
-        to: 100,
+        to: 50,
         fill: '#ef4444',
         fillOpacity: 0.08
       },
@@ -62,13 +62,18 @@ export const BAR_CHART_ENTRY: ChartCatalogEntry = {
         id: 'budget-floor-line',
         type: 'line',
         axis: 'y',
-        value: 100,
-        label: 'Floor $100K',
+        value: 50,
+        label: 'Floor $50K (< $50K)',
         icon: SVG_ICON_PRESETS.warn,
         stroke: '#ef4444',
         strokeWidth: 2,
         strokeDasharray: '5 4',
         condition: 'below',
+        matchScope: 'item',
+        legend: {
+          label: 'Threshold (< $50K)',
+          tooltip: 'Bars below the $50K floor are highlighted in red'
+        },
         matchStyle: {
           color: '#ef4444',
           fill: '#ef4444',

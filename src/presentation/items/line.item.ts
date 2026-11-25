@@ -81,7 +81,11 @@ export function renderLineAreaItem(
   if (!series.areaPathD) return null;
 
   const activeDefs = defs ?? ctx.svg.querySelector('.mc-chart-defs');
-  const plan = resolveSeriesPartialPlan(series, ctx, true);
+  const linePlan = resolveSeriesPartialPlan(series, ctx, false);
+  const plan =
+    linePlan.isPartial || linePlan.isFullMatch
+      ? resolveSeriesPartialPlan(series, ctx, true)
+      : linePlan;
   const customAreaFill =
     ctx.resolveFill?.({
       id: series.id,

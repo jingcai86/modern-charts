@@ -161,4 +161,89 @@ describe('Studio Theme and Appearance controls', () => {
     expect(appearanceSelect.value).toBe('system');
     systemIsDark = false;
   }, 15_000);
+
+  it('recolors rendered line and bar series when switching to Neutral while keeping threshold overrides scoped and preserving explicit series colors (Issue #99)', () => {
+    select(paletteSelect, 'neutral');
+    const [neutral0, neutral1, neutral2] = PALETTES.neutral;
+
+    // 1. Overview gallery: Line & Area and Bar & Stack reflect Neutral palette in rendered SVG
+    const overviewCharts = Array.from(
+      document.querySelectorAll<MCBaseChart<any>>('.overview-preview-stage > *')
+    );
+    const overviewLine = overviewCharts.find((c) => c.chartType === 'line')!;
+    const overviewBar = overviewCharts.find((c) => c.chartType === 'bar')!;
+    overviewLine.removeAttribute('data-defer-initial-render');
+    overviewLine.render();
+    overviewBar.removeAttribute('data-defer-initial-render');
+    overviewBar.render();
+
+    // Inference (120..276) is completely above SLA < 90, so its path and area use neutral0 (#737373)
+    const inferencePath = overviewLine.shadowRoot!.querySelector<SVGPathElement>(
+      '.mc-line-path[data-series-id="Inference"]'
+    )!;
+    expect(inferencePath.getAttribute('stroke')).toBe(neutral0);
+    const edgeBaseSeg = overviewLine.shadowRoot!.querySelector<SVGPathElement>(
+      '.mc-line-path[data-series-id="Edge"] .mc-line-segment--base'
+    )!;
+    const legacyBaseSeg = overviewLine.shadowRoot!.querySelector<SVGPathElement>(
+      '.mc-line-path[data-series-id="Legacy"] .mc-line-segment--base'
+    )!;
+    expect(edgeBaseSeg.getAttribute('stroke')).toBe(neutral1);
+    expect(legacyBaseSeg.getAttribute('stroke')).toBe(neutral2);
+
+    // Legacy crosses below SLA < 90 in Jun-Jul (85, 72), so its threshold segment is red
+    const legacyThreshSeg = overviewLine.shadowRoot!.querySelector<SVGPathElement>(
+      '.mc-line-path[data-series-id="Legacy"] .mc-line-segment--threshold'
+    )!;
+    expect(legacyThreshSeg.getAttribute('stroke')).toBe('#ef4444');
+
+    // Bar chart: 10 of 12 bars are above Floor $50K and render as full Neutral rects (no red split)
+    const q1Cloud = overviewBar.shadowRoot!.querySelector<SVGRectElement>(
+      '[data-item-component="mc-bar-item"][data-key="Cloud"][data-index="Q1"]'
+    )!;
+    const q1Edge = overviewBar.shadowRoot!.querySelector<SVGRectElement>(
+      '[data-item-component="mc-bar-item"][data-key="Edge"][data-index="Q1"]'
+    )!;
+    const q1OnPrem = overviewBar.shadowRoot!.querySelector<SVGRectElement>(
+      '[data-item-component="mc-bar-item"][data-key="OnPrem"][data-index="Q1"]'
+    )!;
+    expect(q1Cloud.tagName.toLowerCase()).toBe('rect');
+    expect(q1Cloud.getAttribute('fill')).toBe(neutral0);
+    expect(q1Edge.tagName.toLowerCase()).toBe('rect');
+    expect(q1Edge.getAttribute('fill')).toBe(neutral1);
+    expect(q1OnPrem.tagName.toLowerCase()).toBe('rect');
+    expect(q1OnPrem.getAttribute('fill')).toBe(neutral2);
+
+    // Only Q3 OnPrem (49) and Q4 OnPrem (44) fall below $50K and receive the #ef4444 threshold fill
+    const q3OnPrem = overviewBar.shadowRoot!.querySelector<SVGRectElement>(
+      '[data-item-component="mc-bar-item"][data-key="OnPrem"][data-index="Q3"]'
+    )!;
+    const q4OnPrem = overviewBar.shadowRoot!.querySelector<SVGRectElement>(
+      '[data-item-component="mc-bar-item"][data-key="OnPrem"][data-index="Q4"]'
+    )!;
+    expect(q3OnPrem.getAttribute('fill')).toBe('#ef4444');
+    expect(q4OnPrem.getAttribute('fill')).toBe('#ef4444');
+
+    // 2. Detail playground: Line chart responds to theme switch and still respects explicit series.color overrides
+    route('#/chart/line');
+    const lineDetail = detailChart();
+    expect(
+      lineDetail.shadowRoot!
+        .querySelector<SVGPathElement>('.mc-line-path[data-series-id="Inference"]')!
+        .getAttribute('stroke')
+    ).toBe(neutral0);
+
+    // Explicit series.color override still takes precedence over the selected palette
+    lineDetail.setConfig({
+      ...lineDetail.config,
+      data: lineDetail.config.data.map((s: any, idx: number) =>
+        idx === 0 ? { ...s, color: '#123456' } : s
+      )
+    });
+    expect(
+      lineDetail.shadowRoot!
+        .querySelector<SVGPathElement>('.mc-line-path[data-series-id="Inference"]')!
+        .getAttribute('stroke')
+    ).toBe('#123456');
+  }, 15_000);
 });

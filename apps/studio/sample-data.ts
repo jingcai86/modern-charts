@@ -13,7 +13,6 @@ import type {
 export const SAMPLE_LINE_DATA: LineSeries[] = [
   {
     id: 'Inference',
-    color: '#6366f1',
     data: [
       { x: 'Jan', y: 120 },
       { x: 'Feb', y: 148 },
@@ -26,7 +25,6 @@ export const SAMPLE_LINE_DATA: LineSeries[] = [
   },
   {
     id: 'Edge',
-    color: '#06b6d4',
     data: [
       { x: 'Jan', y: 82 },
       { x: 'Feb', y: 96 },
@@ -39,7 +37,6 @@ export const SAMPLE_LINE_DATA: LineSeries[] = [
   },
   {
     id: 'Legacy',
-    color: '#f59e0b',
     data: [
       { x: 'Jan', y: 150 },
       { x: 'Feb', y: 138 },
