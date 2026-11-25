@@ -632,7 +632,7 @@ export class MCCustomLayer extends MCConfigBaseElement {
     const resolveX = (raw: string | null, fallback = 0): number => {
       if (raw === null) return fallback;
       if (raw.endsWith('%')) {
-        return (parseFloat(raw) / 100) * ctx.innerWidth;
+        return (Number.parseFloat(raw) / 100) * ctx.innerWidth;
       }
       if (ctx.xScale) {
         const num = Number(raw);
@@ -652,7 +652,7 @@ export class MCCustomLayer extends MCConfigBaseElement {
     const resolveY = (raw: string | null, fallback = 0): number => {
       if (raw === null) return fallback;
       if (raw.endsWith('%')) {
-        return (parseFloat(raw) / 100) * ctx.innerHeight;
+        return (Number.parseFloat(raw) / 100) * ctx.innerHeight;
       }
       if (ctx.yScale) {
         const num = Number(raw);

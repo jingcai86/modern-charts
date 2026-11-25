@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 /**
@@ -39,14 +39,13 @@ function parseSemver(version) {
     major: Number(match[1]),
     minor: Number(match[2]),
     patch: Number(match[3]),
-    preid: match[4] ?? null,
-    prenum: match[5] !== undefined ? Number(match[5]) : null
+    prerelease: match[4] ? { id: match[4], number: Number(match[5]) } : undefined
   };
 }
 
-function git(cmd) {
+function git(...args) {
   try {
-    return execSync(`git ${cmd}`, {
+    return execFileSync('/usr/bin/git', args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore']
     }).trim();
@@ -56,9 +55,9 @@ function git(cmd) {
 }
 
 function detectAutoBumpFromCommits(current) {
-  const lastTag = git('describe --tags --abbrev=0 --match "v*"');
-  const range = lastTag ? `${lastTag}..HEAD` : 'HEAD';
-  const rawLog = git(`log ${range} --no-merges --pretty=format:"%s%n%b%x1e"`);
+  const lastTag = git('describe', '--tags', '--abbrev=0', '--match', 'v*');
+  const range = lastTag ? `refs/tags/${lastTag}..HEAD` : 'HEAD';
+  const rawLog = git('log', '--no-merges', '--pretty=format:%s%n%b%x1e', range, '--');
   const entries = rawLog
     .split('\x1e')
     .map((s) => s.trim())
@@ -76,7 +75,7 @@ function detectAutoBumpFromCommits(current) {
   }
 
   // If currently on a prerelease (e.g. 0.1.0-alpha.1), auto increments the prerelease counter
-  if (current.preid !== null) {
+  if (current.prerelease) {
     return 'prerelease';
   }
   if (hasBreaking) {
@@ -90,6 +89,7 @@ function detectAutoBumpFromCommits(current) {
 
 function computeNextVersion(currentStr, opts) {
   const cur = parseSemver(currentStr);
+  const currentPrerelease = cur.prerelease;
   let bump = opts.type;
   const preid = opts.preid && opts.preid !== 'none' ? opts.preid : null;
 
@@ -112,11 +112,11 @@ function computeNextVersion(currentStr, opts) {
 
   switch (bump) {
     case 'prerelease': {
-      const targetPreid = preid ?? cur.preid ?? 'alpha';
-      if (cur.preid === targetPreid && cur.prenum !== null) {
-        return `${cur.major}.${cur.minor}.${cur.patch}-${targetPreid}.${cur.prenum + 1}`;
+      const targetPreid = preid ?? currentPrerelease?.id ?? 'alpha';
+      if (currentPrerelease?.id === targetPreid) {
+        return `${cur.major}.${cur.minor}.${cur.patch}-${targetPreid}.${currentPrerelease.number + 1}`;
       }
-      if (cur.preid !== null) {
+      if (currentPrerelease) {
         return `${cur.major}.${cur.minor}.${cur.patch}-${targetPreid}.0`;
       }
       return `${cur.major}.${cur.minor}.${cur.patch + 1}-${targetPreid}.0`;
@@ -124,18 +124,18 @@ function computeNextVersion(currentStr, opts) {
     case 'patch': {
       if (preid) {
         // e.g. 0.1.0-alpha.1 + patch + alpha -> 0.1.0-alpha.2
-        if (cur.preid === preid && cur.prenum !== null) {
-          return `${cur.major}.${cur.minor}.${cur.patch}-${preid}.${cur.prenum + 1}`;
+        if (currentPrerelease?.id === preid) {
+          return `${cur.major}.${cur.minor}.${cur.patch}-${preid}.${currentPrerelease.number + 1}`;
         }
         // e.g. 0.1.0-alpha.1 + patch + beta -> 0.1.0-beta.0
-        if (cur.preid !== null) {
+        if (currentPrerelease) {
           return `${cur.major}.${cur.minor}.${cur.patch}-${preid}.0`;
         }
         // e.g. 0.1.0 + patch + alpha -> 0.1.1-alpha.0
         return `${cur.major}.${cur.minor}.${cur.patch + 1}-${preid}.0`;
       }
       // Stable patch: graduates prerelease (0.1.0-alpha.1 -> 0.1.0) or bumps patch (0.1.0 -> 0.1.1)
-      if (cur.preid !== null) {
+      if (currentPrerelease) {
         return `${cur.major}.${cur.minor}.${cur.patch}`;
       }
       return `${cur.major}.${cur.minor}.${cur.patch + 1}`;
@@ -225,7 +225,7 @@ if (nextVersion === currentVersion) {
   throw new Error(`Computed version (${nextVersion}) is identical to current version (${currentVersion}).`);
 }
 
-if (git(`rev-parse --verify --quiet refs/tags/${nextTag}`)) {
+if (git('rev-parse', '--verify', '--quiet', `refs/tags/${nextTag}`)) {
   throw new Error(`Git tag "${nextTag}" already exists. Choose a different release_type or custom_version.`);
 }
 

@@ -107,6 +107,16 @@ describe('Studio attribute scopes and search', () => {
     }
   });
 
+  it('displays category and attribute names without inline element annotations', () => {
+    const view = mount();
+    const position = view.row('tooltip.position');
+    expect(position.closest('details')?.querySelector('.attr-category-name')?.textContent)
+      .toBe('Tooltip');
+    expect(position.querySelector('.attr-html-badge')?.textContent).toBe('tooltip-position');
+    expect(view.row('tooltip.anchorGap').querySelector('.attr-html-badge')?.textContent)
+      .toBe('anchor-gap');
+  });
+
   it('combines scope and text filters, reports empty results, and hides empty groups without losing properties', () => {
     const view = mount();
     view.button('common').click();

@@ -54,7 +54,7 @@ export function computeLabelsForFiles(files) {
       }
     }
   }
-  return Array.from(matched).toSorted();
+  return Array.from(matched).toSorted((a, b) => a.localeCompare(b, 'en'));
 }
 
 async function runAutoLabeler() {

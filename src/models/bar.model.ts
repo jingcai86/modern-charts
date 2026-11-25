@@ -223,7 +223,7 @@ export function computeBarChartModel(
   const rawRects: Omit<ComputedBarItemModel, 'index' | 'total'>[] = [];
   const bandScale = isHorizontal ? ctx.yScale : ctx.xScale;
   const valScale = isHorizontal ? ctx.xScale : ctx.yScale;
-  const rawZero = valScaleType === 'log' ? NaN : Number(valScale(0));
+  const rawZero = valScaleType === 'log' ? Number.NaN : Number(valScale(0));
   const domainBounds =
     typeof valScale.domain === 'function' ? valScale.domain() : [1, 100];
   const zeroPos = Number.isFinite(rawZero)

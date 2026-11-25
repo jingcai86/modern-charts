@@ -83,8 +83,8 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: Ensure npm >= 11.5.1 for Trusted Publishing (OIDC)
-        run: npm install -g npm@latest
+      - name: Install pinned npm for Trusted Publishing (OIDC)
+        run: npm install --global --ignore-scripts npm@11.21.3
 
       - name: Resolve version & dist-tag
         id: meta
@@ -121,7 +121,7 @@ jobs:
           echo "prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Run test suite
         run: npm test
@@ -157,11 +157,11 @@ jobs:
           RELEASE_VERSION: ${{ steps.meta.outputs.version }}
           RELEASE_TAG: ${{ steps.meta.outputs.tag }}
           RELEASE_DIST_TAG: ${{ steps.meta.outputs.dist_tag }}
-        run: node .github/scripts/generate-release-notes.mjs release-notes.md
+        run: node .github/scripts/generate-release-notes.mjs
 
       - name: Create GitHub Release & Git Tag
         if: ${{ inputs.dry_run != true }}
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: ${{ steps.meta.outputs.tag }}
@@ -197,7 +197,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Build library
         run: npm run build

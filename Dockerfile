@@ -5,7 +5,7 @@ FROM node:22-alpine AS base
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # ==============================================================================
 # Stage 2: Development Server (Hot Reload on Port 5173)
@@ -29,7 +29,10 @@ RUN npm run build && npm run build:apps
 # Usage: docker compose up --build
 #    or: docker build -t modern-charts . && docker run -p 8080:80 modern-charts
 # ==============================================================================
-FROM nginx:alpine AS prod
+FROM nginxinc/nginx-unprivileged:alpine AS prod
+USER 101
+# Keep the container port used by the existing Docker and Compose commands.
+RUN sed -i 's/8080;/80;/g' /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist-examples /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

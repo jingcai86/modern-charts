@@ -324,14 +324,14 @@ export class MarkerEngine {
           stats.points.length > 0 &&
           (presetCandidate === 'max' || presetCandidate === 'min')
         ) {
-          const targetPt = stats.points.reduce((best, cur) =>
-            presetCandidate === 'max'
-              ? cur.y > best.y
-                ? cur
-                : best
-              : cur.y < best.y
-              ? cur
-              : best
+          const targetPt = stats.points.reduce(
+            (best, point) => {
+              const isBetter = presetCandidate === 'max'
+                ? point.y > best.y
+                : point.y < best.y;
+              return isBetter ? point : best;
+            },
+            stats.points[0]
           );
           resolvedX = targetPt.x;
           resolvedY = targetPt.y;

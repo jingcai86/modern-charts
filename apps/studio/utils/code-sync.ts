@@ -295,7 +295,7 @@ export function parseConfigObjectLiteral(source: string): any {
             if (hex.length !== 4 || !/^[0-9a-fA-F]{4}$/.test(hex)) {
               throw new SyntaxError('Invalid unicode escape sequence');
             }
-            out += String.fromCharCode(parseInt(hex, 16));
+            out += String.fromCharCode(Number.parseInt(hex, 16));
             pos += 4;
             break;
           }
@@ -304,7 +304,7 @@ export function parseConfigObjectLiteral(source: string): any {
             if (hex.length !== 2 || !/^[0-9a-fA-F]{2}$/.test(hex)) {
               throw new SyntaxError('Invalid hex escape sequence');
             }
-            out += String.fromCharCode(parseInt(hex, 16));
+            out += String.fromCharCode(Number.parseInt(hex, 16));
             pos += 2;
             break;
           }

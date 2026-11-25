@@ -110,16 +110,16 @@ export function parseColorToRgb(raw: string): [number, number, number] | null {
     const hex = s.slice(1);
     if (/^[0-9a-fA-F]{3,4}$/.test(hex)) {
       return [
-        parseInt(hex[0] + hex[0], 16),
-        parseInt(hex[1] + hex[1], 16),
-        parseInt(hex[2] + hex[2], 16)
+        Number.parseInt(hex[0] + hex[0], 16),
+        Number.parseInt(hex[1] + hex[1], 16),
+        Number.parseInt(hex[2] + hex[2], 16)
       ];
     }
     if (/^[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(hex)) {
       return [
-        parseInt(hex.slice(0, 2), 16),
-        parseInt(hex.slice(2, 4), 16),
-        parseInt(hex.slice(4, 6), 16)
+        Number.parseInt(hex.slice(0, 2), 16),
+        Number.parseInt(hex.slice(2, 4), 16),
+        Number.parseInt(hex.slice(4, 6), 16)
       ];
     }
     return null;

@@ -9,6 +9,7 @@ import {
   resolveLabelOverflowConfig,
   truncateWithPretext
 } from './label-truncate';
+import { replaceTemplatePlaceholders } from './template';
 import { resolveElementAnchor } from './tooltip-anchor';
 import type {
   ChartTheme,
@@ -1057,7 +1058,7 @@ export class LabelEngine {
       typeof descriptor.icon === 'string' ? descriptor.icon : '';
     const displayText = measured ? measured.displayText : descriptor.text;
     const originalText = measured ? measured.originalText : descriptor.text;
-    return template.replace(/\{\{\s*([\p{ID_Continue}$._\u200c\u200d-]+)\s*\}\}/gu, (_, key: string) => {
+    return replaceTemplatePlaceholders(template, (key) => {
       if (key === 'text') return displayText;
       if (key === 'originalText' || key === 'fullText') return originalText;
       if (key === 'type') return descriptor.type;
