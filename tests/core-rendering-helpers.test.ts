@@ -120,6 +120,9 @@ describe('label clipping and wrapping', () => {
     expect(truncateSingleLine('', undefined, undefined, '…', count)).toEqual({
       text: '', width: 0, truncated: false
     });
+    expect(truncateSingleLine('Q1 \u00a0Forecast', undefined, 5, '…', count)).toEqual({
+      text: 'Q1…', width: 3, truncated: true
+    });
   });
 
   it('truncates wrapped content at the final visible line', () => {

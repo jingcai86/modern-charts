@@ -1,22 +1,13 @@
 #!/usr/bin/env node
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-let rawOutput = '';
-try {
-  rawOutput = execSync('npx -y modern-web-guidance@latest legacy-scan . --json', {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe']
-  });
-} catch (err) {
-  rawOutput = err?.stdout ? String(err.stdout) : '';
-}
-
-const jsonStart = rawOutput.indexOf('{');
-const report =
-  jsonStart >= 0
-    ? JSON.parse(rawOutput.slice(jsonStart))
-    : { totalFindings: 0, filesScanned: 0, findings: [] };
+const scanner = fileURLToPath(import.meta.resolve('modern-web-guidance/skills/modern-web-guidance/modern-web.mjs'));
+const report = JSON.parse(execFileSync(process.execPath, [scanner, 'legacy-scan', '.', '--json'], {
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'inherit']
+}));
 
 const nestedFindings = Array.isArray(report.guides)
   ? report.guides.flatMap((g) =>

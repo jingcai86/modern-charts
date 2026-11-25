@@ -45,8 +45,8 @@ export function ensureCanvasTextMeasurementSupport(): void {
   }
 
   const estimateWidth = (text: string, font: string): number => {
-    const sizeMatch = font.match(/(\d+(?:\.\d+)?)px/);
-    const fontSize = sizeMatch ? parseFloat(sizeMatch[1]) : 12;
+    const sizeMatch = font.match(/(?:^|\D)(\d+(?:\.\d+)?)px/);
+    const fontSize = sizeMatch ? Number.parseFloat(sizeMatch[1]) : 12;
     let total = 0;
     for (const ch of text) {
       const code = ch.charCodeAt(0);
@@ -281,7 +281,7 @@ export function truncateSingleLine(
 
   const buildCandidate = (count: number, withEllipsis: boolean): string => {
     if (!withEllipsis) return baseGraphemes.slice(0, count).join('');
-    const prefix = baseGraphemes.slice(0, count).join('').replace(/\s+$/, '');
+    const prefix = baseGraphemes.slice(0, count).join('').trimEnd();
     if (maxChars !== undefined && maxChars > 0 && maxChars <= ellipsisLen) {
       return ellipsisGraphemes.slice(0, maxChars).join('');
     }

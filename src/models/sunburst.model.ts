@@ -23,7 +23,7 @@ function brightenHexColor(input: string, k: number): string {
   }
   const factor = Math.pow(1 / 0.7, k);
   const brightenChannel = (offset: number): string => {
-    const raw = parseInt(digits.slice(offset, offset + 2), 16);
+    const raw = Number.parseInt(digits.slice(offset, offset + 2), 16);
     const next = Math.min(255, Math.round(raw === 0 ? 18 * factor : raw * factor));
     return next.toString(16).padStart(2, '0');
   };

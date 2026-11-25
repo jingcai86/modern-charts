@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 
@@ -7,23 +7,27 @@ const version = process.env.RELEASE_VERSION || pkg.version;
 const tag = process.env.RELEASE_TAG || `v${version}`;
 const distTag = process.env.RELEASE_DIST_TAG || (version.includes('-') ? 'alpha' : 'latest');
 const repo = process.env.GITHUB_REPOSITORY || 'jingcai86/modern-charts';
-const outputPath = process.argv[2] || 'release-notes.md';
+const outputPath = 'release-notes.md';
 
-function git(cmd) {
+function git(...args) {
   try {
-    return execSync(`git ${cmd}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return execFileSync('/usr/bin/git', args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim();
   } catch {
     return '';
   }
 }
 
 // Find previous tag before the current tag (or HEAD)
-const refBase = git(`rev-parse --verify --quiet ${tag}`) ? `${tag}^` : 'HEAD';
-const prevTag = git(`describe --tags --abbrev=0 ${refBase}`);
-const range = prevTag ? `${prevTag}..${git(`rev-parse --verify --quiet ${tag}`) ? tag : 'HEAD'}` : 'HEAD';
+const taggedCommit = git('rev-parse', '--verify', '--quiet', `refs/tags/${tag}^{commit}`);
+const refBase = taggedCommit ? `${taggedCommit}^` : 'HEAD';
+const prevTag = git('describe', '--tags', '--abbrev=0', refBase);
+const range = prevTag ? `refs/tags/${prevTag}..${taggedCommit || 'HEAD'}` : 'HEAD';
 
 // Collect commits in range (exclude merge commits and release bump commits)
-const rawLog = git(`log ${range} --no-merges --pretty=format:"%H%x1f%h%x1f%s%x1f%an"`);
+const rawLog = git('log', '--no-merges', '--pretty=format:%H%x1f%h%x1f%s%x1f%an', range, '--');
 const commits = rawLog
   ? rawLog
       .split('\n')

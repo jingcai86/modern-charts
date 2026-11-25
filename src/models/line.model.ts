@@ -310,7 +310,7 @@ export function computeLineChartModel(
         originalColor: baseColor,
         color: effectiveColor,
         xValue: pt.x,
-        yValue: defined ? rawY : NaN,
+        yValue: defined ? rawY : Number.NaN,
         y0Value: y0,
         px,
         py,

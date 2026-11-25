@@ -57,15 +57,19 @@ jobs:
 
       - name: Compute & apply next version (0.x guard)
         id: ver
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+          RELEASE_PREID: ${{ inputs.prerelease }}
+          CUSTOM_VERSION: ${{ inputs.custom_version }}
         run: |
           node .github/scripts/compute-next-version.mjs \
-            --type="${{ inputs.release_type }}" \
-            --preid="${{ inputs.prerelease }}" \
-            --custom="${{ inputs.custom_version }}" \
+            --type="$RELEASE_TYPE" \
+            --preid="$RELEASE_PREID" \
+            --custom="$CUSTOM_VERSION" \
             --write
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Run tests, build & bundle size verification
         run: |
@@ -78,7 +82,7 @@ jobs:
           RELEASE_VERSION: ${{ steps.ver.outputs.version }}
           RELEASE_TAG: ${{ steps.ver.outputs.tag }}
           RELEASE_DIST_TAG: ${{ steps.ver.outputs.dist_tag }}
-        run: node .github/scripts/generate-release-notes.mjs release-notes.md
+        run: node .github/scripts/generate-release-notes.mjs
 
       - name: Write Job Summary
         run: |

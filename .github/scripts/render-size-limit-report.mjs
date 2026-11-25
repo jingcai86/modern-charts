@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs';
 
-function readResults(path) {
-  const results = JSON.parse(readFileSync(path, 'utf8'));
+function indexResults(results, label) {
   if (!Array.isArray(results)) {
-    throw new Error(results.error ?? `Expected Size Limit results in ${path}.`);
+    throw new Error(results?.error ?? `Expected ${label} Size Limit results.`);
   }
   return new Map(results.map(result => [result.name, result]));
 }
@@ -32,8 +31,9 @@ function formatCell(current, base) {
   return `${size} (${change})`;
 }
 
-const base = readResults(process.argv[2]);
-const current = readResults(process.argv[3]);
+const input = JSON.parse(readFileSync(0, 'utf8'));
+const base = indexResults(input.base, 'base');
+const current = indexResults(input.current, 'current');
 const entries = new Set(
   [...current.keys(), ...base.keys()].map(name => name.replace(/ \[(brotli|gzip)\]$/, ''))
 );

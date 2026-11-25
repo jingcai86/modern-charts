@@ -1,6 +1,7 @@
 import { HTMLElementBase, lazyTemplate } from '../core/dom';
 import { createChartI18n } from '../core/i18n';
 import type { ChartI18n } from '../core/i18n';
+import { replaceTemplatePlaceholders } from '../core/template';
 import type {
   ChartTheme,
   TooltipAnchorRect,
@@ -187,7 +188,7 @@ function interpolateTooltipTemplate(
   payload: TooltipPayload,
   i18n: ChartI18n
 ): string {
-  return template.replace(/\{\{\s*([\p{ID_Continue}$._\u200c\u200d-]+)\s*\}\}/gu, (_, key: string) =>
+  return replaceTemplatePlaceholders(template, (key) =>
     escapeHtml(resolveTemplateValue(payload, key, i18n))
   );
 }

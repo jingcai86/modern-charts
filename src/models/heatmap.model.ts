@@ -193,7 +193,7 @@ export function computeHeatmapChartModel(
       rawCells.push({
         rowId: row.id,
         colId,
-        value: isEmpty ? NaN : val,
+        value: isEmpty ? Number.NaN : val,
         isEmpty,
         x,
         y,

@@ -1,3 +1,5 @@
+import { replaceTemplatePlaceholders } from './template';
+
 /** Shared chart UI messages. Placeholders use `{{name}}` syntax. */
 export interface ChartMessages {
   chartTitle: string;
@@ -194,16 +196,17 @@ function resolveChartI18n(config: ChartI18nConfig, global: ChartI18nConfig): Cha
     }
   }
   const messages: Readonly<ChartMessages> = Object.freeze(mergedMessages);
+  const dateFormatters = new Map<string, Intl.DateTimeFormat>();
   // Validate explicit overrides immediately and resolve the runtime zone only when a date needs it.
   if (timeZone !== undefined) {
-    new Intl.DateTimeFormat(locale, { timeZone });
+    const options = { timeZone };
+    dateFormatters.set(formatterKey(options), new Intl.DateTimeFormat(locale, options));
   } else if (locale !== 'en-US') {
     Intl.getCanonicalLocales(locale);
   }
   const getTimeZone = (): string =>
     timeZone ??= new Intl.DateTimeFormat().resolvedOptions().timeZone;
   const numberFormatters = new Map<string, Intl.NumberFormat>();
-  const dateFormatters = new Map<string, Intl.DateTimeFormat>();
   const formatNumber = (value: number, options: Intl.NumberFormatOptions = {}): string => {
     const hasPrecision = options.minimumFractionDigits !== undefined ||
       options.maximumFractionDigits !== undefined || options.minimumSignificantDigits !== undefined ||
@@ -226,7 +229,7 @@ function resolveChartI18n(config: ChartI18nConfig, global: ChartI18nConfig): Cha
       return formatNumber(value, { style: 'percent', ...options });
     },
     message(key, values = {}) {
-      return messages[key].replace(/\{\{\s*([\p{ID_Continue}$._\u200c\u200d-]+)\s*\}\}/gu, (_, name: string) => String(values[name] ?? ''));
+      return replaceTemplatePlaceholders(messages[key], (name) => String(values[name] ?? ''));
     }
   };
 }

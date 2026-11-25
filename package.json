@@ -132,6 +132,7 @@
     "@types/d3": "^7.4.3",
     "@vitest/coverage-v8": "^5.1.1",
     "happy-dom": "^21.0.4",
+    "modern-web-guidance": "1.0.2",
     "size-limit": "^14.3.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",

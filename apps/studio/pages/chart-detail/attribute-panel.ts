@@ -20,6 +20,11 @@ export interface AttributePanelHandle {
   syncAllControls: () => void;
 }
 
+function stripInlineAnnotations(text: string, annotation: RegExp): string {
+  const parts = text.split(annotation);
+  return parts.map((part, index) => index === parts.length - 1 ? part : part.trimEnd()).join('');
+}
+
 /**
  * Renders the collapsible Nivo-style attribute & config control panel on the right
  * side of the Chart Detail Playground, with search filtering and Expand/Minimize All.
@@ -213,7 +218,7 @@ export function createAttributePanel(opts: {
 
     const cleanCatTitle = categoryName === 'Chart-Specific'
       ? 'Chart options'
-      : categoryName.replace(/\s*\(<mc-[^>]+>\)/g, '');
+      : stripInlineAnnotations(categoryName, /\(<mc-[a-z0-9-]+>\)/);
     catDetails.innerHTML = `
       <summary class="attr-category-summary">
         <div class="attr-category-summary-left">
@@ -234,8 +239,7 @@ export function createAttributePanel(opts: {
       row.dataset.searchText =
         `${spec.configPath} ${spec.attrName} ${spec.description} ${spec.category}`.toLowerCase();
 
-      const cleanAttrBadge = spec.attrName
-        .replace(/\s*\/\s*mc-[a-z-]+\[[^\]]+\]/g, '')
+      const cleanAttrBadge = stripInlineAnnotations(spec.attrName, /\/\s*mc-[a-z-]+\[[^[\]]+\]/)
         .replace(/^mc-[a-z-]+\[([^\]]+)\]$/, '$1');
       const metaDiv = document.createElement('div');
       metaDiv.className = 'attr-meta';

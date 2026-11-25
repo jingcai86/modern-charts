@@ -1,4 +1,5 @@
 import { createChartI18n, type ChartI18n, type ChartMessages } from './i18n';
+import { replaceTemplatePlaceholders } from './template';
 import type {
   AriaConfig,
   AriaItemDescriptor,
@@ -54,7 +55,7 @@ export class AriaEngine {
     i18n: ChartI18n = createChartI18n()
   ): string {
     const datumObj = item.datum ?? {};
-    return template.replace(/\{\{\s*([\p{ID_Continue}$._\u200c\u200d-]+)\s*\}\}/gu, (_, key: string) => {
+    return replaceTemplatePlaceholders(template, (key) => {
       if (key === 'id') return String(item.id ?? '');
       if (key === 'type') return String(item.type ?? '');
       if (key === 'index') return formatItemValue(item.index ?? 0, i18n);

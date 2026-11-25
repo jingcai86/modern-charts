@@ -100,6 +100,16 @@ describe('shared chart internationalization', () => {
     expect(() => createChartI18n({ timeZone: 'Invalid/TimeZone' })).toThrow(RangeError);
   });
 
+  it('interpolates message names containing Unicode join controls', () => {
+    const joiningKey = 'a\u200db';
+    const nonJoiningKey = 'a\u200cb';
+    const i18n = createChartI18n({
+      messages: { loading: `{{ ${joiningKey} }} / {{ ${nonJoiningKey} }}` }
+    });
+    expect(i18n.message('loading', { [joiningKey]: 'join', [nonJoiningKey]: 'separate' }))
+      .toBe('join / separate');
+  });
+
   it('keeps logical text direction separate from physical SVG geometry', () => {
     expect(physicalTextAnchor('start', 'rtl')).toBe('end');
     expect(physicalTextAnchor('end', 'rtl')).toBe('start');
