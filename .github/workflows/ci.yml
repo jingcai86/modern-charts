@@ -57,6 +57,10 @@ jobs:
       - name: TypeScript typecheck
         run: npx tsc --noEmit
 
+      - name: Test size-limit reporting
+        if: matrix.node-version == 22
+        run: node --test .github/scripts/render-size-limit-report.test.mjs
+
       - name: Run unit & integration tests with coverage
         run: npm run test:coverage
 
@@ -76,11 +80,50 @@ jobs:
       - name: Build library
         run: npm run build
 
-      - name: Verify bundle size limit (PR comment)
-        uses: andresz1/size-limit-action@v1
+      - name: Verify bundle size limits (PR)
+        id: size-limit
         if: matrix.node-version == 22 && github.event_name == 'pull_request'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run --silent size -- --json > "$RUNNER_TEMP/size-limit-current.json"
+
+      - name: Measure bundle sizes on the PR base
+        id: size-limit-base
+        if: ${{ !cancelled() && (steps.size-limit.outcome == 'success' || steps.size-limit.outcome == 'failure') }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base_dir="$RUNNER_TEMP/size-limit-base"
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git worktree add --detach "$base_dir" "$BASE_SHA"
+          cd "$base_dir"
+          npm ci
+          npm run build
+          # A baseline that exceeds its budget can still be compared.
+          npm run --silent size -- --json > "$RUNNER_TEMP/size-limit-base.json" || test -s "$RUNNER_TEMP/size-limit-base.json"
+
+      - name: Publish bundle size report
+        if: ${{ !cancelled() && steps.size-limit-base.outcome == 'success' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          report="$RUNNER_TEMP/size-limit-report.md"
+          node .github/scripts/render-size-limit-report.mjs \
+            "$RUNNER_TEMP/size-limit-base.json" "$RUNNER_TEMP/size-limit-current.json" > "$report"
+          cat "$report" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$SAME_REPO" = "true" ]; then
+            comments="repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments"
+            comment_id=$(gh api --paginate --slurp "$comments?per_page=100" | jq -r '
+              [.[][] | select(.user.login == "github-actions[bot]" and (.body | startswith("## size-limit report 📦")))][0].id // empty
+            ')
+            if [ -n "$comment_id" ]; then
+              gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" --field "body=@$report" --silent
+            else
+              gh api --method POST "$comments" --field "body=@$report" --silent
+            fi
+          fi
 
       - name: Verify bundle size limit (Push)
         if: matrix.node-version == 22 && github.event_name != 'pull_request'

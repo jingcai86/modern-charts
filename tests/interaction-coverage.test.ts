@@ -102,6 +102,26 @@ describe('Chart accessibility', () => {
     expect(symbol.hasAttribute('tabindex')).toBe(false);
   });
 
+  it.each([
+    ['scatter-node', 'pointAriaLabel'],
+    ['gauge-arc', 'arcAriaLabel'],
+    ['treemap-tile', 'cellAriaLabel'],
+    ['sankey-node', 'nodeAriaLabel']
+  ] as const)('prefers the matching %s label override and falls back if it returns no label', (type, labelKey) => {
+    const engine = new AriaEngine();
+    const item: AriaItemDescriptor = { id: 'west', type, index: 0, total: 1, value: 12.5, datum: {} };
+    const aria = {
+      enabled: true, role: 'figure', isFocusable: false,
+      announceOnFocus: false, includeDataTable: true, itemLabel: 'Region {{id}}'
+    };
+    const config = { i18n: { locale: 'de-DE' } };
+
+    expect(engine.resolveItemLabel(item, aria, {
+      ...config, [labelKey]: '{{type}} {{index}} ({{formattedValue}})'
+    })).toBe(`${type} 0 (12,5)`);
+    expect(engine.resolveItemLabel(item, aria, { ...config, [labelKey]: () => '' })).toBe('Region west');
+  });
+
   it('bounds the table fallback and escapes the chart title, category, and item labels', () => {
     const engine = new AriaEngine();
     const i18n = createChartI18n({ locale: 'de-DE' });

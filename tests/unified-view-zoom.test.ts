@@ -1,8 +1,31 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../src/index';
 import type { MCBarChart } from '../src/charts/mc-bar-chart';
 import type { MCLineChart } from '../src/charts/mc-line-chart';
 import type { MCScatterChart } from '../src/charts/mc-scatter-chart';
+import type { ViewConfig } from '../src/core/types';
+
+afterEach(() => document.body.replaceChildren());
+
+function mountZoomChart(view: Partial<ViewConfig>) {
+  const chart = document.createElement('mc-bar-chart') as MCBarChart;
+  chart.config = {
+    width: 500,
+    height: 300,
+    animate: false,
+    indexBy: 'month',
+    keys: ['sales'],
+    data: [{ month: 'June', sales: 20 }, { month: 'July', sales: 30 }],
+    view
+  };
+  document.body.append(chart);
+  const root = chart.shadowRoot!;
+  return {
+    chart,
+    svg: root.querySelector<SVGSVGElement>('.mc-chart-svg')!,
+    viewport: root.querySelector<SVGGElement>('.mc-chart-viewport')!
+  };
+}
 
 describe('Unified <mc-view-layer> Zoom, Brush, and DataZoom Slider Across Charts (Issue #73)', () => {
   it('renders interactive dataZoom range slider and applies [start, end] percentage range on <mc-line-chart> and <mc-bar-chart>', () => {
@@ -99,5 +122,105 @@ describe('Unified <mc-view-layer> Zoom, Brush, and DataZoom Slider Across Charts
     expect(svg.querySelector('.mc-view-brush')).toBeNull();
 
     scatter.remove();
+  });
+});
+
+describe('Chart view controls', () => {
+  it('zooms once per button press after reconnecting and resets the viewport', () => {
+    const { chart, viewport } = mountZoomChart({ minZoom: 1, maxZoom: 2 });
+    const onZoom = vi.fn();
+    chart.addEventListener('mc-zoom', onZoom);
+    const controls = chart.shadowRoot!.querySelector<HTMLElement>('.mc-view-controls')!;
+    const button = (action: string) => controls.querySelector<HTMLButtonElement>(`[data-zoom="${action}"]`)!;
+
+    expect(controls.hidden).toBe(false);
+    controls.click();
+    expect(onZoom).not.toHaveBeenCalled();
+    button('in').click();
+    expect(viewport.getAttribute('transform')).toBe('translate(-62.5, -37.5) scale(1.25)');
+    button('out').click();
+    expect(viewport.getAttribute('transform')).toBe('translate(0, 0) scale(1)');
+
+    chart.remove();
+    document.body.append(chart);
+    onZoom.mockClear();
+    button('in').click();
+    expect(onZoom).toHaveBeenCalledOnce();
+    button('reset').click();
+    expect(viewport.getAttribute('transform')).toBe('translate(0, 0) scale(1)');
+    expect(onZoom.mock.lastCall?.[0].detail).toEqual({ k: 1, x: 0, y: 0 });
+  });
+
+  it('uses the wheel location as a zoom origin and releases wheel scrolling when zoom is disabled', () => {
+    const { chart, svg, viewport } = mountZoomChart({ direction: 'y', pannable: false });
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue(new DOMRect(40, 20, 500, 300));
+    // Happy DOM's WheelEvent does not inherit client coordinates from MouseEvent.
+    const wheel = () => Object.assign(
+      new MouseEvent('wheel', { clientX: 100, clientY: 120, cancelable: true }),
+      { deltaY: -20, deltaMode: WheelEvent.DOM_DELTA_LINE }
+    );
+
+    expect(svg.dispatchEvent(wheel())).toBe(false);
+    expect(viewport.getAttribute('transform')).toBe('translate(0, -100) scale(2)');
+
+    chart.viewConfig = { enabled: true, zoomable: false };
+    expect(svg.dispatchEvent(wheel())).toBe(true);
+    expect(viewport.hasAttribute('transform')).toBe(false);
+  });
+
+  it('pans along the enabled axis, ignoring right clicks and small pointer moves', () => {
+    const { chart, svg, viewport } = mountZoomChart({
+      direction: 'x', zoomable: false, initialPanX: -20, initialPanY: -30
+    });
+    const onZoom = vi.fn();
+    chart.addEventListener('mc-zoom', onZoom);
+    const pointer = (type: string, x: number, y: number, button = 0) => {
+      svg.dispatchEvent(new PointerEvent(type, { button, clientX: x, clientY: y }));
+    };
+
+    expect(viewport.getAttribute('transform')).toBe('translate(-20, 0) scale(1)');
+    pointer('pointerdown', 70, 50, 2);
+    pointer('pointermove', 100, 100);
+    expect(onZoom).not.toHaveBeenCalled();
+
+    pointer('pointerdown', 70, 50);
+    pointer('pointermove', 71, 51);
+    expect(onZoom).not.toHaveBeenCalled();
+    pointer('pointermove', 100, 100);
+    expect(viewport.getAttribute('transform')).toBe('translate(10, 0) scale(1)');
+    pointer('pointercancel', 100, 100);
+    pointer('pointermove', 150, 150);
+    expect(onZoom).toHaveBeenCalledOnce();
+  });
+
+  it('moves the slider window, resizes each edge, and stops dragging after cancellation', () => {
+    const { chart, viewport } = mountZoomChart({ direction: 'x', slider: true, start: 25, end: 75 });
+    const slider = chart.shadowRoot!.querySelector<HTMLElement>('.mc-view-slider')!;
+    const sliderWindow = slider.querySelector<HTMLElement>('.mc-view-slider-window')!;
+    const start = slider.querySelector<HTMLElement>('[data-handle="start"]')!;
+    const end = slider.querySelector<HTMLElement>('[data-handle="end"]')!;
+    const pointer = (element: HTMLElement, type: string, x: number) => {
+      element.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x }));
+    };
+    const range = () => [Number(slider.dataset.start), Number(slider.dataset.end)];
+    vi.spyOn(slider, 'clientWidth', 'get').mockReturnValue(400);
+
+    pointer(sliderWindow, 'pointerdown', 120);
+    pointer(slider, 'pointermove', 160);
+    pointer(slider, 'pointerup', 160);
+    expect(range()).toEqual([35, 85]);
+    expect(viewport.getAttribute('transform')).toBe('translate(-350, 0) scale(2)');
+
+    pointer(start, 'pointerdown', 140);
+    pointer(slider, 'pointermove', 180);
+    pointer(slider, 'pointerup', 180);
+    expect(range()).toEqual([45, 85]);
+
+    pointer(end, 'pointerdown', 340);
+    pointer(slider, 'pointermove', 460);
+    expect(range()).toEqual([45, 100]);
+    pointer(slider, 'pointercancel', 460);
+    pointer(slider, 'pointermove', 300);
+    expect(range()).toEqual([45, 100]);
   });
 });
