@@ -7,7 +7,7 @@
 Web Component charts built with D3 and Pretext.
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/modern-charts"><img src="https://img.shields.io/npm/v/modern-charts/alpha?label=npm&color=cb3837" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/modern-charts"><img src="https://img.shields.io/badge/npm-package-cb3837" alt="npm package" /></a>
   <a href="https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/ci.yml/badge.svg" alt="CI Pipeline" /></a>
   <a href="https://github.com/jingcai86/modern-charts/actions/workflows/lighthouse.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/lighthouse.yml/badge.svg" alt="Lighthouse CI Audit" /></a>
   <a href="https://github.com/jingcai86/modern-charts/actions/workflows/codeql.yml"><img src="https://github.com/jingcai86/modern-charts/actions/workflows/codeql.yml/badge.svg" alt="CodeQL Analysis" /></a>
@@ -23,16 +23,16 @@ Web Component charts built with D3 and Pretext.
 
 ## Use
 
-Install the current alpha release:
+Install the package:
 
 ```bash
-npm install modern-charts@alpha
+npm install modern-charts
 ```
 
 In an application served by a JavaScript bundler, import a chart and assign its configuration:
 
 <p align="center">
-  <a href="https://jingcai86.github.io/modern-charts/#/chart/bar"><img src="https://raw.githubusercontent.com/jingcai86/modern-charts/main/assets/studio-playground.png" alt="Studio bar-chart example" width="92%" /></a>
+  <a href="https://jingcai86.github.io/modern-charts/#/chart/bar"><img src="assets/readme-example.svg" alt="Bar chart showing Cloud and Edge spending for two quarters" width="92%" /></a>
 </p>
 
 ```html
