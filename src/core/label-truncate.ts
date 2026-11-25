@@ -27,9 +27,12 @@ let canvasSupportChecked = false;
  * remain accurate everywhere.
  */
 export function ensureCanvasTextMeasurementSupport(): void {
-  if (canvasSupportChecked) return;
+  if (
+    canvasSupportChecked ||
+    typeof HTMLCanvasElement === 'undefined' ||
+    typeof document === 'undefined'
+  ) return;
   canvasSupportChecked = true;
-  if (typeof HTMLCanvasElement === 'undefined') return;
   try {
     const probe = document.createElement('canvas');
     const ctx = probe.getContext?.('2d');

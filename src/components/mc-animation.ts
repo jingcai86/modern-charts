@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../core/dom';
 import {
   createDefaultAnimationConfig,
   MOTION_PRESETS,
@@ -16,7 +17,7 @@ import type {
  * presets (`default`, `gentle`, `wobbly`, `stiff`, `slow`, `molasses`, `elastic`, `bounce`),
  * duration, easing, stagger, and AI progressive layer streaming delay.
  */
-export class MCAnimationLayer extends HTMLElement {
+export class MCAnimationLayer extends HTMLElementBase {
   static observedAttributes = [
     'enabled',
     'preset',

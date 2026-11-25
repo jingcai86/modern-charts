@@ -7,6 +7,7 @@ export type GuideId =
   | 'truncation'
   | 'events'
   | 'accessibility'
+  | 'ssr'
   | 'i18n'
   | 'dynamic-updates'
   | 'chart-state'
@@ -84,6 +85,14 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '♿',
     summary:
       'W3C ARIA roles, screen-reader labels, Tab/Arrow keyboard navigation, polite live announcements, hidden data-table fallback, reduced-motion, and static charts via isInteractive vs. isFocusable.'
+  },
+  {
+    id: 'ssr',
+    title: 'Server-Side Rendering (SSR)',
+    shortLabel: 'Server-Side Rendering',
+    icon: '🖥️',
+    summary:
+      'Render the chart host and a data table on the server, then initialize the chart in the browser. Includes plain HTML and Next.js examples.'
   },
   {
     id: 'i18n',

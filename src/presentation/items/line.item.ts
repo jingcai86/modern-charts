@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../../core/dom';
 import { formatDisplayValue } from '../../core/format';
 import {
   allocateUniqueSvgId,
@@ -622,5 +623,5 @@ export function renderLinePointItem(
   return node;
 }
 
-export class MCLineItem extends HTMLElement {}
-export class MCPointItem extends HTMLElement {}
+export class MCLineItem extends HTMLElementBase {}
+export class MCPointItem extends HTMLElementBase {}

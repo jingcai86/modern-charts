@@ -1,3 +1,4 @@
+import { HTMLElementBase, lazyTemplate } from '../core/dom';
 import type { ChartDisplayState } from '../core/types';
 
 export const DEFAULT_LOADING_TEXT = 'Loading…';
@@ -5,8 +6,7 @@ export const DEFAULT_EMPTY_TEXT = 'No data';
 
 const EMPTY_ICON_SVG = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19h18"/><rect x="5" y="12" width="3" height="7" rx="1"/><rect x="10.5" y="8" width="3" height="11" rx="1"/><rect x="16" y="14" width="3" height="5" rx="1"/></svg>`;
 
-const chartStateTemplate = document.createElement('template');
-chartStateTemplate.innerHTML = `
+const getChartStateTemplate = lazyTemplate(`
   <div class="mc-state-overlay" part="state" role="status" aria-live="polite" aria-atomic="true">
     <slot name="loading" class="mc-state-slot" hidden></slot>
     <slot name="empty" class="mc-state-slot" hidden></slot>
@@ -15,7 +15,7 @@ chartStateTemplate.innerHTML = `
       <span class="mc-state-message" part="state-message"></span>
     </div>
   </div>
-`;
+`);
 
 let sharedChartStateSheet: CSSStyleSheet | null = null;
 function getChartStateStyleSheet(): CSSStyleSheet | null {
@@ -164,7 +164,7 @@ function hasAssignedSlotContent(slot: HTMLSlotElement | null): boolean {
  * CSS `::part(state | state-indicator | state-message)`, and `--mc-state-*`
  * CSS custom properties.
  */
-export class MCChartStateElement extends HTMLElement {
+export class MCChartStateElement extends HTMLElementBase {
   static observedAttributes = ['state', 'loading-text', 'empty-text'];
 
   #loadingSlot: HTMLSlotElement | null = null;
@@ -181,7 +181,7 @@ export class MCChartStateElement extends HTMLElement {
     if (sheet && 'adoptedStyleSheets' in shadow) {
       shadow.adoptedStyleSheets = [sheet];
     }
-    shadow.append(chartStateTemplate.content.cloneNode(true));
+    shadow.append(getChartStateTemplate().content.cloneNode(true));
 
     this.#loadingSlot = shadow.querySelector('slot[name="loading"]');
     this.#emptySlot = shadow.querySelector('slot[name="empty"]');

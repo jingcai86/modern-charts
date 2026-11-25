@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../../core/dom';
 import { resolveElementAnchor } from '../../core/tooltip-anchor';
 import type { ChartRenderContext, ScatterSymbolType } from '../../core/types';
 import type { ComputedScatterNodeModel } from '../../models/scatter.model';
@@ -270,4 +271,4 @@ export function renderScatterNodeItem(
   return el;
 }
 
-export class MCScatterItem extends HTMLElement {}
+export class MCScatterItem extends HTMLElementBase {}

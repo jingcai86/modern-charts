@@ -1,3 +1,4 @@
+import { HTMLElementBase } from '../../core/dom';
 import {
   computePartialClipPlan,
   createAxisClipPath
@@ -380,7 +381,7 @@ export function renderBarItem(
  * `<mc-bar-item>` Dumb Presentation Web Component
  * Can also be used standalone or inspected as the presentation component for a bar item.
  */
-export class MCBarItem extends HTMLElement {
+export class MCBarItem extends HTMLElementBase {
   #model: ComputedBarItemModel | null = null;
 
   constructor() {
