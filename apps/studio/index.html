@@ -200,7 +200,7 @@
 
         <div class="control-group">
           <label for="global-palette-select">Theme:</label>
-          <select id="global-palette-select" name="palette" class="studio-select" aria-describedby="global-theme-help">
+          <select id="global-palette-select" name="palette" class="studio-select">
             <option value="shadcn" selected>Shadcn</option>
             <option value="material">Material</option>
             <option value="bootstrap">Bootstrap</option>
@@ -210,16 +210,14 @@
         </div>
         <div class="control-group">
           <label for="global-appearance-select">Appearance:</label>
-          <select id="global-appearance-select" name="appearance" class="studio-select" aria-describedby="global-theme-help">
+          <select id="global-appearance-select" name="appearance" class="studio-select">
             <option value="system" selected>System</option>
             <option value="dark">Dark</option>
             <option value="light">Light</option>
           </select>
         </div>
-        <p class="global-controls-help" id="global-theme-help">
-          Theme sets chart colors; Appearance sets light or dark surfaces.
+        <p class="global-controls-help">
           <a href="#/guide/themes">Themes &amp; palettes guide →</a>
-          Custom colors and guide examples can override the selected theme.
         </p>
       </div>
     </header>
