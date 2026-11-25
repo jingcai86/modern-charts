@@ -2,6 +2,8 @@ import { escapeHtml } from '../../utils/html';
 
 let globalListenersWired = false;
 let supportsHintPopover: boolean | null = null;
+let openInfoId: string | null = null;
+let positionFrame: number | null = null;
 
 function escapeHtmlAttribute(value: string): string {
   return escapeHtml(value).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -16,29 +18,84 @@ function checkHintPopoverSupport(): boolean {
   return supportsHintPopover;
 }
 
-function positionInfoPopover(trigger: HTMLElement, popover: HTMLElement): void {
-  if (
-    typeof CSS !== 'undefined' &&
-    typeof CSS.supports === 'function' &&
-    CSS.supports('position-area', 'block-end')
-  ) {
-    return;
-  }
-  const rect = trigger.getBoundingClientRect();
-  const popRect = popover.getBoundingClientRect();
-  const popW = popRect.width || 280;
-  const popH = popRect.height || 72;
+function positionInfoPopover(
+  trigger: HTMLElement,
+  popover: HTMLElement,
+  rect = trigger.getBoundingClientRect()
+): void {
+  const { width, height } = popover.getBoundingClientRect();
+  const viewport = trigger.ownerDocument.documentElement;
+  const viewportWidth = viewport.clientWidth || window.innerWidth;
+  const viewportHeight = viewport.clientHeight || window.innerHeight;
   const gap = 8;
-
-  let top = rect.bottom + gap;
-  if (top + popH > window.innerHeight - gap && rect.top - gap - popH > gap) {
-    top = rect.top - gap - popH;
-  }
-  const maxLeft = Math.max(gap, window.innerWidth - popW - gap);
-  const left = Math.max(gap, Math.min(rect.left, maxLeft));
+  const below = viewportHeight - rect.bottom;
+  const above = rect.top;
+  const preferredTop =
+    below < height + gap * 2 && above > below
+      ? rect.top - gap - height
+      : rect.bottom + gap;
+  const top = Math.max(gap, Math.min(preferredTop, viewportHeight - height - gap));
+  const left = Math.max(gap, Math.min(rect.left, viewportWidth - width - gap));
 
   popover.style.top = `${Math.round(top)}px`;
   popover.style.left = `${Math.round(left)}px`;
+}
+
+function getInfoTrigger(popover: HTMLElement): HTMLButtonElement | null {
+  const trigger = popover.previousElementSibling;
+  return trigger instanceof HTMLButtonElement && trigger.dataset.infoTarget === popover.id
+    ? trigger
+    : null;
+}
+
+function getOpenInfoPopover(): HTMLElement | null {
+  const popover = openInfoId ? document.getElementById(openInfoId) : null;
+  if (popover?.classList.contains('is-open')) return popover;
+  openInfoId = null;
+  return null;
+}
+
+function setInfoOpen(trigger: HTMLButtonElement, popover: HTMLElement, isOpen: boolean): void {
+  popover.classList.toggle('is-open', isOpen);
+  trigger.setAttribute('aria-expanded', String(isOpen));
+  trigger.classList.toggle('interest-source', isOpen);
+  if (isOpen) {
+    openInfoId = popover.id;
+    positionInfoPopover(trigger, popover);
+  } else if (openInfoId === popover.id) {
+    openInfoId = null;
+  }
+}
+
+function hideInfoPopover(trigger: HTMLButtonElement, popover: HTMLElement): void {
+  setInfoOpen(trigger, popover, false);
+  try {
+    popover.hidePopover?.();
+  } catch {
+    // The fallback can also close an element outside the native top layer.
+  }
+}
+
+function scheduleInfoPosition(): void {
+  if (!openInfoId || positionFrame !== null) return;
+  positionFrame = window.requestAnimationFrame(() => {
+    positionFrame = null;
+    const popover = getOpenInfoPopover();
+    if (!popover) return;
+    const trigger = getInfoTrigger(popover);
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    if (
+      rect.bottom <= 0 ||
+      rect.top >= window.innerHeight ||
+      rect.right <= 0 ||
+      rect.left >= window.innerWidth
+    ) {
+      hideInfoPopover(trigger, popover);
+      return;
+    }
+    positionInfoPopover(trigger, popover, rect);
+  });
 }
 
 function ensureGlobalInfoListeners(): void {
@@ -71,22 +128,13 @@ function ensureGlobalInfoListeners(): void {
       if (!target || !target.id || !target.classList?.contains('section-info-popover')) {
         return;
       }
-      const isOpen = (event as any).newState === 'open';
-      target.classList.toggle('is-open', isOpen);
-      const triggers = document.querySelectorAll<HTMLElement>(
-        '.section-info-btn[data-info-target]'
-      );
-      triggers.forEach((btn) => {
-        if (btn.dataset.infoTarget !== target.id) return;
-        btn.setAttribute('aria-expanded', String(isOpen));
-        btn.classList.toggle('interest-source', isOpen);
-        if (isOpen) {
-          positionInfoPopover(btn, target);
-        }
-      });
+      const trigger = getInfoTrigger(target);
+      if (trigger) setInfoOpen(trigger, target, (event as ToggleEvent).newState === 'open');
     },
     true
   );
+  window.addEventListener('scroll', scheduleInfoPosition, { capture: true, passive: true });
+  window.addEventListener('resize', scheduleInfoPosition);
 }
 
 /**
@@ -158,53 +206,22 @@ export function wireSectionInfoTooltips(container: HTMLElement): void {
 
     const showInfo = () => {
       clearHideTimer();
-      // Close any other open section info popovers
-      document
-        .querySelectorAll<HTMLElement>('.section-info-popover.is-open')
-        .forEach((other) => {
-          if (other !== popover) {
-            other.classList.remove('is-open');
-            try {
-              if (typeof other.hidePopover === 'function') other.hidePopover();
-            } catch {
-              // ignore if already hidden
-            }
-          }
-        });
-      document
-        .querySelectorAll<HTMLElement>('.section-info-btn[aria-expanded="true"]')
-        .forEach((otherBtn) => {
-          if (otherBtn !== btn) {
-            otherBtn.setAttribute('aria-expanded', 'false');
-            otherBtn.classList.remove('interest-source');
-          }
-        });
-
-      popover.classList.add('is-open');
-      btn.setAttribute('aria-expanded', 'true');
-      btn.classList.add('interest-source');
-      try {
-        if (typeof popover.showPopover === 'function') {
-          popover.showPopover();
-        }
-      } catch {
-        // ignore if already open or unsupported in test DOM
+      const other = getOpenInfoPopover();
+      if (other && other !== popover) {
+        const otherTrigger = getInfoTrigger(other);
+        if (otherTrigger) hideInfoPopover(otherTrigger, other);
       }
-      positionInfoPopover(btn, popover);
+      try {
+        popover.showPopover?.();
+      } catch {
+        // CSS also displays the tooltip when native popovers are unavailable.
+      }
+      setInfoOpen(btn, popover, true);
     };
 
     const hideInfoImmediate = () => {
       clearHideTimer();
-      popover.classList.remove('is-open');
-      btn.setAttribute('aria-expanded', 'false');
-      btn.classList.remove('interest-source');
-      try {
-        if (typeof popover.hidePopover === 'function') {
-          popover.hidePopover();
-        }
-      } catch {
-        // ignore if already closed
-      }
+      hideInfoPopover(btn, popover);
     };
 
     const scheduleHideInfo = () => {

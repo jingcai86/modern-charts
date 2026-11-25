@@ -60,14 +60,14 @@
   justify-content: center;
   inline-size: 22px;
   block-size: 22px;
+  min-block-size: 22px;
   padding: 0;
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
+  border: 0;
+  background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   flex-shrink: 0;
-  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+  transition: color 140ms ease;
   --interest-delay-start: 0.12s;
   interest-delay-start: var(--interest-delay-start);
   --interest-delay-end: 0.1s;
@@ -79,8 +79,6 @@
 .section-info-btn.interest-source,
 .section-info-btn[aria-expanded="true"] {
   color: var(--pill-cyan-fg);
-  border-color: var(--border-focus);
-  background: var(--pill-cyan-bg);
 }
 
 .section-info-btn:focus-visible {
@@ -90,7 +88,14 @@
 
 .section-info-popover {
   display: none;
-  max-inline-size: 320px;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  box-sizing: border-box;
+  inline-size: max-content;
+  max-inline-size: min(320px, calc(100vw - 16px));
+  max-block-size: calc(100vh - 16px);
+  overflow: auto;
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border-focus);
@@ -111,23 +116,6 @@
 
 .section-info-popover:is(:popover-open, .\:popover-open, .is-open) {
   display: block;
-}
-
-@supports (position-area: block-end) {
-  .section-info-popover {
-    inset: auto;
-    margin: 6px 0 0;
-    position-area: block-end span-inline-end;
-    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
-  }
-}
-
-@supports not (position-area: block-end) {
-  .section-info-popover {
-    position: fixed;
-    inset: auto;
-    margin: 0;
-  }
 }
 
 .component-pills {

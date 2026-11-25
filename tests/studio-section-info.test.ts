@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   renderSectionInfoTooltip,
   wireSectionInfoTooltips,
@@ -7,6 +7,7 @@ import {
 describe('Studio section info tooltips', () => {
   afterEach(() => {
     document.body.replaceChildren();
+    vi.restoreAllMocks();
   });
 
   it('keeps untrusted IDs and labels inside all attributes while preserving trusted help markup', () => {
@@ -39,6 +40,35 @@ describe('Studio section info tooltips', () => {
     );
     expect(popover.querySelector('.help-copy > code')?.textContent).toBe('chart.config');
   });
+
+  it.each([
+    { placement: 'below the icon', x: 74, y: 136, left: '74px', top: '166px' },
+    {
+      placement: 'above the icon and within the right edge',
+      x: 294, y: 270, left: '112px', top: '202px'
+    }
+  ])(
+    'places a hovered tooltip $placement when CSS anchoring is supported',
+    ({ x, y, left, top }) => {
+      vi.spyOn(CSS, 'supports').mockReturnValue(true);
+      vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(320);
+      vi.spyOn(document.documentElement, 'clientHeight', 'get').mockReturnValue(300);
+
+      const container = document.createElement('div');
+      container.innerHTML = renderSectionInfoTooltip('test-info', 'Help', 'Section help.');
+      document.body.appendChild(container);
+      const button = container.querySelector<HTMLButtonElement>('.section-info-btn')!;
+      const popover = container.querySelector<HTMLElement>('.section-info-popover')!;
+      vi.spyOn(button, 'getBoundingClientRect').mockReturnValue(new DOMRect(x, y, 22, 22));
+      vi.spyOn(popover, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 200, 60));
+      wireSectionInfoTooltips(container);
+
+      button.dispatchEvent(new MouseEvent('mouseenter'));
+
+      expect(popover.style.left).toBe(left);
+      expect(popover.style.top).toBe(top);
+    }
+  );
 
   it('synchronizes only the matching trigger when a popover ID contains quotes and backslashes', () => {
     const id = `section-"quoted'\\path`;
