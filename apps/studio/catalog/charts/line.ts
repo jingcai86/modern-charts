@@ -59,7 +59,7 @@ export const LINE_CHART_ENTRY: ChartCatalogEntry = {
         type: 'area',
         axis: 'y',
         from: 0,
-        to: 135,
+        to: 90,
         fill: '#ef4444',
         fillOpacity: 0.09
       },
@@ -67,13 +67,17 @@ export const LINE_CHART_ENTRY: ChartCatalogEntry = {
         id: 'sla-min-line',
         type: 'line',
         axis: 'y',
-        value: 135,
-        label: 'SLA < 135',
+        value: 90,
+        label: 'SLA < 90',
         icon: SVG_ICON_PRESETS.warn,
         stroke: '#ef4444',
         strokeWidth: 2,
         strokeDasharray: '6 4',
         condition: 'below',
+        legend: {
+          label: 'Threshold (SLA < 90)',
+          tooltip: 'Line segments and points below 90 req/s are highlighted in red'
+        },
         matchStyle: {
           color: '#ef4444',
           fill: '#ef4444',
