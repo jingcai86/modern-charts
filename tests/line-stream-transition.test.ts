@@ -169,6 +169,81 @@ describe('Smooth Streaming & Data-Update Line Transitions (Issue #68)', () => {
     expect(rafQueue.length).toBe(0);
   });
 
+  it('starts an interrupted threshold-split transition from the last displayed point', () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let now = 1000;
+    let frameId = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.set(++frameId, callback);
+      return frameId;
+    });
+    vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation((id) => {
+      frames.delete(id);
+    });
+    const advanceFrame = (time: number) => {
+      now = time;
+      const pending = [...frames.values()];
+      frames.clear();
+      for (const callback of pending) callback(time);
+    };
+
+    const chart = document.createElement('mc-line-chart') as MCLineChart;
+    const load = (value: number) => [
+      { id: 'CPU', data: [{ x: 'AM', y: 20 }, { x: 'PM', y: value }] },
+      { id: 'Reference', data: [{ x: 'AM', y: 10 }, { x: 'PM', y: 10 }] }
+    ];
+    chart.config = {
+      width: 480,
+      height: 300,
+      animate: true,
+      enableArea: true,
+      yScale: { type: 'linear', min: 0, max: 100 },
+      markers: [{ id: 'limit', axis: 'y', value: 50, condition: 'above', matchStyle: { color: '#c00' } }],
+      data: load(60)
+    };
+    document.body.append(chart);
+    const root = chart.shadowRoot!;
+    const point = () => root.querySelector('.mc-line-point[data-series-id="CPU"][data-point-index="1"]')!;
+    const initialY = point().getAttribute('cy');
+
+    chart.data = load(95);
+    advanceFrame(1250);
+    const midTransitionY = point().getAttribute('cy');
+    expect(midTransitionY).not.toBe(initialY);
+    expect(root.querySelector('.mc-line-point[data-series-id="Reference"]')?.getAttribute('data-transition-mode')).toBeNull();
+    expect(root.querySelector('.mc-line-area--partial-threshold')?.getAttribute('data-transition-mode')).toBe('morph');
+
+    chart.data = load(75);
+    expect(point().getAttribute('cy')).toBe(midTransitionY);
+    expect(frames.size).toBe(1);
+    advanceFrame(2100);
+    expect(point().getAttribute('cy')).not.toBe(midTransitionY);
+    const segments = [...root.querySelectorAll('.mc-line-segment')];
+    expect(segments).toHaveLength(2);
+    expect(segments[0].getAttribute('d')).toBe(segments[1].getAttribute('d'));
+    expect(root.querySelector('.mc-layer--lines')?.getAttribute('clip-path')).toBeNull();
+    expect(frames.size).toBe(0);
+  });
+
+  it('interpolates a replaced single sample and skips animation when both coordinates stay fixed', () => {
+    const point = { xKey: 'old', px: 0, py: 20, py0: 80 };
+    expect(computeLineTransitionFrame('CPU', [], [point])).toBeNull();
+    expect(computeLineTransitionFrame('CPU', [point], [])).toBeNull();
+    expect(computeLineTransitionFrame('CPU', [point], [point])?.hasMotion).toBe(false);
+
+    const replacement = { ...point, xKey: 'new', py0: 100 };
+    const frame = computeLineTransitionFrame('CPU', [point], [replacement])!;
+    expect(frame.hasMotion).toBe(true);
+    expect(frame.exitingLeftPoint).toBeUndefined();
+    expect(frame.enteringIndices.size).toBe(0);
+
+    const middle = interpolateLineFrame(frame, 0.5, 'linear', false);
+    expect(middle.points).toEqual([{ ...replacement, py0: 90 }]);
+    expect(middle.linePathD).toContain('M0,20');
+    expect(middle.areaPathD).toBe('');
+  });
+
   it('defaults animate to true in Dynamic Updates guide Example 1 and triggers morph transition on stream step', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);

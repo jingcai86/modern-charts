@@ -1,8 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   registerModernCharts,
+  type ChartRenderContext,
+  type GaugeDataInput,
   type MCGaugeChart
 } from '../src/index';
+import type { GaugeChartModel } from '../src/models/gauge.model';
 
 describe('Gauge Chart Enhancements (Issue #73)', () => {
   beforeAll(() => {
@@ -108,5 +111,90 @@ describe('Gauge Chart Enhancements (Issue #73)', () => {
     expect(tracks.length).toBe(3);
     expect(arcs.length).toBe(3);
     expect(needles.length).toBe(3);
+  });
+
+  it('clamps each gauge ring to its own range and keeps its unit in the tooltip', () => {
+    const gauge = document.createElement('mc-gauge-chart') as MCGaugeChart;
+    let model: GaugeChartModel | undefined;
+    gauge.config = {
+      width: 440,
+      height: 340,
+      animate: false,
+      centerLabel: 'Pressure',
+      startAngle: 0,
+      endAngle: 360,
+      innerRadius: 70,
+      splitNumber: 0,
+      data: [
+        { min: 20, max: 20, value: 130, unit: ' kPa' },
+        { min: -10, max: 10, value: -15, unit: ' °C' }
+      ],
+      layers: ['track', 'valueArc', 'ticks', 'center', 'legends', (ctx: ChartRenderContext<GaugeDataInput>) => {
+        model = ctx.state.model as GaugeChartModel;
+      }]
+    };
+    document.body.append(gauge);
+    const root = gauge.shadowRoot!;
+
+    expect(model).toMatchObject({
+      min: 20,
+      max: 120,
+      innerRadius: 70,
+      series: [
+        { value: 120, min: 20, max: 120, unit: ' kPa' },
+        { value: -10, min: -10, max: 10, unit: ' °C' }
+      ]
+    });
+    expect(model?.arcBottomY).toBe(model?.bandOuterRadius);
+    expect(root.querySelector('[data-label-id="gauge-value-label"]')?.textContent).toBe('120 kPa / -10 °C');
+    expect(root.querySelector('[data-label-id="gauge-subtitle-label"]')?.textContent).toBe('Pressure');
+    expect(root.querySelector('.mc-gauge-tick-line')).toBeNull();
+
+    const secondaryArc = root.querySelector('.mc-gauge-value-arc[data-series-index="1"]')!;
+    secondaryArc.dispatchEvent(new MouseEvent('mouseenter'));
+    const tooltip = gauge.getTooltipElement()!;
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.renderedHtml).toContain('-10 °C');
+    secondaryArc.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(tooltip.hidden).toBe(true);
+  });
+
+  it('keeps graduation marks and an explicit single-value legend when gauge labels are disabled', () => {
+    const gauge = document.createElement('mc-gauge-chart') as MCGaugeChart;
+    gauge.setAttribute('enable-labels', 'false');
+    gauge.config = {
+      width: 440,
+      height: 320,
+      animate: false,
+      legend: { enabled: true },
+      splitNumber: 2,
+      minorSplitNumber: 1,
+      data: { value: 62, unit: '%' }
+    };
+    document.body.append(gauge);
+    const root = gauge.shadowRoot!;
+
+    expect(root.querySelectorAll('.mc-gauge-tick-line')).toHaveLength(3);
+    expect(root.querySelector('.mc-gauge-minor-tick-line')).toBeNull();
+    expect(root.querySelector('[data-label-id="gauge-tick-0"]')).toBeNull();
+    expect(root.querySelector('[data-label-id="gauge-value-label"]')).toBeNull();
+    expect(root.querySelector('.mc-legend-item[data-legend-id="gauge-value"]')?.textContent).toContain('Value');
+  });
+
+  it('renders the empty state for missing or nonnumeric gauge readings and recovers at zero', () => {
+    const gauge = document.createElement('mc-gauge-chart') as MCGaugeChart;
+    gauge.config = { width: 440, height: 320, animate: false };
+    document.body.append(gauge);
+    const root = gauge.shadowRoot!;
+
+    for (const data of ['[]', '[null, 2]', '[{"value":null}, {}, {"value":""}, {"value":"broken"}]']) {
+      gauge.setAttribute('data', data);
+      expect(gauge.chartState).toBe('empty');
+      expect(root.querySelector('.mc-gauge-value-arc')).toBeNull();
+    }
+
+    gauge.setAttribute('data', '{"value":0}');
+    expect(gauge.chartState).toBe('ready');
+    expect(root.querySelector('[data-label-id="gauge-value-label"]')?.textContent).toBe('0');
   });
 });
