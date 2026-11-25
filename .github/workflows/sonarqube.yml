@@ -1,0 +1,53 @@
+name: SonarQube Cloud
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  analyze:
+    name: SonarQube quality gate
+    # Run authenticated analysis only for this repository and its own PR branches.
+    if: >-
+      github.repository == 'jingcai86/modern-charts' &&
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout source with full history
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Generate LCOV for the library and Studio
+        run: >-
+          npm run test:coverage -- --coverage.reporter=lcovonly
+          --coverage.include='src/**/*.ts' --coverage.include='apps/studio/**/*.ts'
+
+      - name: Authenticate to SonarQube Cloud
+        id: sonar-auth
+        uses: SonarSource/sonarqube-auth-action@b372e2c2930aadfcc4f4399446da1e12772709ad # v1.2
+
+      - name: Analyze source and check the quality gate
+        uses: SonarSource/sonarqube-scan-action@70bad232163b09d998ea0707ee80c0ec80798c16 # v8.5.1
+        with:
+          args: >-
+            -Dsonar.organization=${{ steps.sonar-auth.outputs.organization }}
+            -Dsonar.projectKey=${{ steps.sonar-auth.outputs.project-key }}
