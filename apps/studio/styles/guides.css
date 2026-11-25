@@ -133,6 +133,63 @@
   background: var(--bg-code);
 }
 
+.auto-size-controls {
+  gap: 10px 16px;
+}
+
+.auto-size-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.auto-size-controls input[type="range"] {
+  width: 7rem;
+}
+
+.auto-size-preview {
+  overflow-x: auto;
+}
+
+.auto-size-stage {
+  border: 0;
+}
+
+.auto-size-steps {
+  padding-inline-start: 1.25rem;
+}
+
+.auto-size-steps li + li {
+  margin-top: 8px;
+}
+
+.auto-size-figure {
+  display: grid;
+  gap: 8px;
+  max-width: 40rem;
+  margin: 0;
+}
+
+.auto-size-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.auto-size-example summary {
+  color: var(--text-main);
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.auto-size-example[open] summary {
+  margin-bottom: 8px;
+}
+
 .guide-code-wrap {
   display: flex;
   flex-direction: column;

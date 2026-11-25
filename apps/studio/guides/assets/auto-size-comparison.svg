@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="1340" viewBox="0 0 640 1340" role="img" aria-labelledby="title desc">
+  <title id="title">One grouped bar chart and its legend before and after resizing</title>
+  <desc id="desc">The same Q1 and Q2 chart with North America, Europe, and Asia Pacific sales starts in a 600 by 320 box. All six bars and the one-row legend are redrawn within a 360 by 320 viewBox with autoSize enabled. The third legend entry moves to its own row and the text retains its two-line layout. With autoSize disabled the browser scales the entire saved 600 by 320 drawing, including its one-row legend, to 60 percent. The drawing is centered with 64 pixels of space above and below.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
+    .heading { font-size: 32px; font-weight: 750; }
+    .label { font-size: 24px; font-weight: 680; }
+    .body { font-size: 22px; }
+    .small { font-size: 20px; }
+    .muted { fill: #485b75; }
+    .center { text-anchor: middle; }
+    .wide { fill: #fff; stroke: #b6c8e5; stroke-width: 1.5; }
+    .on { fill: #e9f8f1; stroke: #a8d0bd; stroke-width: 1.5; }
+    .off { fill: #fff2e4; stroke: #dbbe9d; stroke-width: 1.5; }
+    .yes { fill: #155f49; }
+    .no { fill: #874922; }
+    .box { fill: #eef1ff; stroke: #586bbe; stroke-width: 1.5; }
+    .plot { fill: #fff; stroke: #96a9d0; stroke-dasharray: 4 3; }
+    .axis { fill: none; stroke: #465877; stroke-width: 1.5; }
+    .tick { fill: #354962; font-size: 15px; }
+    .legend { fill: #fff; stroke: #9aaed7; }
+    .series { font: 12px Arial, sans-serif; }
+    .blue { fill: #2563eb; }
+    .green { fill: #10b981; }
+    .amber { fill: #f59e0b; }
+  </style>
+  <defs>
+    <g id="north">
+      <rect class="blue" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">North America</text>
+      <text class="series" x="15" y="12.48">Enterprise Sales</text>
+    </g>
+    <g id="europe">
+      <rect class="green" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">Europe Commercial</text>
+      <text class="series" x="15" y="12.48">Sales</text>
+    </g>
+    <g id="asia">
+      <rect class="amber" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">Asia Pacific Online</text>
+      <text class="series" x="15" y="12.48">Sales</text>
+    </g>
+    <g id="wide-chart">
+      <rect class="box" width="600" height="320"/>
+      <rect class="plot" x="50" y="24" width="520" height="184"/>
+      <path class="axis" d="M45 24h5v184h520M45 116h5m-5 92h5M180 208v5m260-5v5"/>
+      <rect class="blue" x="76" y="116" width="68" height="92"/>
+      <rect class="green" x="146" y="162" width="68" height="46"/>
+      <rect class="amber" x="216" y="70" width="68" height="138"/>
+      <rect class="blue" x="336" y="70" width="68" height="138"/>
+      <rect class="green" x="406" y="116" width="68" height="92"/>
+      <rect class="amber" x="476" y="24" width="68" height="184"/>
+      <g class="tick" text-anchor="end">
+        <text x="42" y="29">100</text>
+        <text x="42" y="121">50</text>
+        <text x="42" y="213">0</text>
+      </g>
+      <g class="tick center">
+        <text x="180" y="230">Q1</text>
+        <text x="440" y="230">Q2</text>
+      </g>
+      <g transform="translate(50 252)">
+        <rect class="legend" width="520" height="40" rx="4"/>
+        <use href="#north" x="75" y="20"/>
+        <use href="#europe" x="193" y="20"/>
+        <use href="#asia" x="329" y="20"/>
+      </g>
+    </g>
+  </defs>
+
+  <rect width="640" height="1340" rx="24" fill="#f5f7ff"/>
+  <text x="32" y="52" class="heading">One chart, one resize</text>
+  <text x="32" y="87" class="body muted">600 × 320 px → 360 × 320 px</text>
+
+  <rect x="24" y="111" width="592" height="393" rx="16" class="wide"/>
+  <text x="44" y="151" class="label">Before resizing · both settings</text>
+  <text x="44" y="182" class="small muted">600 × 320 viewBox · 520 × 184 plot</text>
+  <use href="#wide-chart" transform="translate(62 194) scale(.86)"/>
+  <text x="320" y="490" class="small center yes">All three legend entries fit on one row.</text>
+
+  <rect x="24" y="517" width="592" height="385" rx="16" class="on"/>
+  <text x="44" y="557" class="label yes">After resizing · AutoSize on</text>
+  <text x="44" y="588" class="small muted">360 × 320 CSS box</text>
+  <g transform="translate(44 606) scale(.86)">
+    <rect class="box" width="360" height="320"/>
+    <rect class="plot" x="50" y="24" width="280" height="184"/>
+    <path class="axis" d="M45 24h5v184h280M45 116h5m-5 92h5M120 208v5m140-5v5"/>
+    <rect class="blue" x="64" y="116" width="36" height="92"/>
+    <rect class="green" x="102" y="162" width="36" height="46"/>
+    <rect class="amber" x="140" y="70" width="36" height="138"/>
+    <rect class="blue" x="204" y="70" width="36" height="138"/>
+    <rect class="green" x="242" y="116" width="36" height="92"/>
+    <rect class="amber" x="280" y="24" width="36" height="184"/>
+    <g class="tick" text-anchor="end">
+      <text x="42" y="29">100</text>
+      <text x="42" y="121">50</text>
+      <text x="42" y="213">0</text>
+    </g>
+    <g class="tick center">
+      <text x="120" y="230">Q1</text>
+      <text x="260" y="230">Q2</text>
+    </g>
+    <g transform="translate(50 232)">
+      <rect class="legend" width="280" height="80" rx="4"/>
+      <use href="#north" x="20" y="20"/>
+      <use href="#europe" x="138" y="20"/>
+      <use href="#asia" x="82" y="60"/>
+    </g>
+  </g>
+  <g class="small">
+    <text x="377" y="652" class="label yes">New layout</text>
+    <text x="377" y="685">360 × 320 viewBox</text>
+    <text x="377" y="715">280 × 184 plot</text>
+    <text x="377" y="745">36 px per bar</text>
+    <text x="377" y="775">2 legend rows</text>
+    <text x="377" y="823" class="muted">The third entry</text>
+    <text x="377" y="850" class="muted">moves to row 2.</text>
+  </g>
+
+  <rect x="24" y="922" width="592" height="394" rx="16" class="off"/>
+  <text x="44" y="962" class="label no">After resizing · AutoSize off</text>
+  <text x="44" y="993" class="small muted">360 × 320 CSS box</text>
+  <rect x="44" y="1011" width="309.6" height="275.2" class="box"/>
+  <use href="#wide-chart" transform="translate(44 1066.04) scale(.516)"/>
+  <text x="198.8" y="1045" class="small center no">64 px space</text>
+  <text x="198.8" y="1267" class="small center no">64 px space</text>
+  <g class="small">
+    <text x="377" y="1057" class="label no">Saved layout</text>
+    <text x="377" y="1090">600 × 320 viewBox</text>
+    <text x="377" y="1120">520 × 184 plot</text>
+    <text x="377" y="1150">68 px per bar</text>
+    <text x="377" y="1180">1 legend row</text>
+    <text x="377" y="1228" class="muted">The browser scales</text>
+    <text x="377" y="1255" class="muted">the SVG to 60%.</text>
+  </g>
+</svg>

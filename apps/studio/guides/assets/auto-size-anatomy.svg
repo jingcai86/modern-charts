@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="958" viewBox="0 0 640 958" role="img" aria-labelledby="title desc">
+  <title id="title">Anatomy of the narrower grouped bar chart and its legend</title>
+  <desc id="desc">In the 360 by 320 viewBox, the 280 by 184 plot starts at SVG coordinate (50, 24). Margins are 24 top, 30 right, 112 bottom, and 50 left. Each category is 112 pixels wide and contains three 36-pixel bars with two 2-pixel gaps. The blue Q1 bar starts at plot coordinate (14, 92) and is 92 pixels tall. The legend shares the plot width and uses 12-pixel side padding. The first two wrapped labels fit on one row, and the third label is centered below them. Each legend label stays within a 110-pixel text limit.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
+    .heading { font-size: 32px; font-weight: 750; }
+    .label { font-size: 24px; font-weight: 680; }
+    .body { font-size: 22px; }
+    .small { font-size: 20px; }
+    .muted { fill: #485b75; }
+    .center { text-anchor: middle; }
+    .viewport { fill: #e9eeff; stroke: #586bbe; stroke-width: 2.5; }
+    .plot { fill: #fff; stroke: #96a9d0; stroke-width: 2; stroke-dasharray: 5 5; }
+    .axis { fill: none; stroke: #3d5372; stroke-width: 2; }
+    .guide { fill: none; stroke: #8a9abd; stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .measure { fill: none; stroke: #187053; stroke-width: 2; }
+    .annotation { fill: #135c47; }
+    .blue { fill: #2563eb; }
+    .green { fill: #10b981; }
+    .amber { fill: #f59e0b; }
+    .slot { fill: #fff; stroke: #96a9d0; stroke-width: 1.5; }
+    .padding { fill: #d9e2fb; }
+    .series { font: 12px Arial, sans-serif; }
+    .callout { fill: #fff; stroke: #b6c8e5; stroke-width: 1.5; }
+  </style>
+  <rect width="640" height="958" rx="24" fill="#f5f7ff"/>
+  <text x="32" y="49" class="heading">Anatomy of the narrower chart</text>
+  <text x="32" y="83" class="body muted">SVG viewBox 0 0 360 320</text>
+
+  <rect class="viewport" x="140" y="145" width="360" height="320"/>
+  <rect class="plot" x="190" y="169" width="280" height="184"/>
+  <path class="guide" d="M190 261H470"/>
+  <path class="axis" d="M184 169h6v184h280M184 261h6m-6 92h6M260 353v7m140-7v7"/>
+  <rect class="blue" x="204" y="261" width="36" height="92"/>
+  <rect class="green" x="242" y="307" width="36" height="46"/>
+  <rect class="amber" x="280" y="215" width="36" height="138"/>
+  <rect class="blue" x="344" y="215" width="36" height="138"/>
+  <rect class="green" x="382" y="261" width="36" height="92"/>
+  <rect class="amber" x="420" y="169" width="36" height="184"/>
+  <g class="small muted" text-anchor="end">
+    <text x="178" y="177">100</text>
+    <text x="178" y="269">50</text>
+    <text x="178" y="361">0</text>
+  </g>
+  <g class="small center">
+    <text x="260" y="373">Q1</text>
+    <text x="400" y="373">Q2</text>
+  </g>
+
+  <path class="measure" d="M190 167v-43h26"/>
+  <circle cx="190" cy="169" r="4.5" fill="#187053"/>
+  <text x="224" y="131" class="body annotation">Plot origin (50, 24)</text>
+  <path class="measure" d="M204 259l26-25"/>
+  <circle cx="204" cy="261" r="4" fill="#f4fff8" stroke="#187053" stroke-width="2"/>
+  <text x="204" y="202" class="small annotation">Q1 blue</text>
+  <text x="204" y="227" class="small annotation">(14, 92)</text>
+
+  <path class="measure" d="M502 145h21m-5 0v24m-16 0h21M140 218v20m0-10h50m0-10v20M470 195v20m0-10h30m0-10v20M502 353h17m-5 0v112m-12 0h17"/>
+  <g class="small annotation">
+    <text x="529" y="157">Top</text>
+    <text x="529" y="180">24 px</text>
+    <text x="126" y="219" text-anchor="end">Left</text>
+    <text x="126" y="243" text-anchor="end">50 px</text>
+    <text x="514" y="209">Right</text>
+    <text x="514" y="233">30 px</text>
+    <text x="525" y="375">Bottom</text>
+    <text x="525" y="399">112 px</text>
+    <text x="525" y="429" class="muted">Axis and</text>
+    <text x="525" y="453" class="muted">legend</text>
+  </g>
+  <path class="measure" d="M66 169H52m7 0v184m-7 0h14"/>
+  <text x="42" y="261" transform="rotate(-90 42 261)" class="small annotation center">Plot height 184 px</text>
+
+  <g transform="translate(190 377)">
+    <rect class="slot" width="280" height="80"/>
+    <path class="padding" d="M0 1h12v78H0zm268 0h12v78h-12z"/>
+    <path class="guide" d="M12 0v80m256-80v80"/>
+    <g transform="translate(20 20)">
+      <rect class="blue" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">North America</text>
+      <text class="series" x="15" y="12.48">Enterprise Sales</text>
+    </g>
+    <g transform="translate(138 20)">
+      <rect class="green" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">Europe Commercial</text>
+      <text class="series" x="15" y="12.48">Sales</text>
+    </g>
+    <g transform="translate(82 60)">
+      <rect class="amber" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">Asia Pacific Online</text>
+      <text class="series" x="15" y="12.48">Sales</text>
+    </g>
+  </g>
+  <path class="measure" d="M110 397h74m-74 40h74"/>
+  <text x="100" y="404" class="small annotation" text-anchor="end">Row 1</text>
+  <text x="100" y="444" class="small annotation" text-anchor="end">Row 2</text>
+
+  <path class="measure" d="M190 483v17m0-8h280m0-9v17"/>
+  <text x="330" y="525" class="label center annotation">Plot width 280 px</text>
+
+  <rect x="24" y="550" width="592" height="101" rx="14" class="callout"/>
+  <text x="44" y="585" class="label">112 px per category band</text>
+  <text x="44" y="622" class="body">(112 − 2 gaps × 2 px) ÷ 3 bars = 36 px per bar</text>
+
+  <rect x="24" y="671" width="592" height="133" rx="14" class="callout"/>
+  <text x="44" y="707" class="label">One label from the same legend</text>
+  <rect x="44" y="746" width="17" height="17" rx="3" class="blue"/>
+  <text x="72" y="744" class="body">North America</text>
+  <text x="72" y="772" class="body">Enterprise Sales</text>
+  <path class="measure" d="M268 728h-12m12 47h-12m12-47v47"/>
+  <text x="286" y="744" class="small annotation">110 px text-width cap</text>
+  <text x="286" y="772" class="small muted">Same two lines at both widths</text>
+
+  <rect x="24" y="824" width="592" height="110" rx="14" class="callout"/>
+  <text x="44" y="859" class="label">256 px available for legend entries</text>
+  <text x="44" y="894" class="small">280 px plot − 12 px left pad − 12 px right pad</text>
+  <text x="44" y="922" class="small muted">Row 1 uses 240 px. Asia Pacific moves down.</text>
+</svg>

@@ -7,6 +7,7 @@ export type GuideId =
   | 'truncation'
   | 'events'
   | 'accessibility'
+  | 'auto-size'
   | 'ssr'
   | 'i18n'
   | 'dynamic-updates'
@@ -85,6 +86,14 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '♿',
     summary:
       'W3C ARIA roles, screen-reader labels, Tab/Arrow keyboard navigation, polite live announcements, hidden data-table fallback, reduced-motion, and static charts via isInteractive vs. isFocusable.'
+  },
+  {
+    id: 'auto-size',
+    title: 'Responsive Sizing (autoSize)',
+    shortLabel: 'AutoSize',
+    icon: '↔',
+    summary:
+      'Resize a live chart and see how container dimensions, margins, and the plot area determine where each chart draws its data.'
   },
   {
     id: 'ssr',
