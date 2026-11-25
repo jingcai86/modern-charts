@@ -110,6 +110,6 @@ Review and include any generated context changes when updating chart defaults. C
 
 The library is in [`src/`](src/), the Studio in [`apps/studio/`](apps/studio/), machine-readable documentation in [`apps/context/`](apps/context/), and tests in [`tests/`](tests/).
 
-Made with Argon and GPT 6.1.
+Made with Gemini Argon and GPT 6.1.
 
 Licensed under [MIT](LICENSE).
