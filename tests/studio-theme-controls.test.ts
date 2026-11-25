@@ -121,6 +121,56 @@ describe('Studio Theme and Appearance controls', () => {
     expect(detailChart().resolveTheme().colors).toEqual(PALETTES.antd);
   }, 15_000);
 
+  it('recolors the heatmap and its legend while preserving an explicit color scheme', () => {
+    const galleryChart = document.querySelector<MCBaseChart<any>>(
+      '#preview-stage-heatmap > mc-heatmap-chart'
+    )!;
+    galleryChart.removeAttribute('data-defer-initial-render');
+    galleryChart.render();
+
+    const readColors = (chart: MCBaseChart<any>) => {
+      const root = chart.shadowRoot!;
+      const cells = Array.from(root.querySelectorAll('.mc-heatmap-cell'));
+      const fills = cells.map((cell) => cell.getAttribute('fill'));
+      const minFill = root.querySelector('.mc-heatmap-cell[data-row="Fri"][data-col="00:00"]')!
+        .getAttribute('fill');
+      const maxFill = root.querySelector('.mc-heatmap-cell[data-row="Wed"][data-col="12:00"]')!
+        .getAttribute('fill');
+      const legendStops = Array.from(
+        root.querySelectorAll('linearGradient[id^="mc-legend-continuous-grad"] stop'),
+        (stop) => stop.getAttribute('stop-color')
+      );
+      expect(legendStops[0]).toBe(minFill);
+      expect(legendStops.at(-1)).toBe(maxFill);
+      return { fills, minFill, legendStops };
+    };
+
+    select(paletteSelect, 'shadcn');
+    const shadcn = readColors(galleryChart);
+    select(paletteSelect, 'neutral');
+    const neutral = readColors(galleryChart);
+    expect(neutral.fills).not.toEqual(shadcn.fills);
+    expect(neutral.legendStops).not.toEqual(shadcn.legendStops);
+    for (const color of [...neutral.fills, ...neutral.legendStops]) {
+      expect(color).toMatch(/^rgb\((\d+), \1, \1\)$/);
+    }
+
+    route('#/chart/heatmap');
+    expect(readColors(detailChart())).toEqual(neutral);
+    select(paletteSelect, 'shadcn');
+    expect(readColors(detailChart())).toEqual(shadcn);
+
+    const scheme = document.querySelector<HTMLSelectElement>('[data-config-path="colorScheme"] select')!;
+    select(scheme, 'viridis');
+    const viridis = readColors(detailChart());
+    expect(viridis.minFill).toBe('rgb(68, 1, 84)');
+    select(paletteSelect, 'neutral');
+    expect(readColors(detailChart())).toEqual(viridis);
+
+    document.querySelector<HTMLButtonElement>('#btn-reset-config')!.click();
+    expect(readColors(detailChart())).toEqual(neutral);
+  }, 15_000);
+
   it('keeps guide editors consistent with the selected default and preserves custom theme examples', () => {
     select(paletteSelect, 'bootstrap');
     route('#/guide/themes');

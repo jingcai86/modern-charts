@@ -2,6 +2,7 @@ import { scaleOrdinal } from './scales';
 import type {
   BuiltInPaletteName,
   ChartPaletteName,
+  ChartRenderContext,
   ChartTheme,
   FillMatchContext,
   FillRule,
@@ -103,7 +104,7 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   return [ch(0), ch(8), ch(4)];
 }
 
-function parseColorToRgb(raw: string): [number, number, number] | null {
+export function parseColorToRgb(raw: string): [number, number, number] | null {
   if (typeof raw !== 'string') return null;
   const s = raw.trim();
   if (!s) return null;
@@ -230,6 +231,23 @@ export function resolvePaletteColors(
     return generateColorPalette(palette, count);
   }
   return PALETTES[DEFAULT_PALETTE];
+}
+
+/** Resolve the opt-in theme scheme to explicit color stops or a ramp based on the primary theme color. */
+export function resolveSequentialColorRamp(
+  ctx: Pick<ChartRenderContext<any>, 'theme' | 'config'>,
+  colorScheme: string = 'viridis'
+): string | readonly string[] {
+  if (colorScheme !== 'theme') return colorScheme;
+
+  const colors = Array.isArray(ctx.config.colors) ? ctx.config.colors : [];
+  const stops = colors.flatMap((color) => {
+    const rgb = parseColorToRgb(color);
+    return rgb ? [rgbToHex(...rgb)] : [];
+  });
+  if (stops.length >= 2) return stops;
+  const seedColor = stops[0] ?? ctx.theme.colors[0] ?? PALETTES[DEFAULT_PALETTE][0];
+  return generateColorPalette(seedColor, 11).slice(1, 10);
 }
 
 function clampUnit(n: number, fallback: number): number {
