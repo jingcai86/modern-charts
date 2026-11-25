@@ -70,9 +70,16 @@ export function renderChartDetailPage(
 
   // Mount live chart element
   const stage = chartCard.querySelector('#detail-chart-stage') as HTMLElement;
-  const chartEl = document.createElement(entry.tagName) as MCBaseChart<any>;
-  stage.appendChild(chartEl);
-  chartEl.setConfig(config);
+  function mountChart(nextCfg: ChartConfig<any>): MCBaseChart<any> {
+    const chart = document.createElement(entry.tagName) as MCBaseChart<any>;
+    chart.setAttribute('data-defer-initial-render', '');
+    stage.replaceChildren(chart);
+    chart.setConfig(nextCfg);
+    chart.removeAttribute('data-defer-initial-render');
+    if (chart.isConnected) chart.render();
+    return chart;
+  }
+  let chartEl = mountChart(config);
 
   // Bottom-Right Card: Live Unified Event Inspector (beside Web Component HTML Markup)
   const inspectorCard = document.createElement('section');
@@ -184,17 +191,20 @@ export function renderChartDetailPage(
   };
 
   let lastClickSummary = '';
-  chartEl.on('click', (ev) => {
-    lastClickSummary = formatEventSummary(ev);
-    recordInspectorEvent(lastClickSummary);
-  });
-  chartEl.on('mouseenter', (ev) => {
-    if (ev.target === 'canvas' && lastClickSummary) return;
-    recordInspectorEvent(formatEventSummary(ev));
-  });
-  chartEl.on('focus', (ev) => {
-    recordInspectorEvent(formatEventSummary(ev));
-  });
+  function wireChartEvents(chart: MCBaseChart<any>): void {
+    chart.on('click', (ev) => {
+      lastClickSummary = formatEventSummary(ev);
+      recordInspectorEvent(lastClickSummary);
+    });
+    chart.on('mouseenter', (ev) => {
+      if (ev.target === 'canvas' && lastClickSummary) return;
+      recordInspectorEvent(formatEventSummary(ev));
+    });
+    chart.on('focus', (ev) => {
+      recordInspectorEvent(formatEventSummary(ev));
+    });
+  }
+  wireChartEvents(chartEl);
 
   // Layer Toggle Chips
   const layerChipsContainer = chartCard.querySelector(
@@ -229,13 +239,23 @@ export function renderChartDetailPage(
   }
   renderLayerChips();
 
+  let activeStream: symbol | undefined;
+  function resetDefaultConfig(): void {
+    activeStream = undefined;
+    const fresh = resetChartConfig(entry);
+    Object.keys(config).forEach((key) => delete config[key as keyof ChartConfig]);
+    Object.assign(config, fresh);
+    applyConfigUpdate(config, 'reset');
+  }
+
   // Right Card: Attribute Controls
   const attrPanel = createAttributePanel({
     entry,
     config,
     vState,
     allAttributes,
-    onConfigChanged: () => applyConfigUpdate(config, 'controls')
+    onConfigChanged: () => applyConfigUpdate(config, 'controls'),
+    onResetDefault: resetDefaultConfig
   });
 
   // Bottom Card: Two-Way HTML & chart.config Code Editor
@@ -252,13 +272,7 @@ export function renderChartDetailPage(
       config.data = generateRandomDataForChart(entry.id, config.data);
       applyConfigUpdate(config, 'randomize');
     },
-    onResetDefault: () => {
-      const fresh = resetChartConfig(entry);
-      Object.keys(config).forEach((k) => delete (config as any)[k]);
-      Object.assign(config, fresh);
-      Object.assign(vState, getChartVirtualState(entry.id));
-      applyConfigUpdate(config, 'reset');
-    }
+    onResetDefault: resetDefaultConfig
   });
 
   function applyConfigUpdate(
@@ -266,7 +280,13 @@ export function renderChartDetailPage(
     source: 'controls' | 'html-editor' | 'randomize' | 'reset'
   ): void {
     setStoredChartConfig(entry.id, nextCfg);
-    chartEl.setConfig(nextCfg);
+    if (source === 'reset') {
+      // A new chart starts with fresh layer, marker, and view state.
+      chartEl = mountChart(nextCfg);
+      wireChartEvents(chartEl);
+    } else {
+      chartEl.setConfig(nextCfg);
+    }
 
     if (source !== 'html-editor') {
       editorPanel.syncFromConfig(nextCfg);
@@ -286,16 +306,17 @@ export function renderChartDetailPage(
   }
 
   // Action Buttons: Stream AI Layers & Replay Animation
-  let isStreaming = false;
   chartCard
     .querySelector('#btn-detail-ai-stream')
     ?.addEventListener('click', async () => {
-      if (isStreaming) return;
-      isStreaming = true;
+      if (activeStream) return;
+      const stream = Symbol();
+      activeStream = stream;
       activeLayerNames = [];
       renderLayerChips();
 
       for (let i = 0; i < entry.defaultLayers.length; i++) {
+        if (activeStream !== stream || !root.contains(chartEl)) return;
         const nextSlice = entry.defaultLayers.slice(0, i + 1);
         activeLayerNames = [...nextSlice];
         config.layers = [...nextSlice];
@@ -304,7 +325,7 @@ export function renderChartDetailPage(
         renderLayerChips();
         await new Promise((r) => setTimeout(r, 240));
       }
-      isStreaming = false;
+      if (activeStream === stream) activeStream = undefined;
     });
 
   chartCard

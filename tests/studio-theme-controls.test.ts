@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { PALETTES, type MCBaseChart } from '../src/index';
-import { formatConfigAssignment, parseConfigObjectLiteral } from '../apps/studio/utils/code-sync';
+import { PALETTES, generateColorPalette, type MCBaseChart } from '../src/index';
+import { extractChartConfigBlock, formatConfigAssignment, parseConfigObjectLiteral } from '../apps/studio/utils/code-sync';
 
 const paletteKey = 'modern-charts-palette';
 const appearanceKey = 'modern-charts-theme-mode';
@@ -9,6 +9,7 @@ let appearanceSelect: HTMLSelectElement;
 let systemIsDark = false;
 let onSystemAppearanceChange: (() => void) | undefined;
 let deliverPreviewIntersections: IntersectionObserverCallback;
+let neutralColors: string[];
 
 function select(control: HTMLSelectElement, value: string) {
   control.value = value;
@@ -53,7 +54,7 @@ beforeAll(async () => {
   document.head.innerHTML = '<meta name="color-scheme" content="light dark">';
   document.body.replaceChildren(template.content.cloneNode(true));
   localStorage.clear();
-  localStorage.setItem(paletteKey, 'bootstrap');
+  localStorage.setItem(paletteKey, 'neutral');
   localStorage.setItem(appearanceKey, 'dark');
   history.replaceState(null, '', '#/');
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
@@ -74,6 +75,8 @@ beforeAll(async () => {
     disconnect() {}
   });
   await import('../apps/studio/main');
+  const { STUDIO_PALETTES } = await import('../apps/studio/state/theme');
+  neutralColors = STUDIO_PALETTES.neutral;
   paletteSelect = document.querySelector('#global-palette-select')!;
   appearanceSelect = document.querySelector('#global-appearance-select')!;
 }, 15_000);
@@ -92,17 +95,20 @@ afterAll(() => {
 });
 
 describe('Studio Theme and Appearance controls', () => {
-  it('restores independent preferences and provides a theme guide link', () => {
-    expect(paletteSelect.value).toBe('bootstrap');
+  it('restores the generated Neutral palette and independent appearance preference', () => {
+    expect(paletteSelect.value).toBe('neutral');
     expect(appearanceSelect.value).toBe('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(Array.from(paletteSelect.options, (option) => option.value)).toEqual(['shadcn', 'material', 'bootstrap', 'antd', 'neutral']);
+    expect(paletteSelect.selectedOptions[0].textContent).toBe('Neutral (generated)');
+    expect(neutralColors).toHaveLength(20);
+    expect(neutralColors[0]).toBe('#737373');
+    expect(new Set(neutralColors)).toEqual(new Set(generateColorPalette('#737373', 32).slice(6, -6)));
     expect(document.querySelector('label[for="global-palette-select"]')!.textContent).toBe('Theme:');
     expect(document.querySelector('label[for="global-appearance-select"]')!.textContent).toBe('Appearance:');
     expect(paletteSelect.compareDocumentPosition(appearanceSelect) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const help = document.querySelector('.global-controls-help')!;
-    expect(help.textContent!.trim()).toBe('Themes & palettes guide →');
-    expect(help.querySelector('a')!.getAttribute('href')).toBe('#/guide/themes');
+    expect(document.querySelector('.global-controls-help')).toBeNull();
+    expect(document.querySelector('nav a[href="#/guide/themes"]')).not.toBeNull();
   }, 15_000);
 
   it('applies the selected palette and appearance to existing and newly visible previews', async () => {
@@ -110,7 +116,7 @@ describe('Studio Theme and Appearance controls', () => {
     const { data, markers, layers } = bar.config;
     select(paletteSelect, 'neutral');
     expect(bar.config.palette).toBe('neutral');
-    expect(bar.resolveTheme().colors).toEqual(PALETTES.neutral);
+    expect(bar.resolveTheme().colors).toEqual(neutralColors);
     expect(bar.config.data).toBe(data);
     expect(bar.config.markers).toBe(markers);
     expect(bar.config.layers).toBe(layers);
@@ -118,22 +124,27 @@ describe('Studio Theme and Appearance controls', () => {
     expect(localStorage.getItem(paletteKey)).toBe('neutral');
     select(appearanceSelect, 'dark');
     expect(bar.resolveTheme().mode).toBe('dark');
-    expect(bar.resolveTheme().colors).toEqual(PALETTES.neutral);
+    expect(bar.resolveTheme().colors).toEqual(neutralColors);
     expect(localStorage.getItem(appearanceKey)).toBe('dark');
 
     const line = await revealPreview('line');
     expect(line.resolveTheme().mode).toBe('dark');
-    expect(line.resolveTheme().colors).toEqual(PALETTES.neutral);
+    expect(line.resolveTheme().colors).toEqual(neutralColors);
   }, 15_000);
 
-  it('retains the chosen theme across detail navigation and reset while respecting custom colors', async () => {
+  it('keeps the selected theme and restores chart, controls, and markup from either reset button', async () => {
     select(paletteSelect, 'bootstrap');
+    select(appearanceSelect, 'dark');
     route('#/chart/bar');
     await vi.waitFor(() => expect(detailChart()?.config.palette).toBe('bootstrap'));
+    const defaultTitle = detailChart().config.title;
+    const defaultData = detailChart().config.data;
     const editor = document.querySelector<HTMLTextAreaElement>('#detail-html-preview')!;
     editor.value = formatConfigAssignment({
       ...detailChart().config,
       title: 'My saved chart',
+      enableLabels: false,
+      data: [{ quarter: 'Q5', Cloud: 88, Edge: 60, OnPrem: 42 }],
       i18n: { locale: 'de-DE' },
       colors: ['#123456']
     });
@@ -148,9 +159,36 @@ describe('Studio Theme and Appearance controls', () => {
     route('#/');
     route('#/chart/bar');
     expect(detailChart().config.palette).toBe('antd');
-    document.querySelector<HTMLButtonElement>('#btn-reset-config')!.click();
+    const labelsControl = document.querySelector<HTMLInputElement>('[data-config-path="enableLabels"] input')!;
+    expect(labelsControl.checked).toBe(false);
+    const axesChip = Array.from(document.querySelectorAll<HTMLButtonElement>('#detail-layer-chips button'))
+      .find((chip) => chip.textContent?.endsWith('axes'))!;
+    axesChip.click();
+    expect(detailChart().getActiveLayers()).not.toContain('axes');
+    document.querySelector<HTMLButtonElement>('#btn-reset-default-attrs')!.click();
+
     expect(detailChart().config.palette).toBe('antd');
     expect(detailChart().resolveTheme().colors).toEqual(PALETTES.antd);
+    expect(detailChart().config.themeMode).toBe('dark');
+    expect(detailChart().config.title).toBe(defaultTitle);
+    expect(detailChart().config.data).toEqual(defaultData);
+    expect(detailChart().getActiveLayers()).toContain('axes');
+    expect(labelsControl.checked).toBe(true);
+    const resetCode = document.querySelector<HTMLTextAreaElement>('#detail-html-preview')!.value;
+    const resetConfig = parseConfigObjectLiteral(extractChartConfigBlock(resetCode)!);
+    expect(resetConfig.title).toBe(defaultTitle);
+    expect(resetConfig.data).toEqual(defaultData);
+
+    const markerControl = () => document.querySelector<HTMLInputElement>('[data-config-path="__markerEnabled"] input')!;
+    expect(markerControl().checked).toBe(true);
+    markerControl().click();
+    expect(detailChart().config.markers).toEqual([]);
+    route('#/');
+    route('#/chart/bar');
+    expect(markerControl().checked).toBe(false);
+    document.querySelector<HTMLButtonElement>('#btn-reset-config')!.click();
+    expect(markerControl().checked).toBe(true);
+    expect(detailChart().config.markers?.length).toBeGreaterThan(0);
   }, 15_000);
 
   it('recolors the heatmap and its legend while preserving an explicit color scheme', async () => {
@@ -246,7 +284,7 @@ describe('Studio Theme and Appearance controls', () => {
 
   it('recolors rendered line and bar series when switching to Neutral while keeping threshold overrides scoped and preserving explicit series colors (Issue #99)', async () => {
     select(paletteSelect, 'neutral');
-    const [neutral0, neutral1, neutral2] = PALETTES.neutral;
+    const [neutral0, neutral1, neutral2] = neutralColors;
 
     // 1. Overview gallery: Line & Area and Bar & Stack reflect Neutral palette in rendered SVG
     const overviewLine = await revealPreview('line');
@@ -307,6 +345,14 @@ describe('Studio Theme and Appearance controls', () => {
         .querySelector<SVGPathElement>('.mc-line-path[data-series-id="Inference"]')!
         .getAttribute('stroke')
     ).toBe(neutral0);
+
+    const editor = document.querySelector<HTMLTextAreaElement>('#detail-html-preview')!;
+    const exportedConfig = parseConfigObjectLiteral(extractChartConfigBlock(editor.value)!);
+    expect(exportedConfig.colors).toEqual(neutralColors);
+    editor.value = formatConfigAssignment({ ...exportedConfig, title: 'Edited Neutral example' });
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(lineDetail.config.title).toBe('Edited Neutral example');
+    expect(lineDetail.config.colors).toBeUndefined();
 
     // Explicit series.color override still takes precedence over the selected palette
     lineDetail.setConfig({

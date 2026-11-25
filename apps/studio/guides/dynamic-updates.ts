@@ -404,7 +404,7 @@ export function renderDynamicUpdatesGuide(
           <option value="material">material</option>
           <option value="bootstrap">bootstrap</option>
           <option value="antd">antd</option>
-          <option value="neutral">neutral (grayscale)</option>
+          <option value="neutral">Neutral (generated)</option>
         </select>
       </label>
       <label style="font-size:0.82rem;color:var(--text-muted);font-weight:600;">

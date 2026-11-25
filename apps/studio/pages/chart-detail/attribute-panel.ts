@@ -30,8 +30,9 @@ export function createAttributePanel(opts: {
   vState: ChartVirtualState;
   allAttributes: ChartAttributeSpec[];
   onConfigChanged: () => void;
+  onResetDefault: () => void;
 }): AttributePanelHandle {
-  const { entry, config, vState, allAttributes, onConfigChanged } = opts;
+  const { entry, config, vState, allAttributes, onConfigChanged, onResetDefault } = opts;
   type AttributeScope = 'specific' | 'common';
   const specificPaths = new Set(entry.specificAttributes.map((spec) => spec.configPath));
   const scopeFor = (spec: ChartAttributeSpec): AttributeScope =>
@@ -73,6 +74,7 @@ export function createAttributePanel(opts: {
           'More about Attributes & Config',
           `Interactive controls for chart-specific options and shared layers on <code>&lt;${escapeHtml(entry.tagName)}&gt;</code>. Changes update the live chart and HTML markup immediately.`
         )}
+        <button type="button" id="btn-reset-default-attrs">Reset Default</button>
       </div>
       <div class="attributes-filter-bar">
         <button type="button" id="btn-expand-all-attrs">Expand All</button>
@@ -506,6 +508,10 @@ export function createAttributePanel(opts: {
     ?.addEventListener('click', () => {
       setVisibleCategoriesOpen(false);
     });
+
+  attributesSection
+    .querySelector('#btn-reset-default-attrs')
+    ?.addEventListener('click', onResetDefault);
 
   wireSectionInfoTooltips(attributesSection);
 

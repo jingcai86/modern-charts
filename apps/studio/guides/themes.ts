@@ -1,10 +1,8 @@
-import { getGlobalPalette } from '../state/theme';
+import { getGlobalPalette, STUDIO_PALETTES, type StudioPaletteName } from '../state/theme';
 import {
-  PALETTES,
   generateColorPalette,
   generateGradientPalette,
   resolveGradientAngles,
-  type BuiltInPaletteName,
   type ChartPaletteName,
   type ChartTheme,
   type GradientDirection,
@@ -19,12 +17,12 @@ import {
   escapeHtml
 } from './shared';
 
-const PALETTE_LABELS: Record<BuiltInPaletteName, { label: string; subtitle: string }> = {
+const PALETTE_LABELS: Record<StudioPaletteName, { label: string; subtitle: string }> = {
   shadcn: { label: 'shadcn / ui', subtitle: 'Tailwind / Radix (20 colors)' },
   material: { label: 'Angular Material', subtitle: 'Material Design (20 colors)' },
   bootstrap: { label: 'Bootstrap', subtitle: 'Bootstrap 5 (20 colors)' },
   antd: { label: 'Ant Design', subtitle: 'Ant Design 5 (20 colors)' },
-  neutral: { label: 'Neutral', subtitle: 'Mid gray (#737373, 20 colors)' }
+  neutral: { label: 'Neutral (generated)', subtitle: 'Mid gray (#737373, 20 colors)' }
 };
 
 export function renderThemesGuide(
@@ -38,7 +36,7 @@ export function renderThemesGuide(
   explanation.innerHTML = `
     <h2 class="panel-title">Theme and Appearance are independent</h2>
     <p class="guide-prose">The Studio header's <strong>Theme</strong> menu chooses the default chart palette:
-      Shadcn, Material, Bootstrap, Ant Design, or Neutral (grayscale with mid gray as its first series color). <strong>Appearance</strong> chooses System, Light, or Dark for Studio and chart surfaces.
+      Shadcn, Material, Bootstrap, Ant Design, or Neutral (generated). <strong>Appearance</strong> chooses System, Light, or Dark for Studio and chart surfaces.
       Both preferences are saved separately. Use Theme to change chart colors while keeping the current light/dark appearance.</p>
     <p class="guide-prose">The examples below let you override that default with their own palette, custom colors, or gradients.
       Their live editors show the exact chart configuration. Change <code>palette</code> for design-system colors or Neutral grayscale,
@@ -46,18 +44,15 @@ export function renderThemesGuide(
   `;
   container.appendChild(explanation);
 
-  // Example 1: 5 Built-In Palettes (20 colors each)
+  // Example 1: Built-in and generated palettes
   const introCard = document.createElement('section');
   introCard.className = 'panel-card guide-section';
   introCard.innerHTML = `
-    <h2 class="panel-title">Example 1: Built-In Palettes (20 Colors Each)</h2>
+    <h2 class="panel-title">Example 1: Built-In and Generated Palettes</h2>
     <p class="guide-prose">
-      <code>modern-charts</code> ships <strong>5 built-in chart palettes</strong> with
-      <strong>20 colors each</strong> — <code>'shadcn'</code>, <code>'material'</code> (Angular Material),
-      <code>'bootstrap'</code>, <code>'antd'</code> (Ant Design), and <code>'neutral'</code>
-      (grayscale, starting with mid gray <code>#737373</code>) — across <code>'system'</code>,
-      <code>'dark'</code>, and <code>'light'</code> modes. Click any palette or edit <code>palette</code>
-      (including a seed hex like <code>'#2563eb'</code>) in the live config editor below.
+      <code>modern-charts</code> ships four built-in palettes with 20 colors each.
+      Studio generates its Neutral palette from mid gray <code>#737373</code>.
+      In your app, pass <code>palette: '#737373'</code> to generate a grayscale ramp.
     </p>
     <div class="guide-palette-grid" id="guide-palette-picker"></div>
     <div class="guide-controls-row" style="margin-top:4px;">
@@ -163,9 +158,9 @@ export function renderThemesGuide(
   });
 
   const editor1 = createLiveConfigEditor({
-    title: 'Built-In Palettes Config (Live)',
+    title: 'Palette Config (Live)',
     initialConfig: buildPaletteEditorConfig(),
-    hint: 'Change palette ("shadcn", "material", "bootstrap", "antd", "neutral", or any hex color like "#1677ff") or add custom colors[].',
+    hint: 'Choose a palette or edit palette with a seed color such as "#1677ff". Use colors[] to supply your own shades.',
     onConfigChange: (nextCfg) => {
       if (nextCfg.themeMode) {
         selectedMode = nextCfg.themeMode;
@@ -189,13 +184,13 @@ export function renderThemesGuide(
   });
   codeSlot1.appendChild(editor1.element);
 
-  (Object.keys(PALETTES) as BuiltInPaletteName[]).forEach((name) => {
+  (Object.keys(STUDIO_PALETTES) as StudioPaletteName[]).forEach((name) => {
     const meta = PALETTE_LABELS[name];
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.dataset.paletteName = name;
     btn.className = `guide-palette-card ${name === selectedPalette ? 'active' : ''}`;
-    const swatches = PALETTES[name]
+    const swatches = STUDIO_PALETTES[name]
       .map(
         (c) =>
           `<span class="guide-swatch-dot" style="background:${c}" title="${c}"></span>`
@@ -476,7 +471,7 @@ chart.config = {
           <option value="material">material (20 colors)</option>
           <option value="bootstrap">bootstrap (20 colors)</option>
           <option value="antd">antd (20 colors)</option>
-          <option value="neutral">neutral (20 grayscale colors)</option>
+          <option value="neutral">Neutral (generated)</option>
         </select>
       </label>
       <label id="grad-seed-wrap" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;display:none;align-items:center;gap:6px;">
@@ -532,7 +527,7 @@ chart.config = {
 
   type GradSourceMode = 'theme' | 'seed' | 'array';
   let gradSourceMode: GradSourceMode = 'theme';
-  let gradPaletteName: BuiltInPaletteName = getGlobalPalette();
+  let gradPaletteName: StudioPaletteName = getGlobalPalette();
   gradPaletteSelect.value = gradPaletteName;
   let gradSeedColor = '#2563eb';
   let gradCount = 20;
@@ -604,12 +599,14 @@ chart.config = {
 
   const renderGradUsageSnippet = () => {
     const dirLiteral = `'${gradDirection}'`;
-    const sourceExpr =
-      gradSourceMode === 'theme'
-        ? `'${gradPaletteName}'`
-        : gradSourceMode === 'seed'
-          ? `'${gradSeedColor}'`
-          : `[${gradCustomColors.map((c) => `'${c}'`).join(', ')}]`;
+    const palette = gradSourceMode === 'seed' ? gradSeedColor : gradPaletteName;
+    const sourceColors =
+      gradSourceMode === 'array'
+        ? gradCustomColors
+        : gradSourceMode === 'theme' && gradPaletteName === 'neutral'
+          ? STUDIO_PALETTES.neutral
+          : undefined;
+    const sourceExpr = JSON.stringify(sourceColors ?? palette);
     const countLine = gradSourceMode === 'seed' ? `\n  count: ${gradCount},` : '';
 
     const snippet = `
@@ -635,10 +632,10 @@ chart.config = {
 // chart.config = {
 //   data,
 //   layout: '${gradLayout}',
-//   ${gradSourceMode === 'array' ? `colors: ${sourceExpr}` : `palette: ${sourceExpr}`},
+//   ${sourceColors ? 'colors' : 'palette'}: ${sourceExpr},
 //   gradient: { direction: ${dirLiteral}, reverseOnNegative: ${gradFlipNegative} }
 // };
-// <mc-bar-chart palette="${gradSourceMode === 'seed' ? gradSeedColor : gradPaletteName}" layout="${gradLayout}" gradient="auto"></mc-bar-chart>
+${sourceColors ? '' : `// <mc-bar-chart palette="${palette}" layout="${gradLayout}" gradient="auto"></mc-bar-chart>`}
 `;
     gradUsageHost.replaceChildren(
       createCodeBlock(snippet, 'How to Use generateGradientPalette() & config.gradient')
@@ -853,7 +850,7 @@ chart.config = {
   });
 
   gradPaletteSelect.addEventListener('change', () => {
-    gradPaletteName = gradPaletteSelect.value as BuiltInPaletteName;
+    gradPaletteName = gradPaletteSelect.value as StudioPaletteName;
     updateGradFromControls();
   });
 
@@ -1075,7 +1072,7 @@ chart.config = {
       <table class="guide-table">
         <thead><tr><th>Token</th><th>Type</th><th>Controls</th></tr></thead>
         <tbody>
-          <tr><td><code>palette</code></td><td><code>'shadcn' | 'material' | 'bootstrap' | 'antd' | 'neutral' | string</code></td><td>20-color built-in palette name (including Neutral grayscale) or a seed color string (e.g. <code>'#2563eb'</code>) auto-expanded into a 20-color light-to-dark ramp.</td></tr>
+          <tr><td><code>palette</code></td><td><code>'shadcn' | 'material' | 'bootstrap' | 'antd' | string</code></td><td>20-color built-in palette name or a seed color string such as <code>'#2563eb'</code> for a generated light-to-dark ramp.</td></tr>
           <tr><td><code>colors</code></td><td><code>string[]</code></td><td>Explicit series color array (e.g. <code>generateColorPalette('#2563eb', 20)</code>). Overrides <code>palette</code>.</td></tr>
           <tr><td><code>gradient</code></td><td><code>boolean | GradientDirection | ChartGradientConfig</code></td><td>Auto-generates directional SVG linear gradients from <code>palette</code>, <code>colors[]</code>, or a seed color — adapting to vertical/horizontal layouts and flipping direction on negative bars (<code>reverseOnNegative: true</code>).</td></tr>
           <tr><td><code>background</code></td><td><code>string</code></td><td>Chart SVG canvas background fill.</td></tr>

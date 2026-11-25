@@ -81,27 +81,6 @@
   max-inline-size: 100%;
 }
 
-.global-controls-help {
-  flex: 0 1 auto;
-  min-inline-size: 0;
-  margin: 0;
-  font-size: 0.74rem;
-  line-height: 1.5;
-  color: var(--text-muted);
-  text-align: right;
-  overflow-wrap: anywhere;
-}
-
-.global-controls-help a {
-  color: var(--pill-purple-fg);
-  font-weight: 600;
-  text-underline-offset: 0.15em;
-}
-
-.global-controls-help a:hover {
-  color: var(--text-main);
-}
-
 @media (max-width: 1050px) {
   .site-header {
     grid-template-columns: minmax(0, 1fr);
@@ -272,8 +251,7 @@
 .nav-dropdown-link:focus-visible,
 .nav-dropdown-trigger:focus-visible,
 #global-palette-select:focus-visible,
-#global-appearance-select:focus-visible,
-.global-controls-help a:focus-visible {
+#global-appearance-select:focus-visible {
   outline: 2px solid var(--border-focus);
   outline-offset: 2px;
 }

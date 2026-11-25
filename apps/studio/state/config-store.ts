@@ -1,13 +1,12 @@
 import type {
   ChartConfig,
-  BuiltInPaletteName,
   MarkerAnnotationPosition,
   MarkerLabelPosition,
   MarkerMatchScope,
   ThemeModePreference
 } from '../../../src/index';
 import { SVG_ICON_PRESETS, type ChartCatalogEntry } from '../catalog';
-import { getGlobalPalette, getGlobalThemeMode } from './theme';
+import { getGlobalPalette, getGlobalThemeMode, type StudioPaletteName } from './theme';
 
 export interface ChartVirtualState {
   __markerEnabled: boolean;
@@ -43,7 +42,7 @@ export function getOrInitChartConfig(entry: ChartCatalogEntry): ChartConfig<any>
       lineMarker?.annotation && typeof lineMarker.annotation === 'object'
         ? lineMarker.annotation
         : undefined;
-    chartVirtualState.set(entry.id, {
+    const virtualDefaults: ChartVirtualState = {
       __markerEnabled: Boolean(cfg.markers && cfg.markers.length > 0),
       __markerThresholdValue:
         typeof lineMarker?.value === 'number' ? lineMarker.value : 130,
@@ -61,7 +60,10 @@ export function getOrInitChartConfig(entry: ChartCatalogEntry): ChartConfig<any>
       __markerAnnotationPadding: annObj?.padding ?? 8,
       __markerAnnotationTooltip: annObj?.enableTooltip !== false,
       __labelIconPreset: 'none'
-    });
+    };
+    const vState = chartVirtualState.get(entry.id);
+    if (vState) Object.assign(vState, virtualDefaults);
+    else chartVirtualState.set(entry.id, virtualDefaults);
   }
   return chartConfigState.get(entry.id)!;
 }
@@ -79,7 +81,6 @@ export function setStoredChartConfig(
 
 export function resetChartConfig(entry: ChartCatalogEntry): ChartConfig<any> {
   chartConfigState.delete(entry.id);
-  chartVirtualState.delete(entry.id);
   return getOrInitChartConfig(entry);
 }
 
@@ -95,7 +96,7 @@ export function syncAllStoredConfigsTheme(pref: ThemeModePreference): void {
   });
 }
 
-export function syncAllStoredConfigsPalette(palette: BuiltInPaletteName): void {
+export function syncAllStoredConfigsPalette(palette: StudioPaletteName): void {
   chartConfigState.forEach((config) => {
     config.palette = palette;
   });

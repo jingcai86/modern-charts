@@ -1,6 +1,5 @@
 import {
   VERSION,
-  type BuiltInPaletteName,
   type ThemeModePreference
 } from '../../src/core/types';
 import type { MCBaseChart } from '../../src/core/base-chart';
@@ -16,7 +15,8 @@ import {
   setGlobalPalette,
   setGlobalThemeMode,
   subscribePaletteChanges,
-  subscribeThemeChanges
+  subscribeThemeChanges,
+  type StudioPaletteName
 } from './state/theme';
 
 // Keep Studio header pill and page title synchronized with the active package VERSION
@@ -27,7 +27,6 @@ if (versionPill) {
 document.title = `modern-charts v${VERSION} — Composable Web Component Charts`;
 
 let activeOverviewCharts: MCBaseChart<any>[] = [];
-let activeDetailChart: MCBaseChart<any> | null = null;
 let activeDetailEntry: ChartCatalogEntry | null = null;
 let activeGuide: { id: GuideId } | null = null;
 let renderGuidePage: typeof import('./guides/index').renderGuidePage | undefined;
@@ -149,12 +148,16 @@ async function loadGuidePage(root: HTMLElement, id: GuideId, hash: string): Prom
 }
 
 function showChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry, hash: string): void {
+  const showDetail = () => {
+    renderChartDetailPage(root, entry);
+    activeDetailEntry = entry;
+  };
   if (chartD3Ready && customElements.get(entry.tagName)) {
-    activeDetailChart = renderChartDetailPage(root, entry);
+    showDetail();
     return;
   }
 
-  activeDetailChart = null;
+  activeDetailEntry = null;
   const status = document.createElement('p');
   status.setAttribute('role', 'status');
   status.textContent = 'Loading chart…';
@@ -171,7 +174,7 @@ function showChartDetailPage(root: HTMLElement, entry: ChartCatalogEntry, hash: 
       });
   void Promise.all([loadChart(entry), loadD3]).then(
     () => {
-      if (isCurrent()) activeDetailChart = renderChartDetailPage(root, entry);
+      if (isCurrent()) showDetail();
     },
     () => {
       if (isCurrent()) status.textContent = 'Could not load this chart. Reload the page to try again.';
@@ -191,7 +194,6 @@ function handleRoute(): void {
     const requested = (guideMatch[1] ?? 'custom-layers').toLowerCase() as GuideId;
     const found = GUIDES_CATALOG.find((g) => g.id === requested);
     const resolvedId: GuideId = found ? found.id : 'custom-layers';
-    activeDetailChart = null;
     activeDetailEntry = null;
     activeOverviewCharts = [];
     void loadGuidePage(root, resolvedId, hash);
@@ -208,7 +210,6 @@ function handleRoute(): void {
       disposeOverviewPage(root);
       activeGuide = null;
       activeOverviewCharts = [];
-      activeDetailEntry = entry;
       showChartDetailPage(root, entry, hash);
       syncTopNavActiveState('overview', true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -216,7 +217,6 @@ function handleRoute(): void {
     }
   }
 
-  activeDetailChart = null;
   activeDetailEntry = null;
   activeGuide = null;
   activeOverviewCharts = renderOverviewPage(root);
@@ -244,8 +244,8 @@ function syncActiveViewTheme(pref: ThemeModePreference): void {
   const root = document.getElementById('app-root')!;
   if (activeGuide) {
     renderGuidePage?.(root, activeGuide.id, pref);
-  } else if (activeDetailChart && activeDetailEntry) {
-    activeDetailChart = renderChartDetailPage(root, activeDetailEntry);
+  } else if (activeDetailEntry) {
+    renderChartDetailPage(root, activeDetailEntry);
   } else {
     activeOverviewCharts.forEach((chart) => {
       chart.setConfig({
@@ -277,22 +277,22 @@ subscribeThemeChanges((nextPref) => {
 const globalPaletteSelect = document.getElementById('global-palette-select') as HTMLSelectElement | null;
 if (globalPaletteSelect) globalPaletteSelect.value = getGlobalPalette();
 
-function syncActiveViewPalette(palette: BuiltInPaletteName): void {
+function syncActiveViewPalette(palette: StudioPaletteName): void {
   if (globalPaletteSelect) globalPaletteSelect.value = palette;
   syncAllStoredConfigsPalette(palette);
   const root = document.getElementById('app-root');
   if (!root) return;
   if (activeGuide) {
     renderGuidePage?.(root, activeGuide.id, getGlobalThemeMode());
-  } else if (activeDetailChart && activeDetailEntry) {
-    activeDetailChart = renderChartDetailPage(root, activeDetailEntry);
+  } else if (activeDetailEntry) {
+    renderChartDetailPage(root, activeDetailEntry);
   } else {
     activeOverviewCharts.forEach((chart) => chart.setConfig({ ...chart.config, palette }));
   }
 }
 
 globalPaletteSelect?.addEventListener('change', () => {
-  syncActiveViewPalette(setGlobalPalette(globalPaletteSelect.value as BuiltInPaletteName));
+  syncActiveViewPalette(setGlobalPalette(globalPaletteSelect.value));
 });
 subscribePaletteChanges(syncActiveViewPalette);
 
