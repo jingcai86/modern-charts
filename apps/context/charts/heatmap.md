@@ -28,6 +28,65 @@ interface HeatmapRow {
 | `borderRadius` | `border-radius` | `number` | `6` | Corner radius for `'rect'` cells |
 | `enableLabels` | `enable-labels` | `boolean` | `true` | Render numeric value inside each cell |
 
+## Heatmap Color Legend
+
+Set `chart.config.legend` or add a direct `<mc-legend>` child. Continuous mode uses a smooth gradient. Discrete mode divides the color domain into `steps` equal ranges and gives the cells and their legend blocks the same colors.
+
+| Config key under `legend` | `<mc-legend>` attribute | Behavior |
+| :--- | :--- | :--- |
+| `type` | `type` | `'continuous'` (default) or `'discrete'`. |
+| `enabled` | `enabled` | Show the color legend. Defaults to `true`. |
+| `steps` | `steps` | Number of discrete color blocks (`1`–`100`). Defaults to `10`. |
+| `min`, `max` | `min`, `max` | Override the shared color domain. Otherwise, the chart bounds or the data bounds apply. |
+| `colorScheme` | `color-scheme` | Override the ramp for both the cells and the legend. |
+| `position` | `position` | `'top'` (default), `'bottom'`, `'left'`, or `'right'`. |
+| `width`, `height` | `width`, `height` | Requested SVG dimensions in pixels, bounded by available space. Omit for position-specific sizing. |
+| `borderRadius`, `blockGap` | `border-radius`, `block-gap` | Corner radius (default `4px`) and spacing between discrete blocks (default `2px`). Both accept `0`. |
+| `labelPlacement` | `label-placement` | `'ends'` (default), `'ticks'` for discrete range boundaries, or `'none'`. Continuous mode uses end labels unless set to `'none'`. |
+| `minLabel`, `maxLabel` | `min-label`, `max-label` | Custom text at the ends of the legend. |
+| `tickFormat` | `tick-format` | Locale-aware `Intl.NumberFormatOptions`, such as `{ maximumFractionDigits: 1 }`. Use a JSON object in HTML. JavaScript also accepts `(value) => string`. |
+| `fontSize`, `padding` | `font-size`, `padding` | Label font size (default `10px`) and outer spacing in pixels. Config padding accepts a number or an object with `top`, `right`, `bottom`, and `left`. |
+| `enableTooltip`, `tooltip` | `enable-tooltip`, nested `<mc-tooltip>` | Show a dedicated legend tooltip on hover and keyboard focus. Set `enableTooltip: false` or `tooltip: false` to hide it. |
+
+Each discrete range includes its lower bound and excludes its upper bound. The last range also includes the domain maximum. Values outside the domain take the nearest end color. Set `legend.enabled: false` or remove `'legends'` from `layers` to hide the legend while keeping the cell colors.
+
+Each discrete legend tooltip receives the range on `datum.meta`, with numeric `min`, `max`, and boolean `maxInclusive`.
+
+```ts
+chart.config = {
+  ...chart.config,
+  legend: {
+    type: 'discrete',
+    position: 'bottom',
+    min: 0,
+    max: 100,
+    steps: 5,
+    width: 240,
+    height: 14,
+    borderRadius: 3,
+    blockGap: 2,
+    labelPlacement: 'ticks',
+    tickFormat: { minimumFractionDigits: 1, maximumFractionDigits: 1 },
+    tooltip: {
+      formatter: ({ datum }) => {
+        const range = datum?.meta;
+        if (!range) return undefined;
+        return `${range.min}% ≤ load ${range.maxInclusive ? '≤' : '<'} ${range.max}%`;
+      }
+    }
+  }
+};
+```
+
+The corresponding declarative legend goes inside `<mc-heatmap-chart>`.
+
+```html
+<mc-legend type="discrete" position="bottom" min="0" max="100" steps="5"
+  width="240" height="14" border-radius="3" block-gap="2"
+  label-placement="ticks"
+  tick-format='{"minimumFractionDigits":1,"maximumFractionDigits":1}'></mc-legend>
+```
+
 ## Minimal Working Example
 
 ```html

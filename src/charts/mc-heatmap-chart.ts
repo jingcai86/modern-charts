@@ -1,4 +1,5 @@
 import { MCBaseChart } from '../core/base-chart';
+import { getHeatmapLegendAxisClearance, isHeatmapColorLegend } from '../core/heatmap-legend-layout';
 import {
   createDefaultScaleConfig,
   renderCartesianAxes
@@ -90,8 +91,8 @@ export class MCHeatmapChart extends MCBaseChart<HeatmapRow[]> {
       forceSquare: Boolean(
         this.getOption('forceSquare', 'force-square', false)
       ),
-      min: this.getOption('min', 'min'),
-      max: this.getOption('max', 'max'),
+      min: this.getOption('min', 'min', Number.NaN),
+      max: this.getOption('max', 'max', Number.NaN),
       colorScheme:
         this.getOption('colorScheme', 'color-scheme') ||
         ctx.scaleConfig.color?.scheme ||
@@ -113,21 +114,38 @@ export class MCHeatmapChart extends MCBaseChart<HeatmapRow[]> {
     (ctx: ChartRenderContext<HeatmapRow[]>) => void
   > {
     return {
-      axes: (ctx) =>
-        renderCartesianAxes(ctx, {
-          xTitle: this.getOption('xTitle', 'x-title'),
-          yTitle: this.getOption('yTitle', 'y-title')
-        }),
+      axes: (ctx) => {
+        const { legendConfig, margin } = ctx;
+        const { position } = legendConfig;
+        const xTitle = this.getOption('xTitle', 'x-title');
+        const yTitle = this.getOption('yTitle', 'y-title');
+        const clearance = isHeatmapColorLegend(legendConfig) && this.getActiveLayers().includes('legends')
+          ? getHeatmapLegendAxisClearance(position, ctx.scaleConfig, Boolean(xTitle), Boolean(yTitle))
+          : 0;
+        // Keep axis labels within the part of the margin reserved for the axis.
+        const axisMargin = clearance ? { ...margin, [position]: Math.min(margin[position], clearance) } : margin;
+        renderCartesianAxes({ ...ctx, margin: axisMargin }, { xTitle, yTitle });
+      },
       cells: (ctx) =>
         renderHeatmapCellsLayer(ctx.state.model as HeatmapChartModel, ctx),
       labels: (ctx) =>
         renderHeatmapCellLabelsLayer(ctx.state.model as HeatmapChartModel, ctx),
-      legends: (ctx) =>
+      legends: (ctx) => {
+        const clearance = this.getActiveLayers().includes('axes')
+          ? getHeatmapLegendAxisClearance(
+              ctx.legendConfig.position,
+              ctx.scaleConfig,
+              Boolean(this.getOption('xTitle', 'x-title')),
+              Boolean(this.getOption('yTitle', 'y-title'))
+            )
+          : 0;
         renderHeatmapLegendLayer(
           ctx.state.model as HeatmapChartModel,
           ctx,
-          this.shadowRoot?.querySelector('.mc-chart-defs')
-        )
+          this.shadowRoot?.querySelector('.mc-chart-defs'),
+          clearance
+        );
+      }
     };
   }
 }

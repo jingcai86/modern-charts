@@ -2,6 +2,7 @@ import { renderUnifiedLegendLayer } from '../../core/legend-engine';
 import type { ChartRenderContext, HeatmapRow } from '../../core/types';
 import type { HeatmapChartModel } from '../../models/heatmap.model';
 import { renderHeatmapCellItem } from '../items/cell.item';
+import { renderHeatmapColorLegend } from './heatmap-color-legend';
 
 export function renderHeatmapCellsLayer(
   model: HeatmapChartModel,
@@ -50,30 +51,18 @@ export function renderHeatmapCellLabelsLayer(
 }
 
 export function renderHeatmapLegendLayer(
-  _model: HeatmapChartModel,
+  model: HeatmapChartModel,
   ctx: ChartRenderContext<HeatmapRow[]>,
-  _defs?: Element | null
+  defs: Element | null | undefined,
+  axisClearance: number
 ): void {
-  const hasExplicitPosition =
-    typeof ctx.config.legend === 'object' &&
-    ctx.config.legend !== null &&
-    ctx.config.legend.position !== undefined;
-  const hostHasDeclPos =
-    ctx.svg.getRootNode() instanceof ShadowRoot &&
-    Boolean(
-      (ctx.svg.getRootNode() as ShadowRoot).host?.querySelector(
-        ':scope > mc-legend[position]'
-      )
-    );
-  const effectiveCtx =
-    hasExplicitPosition || hostHasDeclPos
-      ? ctx
-      : {
-          ...ctx,
-          legendConfig: {
-            ...ctx.legendConfig,
-            position: 'top' as const
-          }
-        };
-  renderUnifiedLegendLayer(effectiveCtx, [], 'top');
+  if (!ctx.legendConfig.enabled) return;
+  switch (ctx.legendConfig.type) {
+    case 'categorical':
+    case 'piecewise':
+      renderUnifiedLegendLayer(ctx, [], 'top');
+      break;
+    default:
+      renderHeatmapColorLegend(model, ctx, defs, axisClearance);
+  }
 }

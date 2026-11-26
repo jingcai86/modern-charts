@@ -1,17 +1,175 @@
 import { SAMPLE_HEATMAP_DATA } from '../../sample-data';
-import type { ChartCatalogEntry } from '../types';
+import { LEGEND_ATTRIBUTES } from '../shared-attributes';
+import type { ChartAttributeSpec, ChartCatalogEntry } from '../types';
+
+const discreteLegend: NonNullable<ChartAttributeSpec['visibleWhen']> = ({ legend }) =>
+  typeof legend === 'object' && legend?.type === 'discrete';
+
+const colorLegendAttributes = ([
+  {
+    configPath: 'legend.type',
+    attrName: 'mc-legend[type]',
+    control: 'select',
+    options: [
+      { label: 'Continuous', value: 'continuous' },
+      { label: 'Discrete', value: 'discrete' }
+    ],
+    description: 'Choose a smooth gradient or quantize the cells and legend into matching color blocks.',
+    defaultValue: 'continuous'
+  },
+  {
+    configPath: 'legend.enabled',
+    attrName: 'mc-legend[enabled]',
+    control: 'boolean',
+    description: 'Show the color legend. Hiding it preserves the cell colors.',
+    defaultValue: true
+  },
+  {
+    configPath: 'legend.position',
+    attrName: 'mc-legend[position]',
+    control: 'select',
+    options: [
+      { label: 'Top', value: 'top' },
+      { label: 'Bottom', value: 'bottom' },
+      { label: 'Left', value: 'left' },
+      { label: 'Right', value: 'right' }
+    ],
+    description: 'Choose the side of the chart where the legend appears.',
+    defaultValue: 'top'
+  },
+  {
+    configPath: 'legend.min',
+    attrName: 'mc-legend[min]',
+    control: 'number',
+    description: 'Set the lower bound of the color scale. Leave it blank to use the smallest cell value.',
+    defaultValue: undefined
+  },
+  {
+    configPath: 'legend.max',
+    attrName: 'mc-legend[max]',
+    control: 'number',
+    description: 'Set the upper bound of the color scale. Leave it blank to use the largest cell value.',
+    defaultValue: undefined
+  },
+  {
+    configPath: 'legend.steps',
+    attrName: 'mc-legend[steps]',
+    control: 'range',
+    min: 1,
+    max: 100,
+    description: 'Number of equally sized value ranges for discrete coloring.',
+    defaultValue: 10,
+    visibleWhen: discreteLegend
+  },
+  {
+    configPath: 'legend.width',
+    attrName: 'mc-legend[width]',
+    control: 'number',
+    min: 1,
+    description: 'Legend width in pixels. Leave it blank to size automatically for the position.',
+    defaultValue: undefined
+  },
+  {
+    configPath: 'legend.height',
+    attrName: 'mc-legend[height]',
+    control: 'number',
+    min: 1,
+    description: 'Legend height in pixels. Leave it blank to size automatically for the position.',
+    defaultValue: undefined
+  },
+  {
+    configPath: 'legend.borderRadius',
+    attrName: 'mc-legend[border-radius]',
+    control: 'range',
+    min: 0,
+    max: 20,
+    description: 'Corner radius in pixels for the gradient or each color block.',
+    defaultValue: 4
+  },
+  {
+    configPath: 'legend.blockGap',
+    attrName: 'mc-legend[block-gap]',
+    control: 'range',
+    min: 0,
+    max: 16,
+    description: 'Gap in pixels between adjacent discrete color blocks.',
+    defaultValue: 2,
+    visibleWhen: discreteLegend
+  },
+  {
+    configPath: 'legend.labelPlacement',
+    attrName: 'mc-legend[label-placement]',
+    control: 'select',
+    options: [
+      { label: 'Endpoints', value: 'ends' },
+      { label: 'Ticks (discrete)', value: 'ticks' },
+      { label: 'None', value: 'none' }
+    ],
+    description: 'Label the endpoints, show discrete range ticks, or hide all labels.',
+    defaultValue: 'ends'
+  },
+  {
+    configPath: 'legend.minLabel',
+    attrName: 'mc-legend[min-label]',
+    control: 'text',
+    description: 'Custom text at the low end of the color scale. Leave it blank to show the lower bound.',
+    defaultValue: ''
+  },
+  {
+    configPath: 'legend.maxLabel',
+    attrName: 'mc-legend[max-label]',
+    control: 'text',
+    description: 'Custom text at the high end of the color scale. Leave it blank to show the upper bound.',
+    defaultValue: ''
+  },
+  {
+    configPath: 'legend.tickFormat.style',
+    attrName: 'mc-legend[tick-format]',
+    control: 'select',
+    options: [
+      { label: 'Chart default', value: '' },
+      { label: 'Decimal', value: 'decimal' },
+      { label: 'Percent', value: 'percent' }
+    ],
+    description: 'Format the legend values using the chart locale. Percent displays 0.5 as 50%.',
+    defaultValue: ''
+  },
+  {
+    configPath: 'legend.tickFormat.maximumFractionDigits',
+    attrName: 'mc-legend[tick-format]',
+    control: 'number',
+    min: 0,
+    max: 20,
+    step: 1,
+    description: 'Limit decimal places in legend values. Leave it blank to use automatic precision.',
+    defaultValue: undefined
+  },
+  {
+    configPath: 'legend.fontSize',
+    attrName: 'mc-legend[font-size]',
+    control: 'range',
+    min: 8,
+    max: 24,
+    description: 'Legend label font size in pixels.',
+    defaultValue: 10
+  }
+] satisfies Omit<ChartAttributeSpec, 'category'>[]).map((spec): ChartAttributeSpec => ({
+  ...spec,
+  category: 'Legend (<mc-legend>)'
+}));
 
 export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
   id: 'heatmap',
   title: 'Heatmap Matrix Chart',
   tagName: 'mc-heatmap-chart',
   summary:
-    '2D matrix heatmap with D3 sequential color interpolators, independent x/y inner padding, value-driven sizeVariation, forceSquare 1:1 cells, emptyColor null handling, and Pretext cell labels.',
+    'Matrix heatmap with continuous gradients or discrete color ranges, customizable cell geometry, and Pretext labels.',
   subComponents: [
     'mc-theme-layer',
     'mc-scale-layer',
     'mc-animation-layer',
     'mc-aria-layer',
+    'mc-legend',
     'mc-label',
     'mc-cell-item'
   ],
@@ -24,6 +182,7 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
     autoSize: true,
     title: 'CPU Load (%)',
     colorScheme: 'theme',
+    legend: { type: 'continuous' },
     cellShape: 'rect',
     cellPadding: 0.1,
     sizeVariation: 0,
@@ -151,6 +310,10 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
       control: 'boolean',
       description: 'Renders numeric values inside each heatmap cell.',
       defaultValue: true
-    }
+    },
+    ...colorLegendAttributes,
+    ...LEGEND_ATTRIBUTES.filter(({ configPath }) =>
+      configPath === 'legend.enableTooltip' || configPath.startsWith('legend.padding.')
+    )
   ]
 };

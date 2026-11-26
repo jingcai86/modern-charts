@@ -2007,12 +2007,13 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
    */
   public resolveLegendConfig(): ResolvedLegendConfig {
     const raw = this._config.legend;
+    const fallbackPosition = this.chartType === 'heatmap' ? 'top' : 'bottom';
     const declLegend = this.querySelector(
       ':scope > mc-legend'
     ) as MCLegendElement | null;
 
     if (!declLegend || typeof declLegend.toLegendConfig !== 'function') {
-      return createDefaultLegendConfig(raw, 'bottom');
+      return createDefaultLegendConfig(raw, fallbackPosition);
     }
 
     const declCfg = declLegend.toLegendConfig();
@@ -2039,7 +2040,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
         padding: mergedPadding,
         tooltip: mergedTooltip
       },
-      'bottom'
+      fallbackPosition
     );
   }
 

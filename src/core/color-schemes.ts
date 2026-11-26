@@ -43,6 +43,16 @@ function sampleRamp(ramp: readonly string[], t: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+export function normalizeSequentialDomain(value: number, min: number, max: number): number {
+  const span = max - min;
+  if (span === 0) return 0.5;
+  if (!Number.isFinite(span) && Number.isFinite(min) && Number.isFinite(max)) {
+    // Halve finite endpoints first when subtracting them would overflow.
+    return (value / 2 - min / 2) / (max / 2 - min / 2);
+  }
+  return (value - min) / span;
+}
+
 export function createSequentialColorScale(
   schemeOrRamp: string | readonly string[] = 'viridis',
   domain: [number, number] = [0, 100]
@@ -57,8 +67,7 @@ export function createSequentialColorScale(
   let clamped = false;
 
   const scale = ((value: number): string => {
-    const span = dom[1] - dom[0];
-    const rawT = span === 0 ? 0.5 : (Number(value) - dom[0]) / span;
+    const rawT = normalizeSequentialDomain(Number(value), dom[0], dom[1]);
     const t = clamped ? Math.max(0, Math.min(1, rawT)) : rawT;
     return sampleRamp(ramp, t);
   }) as SequentialColorScale;

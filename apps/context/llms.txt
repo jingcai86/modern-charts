@@ -41,7 +41,7 @@
 - [charts/bar.md](./charts/bar.md): Bar, grouped, stacked & horizontal charts
 - [charts/line.md](./charts/line.md): Line, area, curved & slice-hover charts
 - [charts/pie.md](./charts/pie.md): Pie & donut charts with arc & link labels
-- [charts/heatmap.md](./charts/heatmap.md): Matrix heatmaps with sequential color schemes
+- [charts/heatmap.md](./charts/heatmap.md): Matrix heatmaps with continuous gradients and discrete color legends
 - [charts/radar.md](./charts/radar.md): Spider / radar multi-metric comparison charts
 - [charts/sunburst.md](./charts/sunburst.md): Radial partition hierarchy with click drilldown
 - [charts/sankey.md](./charts/sankey.md): Flow diagrams with gradient links

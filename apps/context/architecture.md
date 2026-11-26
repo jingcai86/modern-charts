@@ -155,10 +155,24 @@ interface SharedChartConfig<TData> {
   };
   tooltipPosition?: 'item' | 'follow'; // shorthand also reflected via tooltip-position HTML attribute
 
-  // Unified SVG Legend (<mc-legend> — shared by bar, line, pie, radar, scatter, sunburst, treemap, sankey)
+  // Unified SVG Legend (<mc-legend>)
   legend?: boolean | {
     enabled?: boolean;
-    position?: 'top' | 'bottom' | 'left' | 'right'; // default 'bottom'
+    type?: 'categorical' | 'continuous' | 'piecewise' | 'discrete';
+    position?: 'top' | 'bottom' | 'left' | 'right'; // default 'top' for heatmap, 'bottom' otherwise
+    min?: number;
+    max?: number;
+    colorScheme?: string;
+    steps?: number;
+    // Heatmap color-legend appearance and labels
+    width?: number;
+    height?: number;
+    borderRadius?: number;
+    blockGap?: number;
+    labelPlacement?: 'ends' | 'ticks' | 'none';
+    minLabel?: string;
+    maxLabel?: string;
+    tickFormat?: Intl.NumberFormatOptions | ((value: number) => string);
     padding?: number | { top?: number; right?: number; bottom?: number; left?: number };
     wrap?: boolean; // default true (Pretext-measured exact centering + row/column wrapping)
     enableTooltip?: boolean; // default true (hover + keyboard Tab focus dedicated legend tooltip)
@@ -374,7 +388,7 @@ Every chart owns strictly **one** `<mc-tooltip>` instance inside its Shadow DOM 
 
 ## 8. Unified SVG Legend (`<mc-legend>`) & Dedicated Legend Tooltip
 
-Shared across all 8 categorical-legend charts (`bar`, `line`, `pie`, `radar`, `scatter`, `sunburst`, `treemap`, `sankey`; `heatmap` keeps its continuous color bar and `gauge` has no categorical legend).
+The unified legend serves categorical charts and heatmaps. Heatmaps default to a continuous gradient. Set `legend.type: 'discrete'` to color cells and legend blocks by the same value ranges. See the [Heatmap color legend](./charts/heatmap.md#heatmap-color-legend) for sizing, labels, and range tooltips.
 
 - **4 positions & 4-side padding**: `position: 'top' | 'bottom' | 'left' | 'right'` and `padding: number | { top, right, bottom, left }` (with automatic margin reservation).
 - **Exact Pretext centering & wrapping**: `@chenglou/pretext` measures every legend label's exact dimensions so SVG legend rows (`top`/`bottom`) and columns (`left`/`right`) are centered accurately and wrap automatically by default (`wrap: false` disables wrapping).

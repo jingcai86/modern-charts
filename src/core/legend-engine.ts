@@ -62,6 +62,7 @@ export function createDefaultLegendConfig(
     return {
       enabled: input,
       position: fallbackPosition,
+      labelPlacement: 'ends',
       padding: { ...DEFAULT_LEGEND_PADDING },
       wrap: true,
       enableTooltip: true,
@@ -95,6 +96,24 @@ export function createDefaultLegendConfig(
     max: input?.max,
     colorScheme: input?.colorScheme,
     steps: input?.steps,
+    width: input?.width !== undefined && Number.isFinite(input.width) && input.width > 0
+      ? input.width
+      : undefined,
+    height: input?.height !== undefined && Number.isFinite(input.height) && input.height > 0
+      ? input.height
+      : undefined,
+    borderRadius: input?.borderRadius !== undefined && Number.isFinite(input.borderRadius)
+      ? Math.max(0, input.borderRadius)
+      : undefined,
+    blockGap: input?.blockGap !== undefined && Number.isFinite(input.blockGap)
+      ? Math.max(0, input.blockGap)
+      : undefined,
+    labelPlacement: input?.labelPlacement === 'none' || (
+      input?.type === 'discrete' && input.labelPlacement === 'ticks'
+    ) ? input.labelPlacement : 'ends',
+    minLabel: input?.minLabel,
+    maxLabel: input?.maxLabel,
+    tickFormat: input?.tickFormat,
     calculable: input?.calculable,
     padding: resolveLegendPadding(input?.padding),
     wrap: input?.wrap !== false,

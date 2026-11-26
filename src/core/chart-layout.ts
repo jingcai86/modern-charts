@@ -1,7 +1,12 @@
 import type { MCBaseChart } from './base-chart';
+import {
+  getHeatmapLegendAxisClearance,
+  getHeatmapLegendMetrics,
+  isHeatmapColorLegend
+} from './heatmap-legend-layout';
 import type { LabelEngine } from './label-engine';
 import { resolveMarkerAnnotation } from './marker-engine';
-import type { ChartConfig, ChartDimensions, ChartMargin, ChartTheme } from './types';
+import type { ChartConfig, ChartDimensions, ChartMargin, ChartTheme, ResolvedLegendConfig } from './types';
 
 type LayoutChart = Pick<MCBaseChart,
   | 'autoSize'
@@ -11,6 +16,7 @@ type LayoutChart = Pick<MCBaseChart,
   | 'clientWidth'
   | 'defaultLayers'
   | 'getAttribute'
+  | 'getActiveLayers'
   | 'getBoundingClientRect'
   | 'parentElement'
   | 'querySelector'
@@ -77,7 +83,7 @@ export function resolveChartDimensions(
   const margin = { ...chart.resolveMargin() };
   expandMarginForAxes(chart, config, margin);
   expandMarginForMarkerAnnotations(chart, labelEngine, margin);
-  expandMarginForLegend(chart, config, margin);
+  expandMarginForLegend(chart, config, margin, width, height);
   const innerWidth = Math.max(40, width - margin.left - margin.right);
   const innerHeight = Math.max(40, height - margin.top - margin.bottom);
 
@@ -168,7 +174,54 @@ function expandMarginForMarkerAnnotations(
   }
 }
 
-function expandMarginForLegend(chart: LayoutChart, config: LayoutConfig, margin: ChartMargin): void {
+function expandMarginForHeatmapColorLegend(
+  chart: LayoutChart,
+  config: LayoutConfig,
+  margin: ChartMargin,
+  legend: ResolvedLegendConfig,
+  layers: string[],
+  width: number,
+  height: number
+): void {
+  const { vertical, depth } = getHeatmapLegendMetrics(legend);
+  const { padding, position } = legend;
+  const axisClearance = layers.includes('axes')
+    ? getHeatmapLegendAxisClearance(
+        position,
+        chart.resolveScaleConfig(),
+        Boolean(config.xTitle || chart.getAttribute('x-title')),
+        Boolean(config.yTitle || chart.getAttribute('y-title'))
+      )
+    : 0;
+  const space = vertical ? width - margin.left - margin.right : height - margin.top - margin.bottom;
+  const maxMargin = margin[position] + space - 40;
+  const crossPadding = vertical ? padding.left + padding.right : padding.top + padding.bottom;
+  let needed = axisClearance + depth + crossPadding;
+  if (position === 'top' && chart.chartTitle) {
+    // The title is centered in the top margin, with the legend below it.
+    const titleHalfHeight = Math.ceil((chart.resolveTheme().fontSize + 3) * 0.65);
+    needed = Math.max(needed, 2 * (axisClearance + depth + padding.bottom + titleHalfHeight + 4));
+  }
+  margin[position] = Math.max(margin[position], Math.min(Math.ceil(needed), maxMargin));
+}
+
+function expandMarginForLegend(
+  chart: LayoutChart,
+  config: LayoutConfig,
+  margin: ChartMargin,
+  width: number,
+  height: number
+): void {
+  if (chart.chartType === 'heatmap') {
+    const legend = chart.resolveLegendConfig();
+    if (!legend.enabled) return;
+    const layers = chart.getActiveLayers();
+    if (!layers.includes('legends')) return;
+    if (isHeatmapColorLegend(legend)) {
+      expandMarginForHeatmapColorLegend(chart, config, margin, legend, layers, width, height);
+      return;
+    }
+  }
   const hasCustomLegend =
     config.legend !== undefined ||
     chart.querySelector(':scope > mc-legend') !== null;
