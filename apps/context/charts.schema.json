@@ -285,6 +285,7 @@
           "properties": {
             "type": { "enum": ["continuous", "discrete"], "default": "continuous" },
             "position": { "enum": ["top", "bottom", "left", "right"], "default": "top" },
+            "align": { "enum": ["start", "middle", "end"], "default": "middle", "description": "Alignment along the chosen side. Start is left for horizontal legends and top for vertical legends, regardless of text direction." },
             "steps": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 },
             "min": { "type": "number", "description": "Color domain minimum, inferred from data by default." },
             "max": { "type": "number", "description": "Color domain maximum, inferred from data by default." },

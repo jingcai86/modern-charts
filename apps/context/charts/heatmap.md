@@ -40,6 +40,7 @@ Set `chart.config.legend` or add a direct `<mc-legend>` child. Continuous mode u
 | `min`, `max` | `min`, `max` | Override the shared color domain. Otherwise, the chart bounds or the data bounds apply. |
 | `colorScheme` | `color-scheme` | Override the ramp for both the cells and the legend. |
 | `position` | `position` | `'top'` (default), `'bottom'`, `'left'`, or `'right'`. |
+| `align` | `align` | `'start'`, `'middle'` (default), or `'end'` along the chosen side. Start and end are left and right on horizontal legends, and top and bottom on vertical legends, regardless of text direction. |
 | `width`, `height` | `width`, `height` | Requested SVG dimensions in pixels, bounded by available space. Omit for position-specific sizing. |
 | `borderRadius`, `blockGap` | `border-radius`, `block-gap` | Corner radius (default `4px`) and spacing between discrete blocks (default `2px`). Both accept `0`. |
 | `labelPlacement` | `label-placement` | `'ends'` (default), `'ticks'` for discrete range boundaries, or `'none'`. Continuous mode uses end labels unless set to `'none'`. |
@@ -58,6 +59,7 @@ chart.config = {
   legend: {
     type: 'discrete',
     position: 'bottom',
+    align: 'start',
     min: 0,
     max: 100,
     steps: 5,
@@ -81,7 +83,7 @@ chart.config = {
 The corresponding declarative legend goes inside `<mc-heatmap-chart>`.
 
 ```html
-<mc-legend type="discrete" position="bottom" min="0" max="100" steps="5"
+<mc-legend type="discrete" position="bottom" align="start" min="0" max="100" steps="5"
   width="240" height="14" border-radius="3" block-gap="2"
   label-placement="ticks"
   tick-format='{"minimumFractionDigits":1,"maximumFractionDigits":1}'></mc-legend>

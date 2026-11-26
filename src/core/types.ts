@@ -834,6 +834,8 @@ export interface TooltipConfig<TDatum = any> {
 
 export type LegendPosition = 'top' | 'bottom' | 'left' | 'right';
 
+export type LegendAlignment = 'start' | 'middle' | 'end';
+
 export type LegendType = 'categorical' | 'continuous' | 'piecewise' | 'discrete';
 
 export type LegendLabelPlacement = 'ends' | 'ticks' | 'none';
@@ -871,6 +873,8 @@ export interface LegendConfig {
   type?: LegendType;
   /** Legend placement around the plot area. Defaults to `'top'` for heatmaps and `'bottom'` for other charts. */
   position?: LegendPosition;
+  /** Alignment along the heatmap color legend's side. Start is left or top. Default `'middle'`. */
+  align?: LegendAlignment;
   /** Minimum domain value for a color legend. */
   min?: number;
   /** Maximum domain value for a color legend. */
@@ -924,6 +928,7 @@ export interface ResolvedLegendConfig {
   enabled: boolean;
   type?: LegendType;
   position: LegendPosition;
+  align?: LegendAlignment;
   min?: number;
   max?: number;
   colorScheme?: string;
