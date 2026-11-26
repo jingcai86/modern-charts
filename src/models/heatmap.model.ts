@@ -1,5 +1,9 @@
 import { buildAxisScale } from '../core/scale-manager';
-import { createSequentialColorScale, type SequentialColorScale } from '../core/color-schemes';
+import {
+  createSequentialColorScale,
+  normalizeSequentialDomain,
+  type SequentialColorScale
+} from '../core/color-schemes';
 import { parseColorToRgb, resolveSequentialColorRamp } from '../core/theme';
 import type { ChartRenderContext, HeatmapRow } from '../core/types';
 
@@ -31,8 +35,15 @@ export interface ComputedHeatmapCellModel {
   textColor: string;
 }
 
+export interface HeatmapColorBin {
+  min: number;
+  max: number;
+  color: string;
+}
+
 export interface HeatmapChartModel {
   cells: ComputedHeatmapCellModel[];
+  bins: HeatmapColorBin[];
   minVal: number;
   maxVal: number;
   xInnerPadding: number;
@@ -59,6 +70,50 @@ export interface HeatmapModelInput {
   enableLabels: boolean;
 }
 
+function finiteNumber(value: number | undefined): number | undefined {
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function createHeatmapColorBins(
+  min: number,
+  max: number,
+  steps: number | undefined,
+  scale: SequentialColorScale
+): HeatmapColorBin[] {
+  const requestedSteps = finiteNumber(steps) ?? 10;
+  const count = min === max ? 1 : Math.max(1, Math.min(100, Math.floor(requestedSteps)));
+  const span = max - min;
+  const edges = [min];
+  for (let index = 1; index < count; index++) {
+    const fraction = index / count;
+    const edge = Number.isFinite(span)
+      ? min + span * fraction
+      : min * (1 - fraction) + max * fraction;
+    edges.push(edge);
+  }
+  edges.push(max);
+
+  const ramp = scale.copy().domain([0, 1]);
+  return Array.from({ length: count }, (_, index) => ({
+    min: edges[index],
+    max: edges[index + 1],
+    color: ramp((index + 0.5) / count)
+  }));
+}
+
+function getBinColor(bins: readonly HeatmapColorBin[], value: number): string {
+  if (value <= bins[0].min) return bins[0].color;
+  let low = 0;
+  let high = bins.length - 1;
+  // Interior boundaries belong to the upper bin. Endpoints clamp to the first or last bin.
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (value < bins[mid].max) high = mid;
+    else low = mid + 1;
+  }
+  return bins[low].color;
+}
+
 /**
  * Pure Model Layer for `<mc-heatmap-chart>`.
  * Supports `xInnerPadding` / `yInnerPadding`, `sizeVariation`, `emptyColor` for missing/null cells,
@@ -71,7 +126,8 @@ export function computeHeatmapChartModel(
   const rows = Array.isArray(ctx.data) ? ctx.data : [];
   const rowIds = rows.map((r) => r.id);
   const colIds: string[] = [];
-  const values: number[] = [];
+  let dataMin = Number.POSITIVE_INFINITY;
+  let dataMax = Number.NEGATIVE_INFINITY;
 
   rows.forEach((r) => {
     (r.data ?? []).forEach((c) => {
@@ -84,7 +140,9 @@ export function computeHeatmapChartModel(
         (c.y as unknown) !== '' &&
         Number.isFinite(Number(c.y))
       ) {
-        values.push(Number(c.y));
+        const value = Number(c.y);
+        dataMin = Math.min(dataMin, value);
+        dataMax = Math.max(dataMax, value);
       }
     });
   });
@@ -122,19 +180,31 @@ export function computeHeatmapChartModel(
     [0, ctx.innerHeight]
   );
 
-  const dataMin = values.length > 0 ? Math.min(...values) : 0;
-  const dataMax = values.length > 0 ? Math.max(...values) : 100;
-  const minVal =
-    input.min !== undefined && Number.isFinite(input.min)
-      ? Number(input.min)
-      : dataMin;
-  const maxVal =
-    input.max !== undefined && Number.isFinite(input.max)
-      ? Number(input.max)
-      : dataMax;
+  const legend = ctx.legendConfig;
+  const legendType = legend?.type ?? 'continuous';
+  const discrete = legendType === 'discrete';
+  const colorLegend = discrete || legendType === 'continuous' ? legend : undefined;
+  const legendMin = finiteNumber(colorLegend?.min);
+  const legendMax = finiteNumber(colorLegend?.max);
+  const inputMin = finiteNumber(input.min);
+  const inputMax = finiteNumber(input.max);
+  let minVal = legendMin ?? inputMin ?? finiteNumber(dataMin) ?? 0;
+  let maxVal = legendMax ?? inputMax ?? finiteNumber(dataMax) ?? 100;
 
-  const ramp = resolveSequentialColorRamp(ctx, input.colorScheme);
+  if (discrete && minVal > maxVal) {
+    // Keep a single explicitly supplied bound when it crosses the inherited endpoint.
+    const [explicitMin, explicitMax] = legendMin !== undefined || legendMax !== undefined
+      ? [legendMin, legendMax]
+      : [inputMin, inputMax];
+    if (explicitMin === undefined) minVal = maxVal;
+    else if (explicitMax === undefined) maxVal = minVal;
+    else [minVal, maxVal] = [maxVal, minVal];
+  }
+
+  const ramp = resolveSequentialColorRamp(ctx, colorLegend?.colorScheme || input.colorScheme);
   const seqScale = createSequentialColorScale(ramp, [minVal, maxVal]).clamp(true);
+  const bins = discrete ? createHeatmapColorBins(minVal, maxVal, legend.steps, seqScale) : [];
+  const getColor = discrete ? (value: number) => getBinColor(bins, value) : seqScale;
 
   const bandW =
     typeof ctx.xScale.bandwidth === 'function' ? ctx.xScale.bandwidth() : 36;
@@ -173,7 +243,7 @@ export function computeHeatmapChartModel(
       const norm = isEmpty
         ? 1
         : maxVal > minVal
-          ? Math.max(0, Math.min(1, (val - minVal) / (maxVal - minVal)))
+          ? Math.max(0, Math.min(1, normalizeSequentialDomain(val, minVal, maxVal)))
           : 0.5;
       const scaleFactor =
         isEmpty || sizeVariation <= 0
@@ -185,7 +255,7 @@ export function computeHeatmapChartModel(
       const x = bandX + (bandW - w) / 2;
       const y = bandY + (bandH - h) / 2;
 
-      const color = isEmpty ? emptyColor : seqScale(val);
+      const color = isEmpty ? emptyColor : getColor(val);
       const textColor = isEmpty
         ? ctx.theme.mutedTextColor
         : getContrastingCellTextColor(color);
@@ -216,6 +286,7 @@ export function computeHeatmapChartModel(
 
   return {
     cells,
+    bins,
     minVal,
     maxVal,
     xInnerPadding: xPad,

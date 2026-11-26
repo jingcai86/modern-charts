@@ -9,11 +9,29 @@ import type {
 } from '../core/types';
 import type { MCTooltipElement } from './mc-tooltip';
 
+function parseOptionalFiniteNumber(raw: string | null): number | undefined {
+  const value = raw === null ? Number.NaN : Number(raw);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function parseTickFormat(raw: string | null): Intl.NumberFormatOptions | undefined {
+  if (!raw) return undefined;
+  try {
+    const options: unknown = JSON.parse(raw);
+    if (options && typeof options === 'object' && !Array.isArray(options)) {
+      return options as Intl.NumberFormatOptions;
+    }
+  } catch {
+    // Keep the locale's default format while the declarative options are invalid.
+  }
+  return undefined;
+}
+
 /**
  * `<mc-legend>` Declarative Legend Configuration Web Component.
  *
  * Place inside any `<mc-*-chart>` to declaratively configure legend placement
- * (`top`, `bottom`, `left`, `right`), mode (`categorical`, `continuous`, `piecewise`),
+ * (`top`, `bottom`, `left`, `right`), mode (`categorical`, `continuous`, `piecewise`, `discrete`),
  * visualMap domain/calculable handles, 4-side padding, wrapping, and dedicated
  * legend tooltips (via `enable-tooltip` or a nested `<mc-tooltip>` child).
  */
@@ -26,6 +44,14 @@ export class MCLegendElement extends HTMLElementBase {
     'max',
     'color-scheme',
     'steps',
+    'width',
+    'height',
+    'border-radius',
+    'block-gap',
+    'label-placement',
+    'min-label',
+    'max-label',
+    'tick-format',
     'calculable',
     'wrap',
     'padding',
@@ -109,10 +135,18 @@ export class MCLegendElement extends HTMLElementBase {
     const enabledAttr = this.getAttribute('enabled');
     const typeAttr = this.getAttribute('type') as LegendType | null;
     const posAttr = this.getAttribute('position') as LegendPosition | null;
-    const minAttr = this.getAttribute('min');
-    const maxAttr = this.getAttribute('max');
+    const min = parseOptionalFiniteNumber(this.getAttribute('min'));
+    const max = parseOptionalFiniteNumber(this.getAttribute('max'));
     const schemeAttr = this.getAttribute('color-scheme');
-    const stepsAttr = this.getAttribute('steps');
+    const steps = parseOptionalFiniteNumber(this.getAttribute('steps'));
+    const width = parseOptionalFiniteNumber(this.getAttribute('width'));
+    const height = parseOptionalFiniteNumber(this.getAttribute('height'));
+    const borderRadius = parseOptionalFiniteNumber(this.getAttribute('border-radius'));
+    const blockGap = parseOptionalFiniteNumber(this.getAttribute('block-gap'));
+    const labelPlacement = this.getAttribute('label-placement');
+    const minLabel = this.getAttribute('min-label');
+    const maxLabel = this.getAttribute('max-label');
+    const tickFormat = parseTickFormat(this.getAttribute('tick-format'));
     const calculableAttr = this.getAttribute('calculable');
     const wrapAttr = this.getAttribute('wrap');
     const enableTooltipAttr = this.getAttribute('enable-tooltip');
@@ -141,7 +175,8 @@ export class MCLegendElement extends HTMLElementBase {
       ...(enabledAttr !== null ? { enabled: enabledAttr !== 'false' } : {}),
       ...(typeAttr === 'categorical' ||
       typeAttr === 'continuous' ||
-      typeAttr === 'piecewise'
+      typeAttr === 'piecewise' ||
+      typeAttr === 'discrete'
         ? { type: typeAttr }
         : {}),
       ...(posAttr === 'top' ||
@@ -150,16 +185,20 @@ export class MCLegendElement extends HTMLElementBase {
       posAttr === 'right'
         ? { position: posAttr }
         : {}),
-      ...(minAttr !== null && !Number.isNaN(Number(minAttr))
-        ? { min: Number(minAttr) }
-        : {}),
-      ...(maxAttr !== null && !Number.isNaN(Number(maxAttr))
-        ? { max: Number(maxAttr) }
-        : {}),
+      ...(min !== undefined ? { min } : {}),
+      ...(max !== undefined ? { max } : {}),
       ...(schemeAttr ? { colorScheme: schemeAttr } : {}),
-      ...(stepsAttr !== null && !Number.isNaN(Number(stepsAttr))
-        ? { steps: Math.max(2, Number(stepsAttr)) }
+      ...(steps !== undefined ? { steps } : {}),
+      ...(width !== undefined ? { width } : {}),
+      ...(height !== undefined ? { height } : {}),
+      ...(borderRadius !== undefined ? { borderRadius } : {}),
+      ...(blockGap !== undefined ? { blockGap } : {}),
+      ...(labelPlacement === 'ends' || labelPlacement === 'ticks' || labelPlacement === 'none'
+        ? { labelPlacement }
         : {}),
+      ...(minLabel !== null ? { minLabel } : {}),
+      ...(maxLabel !== null ? { maxLabel } : {}),
+      ...(tickFormat !== undefined ? { tickFormat } : {}),
       ...(calculableAttr !== null
         ? { calculable: calculableAttr !== 'false' }
         : {}),

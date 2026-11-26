@@ -142,13 +142,45 @@ export function createAttributePanel(opts: {
   categoriesGrid.appendChild(emptyState);
 
   const controlSyncCallbacks = new Map<string, () => void>();
+  const conditionalRows = new Map<HTMLElement, NonNullable<ChartAttributeSpec['visibleWhen']>>();
+  const isHeatmapLegendControl = (spec: ChartAttributeSpec) =>
+    entry.id === 'heatmap' && spec.configPath.startsWith('legend.');
 
   function getAttributeValue(spec: ChartAttributeSpec): any {
     if (spec.configPath.startsWith('__')) {
       return (vState as any)[spec.configPath] ?? spec.defaultValue;
     }
+    if (isHeatmapLegendControl(spec)) {
+      const legend = config.legend;
+      if (spec.configPath === 'legend.enabled' && typeof legend === 'boolean') return legend;
+      if (spec.configPath.startsWith('legend.padding.') && typeof legend === 'object' && typeof legend?.padding === 'number') {
+        return legend.padding;
+      }
+    }
     const val = getByPath(config, spec.configPath);
     return val !== undefined ? val : spec.defaultValue;
+  }
+
+  function setHeatmapLegendValue(path: string, value: unknown): void {
+    const legend = config.legend;
+    if (typeof legend === 'boolean') {
+      config.legend = { enabled: legend };
+    } else if (typeof legend?.padding === 'number' && path.startsWith('legend.padding.')) {
+      const padding = legend.padding;
+      config.legend = { ...legend, padding: { top: padding, right: padding, bottom: padding, left: padding } };
+    }
+
+    if (path.startsWith('legend.tickFormat.') && (value === '' || value === undefined)) {
+      const format = getByPath(config, 'legend.tickFormat');
+      if (!format || typeof format !== 'object') return;
+      const options = { ...format };
+      delete options[path.split('.')[2]];
+      setByPath(config, 'legend.tickFormat', Object.keys(options).length ? options : undefined);
+      return;
+    }
+
+    const clearsLabel = value === '' && (path === 'legend.minLabel' || path === 'legend.maxLabel');
+    setByPath(config, path, clearsLabel ? undefined : value);
   }
 
   function setAttributeValue(spec: ChartAttributeSpec, rawVal: any): void {
@@ -200,10 +232,16 @@ export function createAttributePanel(opts: {
         const key = spec.configPath.split('.')[1] as 'maxWidth' | 'maxChars';
         delete (config.labelOverflow as Record<string, any>)[key];
       }
+    } else if (isHeatmapLegendControl(spec)) {
+      setHeatmapLegendValue(spec.configPath, rawVal);
     } else {
       setByPath(config, spec.configPath, rawVal);
     }
 
+    if (entry.id === 'heatmap' && spec.configPath === 'legend.type') {
+      controlSyncCallbacks.get('legend.labelPlacement')?.();
+    }
+    if (conditionalRows.size) filterAttributes();
     onConfigChanged();
   }
 
@@ -216,14 +254,25 @@ export function createAttributePanel(opts: {
       catDetails.open = true;
     }
 
-    const cleanCatTitle = categoryName === 'Chart-Specific'
+    const isHeatmapColorLegend = entry.id === 'heatmap' && categoryName === 'Legend (<mc-legend>)';
+    const cleanCatTitle = isHeatmapColorLegend
+      ? 'Color legend'
+      : categoryName === 'Chart-Specific'
       ? 'Chart options'
       : stripInlineAnnotations(categoryName, /\(<mc-[a-z0-9-]+>\)/);
+    const info = isHeatmapColorLegend
+      ? renderSectionInfoTooltip(
+          'detail-color-legend-info',
+          'More about the heatmap color legend',
+          'Use Continuous for a gradient or Discrete for ranges that share a color. The same scale colors both the cells and the legend.'
+        )
+      : '';
     catDetails.innerHTML = `
       <summary class="attr-category-summary">
         <div class="attr-category-summary-left">
           <span class="attr-chevron" aria-hidden="true">▸</span>
           <span class="attr-category-name">${escapeHtml(cleanCatTitle)}</span>
+          ${info}
         </div>
       </summary>
       <div class="attr-list"></div>
@@ -236,6 +285,7 @@ export function createAttributePanel(opts: {
       row.className = 'attr-row';
       row.dataset.scope = scope.id;
       row.dataset.configPath = spec.configPath;
+      if (spec.visibleWhen) conditionalRows.set(row, spec.visibleWhen);
       row.dataset.searchText =
         `${spec.configPath} ${spec.attrName} ${spec.description} ${spec.category}`.toLowerCase();
 
@@ -325,10 +375,11 @@ export function createAttributePanel(opts: {
 
         input.addEventListener('input', () => {
           const raw = input.value.trim();
-          const parsed = raw === '' ? 'auto' : Number(raw);
+          const emptyValue = spec.defaultValue === undefined ? undefined : 'auto';
+          const parsed = raw === '' ? emptyValue : Number(raw);
           setAttributeValue(
             spec,
-            Number.isNaN(parsed as number) ? 'auto' : parsed
+            typeof parsed === 'number' && !Number.isFinite(parsed) ? emptyValue : parsed
           );
         });
 
@@ -354,10 +405,16 @@ export function createAttributePanel(opts: {
           setAttributeValue(spec, select.value);
         });
 
-        controlSyncCallbacks.set(spec.configPath, () => {
+        const discreteTicks = entry.id === 'heatmap' && spec.configPath === 'legend.labelPlacement'
+          ? select.querySelector<HTMLOptionElement>('option[value="ticks"]')
+          : null;
+        const syncSelection = () => {
           const v = String(getAttributeValue(spec));
-          select.value = v;
-        });
+          if (discreteTicks) discreteTicks.disabled = getByPath(config, 'legend.type') !== 'discrete';
+          select.value = discreteTicks?.disabled && v === 'ticks' ? String(spec.defaultValue) : v;
+        };
+        controlSyncCallbacks.set(spec.configPath, syncSelection);
+        if (discreteTicks) syncSelection();
 
         controlCell.appendChild(select);
       } else if (spec.control === 'color') {
@@ -462,7 +519,8 @@ export function createAttributePanel(opts: {
       const scopeMatches = activeScope === 'all' || card.dataset.scope === activeScope;
       let cardHasMatches = false;
       rows.forEach((row) => {
-        const matches = scopeMatches && (!query || (row.dataset.searchText ?? '').includes(query));
+        const visible = conditionalRows.get(row)?.(config) ?? true;
+        const matches = scopeMatches && visible && (!query || (row.dataset.searchText ?? '').includes(query));
         row.hidden = !matches;
         if (matches) cardHasMatches = true;
       });
@@ -518,11 +576,13 @@ export function createAttributePanel(opts: {
     ?.addEventListener('click', onResetDefault);
 
   wireSectionInfoTooltips(attributesSection);
+  if (conditionalRows.size) filterAttributes();
 
   return {
     element: attributesSection,
     syncAllControls: () => {
       controlSyncCallbacks.forEach((syncFn) => syncFn());
+      if (conditionalRows.size) filterAttributes();
     }
   };
 }

@@ -278,7 +278,29 @@
         "cellShape": { "enum": ["rect", "circle"], "default": "rect" },
         "cellPadding": { "type": "number", "default": 0.1 },
         "borderRadius": { "type": "number", "default": 6 },
-        "enableLabels": { "type": "boolean", "default": true }
+        "enableLabels": { "type": "boolean", "default": true },
+        "legend": {
+          "type": "object",
+          "description": "A continuous gradient or a discrete color scale whose swatches match the heatmap cells. Pass false to hide the legend.",
+          "properties": {
+            "type": { "enum": ["continuous", "discrete"], "default": "continuous" },
+            "position": { "enum": ["top", "bottom", "left", "right"], "default": "top" },
+            "steps": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 },
+            "min": { "type": "number", "description": "Color domain minimum, inferred from data by default." },
+            "max": { "type": "number", "description": "Color domain maximum, inferred from data by default." },
+            "colorScheme": { "type": "string", "description": "Override the color ramp for both the heatmap cells and legend." },
+            "width": { "type": "number", "description": "Color bar width in pixels." },
+            "height": { "type": "number", "description": "Color bar height in pixels." },
+            "borderRadius": { "type": "number", "description": "Corner radius of the bar or blocks, in pixels." },
+            "blockGap": { "type": "number", "description": "Gap between discrete blocks, in pixels." },
+            "labelPlacement": { "enum": ["ends", "ticks", "none"], "default": "ends" },
+            "minLabel": { "type": "string" },
+            "maxLabel": { "type": "string" },
+            "tickFormat": { "type": "object", "description": "Intl.NumberFormat options for the chart locale. JavaScript callers can pass (value) => string." },
+            "fontSize": { "type": "number" },
+            "enableTooltip": { "type": "boolean", "default": true }
+          }
+        }
       },
       "minimalConfig": {
         "data": [

@@ -834,7 +834,9 @@ export interface TooltipConfig<TDatum = any> {
 
 export type LegendPosition = 'top' | 'bottom' | 'left' | 'right';
 
-export type LegendType = 'categorical' | 'continuous' | 'piecewise';
+export type LegendType = 'categorical' | 'continuous' | 'piecewise' | 'discrete';
+
+export type LegendLabelPlacement = 'ends' | 'ticks' | 'none';
 
 export interface LegendPadding {
   top: number;
@@ -865,18 +867,34 @@ export interface LegendItem {
 export interface LegendConfig {
   /** Enable or disable the legend layer. Default `true`. */
   enabled?: boolean;
-  /** Legend mode (`'categorical'` default, `'continuous'` gradient bar, or `'piecewise'` stepped bins). */
+  /** Legend mode (`'categorical'` default, `'continuous'` gradient bar, `'piecewise'` range items, or `'discrete'` heatmap blocks). */
   type?: LegendType;
-  /** Legend placement around the plot area. Default `'bottom'`. */
+  /** Legend placement around the plot area. Defaults to `'top'` for heatmaps and `'bottom'` for other charts. */
   position?: LegendPosition;
-  /** Minimum domain value for `'continuous'` or `'piecewise'` visualMap legends. */
+  /** Minimum domain value for a color legend. */
   min?: number;
-  /** Maximum domain value for `'continuous'` or `'piecewise'` visualMap legends. */
+  /** Maximum domain value for a color legend. */
   max?: number;
-  /** Sequential color scheme name for `'continuous'` or `'piecewise'` visualMap legends. */
+  /** Sequential color scheme name for a color legend. */
   colorScheme?: string;
-  /** Number of discrete bins when `type === 'piecewise'` (default `5`). */
+  /** Number of equal-width bins. Defaults to `5` for piecewise and `10` for discrete. */
   steps?: number;
+  /** Heatmap color bar width in pixels. */
+  width?: number;
+  /** Heatmap color bar height in pixels. */
+  height?: number;
+  /** Heatmap color bar or block corner radius in pixels. */
+  borderRadius?: number;
+  /** Separation between discrete heatmap blocks in pixels. */
+  blockGap?: number;
+  /** Heatmap color legend labels. Defaults to `'ends'`. Discrete legends also support `'ticks'`. */
+  labelPlacement?: LegendLabelPlacement;
+  /** Custom lower endpoint label for a heatmap color legend. */
+  minLabel?: string;
+  /** Custom upper endpoint label for a heatmap color legend. */
+  maxLabel?: string;
+  /** Locale-aware number formatting options or a callback for heatmap legend values. */
+  tickFormat?: Intl.NumberFormatOptions | ((value: number) => string);
   /** Show interactive min/max range handles on `'continuous'` visualMap legends (ECharts `visualMap.calculable`). */
   calculable?: boolean;
   /** Padding around the legend box (number for uniform padding or per-side object). */
@@ -910,6 +928,14 @@ export interface ResolvedLegendConfig {
   max?: number;
   colorScheme?: string;
   steps?: number;
+  width?: number;
+  height?: number;
+  borderRadius?: number;
+  blockGap?: number;
+  labelPlacement?: LegendLabelPlacement;
+  minLabel?: string;
+  maxLabel?: string;
+  tickFormat?: LegendConfig['tickFormat'];
   calculable?: boolean;
   padding: LegendPadding;
   wrap: boolean;

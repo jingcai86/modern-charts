@@ -34,6 +34,7 @@ export interface ChartAttributeSpec {
   max?: number;
   step?: number;
   options?: { label: string; value: string }[];
+  visibleWhen?: (config: ChartConfig<any>) => boolean;
 }
 
 export interface ChartCatalogEntry {

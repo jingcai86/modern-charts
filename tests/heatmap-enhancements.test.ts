@@ -1,7 +1,8 @@
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   registerModernCharts,
   type HeatmapRow,
+  type LegendItem,
   type MCHeatmapChart
 } from '../src/index';
 
@@ -23,6 +24,13 @@ const HEATMAP_DATA: HeatmapRow[] = [
     ]
   }
 ];
+
+function mountHeatmap(config: MCHeatmapChart['config']): MCHeatmapChart {
+  const heatmap = document.createElement('mc-heatmap-chart') as MCHeatmapChart;
+  heatmap.config = { width: 660, height: 400, data: HEATMAP_DATA, ...config };
+  document.body.appendChild(heatmap);
+  return heatmap;
+}
 
 describe('Heatmap Chart Enhancements (Issue #73)', () => {
   beforeAll(() => {
@@ -74,5 +82,147 @@ describe('Heatmap Chart Enhancements (Issue #73)', () => {
     const highW = Number(highCell.getAttribute('width'));
     expect(lowW).toBeCloseTo(lowH, 3);
     expect(highW).toBeGreaterThan(lowW);
+  });
+
+  it('uses the ten default discrete swatches as cell colors and clamps out-of-range values', () => {
+    const values = [-0.05, 0, 0.05, 0.2999, 0.3, 0.99, 1, 1.05, null];
+    const legend = { type: 'discrete', min: 0, max: 1, colorScheme: 'plasma' } as const;
+    const heatmap = mountHeatmap({
+      data: [{ id: 'A', data: values.map((y, index) => ({ x: String(index), y })) }],
+      emptyColor: '#334155',
+      legend
+    });
+    const root = heatmap.shadowRoot!;
+    const swatches = () => Array.from(root.querySelectorAll('.mc-legend-discrete-block'));
+    const swatchColors = () => swatches().map((block) => block.getAttribute('fill'));
+    const cellColors = () => values.map((_, index) => root
+      .querySelector(`.mc-heatmap-cell[data-col="${index}"]`)?.getAttribute('fill'));
+
+    expect(swatches()).toHaveLength(10);
+    expect(swatches()[3].getAttribute('data-min')).toBe('0.3');
+    expect(swatches().at(-1)?.getAttribute('data-max-inclusive')).toBe('true');
+    const colors = swatchColors();
+    const expected = [0, 0, 0, 2, 3, 9, 9, 9].map((index) => colors[index]);
+    expect(new Set(colors).size).toBe(10);
+    expect(cellColors()).toEqual([...expected, '#334155']);
+
+    heatmap.setConfig({ ...heatmap.config, legend: { ...legend, enabled: false } });
+    expect(swatches()).toHaveLength(0);
+    expect(cellColors()).toEqual([...expected, '#334155']);
+
+    heatmap.setConfig({ ...heatmap.config, legend: { ...legend, steps: 4 } });
+    expect(swatches()).toHaveLength(4);
+    expect(cellColors()[4]).toBe(swatchColors()[1]);
+
+    const fourStepColors = cellColors();
+    heatmap.setConfig({ ...heatmap.config, layers: ['axes', 'cells', 'labels'] });
+    expect(swatches()).toHaveLength(0);
+    expect(cellColors()).toEqual(fourStepColors);
+  });
+
+  it.each([
+    ['top', 184, 16],
+    ['bottom', 184, 16],
+    ['left', 16, 128],
+    ['right', 16, 128]
+  ] as const)('positions the continuous gradient at %s with custom geometry and end labels', (position, width, height) => {
+    const heatmap = mountHeatmap({
+      legend: { position, width, height, borderRadius: 3, minLabel: 'Idle', maxLabel: 'Full' }
+    });
+    const legend = heatmap.shadowRoot!.querySelector(
+      `.mc-legend--continuous[data-legend-position="${position}"]`
+    )!;
+    const bar = legend.querySelector('.mc-legend-gradient-bar')!;
+    expect(bar.getAttribute('width')).toBe(String(width));
+    expect(bar.getAttribute('height')).toBe(String(height));
+    expect(bar.getAttribute('rx')).toBe('3');
+    expect(legend.querySelector('[data-label-id="legend-continuous-min"]')?.textContent).toBe('Idle');
+    expect(legend.querySelector('[data-label-id="legend-continuous-max"]')?.textContent).toBe('Full');
+  });
+
+  it('renders formatted boundary ticks and exposes discrete ranges to the dedicated legend tooltip', () => {
+    const legendItems: LegendItem[] = [];
+    const heatmap = mountHeatmap({
+      isFocusable: true,
+      i18n: { locale: 'de-DE' },
+      legend: {
+        type: 'discrete', steps: 4, min: 0, max: 100, position: 'bottom', width: 320,
+        labelPlacement: 'ticks', tickFormat: { minimumFractionDigits: 1, maximumFractionDigits: 1 },
+        tooltip: { formatter: ({ datum }) => {
+          if (datum) legendItems.push(datum);
+          return 'Custom range';
+        } }
+      }
+    });
+    const root = heatmap.shadowRoot!;
+    const legend = root.querySelector('.mc-legend--discrete')!;
+    expect(legend.querySelectorAll('.mc-legend-tick')).toHaveLength(5);
+    expect(Array.from(legend.querySelectorAll('[data-label-id^="legend-discrete-tick-"]'),
+      (label) => label.textContent)).toEqual(['0,0', '25,0', '50,0', '75,0', '100,0']);
+
+    const item = legend.querySelector('.mc-legend-item')!;
+    const tooltip = heatmap.getLegendTooltipElement()!;
+    expect(item.getAttribute('tabindex')).toBe('0');
+    item.dispatchEvent(new MouseEvent('mouseenter', { clientX: 200, clientY: 332 }));
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.shadowRoot?.textContent).toContain('Custom range');
+    expect(legendItems.at(-1)?.meta).toMatchObject({ min: 0, max: 25, maxInclusive: false });
+    item.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(tooltip.hidden).toBe(true);
+
+    item.dispatchEvent(new FocusEvent('focus'));
+    expect(tooltip.hidden).toBe(false);
+    item.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(tooltip.hidden).toBe(true);
+
+    heatmap.setConfig({ ...heatmap.config, legend: {
+      type: 'discrete', labelPlacement: 'none', enableTooltip: false
+    } });
+    const quietLegend = root.querySelector('.mc-legend--discrete')!;
+    expect(quietLegend.querySelectorAll('text, .mc-legend-tick')).toHaveLength(0);
+    quietLegend.querySelector('.mc-legend-item')!.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(tooltip.hidden).toBe(true);
+  });
+
+  it('supports declarative discrete sizing, end labels, block spacing, and live mode changes', async () => {
+    const heatmap = mountHeatmap({});
+    heatmap.innerHTML = `<mc-legend type="discrete" position="right" steps="3" width="18" height="150"
+      border-radius="2" block-gap="3" label-placement="ends" min-label="Low" max-label="High"
+      tick-format='{"minimumFractionDigits":1}'></mc-legend>`;
+    const root = heatmap.shadowRoot!;
+    const legend = await vi.waitFor(() => {
+      const rendered = root.querySelector('.mc-legend--discrete[data-legend-position="right"]');
+      expect(rendered).not.toBeNull();
+      return rendered!;
+    });
+    const blocks = Array.from(legend.querySelectorAll('.mc-legend-discrete-block'));
+    expect(blocks).toHaveLength(3);
+    expect(blocks[0].getAttribute('width')).toBe('18');
+    expect(blocks[0].getAttribute('height')).toBe('48');
+    expect(blocks[0].getAttribute('rx')).toBe('2');
+    expect(legend.querySelector('[data-label-id="legend-discrete-min"]')?.textContent).toBe('Low');
+    expect(legend.querySelector('[data-label-id="legend-discrete-max"]')?.textContent).toBe('High');
+    expect(legend.querySelector('.mc-legend-tick')).toBeNull();
+
+    const declarativeLegend = heatmap.querySelector('mc-legend')!;
+    declarativeLegend.removeAttribute('min-label');
+    expect(root.querySelector('[data-label-id="legend-discrete-min"]')?.textContent).toBe('20.0');
+    declarativeLegend.setAttribute('type', 'continuous');
+    expect(root.querySelector('.mc-legend--discrete')).toBeNull();
+    expect(root.querySelector('.mc-legend--continuous[data-legend-position="right"]')).not.toBeNull();
+  });
+
+  it('renders one well-defined discrete range for an equal-valued domain', () => {
+    const heatmap = mountHeatmap({
+      data: [{ id: 'A', data: [{ x: 'X', y: -4 }, { x: 'Y', y: -4 }] }],
+      legend: { type: 'discrete', tickFormat: (value) => `${value} C` }
+    });
+    const root = heatmap.shadowRoot!;
+    const blocks = root.querySelectorAll('.mc-legend-discrete-block');
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].getAttribute('data-min')).toBe('-4');
+    expect(blocks[0].getAttribute('data-max')).toBe('-4');
+    expect(root.querySelector('.mc-heatmap-cell')?.getAttribute('fill')).toBe(blocks[0].getAttribute('fill'));
+    expect(root.querySelector('[data-label-id="legend-discrete-min"]')?.textContent).toBe('-4 C');
   });
 });
