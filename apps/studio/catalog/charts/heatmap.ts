@@ -5,18 +5,30 @@ import type { ChartAttributeSpec, ChartCatalogEntry } from '../types';
 const discreteLegend: NonNullable<ChartAttributeSpec['visibleWhen']> = ({ legend }) =>
   typeof legend === 'object' && legend?.type === 'discrete';
 
-const colorLegendAttributes = ([
-  {
-    configPath: 'legend.type',
-    attrName: 'mc-legend[type]',
+function colorLegendSelect(
+  key: string,
+  attribute: string,
+  choices: [value: string, label: string][],
+  defaultValue: string,
+  description: string
+): Omit<ChartAttributeSpec, 'category'> {
+  return {
+    configPath: `legend.${key}`,
+    attrName: `mc-legend[${attribute}]`,
     control: 'select',
-    options: [
-      { label: 'Continuous', value: 'continuous' },
-      { label: 'Discrete', value: 'discrete' }
-    ],
-    description: 'Choose a smooth gradient or quantize the cells and legend into matching color blocks.',
-    defaultValue: 'continuous'
-  },
+    options: choices.map(([value, label]) => ({ label, value })),
+    defaultValue,
+    description
+  };
+}
+
+const colorLegendAttributes = ([
+  colorLegendSelect(
+    'type', 'type',
+    [['continuous', 'Continuous'], ['discrete', 'Discrete']],
+    'continuous',
+    'Choose a smooth gradient or quantize the cells and legend into matching color blocks.'
+  ),
   {
     configPath: 'legend.enabled',
     attrName: 'mc-legend[enabled]',
@@ -24,19 +36,12 @@ const colorLegendAttributes = ([
     description: 'Show the color legend. Hiding it preserves the cell colors.',
     defaultValue: true
   },
-  {
-    configPath: 'legend.position',
-    attrName: 'mc-legend[position]',
-    control: 'select',
-    options: [
-      { label: 'Top', value: 'top' },
-      { label: 'Bottom', value: 'bottom' },
-      { label: 'Left', value: 'left' },
-      { label: 'Right', value: 'right' }
-    ],
-    description: 'Choose the side of the chart where the legend appears.',
-    defaultValue: 'top'
-  },
+  colorLegendSelect(
+    'position', 'position',
+    [['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right']],
+    'top',
+    'Choose the side of the chart where the legend appears.'
+  ),
   {
     configPath: 'legend.min',
     attrName: 'mc-legend[min]',
@@ -96,18 +101,12 @@ const colorLegendAttributes = ([
     defaultValue: 2,
     visibleWhen: discreteLegend
   },
-  {
-    configPath: 'legend.labelPlacement',
-    attrName: 'mc-legend[label-placement]',
-    control: 'select',
-    options: [
-      { label: 'Endpoints', value: 'ends' },
-      { label: 'Ticks (discrete)', value: 'ticks' },
-      { label: 'None', value: 'none' }
-    ],
-    description: 'Label the endpoints, show discrete range ticks, or hide all labels.',
-    defaultValue: 'ends'
-  },
+  colorLegendSelect(
+    'labelPlacement', 'label-placement',
+    [['ends', 'Endpoints'], ['ticks', 'Ticks (discrete)'], ['none', 'None']],
+    'ends',
+    'Label the endpoints, show discrete range ticks, or hide all labels.'
+  ),
   {
     configPath: 'legend.minLabel',
     attrName: 'mc-legend[min-label]',
@@ -122,18 +121,12 @@ const colorLegendAttributes = ([
     description: 'Custom text at the high end of the color scale. Leave it blank to show the upper bound.',
     defaultValue: ''
   },
-  {
-    configPath: 'legend.tickFormat.style',
-    attrName: 'mc-legend[tick-format]',
-    control: 'select',
-    options: [
-      { label: 'Chart default', value: '' },
-      { label: 'Decimal', value: 'decimal' },
-      { label: 'Percent', value: 'percent' }
-    ],
-    description: 'Format the legend values using the chart locale. Percent displays 0.5 as 50%.',
-    defaultValue: ''
-  },
+  colorLegendSelect(
+    'tickFormat.style', 'tick-format',
+    [['', 'Chart default'], ['decimal', 'Decimal'], ['percent', 'Percent']],
+    '',
+    'Format the legend values using the chart locale. Percent displays 0.5 as 50%.'
+  ),
   {
     configPath: 'legend.tickFormat.maximumFractionDigits',
     attrName: 'mc-legend[tick-format]',
