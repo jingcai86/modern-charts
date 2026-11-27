@@ -51,6 +51,10 @@ export class MCRadarChart extends MCBaseChart<RadarDatum[]> {
     return ['grid', 'axes', 'layers', 'dots', 'labels', 'legends'];
   }
 
+  protected override get retainedItemLayers(): readonly string[] {
+    return ['layers', 'dots'];
+  }
+
   protected getDefaultMargin(): ChartMargin {
     return { top: 44, right: 64, bottom: 58, left: 64 };
   }
