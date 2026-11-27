@@ -4,13 +4,41 @@ import { normalizeOverflowInput, normalizeOverflowStrategy } from '../../../src/
 import type {
   LabelOverflowConfig,
   LabelOverflowStrategy,
+  LabelStyleOverride,
   MCBaseChart,
+  MeasuredLabel,
   ThemeModePreference
 } from '../../../src/index';
 import { renderSectionInfoTooltip, wireSectionInfoTooltips } from '../pages/chart-detail/section-info';
 import { guideCallback } from './callback-source';
 import { getLabelOverflowCapabilities, LABEL_OVERFLOW_MODES } from './label-overflow-controls';
 import { createLiveConfigEditor } from './shared';
+
+type OverflowTarget = 'axis-tick' | 'data' | 'both';
+
+const barLabelStyle = {
+  formatter: '{{itemLabel}}',
+  background: 'rgba(15, 23, 42, 0.8)',
+  color: '#fff',
+  borderRadius: 5,
+  padding: { top: 3, right: 3, bottom: 3, left: 3 }
+};
+
+function getLabelOverrides(config: Record<string, any>): LabelStyleOverride[] {
+  const labels = Array.isArray(config.label) ? config.label : [config.label];
+  return labels.filter(label => label && typeof label === 'object');
+}
+
+function getLabelBounds({ boxWidth, boxHeight, appliedRotation }: MeasuredLabel) {
+  const radians = appliedRotation * Math.PI / 180;
+  const sin = Math.abs(Math.sin(radians));
+  const cos = Math.abs(Math.cos(radians));
+  return {
+    width: boxWidth * cos,
+    crossWidth: boxHeight * sin,
+    height: boxWidth * sin + boxHeight * cos
+  };
+}
 
 export function renderTruncationGuide(
   container: HTMLElement,
@@ -66,7 +94,7 @@ export function renderTruncationGuide(
           Use the controls or edit <code>data</code> and <code>label.overflow</code> in the live config editor.
         </p>
       </div>
-      <div class="guide-controls-row" role="group" aria-label="Axis label overflow" style="gap:6px;">
+      <div class="guide-controls-row" role="group" aria-label="Label overflow strategy" style="gap:6px;">
         ${LABEL_OVERFLOW_MODES.map(({ strategy, label }) => `<button type="button" data-trunc-strat="${strategy}">${label}</button>`).join('')}
       </div>
     </div>
@@ -114,6 +142,14 @@ export function renderTruncationGuide(
           <input type="checkbox" id="tr-tip-toggle" />
           <code>enableTooltip</code>
         </label>
+        <label>
+          Apply to
+          <select id="tr-target-select" style="margin-left:4px;">
+            <option value="both">Bar item text and axis labels</option>
+            <option value="data">Bar item text only</option>
+            <option value="axis-tick" selected>Axis labels only</option>
+          </select>
+        </label>
       </div>
       <p id="tr-tooltip-hint" class="guide-prose">
         Hover or press <strong>Tab</strong> to read the full text of rotated or truncated labels.
@@ -147,15 +183,16 @@ export function renderTruncationGuide(
     indexBy: 'dept',
     keys: ['Spend'],
     data: [
-      { dept: 'Global Cloud Platform Infrastructure', Spend: 245 },
-      { dept: 'Applied Machine Learning Research', Spend: 210 },
-      { dept: 'Enterprise Security & Compliance Ops', Spend: 162 },
-      { dept: 'Developer Productivity & CI Tooling', Spend: 184 },
-      { dept: 'Real-Time Data Streaming Pipelines', Spend: 198 }
+      { dept: 'Global Cloud Platform Infrastructure', Spend: 245, itemLabel: 'Cloud platform spend' },
+      { dept: 'Applied Machine Learning Research', Spend: 210, itemLabel: 'Machine learning research' },
+      { dept: 'Enterprise Security & Compliance Ops', Spend: 162, itemLabel: 'Security operations cost' },
+      { dept: 'Developer Productivity & CI Tooling', Spend: 184, itemLabel: 'Developer tooling cost' },
+      { dept: 'Real-Time Data Streaming Pipelines', Spend: 198, itemLabel: 'Data streaming investment' }
     ],
     label: { target: 'axis-tick' }
   };
   let strategy: LabelOverflowStrategy = 'truncate';
+  let target: OverflowTarget = 'axis-tick';
   let options = { ...defaultOptions };
   let currentConfig: Record<string, any> = defaultConfig;
   let tooltip: LabelOverflowConfig['tooltip'];
@@ -163,11 +200,11 @@ export function renderTruncationGuide(
   const stratBtns = Array.from(
     ex1.querySelectorAll<HTMLButtonElement>('[data-trunc-strat]')
   );
-  const controlRow = ex1.querySelector<HTMLElement>('#tr-overflow-controls')!;
-  const controls = controlRow.querySelectorAll<HTMLElement>('[data-trunc-control]');
+  const controls = ex1.querySelectorAll<HTMLElement>('[data-trunc-control]');
   const tooltipHint = ex1.querySelector<HTMLElement>('#tr-tooltip-hint')!;
   const ellSelect = ex1.querySelector<HTMLSelectElement>('#tr-ellipsis-select')!;
   const tipToggle = ex1.querySelector<HTMLInputElement>('#tr-tip-toggle')!;
+  const targetSelect = ex1.querySelector<HTMLSelectElement>('#tr-target-select')!;
   const numericControls = ([
     { key: 'maxWidth', id: 'mw', unit: 'px' },
     { key: 'maxChars', id: 'mc', offAtZero: true },
@@ -189,7 +226,6 @@ export function renderTruncationGuide(
     for (const control of controls) {
       control.hidden = !capabilities[control.dataset.truncControl as keyof typeof capabilities];
     }
-    controlRow.hidden = strategy === 'none';
     tooltipHint.hidden = !capabilities.enableTooltip || !options.enableTooltip;
     for (const control of numericControls) {
       const value = options[control.key];
@@ -201,11 +237,8 @@ export function renderTruncationGuide(
     // Custom suffixes from the live editor leave the presets unselected.
     ellSelect.value = options.ellipsis;
     tipToggle.checked = options.enableTooltip;
+    targetSelect.value = target;
   };
-
-  const getAxisLabel = (cfg: Record<string, any>) => Array.isArray(cfg.label)
-    ? cfg.label.find((label) => label?.target === 'axis-tick')
-    : cfg.label;
 
   const buildEx1Config = () => {
     const capabilities = getLabelOverflowCapabilities(strategy);
@@ -220,50 +253,70 @@ export function renderTruncationGuide(
       overflow.tooltip = tooltip;
     }
 
-    const previous = getAxisLabel(currentConfig);
-    const label = { ...previous, target: previous?.target ?? 'axis-tick', overflow };
-    // Keep the guide's controls in overflow so an edited top-level option never shadows them.
-    for (const key of Object.keys(defaultOptions)) delete label[key];
-    delete label.tooltip;
+    const previous = getLabelOverrides(currentConfig);
+    const targets = target === 'both' ? ['axis-tick', 'data'] as const : [target];
+    const labels = previous.filter(label => label.target !== 'axis-tick' && label.target !== 'data');
+    for (const labelTarget of targets) {
+      const label = {
+        ...(labelTarget === 'data' ? barLabelStyle : {}),
+        ...previous.find(entry => entry.target === labelTarget),
+        target: labelTarget,
+        overflow
+      };
+      // Keep the controls in overflow so an edited top-level setting cannot shadow them.
+      for (const key of Object.keys(defaultOptions) as (keyof typeof defaultOptions)[]) delete label[key];
+      delete label.tooltip;
+      labels.push(label);
+    }
     return {
       ...currentConfig,
-      label: Array.isArray(currentConfig.label)
-        ? [...currentConfig.label.filter((entry) => entry !== previous), label]
-        : label
+      label: labels.length === 1 ? labels[0] : labels
     };
   };
 
   const labelEngine = new LabelEngine();
   const applyEx1Config = (cfg: Record<string, any>) => {
-    const label = getAxisLabel(cfg);
+    const labels = getLabelOverrides(cfg);
+    const axisLabel = labels.find(label => label.target === 'axis-tick');
+    const itemLabel = labels.find(label => label.target === 'data');
+    const axisStrategy = normalizeOverflowInput(axisLabel?.overflow).strategy;
     const theme = { ...bar1.resolveTheme(), ...cfg.theme };
     const fontSize = Math.max(10, theme.fontSize - 1);
     const margin = { top: 44, right: 24, bottom: 74, left: 52 };
     const categories = Array.isArray(cfg.data) ? cfg.data : [];
     let tickSpacing = 42;
+    let plotHeight = 175;
 
     for (const datum of categories) {
       const text = String(datum?.[cfg.indexBy ?? 'dept'] ?? '');
-      const measured = labelEngine.measure(text, { fontSize, ...label }, theme);
-      const angle = measured.appliedRotation * Math.PI / 180;
-      const sin = Math.abs(Math.sin(angle));
-      const cos = Math.abs(Math.cos(angle));
-      const down = measured.boxWidth * sin + measured.boxHeight * cos;
-      const width = measured.boxWidth * cos;
-      const crossWidth = measured.boxHeight * sin;
+      const measured = labelEngine.measure(text, {
+        fontSize,
+        maxWidth: axisLabel ? undefined : defaultOptions.maxWidth,
+        ...axisLabel
+      }, theme);
+      const { width, crossWidth, height } = getLabelBounds(measured);
       const left = measured.appliedRotation < 0 ? width : crossWidth;
       const right = measured.appliedRotation > 0 ? width : crossWidth;
-      margin.bottom = Math.max(margin.bottom, Math.ceil(down) + 18);
+      margin.bottom = Math.max(margin.bottom, Math.ceil(height) + 18);
       margin.left = Math.max(margin.left, Math.ceil(left) + 12);
       margin.right = Math.max(margin.right, Math.ceil(right) + 12);
-      if (strategy !== 'none') {
-        tickSpacing = Math.max(tickSpacing, Math.ceil(angle === 0 ? width : crossWidth) + 8);
+      if (axisStrategy !== 'none') {
+        tickSpacing = Math.max(tickSpacing, Math.ceil(measured.appliedRotation === 0 ? width : crossWidth) + 8);
+      }
+      if (itemLabel) {
+        const itemText = String(datum?.itemLabel ?? datum?.Spend ?? '');
+        const item = labelEngine.measure(itemText, { fontSize, fontWeight: 600, ...itemLabel }, theme);
+        if (item.appliedStrategy !== 'none') {
+          const bounds = getLabelBounds(item);
+          tickSpacing = Math.max(tickSpacing, Math.ceil(bounds.width + bounds.crossWidth) + 16);
+          plotHeight = Math.max(plotHeight, Math.ceil(bounds.height * 1.8));
+        }
       }
     }
 
     const finalMargin = { ...margin, ...cfg.margin };
     chartStage.style.minWidth = `${finalMargin.left + finalMargin.right + tickSpacing * categories.length}px`;
-    chartStage.style.height = `${Math.max(380, finalMargin.top + finalMargin.bottom + 175)}px`;
+    chartStage.style.height = `${Math.max(380, finalMargin.top + finalMargin.bottom + plotHeight)}px`;
     bar1.setConfig({
       autoSize: true,
       themeMode,
@@ -282,9 +335,13 @@ export function renderTruncationGuide(
   const editor1 = createLiveConfigEditor({
     title: 'Axis & Label Truncation Config (Live)',
     initialConfig: initialEx1Cfg,
-    hint: 'Edit the overflow strategy, its limits, or the category strings live.',
+    hint: 'Edit the label targets, overflow settings, or the data strings.',
     onConfigChange: (nextCfg) => {
-      const label = getAxisLabel(nextCfg);
+      const labels = getLabelOverrides(nextCfg);
+      const axisLabel = labels.find(label => label.target === 'axis-tick');
+      const itemLabel = labels.find(label => label.target === 'data');
+      target = itemLabel ? (axisLabel ? 'both' : 'data') : 'axis-tick';
+      const label = axisLabel ?? itemLabel;
       const overflow = normalizeOverflowInput(label?.overflow);
       strategy = normalizeOverflowStrategy(overflow.strategy) ?? 'truncate';
       const capabilities = getLabelOverflowCapabilities(strategy);
@@ -304,6 +361,7 @@ export function renderTruncationGuide(
     },
     onReset: () => {
       strategy = 'truncate';
+      target = 'axis-tick';
       options = { ...defaultOptions };
       tooltip = undefined;
       currentConfig = defaultConfig;
@@ -337,6 +395,10 @@ export function renderTruncationGuide(
   });
   tipToggle.addEventListener('change', () => {
     options.enableTooltip = tipToggle.checked;
+    updateEx1FromControls();
+  });
+  targetSelect.addEventListener('change', () => {
+    target = targetSelect.value as OverflowTarget;
     updateEx1FromControls();
   });
 

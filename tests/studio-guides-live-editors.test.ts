@@ -371,6 +371,108 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     );
   });
 
+  it('applies the truncation guide controls and full-text tooltips to the chosen label targets', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'truncation', 'dark');
+    const select = root.querySelector<HTMLSelectElement>('#tr-target-select')!;
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-trunc-code-1 textarea')!;
+    const tooltip = chart.getTooltipElement()!;
+    const readConfig = () => parseConfigObjectLiteral(editor.value);
+    const selectScope = (value: string) => {
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    expect(Array.from(select.options, ({ value }) => value).sort()).toEqual(['axis-tick', 'both', 'data']);
+    expect(select.value).toBe('axis-tick');
+    root.querySelector<HTMLButtonElement>('[data-trunc-strat="rotate"]')!.click();
+
+    for (const scope of ['axis-tick', 'data', 'both']) {
+      selectScope(scope);
+      const { data, label } = readConfig();
+      if (scope === 'both') {
+        expect(label.map((entry: { target: string }) => entry.target).sort()).toEqual(['axis-tick', 'data']);
+      } else {
+        expect(label.target).toBe(scope);
+      }
+
+      for (const [target, id, fullText] of [
+        ['axis-tick', 'x-tick-0', data[0].dept],
+        ['data', 'bar-label-0', data[0].itemLabel]
+      ] as const) {
+        const renderedLabel = chart.shadowRoot!.querySelector(`[data-label-id="${id}"]`)!;
+        const selected = scope === 'both' || scope === target;
+        expect(renderedLabel.getAttribute('data-applied-rotation')).toBe(selected ? '-45' : null);
+        if (selected) {
+          expect(renderedLabel.getAttribute('data-overflow-strategy')).toBe('rotate');
+          expect(renderedLabel.getAttribute('data-full-text')).toBe(fullText);
+          renderedLabel.dispatchEvent(new MouseEvent('mouseenter', { clientX: 50, clientY: 60 }));
+          expect(tooltip.hidden).toBe(false);
+          expect(tooltip.shadowRoot!.querySelector('[part="header"]')?.textContent).toBe(fullText);
+          renderedLabel.dispatchEvent(new MouseEvent('mouseleave'));
+          expect(tooltip.hidden).toBe(true);
+        }
+      }
+    }
+
+    root.querySelector<HTMLInputElement>('#tr-tip-toggle')!.click();
+    for (const id of ['x-tick-0', 'bar-label-0']) {
+      const renderedLabel = chart.shadowRoot!.querySelector(`[data-label-id="${id}"]`)!;
+      expect(renderedLabel.classList.contains('mc-label--interactive')).toBe(false);
+    }
+
+    root.querySelector<HTMLButtonElement>('[data-trunc-strat="none"]')!.click();
+    expect(select.closest('[hidden]')).toBeNull();
+    expect(select.value).toBe('both');
+    selectScope('data');
+    expect(readConfig().label).toMatchObject({ target: 'data', overflow: { strategy: 'none' } });
+  });
+
+  it('syncs label targets edited in the truncation guide snippet and preserves those edits until reset', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'truncation', 'dark');
+    const select = root.querySelector<HTMLSelectElement>('#tr-target-select')!;
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-trunc-code-1 textarea')!;
+    const readConfig = () => parseConfigObjectLiteral(editor.value);
+    const initial = readConfig();
+    const itemLabel = 'A long custom caption inside the spending bar';
+    const dept = 'A renamed category with a long axis caption';
+    const data = [{ ...initial.data[0], itemLabel, dept }, ...initial.data.slice(1)];
+    const overflow = { strategy: 'truncate', maxWidth: 60, maxChars: 9, ellipsis: '~', enableTooltip: false };
+    const dataLabel = { target: 'data', formatter: '{{itemLabel}}', overflow };
+    const axisLabel = { target: 'axis-tick', overflow };
+    const edit = (label: typeof dataLabel | Array<typeof dataLabel | typeof axisLabel>) => {
+      editor.value = formatConfigAssignment({ ...initial, data, label });
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(editor.getAttribute('aria-invalid')).toBe('false');
+    };
+
+    edit(dataLabel);
+    expect(select.value).toBe('data');
+    const renderedDataLabel = () => chart.shadowRoot!.querySelector('[data-label-id="bar-label-0"]')!;
+    expect(renderedDataLabel().getAttribute('data-full-text')).toBe(itemLabel);
+    expect(renderedDataLabel().textContent).toContain('~');
+    expect(renderedDataLabel().classList.contains('mc-label--interactive')).toBe(false);
+
+    edit([axisLabel, dataLabel]);
+    expect(select.value).toBe('both');
+    root.querySelector<HTMLButtonElement>('[data-trunc-strat="rotate-wrap-truncate"]')!.click();
+    const updated = readConfig();
+    expect(updated.data[0]).toMatchObject({ itemLabel, dept });
+    expect(updated.label).toEqual(expect.arrayContaining(['axis-tick', 'data'].map((target) =>
+      expect.objectContaining({ target, overflow: expect.objectContaining({
+        ...overflow, strategy: 'rotate-wrap-truncate'
+      }) })
+    )));
+
+    editor.closest('.guide-code-wrap')!.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+    expect(select.value).toBe('axis-tick');
+    expect(readConfig().data[0]).toEqual(initial.data[0]);
+    expect(readConfig().label).toMatchObject({ target: 'axis-tick', overflow: { strategy: 'truncate' } });
+  });
+
   it('offers three ellipsis presets with hover and keyboard help', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
