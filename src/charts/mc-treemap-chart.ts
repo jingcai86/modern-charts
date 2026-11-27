@@ -45,6 +45,10 @@ export class MCTreemapChart extends MCBaseChart<HierarchyNode> {
     return ['tiles', 'labels', 'legends'];
   }
 
+  protected override get retainedItemLayer(): string {
+    return 'tiles';
+  }
+
   protected getDefaultMargin(): ChartMargin {
     return { top: 36, right: 20, bottom: 58, left: 20 };
   }
@@ -91,6 +95,7 @@ export class MCTreemapChart extends MCBaseChart<HierarchyNode> {
       enableLabels:
         this.getOption('enableLabels', 'enable-labels', true) !== false
     });
+    this.#focusPath = model.focusPath;
     ctx.state.model = model;
     ctx.state.leaves = model.leaves;
     ctx.state.parents = model.parents;
