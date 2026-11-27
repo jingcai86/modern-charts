@@ -17,14 +17,14 @@ import {
   type MCBaseChart,
   type ThemeModePreference
 } from '../../../src/index';
-import { createBootstrapPlayground } from './bootstrapping';
-import { createLiveConfigEditor } from './shared';
+import { createFeatureGuideBootstrap } from './bootstrapping';
 
 export function renderCsvExportGuide(
   container: HTMLElement,
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
   const mounted: MCBaseChart<any>[] = [];
+  const bootstrap = createFeatureGuideBootstrap({ zoom: false, csvExport: true });
 
   // Intro & API Reference Table
   const intro = document.createElement('section');
@@ -38,7 +38,7 @@ export function renderCsvExportGuide(
       and is enabled via <code>registerModernCharts({ features: { csvExport: true } })</code> or per-chart
       <code>registerBarChart({ features: { csvExport: true } })</code> (see the
       <a href="#/guide/bootstrapping">🚀 Feature Bootstrapping &amp; Lazy Loading guide</a>).
-      CSV export starts enabled in this guide. Change it in the bootstrap example to test the export buttons in both states.
+      Both examples start with CSV export enabled. Edit the registration call in either example to change the feature for this page.
     </p>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
       <table class="guide-table">
@@ -174,14 +174,12 @@ export function renderCsvExportGuide(
     return base;
   };
 
-  const syncEx1Preview = (cfg: Record<string, any>) => {
-    bar1.setConfig({
-      autoSize: true,
-      themeMode,
-      palette: getGlobalPalette(),
-      animate: false,
-      ...cfg
-    });
+  const syncEx1Csv = () => {
+    if (!bar1.isFeatureEnabled('csvExport')) {
+      filenameEl1.textContent = 'CSV export disabled';
+      readoutEl1.textContent = '';
+      return;
+    }
     const payload = serializeChartCsv(
       'bar',
       bar1.data,
@@ -191,6 +189,17 @@ export function renderCsvExportGuide(
     );
     filenameEl1.textContent = payload.filename;
     readoutEl1.textContent = payload.csv;
+  };
+
+  const syncEx1Preview = (cfg: Record<string, any>) => {
+    bar1.setConfig({
+      autoSize: true,
+      themeMode,
+      palette: getGlobalPalette(),
+      animate: false,
+      ...cfg
+    });
+    syncEx1Csv();
   };
 
   const syncEx1Buttons = (preset: CsvPresetKey | null) => {
@@ -206,10 +215,16 @@ export function renderCsvExportGuide(
   const initialCfg1 = buildEx1Config('default');
   syncEx1Preview(initialCfg1);
 
-  const editor1 = createLiveConfigEditor({
-    title: 'CSV Export Configuration (Live)',
+  const editor1 = bootstrap.createEditor({
+    title: 'CSV Export Configuration',
     initialConfig: initialCfg1,
-    hint: 'Edit csvExport.columns, csvExport.headers, csvExport.filename, or data to update the live CSV output.',
+    chartId: () => 'bar',
+    usage: 'const csv = chart.toCsv();\n// Call chart.exportCsv() to download the CSV.',
+    knownCallbacks: {
+      'csvExport.formatValue': currencyFormatter,
+      'csvExport.serializer': summarySerializer
+    },
+    hint: 'Edit the registration flags or chart.config to update the CSV output.',
     onConfigChange: (nextCfg) => {
       syncEx1Preview(nextCfg);
     },
@@ -396,6 +411,23 @@ export function renderCsvExportGuide(
   stage2.appendChild(activeChart2);
   mounted.push(activeChart2);
 
+  const syncEx2Csv = (spec: ChartDemoSpec) => {
+    if (!activeChart2.isFeatureEnabled('csvExport')) {
+      statusEl2.textContent = 'CSV export disabled';
+      readoutEl2.textContent = '';
+      return;
+    }
+    const payload = serializeChartCsv(
+      spec.id,
+      activeChart2.data,
+      activeChart2.config.csvExport ?? activeChart2.config.export ?? {},
+      activeChart2.config,
+      activeChart2.resolveI18n()
+    );
+    statusEl2.textContent = `${spec.label} (${payload.filename}) · ${payload.rows.length} rows · columns: [${payload.columns.join(', ')}]`;
+    readoutEl2.textContent = payload.csv;
+  };
+
   const updateEx2Chart = (spec: ChartDemoSpec, cfg: Record<string, any>) => {
     if (activeChart2.tagName.toLowerCase() !== spec.tag) {
       const nextEl = document.createElement(spec.tag) as MCBaseChart<any>;
@@ -412,21 +444,19 @@ export function renderCsvExportGuide(
       animate: false,
       ...cfg
     });
-    const payload = serializeChartCsv(
-      spec.id,
-      activeChart2.data,
-      activeChart2.config.csvExport ?? activeChart2.config.export ?? {},
-      activeChart2.config,
-      activeChart2.resolveI18n()
-    );
-    statusEl2.textContent = `${spec.label} (${payload.filename}) · ${payload.rows.length} rows · columns: [${payload.columns.join(', ')}]`;
-    readoutEl2.textContent = payload.csv;
+    syncEx2Csv(spec);
   };
 
-  const editor2 = createLiveConfigEditor({
-    title: 'Multi-Chart CSV Config (Live)',
+  const editor2 = bootstrap.createEditor({
+    title: 'Multi-Chart CSV Config',
     initialConfig: structuredClone(activeSpec2.config),
-    hint: 'Edit data or add csvExport: { columns, headers, filename } to customize the active chart CSV.',
+    chartId: () => activeSpec2.id,
+    usage: `chart.exportCsv({
+  handler: ({ filename, rows }) => {
+    console.log(filename, rows.length);
+  }
+});`,
+    hint: 'Edit the registration flags or add csvExport to chart.config to update this chart’s CSV output.',
     onConfigChange: (nextCfg) => {
       updateEx2Chart(activeSpec2, nextCfg);
     },
@@ -481,15 +511,13 @@ export function renderCsvExportGuide(
     }
   });
 
-  container.appendChild(createBootstrapPlayground(themeMode, mounted, {
-    title: 'Bootstrap CSV Export',
-    initialFeatures: { zoom: false, csvExport: true },
-    onFeaturesChanged: () => {
-      const enabled = bar1.isFeatureEnabled('csvExport');
-      exportBtn1.disabled = !enabled;
-      handlerBtn2.disabled = !enabled;
-    }
-  }));
+  bootstrap.onFeaturesChanged(() => {
+    const enabled = bar1.isFeatureEnabled('csvExport');
+    exportBtn1.disabled = !enabled;
+    handlerBtn2.disabled = !enabled;
+    syncEx1Csv();
+    syncEx2Csv(activeSpec2);
+  });
 
   return mounted;
 }

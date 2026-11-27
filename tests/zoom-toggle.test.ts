@@ -26,6 +26,7 @@ import { renderChartDetailPage } from '../apps/studio/pages/chart-detail';
 import { resetChartConfig } from '../apps/studio/state/config-store';
 import { GUIDES_CATALOG, renderGuidePage } from '../apps/studio/guides';
 import {
+  extractChartConfigBlock,
   formatConfigAssignment,
   parseConfigObjectLiteral
 } from '../apps/studio/utils/code-sync';
@@ -335,6 +336,17 @@ describe('Dedicated Zoom on/off button and zoom support across all 10 chart type
 });
 
 describe('Zoom Controls & Bootstrapping Studio guides', () => {
+  function editExampleConfig(
+    editor: HTMLTextAreaElement,
+    update: (config: Record<string, any>) => void
+  ) {
+    const block = extractChartConfigBlock(editor.value)!;
+    const config = parseConfigObjectLiteral(block);
+    update(config);
+    editor.value = editor.value.replace(block, () => formatConfigAssignment(config, ''));
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   it('renders interactive zoom toggle controls and all 10 chart switchers in view-zoom guide', () => {
     expect(
       GUIDES_CATALOG.find((g) => g.id === 'view-zoom')?.title
@@ -343,7 +355,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const charts = renderGuidePage(root, 'view-zoom', 'dark');
-    expect(charts).toHaveLength(3);
+    expect(charts).toHaveLength(2);
 
     // Example 1: Zoom toggle, zoom in/out/reset, and live config editor synchronization
     const ex1 = root.querySelector<HTMLElement>('#vz-zoom-toggle')!;
@@ -370,7 +382,8 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     toggleBtn1.click();
     expect(toggleBtn1.getAttribute('aria-pressed')).toBe('false');
     expect(zoomInBtn1.disabled).toBe(true);
-    expect(parseConfigObjectLiteral(editor1.value).view.zoomable).toBe(false);
+    expect(parseConfigObjectLiteral(extractChartConfigBlock(editor1.value)!).view.zoomable)
+      .toBe(false);
 
     // Re-enable via on-chart toggle button in Example 1
     charts[0]
@@ -385,10 +398,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(toggleBtn1.getAttribute('aria-pressed')).toBe('true');
 
     // Update from live config editor 1
-    const cfg = parseConfigObjectLiteral(editor1.value);
-    cfg.view.zoomable = false;
-    editor1.value = formatConfigAssignment(cfg);
-    editor1.dispatchEvent(new Event('input', { bubbles: true }));
+    editExampleConfig(editor1, (config) => { config.view.zoomable = false; });
     expect(toggleBtn1.getAttribute('aria-pressed')).toBe('false');
 
     // Example 2: Switching across all 10 chart types updates active chart zoom readout
@@ -412,59 +422,67 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     activeChart2.toggleZoom(false);
     expect(readout2.textContent).toContain('zoomable: false');
 
-    const cfg2 = parseConfigObjectLiteral(editor2.value);
-    cfg2.view.zoomable = true;
-    editor2.value = formatConfigAssignment(cfg2);
-    editor2.dispatchEvent(new Event('input', { bubbles: true }));
+    editExampleConfig(editor2, (config) => { config.view.zoomable = true; });
     expect(readout2.textContent).toContain('zoomable: true');
 
     ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
     expect(readout2.textContent).toContain('zoomable: true');
   }, 20000);
 
-  it('applies editable Zoom guide bootstrap options to the preview and existing demos', () => {
+  it('bootstraps both Zoom examples and syncs shared flags without replacing chart settings', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const charts = renderGuidePage(root, 'view-zoom', 'dark');
-    const zoom = root.querySelector<HTMLInputElement>('#bs-zoom')!;
-    const csv = root.querySelector<HTMLInputElement>('#bs-csv-export')!;
-    const editor = root.querySelector<HTMLTextAreaElement>('#bs-bootstrap-code textarea')!;
-    const entrypoint = root.querySelector<HTMLSelectElement>('#bs-entrypoint')!;
-    const chartType = root.querySelector<HTMLSelectElement>('#bs-chart-type')!;
+    const editor1 = root.querySelector<HTMLTextAreaElement>('#vz-editor-1 textarea')!;
+    const editor2 = root.querySelector<HTMLTextAreaElement>('#vz-editor-2 textarea')!;
     const zoomActions = Array.from(root.querySelectorAll<HTMLButtonElement>(
       '#vz-zoom-toggle-btn, #vz-zoom-in-btn, #vz-zoom-out-btn, #vz-zoom-reset-btn'
     ));
     const readout1 = root.querySelector('#vz-readout-1')!;
     const readout2 = root.querySelector('#vz-readout-2')!;
-    const previewControls = () => charts[2].shadowRoot!
-      .querySelector<HTMLElement>('.mc-view-controls')!;
+    const onChartControls = () => charts.map((chart) => chart.shadowRoot!
+      .querySelector<HTMLElement>('.mc-view-controls')!.hidden);
 
-    expect(zoom.checked).toBe(true);
-    expect(csv.checked).toBe(false);
-    expect(previewControls().hidden).toBe(false);
+    expect(charts).toHaveLength(2);
+    expect(root.querySelectorAll('textarea')).toHaveLength(2);
+    expect(editor1.value).toContain("import { registerRadarChart } from 'modern-charts/radar';");
+    expect(editor1.value).toContain('await registerRadarChart(');
+    expect(editor1.value).toContain("document.createElement('mc-radar-chart')");
+    expect(editor1.value).toContain("chart.addEventListener('mc-zoom-toggle'");
+    expect(editor2.value).toContain("import { registerPieChart } from 'modern-charts/pie';");
+    expect(editor2.value).toContain('await registerPieChart(');
+    expect(editor2.value).toContain("document.createElement('mc-pie-chart')");
+    expect(editor2.value).toContain("chart.addEventListener('mc-zoom'");
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: false });
+    expect(onChartControls()).toEqual([false, false]);
     expect(zoomActions.every((button) => !button.disabled)).toBe(true);
 
-    editor.value = editor.value.replace('zoom: true', 'zoom: false');
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(zoom.checked).toBe(false);
-    expect(previewControls().hidden).toBe(true);
+    editor1.value = editor1.value.replace('zoom: true', 'zoom: false');
+    editor1.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(editor2.value).toContain('zoom: false');
+    expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false });
+    expect(onChartControls()).toEqual([true, true]);
     expect(zoomActions.every((button) => button.disabled)).toBe(true);
     expect(readout1.textContent).toContain('zoomable: false');
     expect(readout2.textContent).toContain('zoomable: false | pannable: false');
     expect(charts[0].config.view?.zoomable).toBe(true);
 
-    entrypoint.value = 'standalone';
-    entrypoint.dispatchEvent(new Event('change', { bubbles: true }));
-    chartType.value = 'line';
-    chartType.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(editor.value).toContain("import { registerLineChart } from 'modern-charts/line';");
-    expect(charts).toHaveLength(3);
-    expect(charts[2]).toBe(root.querySelector('#bs-chart mc-line-chart'));
-    expect(previewControls().hidden).toBe(true);
+    editExampleConfig(editor1, (config) => { config.view.maxZoom = 4; });
+    expect(charts[0].config.view?.maxZoom).toBe(4);
+    expect(charts[1].config.view?.maxZoom).toBe(6);
 
-    zoom.click();
-    expect(editor.value).toContain('zoom: true');
-    expect(previewControls().hidden).toBe(false);
+    root.querySelector<HTMLButtonElement>('[data-vz-chart-type="line"]')!.click();
+    expect(editor2.value).toContain("import { registerLineChart } from 'modern-charts/line';");
+    expect(editor2.value).toContain('await registerLineChart(');
+    expect(editor2.value).toContain('zoom: false');
+    expect(charts[1]).toBe(root.querySelector('#vz-chart-2 mc-line-chart'));
+    expect(onChartControls()).toEqual([true, true]);
+
+    editor2.value = editor2.value.replace('zoom: false', 'zoom: true');
+    editor2.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(editor1.value).toContain('zoom: true');
+    expect(onChartControls()).toEqual([false, false]);
+    expect(charts[0].config.view?.maxZoom).toBe(4);
     expect(zoomActions.every((button) => !button.disabled)).toBe(true);
     expect(readout1.textContent).toContain('zoomable: true');
     expect(readout2.textContent).toContain('zoomable: true | pannable: true');

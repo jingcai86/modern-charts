@@ -314,16 +314,16 @@ describe('Studio Theme and Appearance controls', () => {
   }, 15_000);
 
   it.each([
-    ['bootstrapping', { zoom: false, csvExport: false }],
-    ['csv-export', { zoom: false, csvExport: true }],
-    ['view-zoom', { zoom: true, csvExport: false }]
-  ] as const)('restores Studio features when returning home from the %s guide', async (guideId, features) => {
+    ['bootstrapping', '#bs-bootstrap-code textarea', { zoom: false, csvExport: false }],
+    ['csv-export', '#ce-editor-1 textarea', { zoom: false, csvExport: true }],
+    ['view-zoom', '#vz-editor-1 textarea', { zoom: true, csvExport: false }]
+  ] as const)('restores Studio features when returning home from the %s guide', async (guideId, editorSelector, features) => {
     route('#/chart/bar');
     await vi.waitFor(() => expect(detailChart()).not.toBeNull());
     expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true });
 
     route(`#/guide/${guideId}`);
-    await vi.waitFor(() => expect(document.querySelector('#bs-chart mc-bar-chart')).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector(editorSelector)).not.toBeNull());
     expect(getChartFeatures()).toEqual(features);
 
     route('#/');

@@ -1,56 +1,12 @@
 import { CHART_CATALOG } from '../catalog';
 import { getGlobalPalette } from '../state/theme';
-import { parseConfigObjectLiteral } from '../utils/code-sync';
 import type { MCBaseChart } from '../../../src/core/base-chart';
 import { configureChartFeatures } from '../../../src/core/features';
-import type { ChartFeaturesConfig, ThemeModePreference } from '../../../src/core/types';
+import type { ThemeModePreference } from '../../../src/core/types';
+import { formatBootstrap, parseBootstrap } from './bootstrap-code';
 import { createCodeBlock, createLiveCodeEditor } from './shared';
 
-const REGISTER_FN_BY_ID: Record<string, string> = {
-  bar: 'registerBarChart',
-  line: 'registerLineChart',
-  pie: 'registerPieChart',
-  heatmap: 'registerHeatmapChart',
-  radar: 'registerRadarChart',
-  sunburst: 'registerSunburstChart',
-  sankey: 'registerSankeyChart',
-  scatter: 'registerScatterChart',
-  treemap: 'registerTreemapChart',
-  gauge: 'registerGaugeChart'
-};
-
-function parseBootstrap(source: string) {
-  const code = source.trim();
-  const declaration = /^import\s*\{\s*(register\w+)\s*\}\s*from\s*(['"])(modern-charts(?:\/[a-z]+)?)\2/.exec(code);
-  if (!declaration) throw new SyntaxError('Use a Modern Charts import followed by its registration call.');
-
-  const [, registrar, , modulePath] = declaration;
-  const chartId = modulePath === 'modern-charts' ? undefined : modulePath.slice('modern-charts/'.length);
-  const expectedRegistrar = chartId ? REGISTER_FN_BY_ID[chartId] : 'registerModernCharts';
-  const call = code.slice(declaration[0].length).trim().replace(/^;|;$/g, '').trim();
-  const registration = /^(?:await\s+)?(register\w+)\s*\(([\s\S]*)\)$/.exec(call);
-  if (registrar !== expectedRegistrar || registration?.[1] !== registrar) {
-    throw new SyntaxError('Match the registration function to its Modern Charts import.');
-  }
-
-  const rawOptions = registration[2].trim();
-  const literal = rawOptions.replace(/,$/, '').trimEnd();
-  if (rawOptions && (!literal.startsWith('{') || !literal.endsWith('}'))) {
-    throw new SyntaxError('Pass feature options as an object.');
-  }
-  const options: Record<string, unknown> = literal ? parseConfigObjectLiteral(literal) : {};
-  const features: unknown = 'features' in options ? options.features : options;
-  if (!features || typeof features !== 'object' || Array.isArray(features) ||
-      Object.entries(features).some(([key, value]) =>
-        (key !== 'zoom' && key !== 'csvExport') || typeof value !== 'boolean')) {
-    throw new SyntaxError('Set zoom and csvExport to true or false.');
-  }
-  return {
-    chartId,
-    zoom: 'zoom' in features && features.zoom === true,
-    csvExport: 'csvExport' in features && features.csvExport === true
-  };
-}
+export { createFeatureGuideBootstrap } from './bootstrap-code';
 
 interface BootstrapFeatureRow {
   label: string;
@@ -124,26 +80,14 @@ function createFeatureMatrixSection(): HTMLElement {
   return card;
 }
 
-interface BootstrapPlaygroundOptions {
-  title?: string;
-  initialFeatures?: Required<ChartFeaturesConfig>;
-  onFeaturesChanged?: () => void;
-}
-
-export function createBootstrapPlayground(
+function createBootstrapPlayground(
   themeMode: ThemeModePreference,
-  mounted: MCBaseChart<any>[],
-  {
-    title = 'Try Feature Bootstrapping',
-    initialFeatures = { zoom: false, csvExport: false },
-    onFeaturesChanged
-  }: BootstrapPlaygroundOptions = {}
+  mounted: MCBaseChart<any>[]
 ): HTMLElement {
-  const mountedIndex = mounted.length;
   const section = document.createElement('section');
   section.className = 'panel-card guide-section';
   section.innerHTML = `
-    <h2 class="panel-title"></h2>
+    <h2 class="panel-title">Try Feature Bootstrapping</h2>
     <p class="guide-prose">
       Edit the registration code or use the controls to try features on the chart.
     </p>
@@ -179,7 +123,6 @@ export function createBootstrapPlayground(
     </details>
   `;
 
-  section.querySelector('.panel-title')!.textContent = title;
   const entrypoint = section.querySelector<HTMLSelectElement>('#bs-entrypoint')!;
   const chartType = section.querySelector<HTMLSelectElement>('#bs-chart-type')!;
   const zoom = section.querySelector<HTMLInputElement>('#bs-zoom')!;
@@ -201,24 +144,13 @@ export function createBootstrapPlayground(
     chartType.appendChild(option);
   }
   chartType.value = 'bar';
-  zoom.checked = initialFeatures.zoom;
-  csvExport.checked = initialFeatures.csvExport;
   const selectedChart = () => CHART_CATALOG.find(({ id }) => id === chartType.value)!;
   let chart: MCBaseChart<any>;
 
-  const formatBootstrap = () => {
-    const chartEntry = selectedChart();
-    const standalone = entrypoint.value === 'standalone';
-    const registrar = standalone ? REGISTER_FN_BY_ID[chartEntry.id] : 'registerModernCharts';
-    const source = standalone ? `modern-charts/${chartEntry.id}` : 'modern-charts';
-    return [
-      `import { ${registrar} } from '${source}';`,
-      '',
-      `await ${registrar}({`,
-      `  features: { zoom: ${zoom.checked}, csvExport: ${csvExport.checked} }`,
-      '});'
-    ].join('\n');
-  };
+  const bootstrapCode = () => formatBootstrap(
+    entrypoint.value === 'standalone' ? selectedChart().id : undefined,
+    { zoom: zoom.checked, csvExport: csvExport.checked }
+  );
 
   const syncFeatureExample = () => {
     featureCode.hidden = !zoom.checked && !csvExport.checked;
@@ -248,7 +180,7 @@ export function createBootstrapPlayground(
       animate: false
     });
     stage.replaceChildren(chart);
-    mounted[mountedIndex] = chart;
+    mounted[0] = chart;
     syncCsvPreview(!download.disabled);
   };
 
@@ -260,9 +192,7 @@ export function createBootstrapPlayground(
     syncCsvPreview(false);
     status.textContent = features.zoom || features.csvExport ? 'Loading features…' : '';
     try {
-      const loading = configureChartFeatures({ features });
-      onFeaturesChanged?.();
-      await loading;
+      await configureChartFeatures({ features });
       if (id !== changeId) return;
       status.textContent = '';
       syncCsvPreview(features.csvExport);
@@ -273,7 +203,7 @@ export function createBootstrapPlayground(
 
   const editor = createLiveCodeEditor({
     title: 'Bootstrap and use chart features',
-    initialValue: formatBootstrap(),
+    initialValue: bootstrapCode(),
     language: 'js',
     hint: 'Edit the Modern Charts import and registration options to update the preview.',
     onApply: (source) => {
@@ -294,7 +224,7 @@ export function createBootstrapPlayground(
   const editorDefault = editor.getValue();
   section.querySelector('#bs-bootstrap-code')!.appendChild(editor.element);
 
-  const syncSnippet = () => editor.setValue(formatBootstrap(), { resetBaseline: false });
+  const syncSnippet = () => editor.setValue(bootstrapCode(), { resetBaseline: false });
   const updateFeaturesFromControls = () => {
     syncSnippet();
     void applyFeatures();

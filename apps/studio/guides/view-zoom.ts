@@ -11,14 +11,14 @@ import {
   SAMPLE_SUNBURST_DATA
 } from '../sample-data';
 import type { MCBaseChart, ThemeModePreference } from '../../../src/index';
-import { createBootstrapPlayground } from './bootstrapping';
-import { createLiveConfigEditor } from './shared';
+import { createFeatureGuideBootstrap } from './bootstrapping';
 
 export function renderViewZoomGuide(
   container: HTMLElement,
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
   const mounted: MCBaseChart<any>[] = [];
+  const bootstrap = createFeatureGuideBootstrap({ zoom: true, csvExport: false });
 
   // Intro & API Reference Table
   const intro = document.createElement('section');
@@ -32,8 +32,8 @@ export function renderViewZoomGuide(
       <code>registerModernCharts({ features: { zoom: true } })</code> or per-chart
       <code>registerBarChart({ features: { zoom: true } })</code> (see the
       <a href="#/guide/bootstrapping">🚀 Feature Bootstrapping &amp; Lazy Loading guide</a>).
-      The examples on this page start with zoom enabled. Use the Bootstrap Zoom example to control
-      whether zoom is available across the page.
+      The examples start with zoom enabled. Edit <code>features.zoom</code> in either example to
+      change its availability for both charts.
     </p>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
       <table class="guide-table">
@@ -165,10 +165,14 @@ export function renderViewZoomGuide(
 
   applyEx1Config(initialCfg1);
 
-  const editor1 = createLiveConfigEditor({
+  const editor1 = bootstrap.createEditor({
     title: 'View & Zoom Toggle Config (Live)',
     initialConfig: initialCfg1,
-    hint: 'Toggle view.zoomable between true and false or adjust view.maxZoom.',
+    chartId: () => 'radar',
+    usage: `chart.addEventListener('mc-zoom-toggle', (event) => {
+  console.log('Zoom enabled:', event.detail.zoomable);
+});`,
+    hint: 'Edit features.zoom for both examples or view.zoomable for this chart.',
     onConfigChange: (nextCfg) => {
       applyEx1Config(nextCfg);
     },
@@ -424,10 +428,14 @@ export function renderViewZoomGuide(
     syncEx2Readout();
   };
 
-  const editor2 = createLiveConfigEditor({
+  const editor2 = bootstrap.createEditor({
     title: 'Multi-Chart View Config (Live)',
     initialConfig: structuredClone(activeSpec2.config),
-    hint: 'Edit view.zoomable, view.pannable, or view.maxZoom for the active chart.',
+    chartId: () => activeSpec2.id,
+    usage: `chart.addEventListener('mc-zoom', (event) => {
+  console.log('Viewport:', event.detail);
+});`,
+    hint: 'Edit features.zoom for both examples or the view settings for the active chart.',
     onConfigChange: (nextCfg) => {
       updateEx2Chart(activeSpec2, nextCfg);
     },
@@ -467,14 +475,10 @@ export function renderViewZoomGuide(
 
   updateEx2Chart(activeSpec2, structuredClone(activeSpec2.config));
 
-  container.appendChild(createBootstrapPlayground(themeMode, mounted, {
-    title: 'Bootstrap Zoom',
-    initialFeatures: { zoom: true, csvExport: false },
-    onFeaturesChanged: () => {
-      syncEx1Readout();
-      syncEx2Readout();
-    }
-  }));
+  bootstrap.onFeaturesChanged(() => {
+    syncEx1Readout();
+    syncEx2Readout();
+  });
 
   return mounted;
 }
