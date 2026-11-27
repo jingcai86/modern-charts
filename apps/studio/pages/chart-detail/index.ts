@@ -1,9 +1,9 @@
-import {
-  configureChartFeatures,
-  type ChartConfig,
-  type CsvExportPayload,
-  type MCBaseChart
+import type {
+  ChartConfig,
+  CsvExportPayload,
+  MCBaseChart
 } from '../../../../src/index';
+import { configureChartFeatures } from '../../../../src/core/features';
 import {
   getAllAttributesForChart,
   type ChartCatalogEntry
