@@ -43,6 +43,10 @@ export class MCSankeyChart extends MCBaseChart<SankeyData> {
     return ['links', 'nodes', 'labels', 'legends'];
   }
 
+  protected override get retainedItemLayers(): readonly string[] {
+    return ['links', 'nodes'];
+  }
+
   protected getDefaultMargin(): ChartMargin {
     return { top: 36, right: 36, bottom: 58, left: 36 };
   }
