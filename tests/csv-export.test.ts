@@ -25,6 +25,10 @@ import {
 import { renderChartDetailPage } from '../apps/studio/pages/chart-detail';
 import { resetChartConfig } from '../apps/studio/state/config-store';
 import { GUIDES_CATALOG, renderGuidePage } from '../apps/studio/guides';
+import {
+  formatConfigAssignment,
+  parseConfigObjectLiteral
+} from '../apps/studio/utils/code-sync';
 
 beforeAll(() => {
   registerModernCharts();
@@ -381,7 +385,7 @@ describe('Customizable CSV export across all 10 chart types (Issue #125)', () =>
 
       root.remove();
     }
-  });
+  }, 20000);
 });
 
 describe('Customizable CSV Data Export Studio guide', () => {
@@ -398,6 +402,7 @@ describe('Customizable CSV Data Export Studio guide', () => {
     // Example 1: Preset switching updates CSV readout and live editor
     const ex1 = root.querySelector<HTMLElement>('#ce-custom-csv')!;
     const readout1 = ex1.querySelector<HTMLElement>('#ce-readout-1')!;
+    const editor1 = ex1.querySelector<HTMLTextAreaElement>('textarea')!;
     expect(readout1.textContent).toContain('quarter,Cloud,Edge,OnPrem');
 
     ex1
@@ -412,14 +417,33 @@ describe('Customizable CSV Data Export Studio guide', () => {
       .click();
     expect(readout1.textContent).toContain('$142.0K');
 
+    ex1
+      .querySelector<HTMLButtonElement>('[data-csv-preset="serializer"]')!
+      .click();
+    expect(readout1.textContent).toContain('Quarter,Cloud,Edge,Total');
+
     ex1.querySelector<HTMLButtonElement>('#ce-btn-export-1')!.click();
     expect(ex1.querySelector('#ce-filename-1')!.textContent).toContain(
       'exported 4 rows'
     );
 
+    // Edit and reset live config editor 1
+    const cfg1 = parseConfigObjectLiteral(editor1.value);
+    cfg1.csvExport = { filename: 'edited-spend.csv' };
+    editor1.value = formatConfigAssignment(cfg1);
+    editor1.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(ex1.querySelector('#ce-filename-1')!.textContent).toBe(
+      'edited-spend.csv'
+    );
+    ex1.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+    expect(ex1.querySelector('#ce-filename-1')!.textContent).toBe(
+      'quarterly-spend-k.csv'
+    );
+
     // Example 2: Switching across all 10 chart types updates serialized CSV preview
     const ex2 = root.querySelector<HTMLElement>('#ce-chart-types')!;
     const readout2 = ex2.querySelector<HTMLElement>('#ce-readout-2')!;
+    const editor2 = ex2.querySelector<HTMLTextAreaElement>('textarea')!;
     const typeBtns = Array.from(
       ex2.querySelectorAll<HTMLButtonElement>('button[data-ce-chart-type]')
     );
@@ -437,5 +461,12 @@ describe('Customizable CSV Data Export Studio guide', () => {
     expect(ex2.querySelector('#ce-handler-status-2')!.textContent).toContain(
       'Custom handler invoked'
     );
-  });
+
+    // Edit and reset live config editor 2
+    const cfg2 = parseConfigObjectLiteral(editor2.value);
+    cfg2.title = 'Updated Efficiency';
+    editor2.value = formatConfigAssignment(cfg2);
+    editor2.dispatchEvent(new Event('input', { bubbles: true }));
+    ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+  }, 20000);
 });

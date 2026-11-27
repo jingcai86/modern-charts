@@ -19,35 +19,6 @@ import {
 } from '../../../src/index';
 import { createCodeBlock, createLiveConfigEditor } from './shared';
 
-function wireKeyboardToggle(btn: HTMLButtonElement): void {
-  let spaceDown = false;
-  btn.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (btn.disabled || e.isComposing || e.keyCode === 229) return;
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      btn.click();
-    } else if (e.key === ' ' || e.key === 'Spacebar') {
-      e.preventDefault();
-      spaceDown = true;
-      btn.click();
-    }
-  });
-  btn.addEventListener('keyup', (e: KeyboardEvent) => {
-    if (e.key === ' ' || e.key === 'Spacebar') {
-      if (spaceDown) {
-        spaceDown = false;
-        e.preventDefault();
-        return;
-      }
-      spaceDown = false;
-      if (!btn.disabled) {
-        e.preventDefault();
-        btn.click();
-      }
-    }
-  });
-}
-
 export function renderCsvExportGuide(
   container: HTMLElement,
   themeMode: ThemeModePreference
@@ -261,7 +232,6 @@ export function renderCsvExportGuide(
     });
 
   const exportBtn1 = ex1.querySelector<HTMLButtonElement>('#ce-btn-export-1')!;
-  wireKeyboardToggle(exportBtn1);
   exportBtn1.addEventListener('click', () => {
     const payload = bar1.exportCsv({
       handler: (result) => {
@@ -490,7 +460,6 @@ export function renderCsvExportGuide(
   updateEx2Chart(activeSpec2, structuredClone(activeSpec2.config));
 
   const handlerBtn2 = ex2.querySelector<HTMLButtonElement>('#ce-btn-handler-2')!;
-  wireKeyboardToggle(handlerBtn2);
   handlerBtn2.addEventListener('click', () => {
     let captured: CsvExportPayload | null = null;
     const options: CsvExportOptions = {
