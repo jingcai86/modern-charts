@@ -300,6 +300,32 @@ export const COMMON_ATTRIBUTES: ChartAttributeSpec[] = [
     defaultValue: true
   },
 
+  // Interactive Item Selection
+  {
+    configPath: 'selection.enabled',
+    attrName: 'selectable',
+    label: 'Selectable items',
+    category: 'Selection',
+    control: 'boolean',
+    description:
+      'Selectable items: Enables selecting and deselecting chart items with a pointer click or keyboard Enter / Space.',
+    defaultValue: false
+  },
+  {
+    configPath: 'selection.mode',
+    attrName: 'selection-mode',
+    label: 'Selection mode',
+    category: 'Selection',
+    control: 'select',
+    options: [
+      { label: 'single (Single-select)', value: 'single' },
+      { label: 'multiple (Multi-select)', value: 'multiple' }
+    ],
+    description:
+      'Selection mode: single-select replaces the current selection; multi-select adds or removes individual items.',
+    defaultValue: 'single'
+  },
+
   // Animation Layer
   {
     configPath: 'animate',

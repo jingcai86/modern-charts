@@ -36,8 +36,17 @@ export function createAttributePanel(opts: {
   allAttributes: ChartAttributeSpec[];
   onConfigChanged: () => void;
   onResetDefault: () => void;
+  onClearSelection?: () => void;
 }): AttributePanelHandle {
-  const { entry, config, vState, allAttributes, onConfigChanged, onResetDefault } = opts;
+  const {
+    entry,
+    config,
+    vState,
+    allAttributes,
+    onConfigChanged,
+    onResetDefault,
+    onClearSelection
+  } = opts;
   type AttributeScope = 'specific' | 'common';
   const specificPaths = new Set(entry.specificAttributes.map((spec) => spec.configPath));
   const scopeFor = (spec: ChartAttributeSpec): AttributeScope =>
@@ -49,6 +58,7 @@ export function createAttributePanel(opts: {
     'Legend (<mc-legend>)',
     'Tooltip (<mc-tooltip>)',
     'View & Zoom (<mc-view-layer>)',
+    'Selection',
     'Marker & Threshold (<mc-marker-layer>)',
     'Animation (<mc-animation-layer>)',
     'Accessibility (<mc-aria-layer>)',
@@ -157,6 +167,25 @@ export function createAttributePanel(opts: {
         return legend.padding;
       }
     }
+    if (spec.configPath === 'selection.enabled') {
+      if (typeof config.selection === 'boolean') return config.selection;
+      if (
+        typeof config.selection === 'object' &&
+        config.selection?.enabled !== undefined
+      ) {
+        return config.selection.enabled;
+      }
+      if (config.selectable !== undefined) return config.selectable;
+    }
+    if (spec.configPath === 'selection.mode') {
+      if (
+        typeof config.selection === 'object' &&
+        config.selection?.mode !== undefined
+      ) {
+        return config.selection.mode;
+      }
+      if (config.selectionMode !== undefined) return config.selectionMode;
+    }
     const val = getByPath(config, spec.configPath);
     return val !== undefined ? val : spec.defaultValue;
   }
@@ -234,6 +263,11 @@ export function createAttributePanel(opts: {
       }
     } else if (isHeatmapLegendControl(spec)) {
       setHeatmapLegendValue(spec.configPath, rawVal);
+    } else if (spec.configPath.startsWith('selection.')) {
+      if (typeof config.selection === 'boolean') {
+        config.selection = { enabled: config.selection };
+      }
+      setByPath(config, spec.configPath, rawVal);
     } else {
       setByPath(config, spec.configPath, rawVal);
     }
@@ -291,15 +325,16 @@ export function createAttributePanel(opts: {
 
       const cleanAttrBadge = stripInlineAnnotations(spec.attrName, /\/\s*mc-[a-z-]+\[[^[\]]+\]/)
         .replace(/^mc-[a-z-]+\[([^\]]+)\]$/, '$1');
+      const displayTitle =
+        spec.label ??
+        (spec.configPath.startsWith('__')
+          ? spec.configPath.replace('__', '')
+          : spec.configPath);
       const metaDiv = document.createElement('div');
       metaDiv.className = 'attr-meta';
       metaDiv.innerHTML = `
         <div class="attr-names">
-          <span class="attr-config-path">${escapeHtml(
-            spec.configPath.startsWith('__')
-              ? spec.configPath.replace('__', '')
-              : spec.configPath
-          )}</span>
+          <span class="attr-config-path">${escapeHtml(displayTitle)}</span>
           <span class="attr-html-badge">${escapeHtml(cleanAttrBadge)}</span>
         </div>
       `;
@@ -315,6 +350,9 @@ export function createAttributePanel(opts: {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = Boolean(currentVal);
+        if (spec.label) {
+          checkbox.setAttribute('aria-label', spec.label);
+        }
         const stateSpan = document.createElement('span');
         stateSpan.textContent = checkbox.checked ? 'true' : 'false';
 
@@ -391,6 +429,9 @@ export function createAttributePanel(opts: {
         controlCell.appendChild(input);
       } else if (spec.control === 'select') {
         const select = document.createElement('select');
+        if (spec.label) {
+          select.setAttribute('aria-label', spec.label);
+        }
         (spec.options ?? []).forEach((opt) => {
           const optionEl = document.createElement('option');
           optionEl.value = opt.value;
@@ -492,6 +533,22 @@ export function createAttributePanel(opts: {
       row.appendChild(controlCell);
       attrList.appendChild(row);
     });
+
+    if (categoryName === 'Selection') {
+      const actionsRow = document.createElement('div');
+      actionsRow.className = 'attr-category-actions';
+      actionsRow.style.padding = '4px 0 2px';
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.id = 'btn-detail-clear-selection';
+      clearBtn.dataset.action = 'clear-selection';
+      clearBtn.textContent = 'Clear selection';
+      clearBtn.addEventListener('click', () => {
+        onClearSelection?.();
+      });
+      actionsRow.appendChild(clearBtn);
+      attrList.appendChild(actionsRow);
+    }
 
     container.appendChild(catDetails);
   });

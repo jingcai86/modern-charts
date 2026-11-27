@@ -40,6 +40,16 @@ const BOOTSTRAP_FEATURES: readonly BootstrapFeatureRow[] = [
     guideTitle: '📥 Customizable CSV Data Export'
   },
   {
+    label: 'Interactive Item Selection',
+    optionKey: 'features.selection',
+    defaultValue: 'false',
+    description:
+      'Lazy-loads single-select and multi-select item selection across all 10 chart types (pointer, keyboard, chart.selectedItems, mc-selection-change).',
+    guideHref: '#/guide/selection',
+    guideKey: 'selection',
+    guideTitle: '🎯 Interactive Item Selection'
+  },
+  {
     label: 'Loading & Empty State Overlay',
     optionKey: 'features.chartState',
     defaultValue: 'true',
@@ -113,6 +123,7 @@ function createBootstrapPlayground(
       <div class="guide-controls-row" role="group" aria-label="Bootstrap features">
         <label><input id="bs-zoom" type="checkbox"> Zoom</label>
         <label><input id="bs-csv-export" type="checkbox"> CSV export</label>
+        <label><input id="bs-selection" type="checkbox"> Item selection</label>
         <label><input id="bs-chart-state" type="checkbox" checked> Loading &amp; empty overlay</label>
       </div>
     </div>
@@ -140,6 +151,7 @@ function createBootstrapPlayground(
   const chartType = section.querySelector<HTMLSelectElement>('#bs-chart-type')!;
   const zoom = section.querySelector<HTMLInputElement>('#bs-zoom')!;
   const csvExport = section.querySelector<HTMLInputElement>('#bs-csv-export')!;
+  const selection = section.querySelector<HTMLInputElement>('#bs-selection')!;
   const chartState = section.querySelector<HTMLInputElement>('#bs-chart-state')!;
   const loading = section.querySelector<HTMLInputElement>('#bs-example-loading')!;
   const stage = section.querySelector('#bs-chart')!;
@@ -164,6 +176,7 @@ function createBootstrapPlayground(
   const selectedFeatures = () => ({
     zoom: zoom.checked,
     csvExport: csvExport.checked,
+    selection: selection.checked,
     chartState: chartState.checked
   });
 
@@ -174,11 +187,17 @@ function createBootstrapPlayground(
   );
 
   const syncFeatureExample = () => {
-    featureCode.hidden = !zoom.checked && !csvExport.checked;
+    featureCode.hidden = !zoom.checked && !csvExport.checked && !selection.checked;
     const lines = [`const chart = document.querySelector('${selectedChart().tagName}');`];
     if (zoom.checked) lines.push('chart.toggleZoom(true);');
     if (csvExport.checked) {
       lines.push('const csv = chart.toCsv();', '// Call chart.exportCsv() to download the CSV.');
+    }
+    if (selection.checked) {
+      lines.push(
+        'chart.selectable = true;',
+        "chart.addEventListener('mc-selection-change', (e) => console.log(e.detail.selectedItems));"
+      );
     }
     featureSnippet.textContent = lines.join('\n');
   };
@@ -218,6 +237,7 @@ function createBootstrapPlayground(
       mountChart();
       await ready;
       if (id !== changeId) return;
+      chart.selectable = features.selection;
       status.textContent = '';
       syncCsvPreview(features.csvExport);
     } catch {
@@ -236,6 +256,7 @@ function createBootstrapPlayground(
       if (parsed.chartId) chartType.value = parsed.chartId;
       zoom.checked = parsed.zoom;
       csvExport.checked = parsed.csvExport;
+      selection.checked = parsed.selection;
       chartState.checked = parsed.chartState;
       void applyFeatures();
     },
@@ -263,6 +284,7 @@ function createBootstrapPlayground(
   });
   zoom.addEventListener('change', updateFeaturesFromControls);
   csvExport.addEventListener('change', updateFeaturesFromControls);
+  selection.addEventListener('change', updateFeaturesFromControls);
   chartState.addEventListener('change', updateFeaturesFromControls);
   loading.addEventListener('change', () => { chart.loading = loading.checked; });
   download.addEventListener('click', () => chart.exportCsv());

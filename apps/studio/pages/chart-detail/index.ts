@@ -1,7 +1,8 @@
 import type {
   ChartConfig,
   CsvExportPayload,
-  MCBaseChart
+  MCBaseChart,
+  SelectionChangeDetail
 } from '../../../../src/index';
 import { configureChartFeatures } from '../../../../src/core/features';
 import { STUDIO_BOOTSTRAP_OPTIONS } from '../../chart-loader';
@@ -236,6 +237,12 @@ export function renderChartDetailPage(
         `mc-export → filename="${detail.filename}" | rows: ${detail.rows.length}, columns: ${JSON.stringify(detail.columns)}`
       );
     });
+    chart.addEventListener('mc-selection-change', (e: Event) => {
+      const detail = (e as CustomEvent<SelectionChangeDetail>).detail;
+      recordInspectorEvent(
+        `mc-selection-change → action="${detail.action}" (mode="${detail.mode}") | selectedIds: ${JSON.stringify(detail.selectedIds)}`
+      );
+    });
   }
   wireChartEvents(chartEl);
 
@@ -288,7 +295,10 @@ export function renderChartDetailPage(
     vState,
     allAttributes,
     onConfigChanged: () => applyConfigUpdate(config, 'controls'),
-    onResetDefault: resetDefaultConfig
+    onResetDefault: resetDefaultConfig,
+    onClearSelection: () => {
+      chartEl.clearSelection();
+    }
   });
 
   // Bottom Card: Two-Way HTML & chart.config Code Editor

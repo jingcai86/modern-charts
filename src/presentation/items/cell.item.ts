@@ -88,6 +88,8 @@ export function renderHeatmapCellItem(
     color: cell.color,
     anchor: fallbackAnchor,
     datum: {
+      row: cell.rowId,
+      column: cell.colId,
       rowId: cell.rowId,
       colId: cell.colId,
       x: cell.colId,
@@ -117,6 +119,8 @@ export function renderHeatmapCellItem(
           color: cell.color,
           anchor: resolveElementAnchor(node, fallbackAnchor),
           datum: {
+            row: cell.rowId,
+            column: cell.colId,
             rowId: cell.rowId,
             colId: cell.colId,
             x: cell.colId,
@@ -140,6 +144,8 @@ export function renderHeatmapCellItem(
     id: `${cell.rowId}-${cell.colId}`,
     data: {
       id: `${cell.rowId}-${cell.colId}`,
+      row: cell.rowId,
+      column: cell.colId,
       rowId: cell.rowId,
       colId: cell.colId,
       x: cell.colId,
@@ -267,6 +273,7 @@ export function renderTreemapTileItem(
       leaf.drillPathNames.length > 0
     ) {
       rect.addEventListener('click', () => {
+        if (ctx.isSelectionEnabled) return;
         ctx.hideTooltip();
         onDrilldown(leaf.drillPathNames);
       });

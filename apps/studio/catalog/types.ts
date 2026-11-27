@@ -13,12 +13,15 @@ export interface ChartAttributeSpec {
   configPath: string;
   /** HTML attribute equivalent on the Web Component or layer tag */
   attrName: string;
+  /** Optional human-readable label displayed in the Studio control panel */
+  label?: string;
   /** Group category shown in the attributes table */
   category:
     | 'Chart-Specific'
     | 'Theme Layer (<mc-theme-layer>)'
     | 'Scale Layer (<mc-scale-layer>)'
     | 'View & Zoom (<mc-view-layer>)'
+    | 'Selection'
     | 'Animation (<mc-animation-layer>)'
     | 'Marker & Threshold (<mc-marker-layer>)'
     | 'Legend (<mc-legend>)'

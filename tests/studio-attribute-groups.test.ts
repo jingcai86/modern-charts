@@ -51,7 +51,7 @@ describe('Studio attribute scopes and search', () => {
     const commonOrder = [
       'Sizing & Layout', 'Theme Layer (<mc-theme-layer>)',
       'Universal Label (<mc-label>)', 'Legend (<mc-legend>)',
-      'Tooltip (<mc-tooltip>)', 'View & Zoom (<mc-view-layer>)',
+      'Tooltip (<mc-tooltip>)', 'View & Zoom (<mc-view-layer>)', 'Selection',
       'Marker & Threshold (<mc-marker-layer>)', 'Animation (<mc-animation-layer>)',
       'Accessibility (<mc-aria-layer>)', 'Internationalization'
     ];

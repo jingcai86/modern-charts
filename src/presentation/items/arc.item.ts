@@ -302,6 +302,7 @@ export function renderSunburstArcItem(
 
     if (interactive && arc.hasChildren && onDrilldown) {
       path.addEventListener('click', () => {
+        if (ctx.isSelectionEnabled) return;
         ctx.hideTooltip();
         onDrilldown(arc.pathNames);
       });

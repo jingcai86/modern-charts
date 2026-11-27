@@ -136,6 +136,11 @@ export interface ChartFeaturesConfig {
    * Defaults to `false` so standalone chart bundles do not download the CSV serializer unless enabled.
    */
   csvExport?: boolean;
+  /**
+   * Enables interactive item selection (single-select and multi-select) across all chart types.
+   * Defaults to `false` so standalone chart bundles do not download the selection engine unless enabled.
+   */
+  selection?: boolean;
   /** Enables the loading and empty-state overlay. Defaults to `true`. */
   chartState?: boolean;
 }
@@ -143,15 +148,103 @@ export interface ChartFeaturesConfig {
 export interface ChartBootstrapOptions {
   /**
    * Optional features to load at bootstrap. `chartState` defaults to `true`.
-   * Zoom and CSV export default to `false`.
+   * Zoom, CSV export, and item selection default to `false`.
    */
   features?: ChartFeaturesConfig;
   /** Shorthand for `features.zoom` (default `false`). */
   zoom?: boolean;
   /** Shorthand for `features.csvExport` (default `false`). */
   csvExport?: boolean;
+  /** Shorthand for `features.selection` (default `false`). */
+  selection?: boolean;
   /** Shorthand for `features.chartState` (default `true`). */
   chartState?: boolean;
+}
+
+// ============================================================================
+// Interactive Item Selection (Issue #124)
+// ============================================================================
+
+export type SelectionMode = 'single' | 'multiple';
+
+export type SelectionAction = 'select' | 'deselect' | 'clear' | 'set';
+
+export interface SelectedChartItem<TDatum = any> {
+  /** Unique item identifier within the chart (e.g. `'Q1-Cloud'`, `'Mon-00:00'`, `'Compute'`). */
+  id: string;
+  /** Chart type (`'bar'`, `'line'`, `'pie'`, `'heatmap'`, `'radar'`, `'sunburst'`, `'sankey'`, `'scatter'`, `'treemap'`, `'gauge'`). */
+  chartType: string;
+  /** Event target kind (`'barItem'`, `'linePoint'`, `'pieSlice'`, `'heatmapCell'`, `'radarDot'`, `'sunburstArc'`, `'sankeyNode'`, `'sankeyLink'`, `'scatterPoint'`, `'treemapTile'`, `'gaugeArc'`, etc.). */
+  target: ChartEventTargetKind;
+  /** ARIA item type (`'bar'`, `'point'`, `'arc'`, `'cell'`, `'radar-point'`, `'sunburst-arc'`, `'sankey-node'`, `'sankey-link'`, `'scatter-node'`, `'treemap-tile'`, `'gauge-arc'`, etc.). */
+  type?: AriaItemType;
+  /** Human-readable item label. */
+  label: string;
+  /** Numeric or raw value of the item. */
+  value?: number;
+  /** Formatted value string. */
+  formattedValue?: string;
+  /** Series identifier (when applicable). */
+  seriesId?: string;
+  /** Category or index value (when applicable). */
+  category?: string;
+  /** Heatmap cell row identifier (populated for heatmap cells). */
+  row?: string;
+  /** Heatmap cell column identifier (populated for heatmap cells). */
+  column?: string;
+  /** Alias for `row` on heatmap cells. */
+  rowId?: string;
+  /** Alias for `column` on heatmap cells. */
+  colId?: string;
+  /** Source node name/id for Sankey links. */
+  source?: string;
+  /** Target node name/id for Sankey links. */
+  targetNode?: string;
+  /** Zero-based index of the item. */
+  index: number;
+  /** Resolved item color. */
+  color?: string;
+  /** Structured item data payload (includes `row`, `column`, and `value` for heatmap cells). */
+  data: Record<string, any>;
+  /** Original source datum for this item. */
+  datum: TDatum;
+  /** Live SVG element representing this item in the chart shadow DOM. */
+  element?: SVGElement;
+}
+
+export interface SelectionChangeDetail<TDatum = any> {
+  /** Currently selected items in selection order. */
+  selectedItems: SelectedChartItem<TDatum>[];
+  /** Currently selected item IDs in selection order. */
+  selectedIds: string[];
+  /** The item that was just selected or deselected (when triggered by an item interaction). */
+  item?: SelectedChartItem<TDatum>;
+  /** Action that caused the selection change (`'select'`, `'deselect'`, `'clear'`, or `'set'`). */
+  action: SelectionAction;
+  /** Active selection mode (`'single'` or `'multiple'`). */
+  mode: SelectionMode;
+  /** Chart type (`'bar'`, `'line'`, `'pie'`, `'heatmap'`, etc.). */
+  chartType: string;
+  /** Input source (`'pointer'`, `'keyboard'`, or `'api'`). */
+  source: 'pointer' | 'keyboard' | 'api';
+}
+
+export interface SelectionConfig {
+  /** Enables interactive item selection on this chart. Default `false`. */
+  enabled?: boolean;
+  /** Selection mode: `'single'` replaces the current selection; `'multiple'` adds or removes individual items. Default `'single'`. */
+  mode?: SelectionMode;
+  /** Initial or controlled list of selected item IDs. */
+  selectedIds?: string[];
+  /** Callback invoked whenever the chart selection changes. */
+  onChange?: (detail: SelectionChangeDetail) => void;
+}
+
+export interface ResolvedSelectionConfig {
+  enabled: boolean;
+  mode: SelectionMode;
+  selectedIds?: string[];
+  onChange?: (detail: SelectionChangeDetail) => void;
 }
 
 // ============================================================================
@@ -1560,6 +1653,15 @@ export interface ChartConfig<TData = any> {
   // ECharts-style View / Roam / Zoom layer config
   view?: Partial<ViewConfig>;
 
+  // Interactive Item Selection config (Issue #124)
+  selection?: boolean | SelectionConfig;
+  /** Shorthand for `selection.enabled` (default `false`). */
+  selectable?: boolean;
+  /** Shorthand for `selection.mode` (`'single' | 'multiple'`, default `'single'`). */
+  selectionMode?: SelectionMode;
+  /** Shorthand for `selection.onChange`. */
+  onSelectionChange?: (detail: SelectionChangeDetail) => void;
+
   // Customizable CSV Data Export config (Issue #125)
   csvExport?: CsvExportOptions<TData>;
   export?: CsvExportOptions<TData>;
@@ -1747,6 +1849,8 @@ export interface ChartRenderContext<TData = unknown> {
   ariaConfig: AriaConfig;
   /** Effective interactivity state (`false` renders a fully static chart with zero listeners/tooltips). */
   isInteractive: boolean;
+  /** Whether interactive item selection is currently enabled on this chart. */
+  isSelectionEnabled?: boolean;
   legendConfig: ResolvedLegendConfig;
   /** Resolved marker lines and marker areas with pixel positions and matched threshold items */
   markers: ResolvedMarker[];

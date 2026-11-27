@@ -206,6 +206,7 @@ export class AriaEngine {
         label: string,
         element: SVGElement
       ) => void;
+      onItemEscape?: (item: AriaItemDescriptor, element: SVGElement) => void;
       navigateRelative?: (currentEl: SVGElement, delta: number | 'first' | 'last') => void;
     } = {},
     i18n: ChartI18n = createChartI18n(chartConfig.i18n)
@@ -295,8 +296,10 @@ export class AriaEngine {
 
       // Native button-like keyboard activation: Enter on keydown, Space on keyup
       element.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.isComposing || e.keyCode === 229) return;
         if (e.key === 'Escape') {
           hooks.onItemBlur?.(item, element);
+          hooks.onItemEscape?.(item, element);
         } else if (e.key === 'Enter') {
           e.preventDefault();
           hooks.onItemActivate?.(item, label, element);

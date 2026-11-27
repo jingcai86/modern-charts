@@ -60,7 +60,11 @@ import type {
   MarkerConfig,
   MotionPresetName,
   ResolvedLegendConfig,
+  ResolvedSelectionConfig,
   ScaleConfig,
+  SelectedChartItem,
+  SelectionConfig,
+  SelectionMode,
   SvgFillDef,
   ThresholdEvaluationResult,
   ThresholdMatchedItem,
@@ -93,8 +97,11 @@ import { baseChartStyles } from './chart-styles';
 import {
   createZoomController,
   getCsvExporter,
+  getSelectionEngine,
   isChartFeatureEnabled,
   subscribeChartFeatures,
+  type SelectableItemEntry,
+  type SelectionHostAdapter,
   type ZoomViewControllerLike
 } from './features';
 
@@ -179,6 +186,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       'aria-label',
       'is-interactive',
       'is-focusable',
+      'selectable',
+      'selection-mode',
       'tooltip-position',
       'loading',
       'loading-text',
@@ -193,6 +202,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   #mutationObserver: MutationObserver | null = null;
   #viewController: ZoomViewControllerLike | null = null;
   #isTogglingZoom = false;
+  #selectableRecords = new Map<string, SelectableItemEntry>();
+  #selectedIds: string[] = [];
+  #isKeyboardActivating = false;
   #streamTimer: ReturnType<typeof setTimeout> | null = null;
   #currentChartState: ChartStateKind | null = null;
   #suppressAttributeRender = false;
@@ -255,6 +267,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       shadow.adoptedStyleSheets = [sheet];
     }
     shadow.append(getBaseChartTemplate().content.cloneNode(true));
+    this.addEventListener('mc-click', (e: Event) => {
+      this.#handleUnifiedClickForSelection((e as CustomEvent).detail);
+    });
   }
 
   abstract get chartType(): string;
@@ -472,6 +487,19 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       } else {
         this._config.isFocusable = newVal !== 'false';
       }
+    } else if (name === 'selectable') {
+      if (newVal === null) {
+        delete this._config.selectable;
+      } else {
+        this._config.selectable = newVal !== 'false';
+      }
+    } else if (name === 'selection-mode') {
+      if (newVal === null) {
+        delete this._config.selectionMode;
+      } else {
+        this._config.selectionMode =
+          newVal === 'multiple' || newVal === 'multi' ? 'multiple' : 'single';
+      }
     }
     if (this._isConnected && !this.#suppressAttributeRender) {
       this.render();
@@ -532,6 +560,13 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     }
     if (this._config.labelRenderer !== undefined) {
       this._labelRenderer = this._config.labelRenderer;
+    }
+    if (
+      this._config.selection &&
+      typeof this._config.selection === 'object' &&
+      Array.isArray(this._config.selection.selectedIds)
+    ) {
+      this.#selectedIds = [...this._config.selection.selectedIds];
     }
     const prevSuppress = this.#suppressAttributeRender;
     this.#suppressAttributeRender = true;
@@ -1012,6 +1047,209 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   public resetZoom(): void {
     if (!isChartFeatureEnabled('zoom')) return;
     this.#viewController?.reset();
+  }
+
+  public resolveSelectionConfig(): ResolvedSelectionConfig {
+    const raw = this._config.selection;
+    const base: SelectionConfig =
+      typeof raw === 'boolean' ? { enabled: raw } : { ...(raw ?? {}) };
+    const attrSelectable = this.hasAttribute('selectable')
+      ? this.getAttribute('selectable') !== 'false'
+      : undefined;
+    const attrMode = this.getAttribute('selection-mode');
+    const rawMode =
+      base.mode ??
+      this._config.selectionMode ??
+      (attrMode ? (attrMode as SelectionMode) : undefined);
+    const mode: SelectionMode =
+      rawMode === 'multiple' || (rawMode as string) === 'multi'
+        ? 'multiple'
+        : 'single';
+    const enabled =
+      this.resolveIsInteractive() &&
+      Boolean(
+        base.enabled ?? this._config.selectable ?? attrSelectable ?? false
+      );
+    return {
+      enabled,
+      mode,
+      ...(base.selectedIds !== undefined
+        ? { selectedIds: [...base.selectedIds] }
+        : {}),
+      onChange: base.onChange ?? this._config.onSelectionChange
+    };
+  }
+
+  get selectable(): boolean {
+    return (
+      isChartFeatureEnabled('selection') &&
+      this.resolveSelectionConfig().enabled
+    );
+  }
+  set selectable(val: boolean) {
+    const next = Boolean(val);
+    this._config.selectable = next;
+    if (typeof this._config.selection === 'object' && this._config.selection) {
+      this._config.selection = { ...this._config.selection, enabled: next };
+    } else if (this._config.selection !== undefined) {
+      this._config.selection = next;
+    }
+    if (!next) {
+      this.#selectedIds = [];
+    }
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
+  }
+
+  get selectionMode(): SelectionMode {
+    return this.resolveSelectionConfig().mode;
+  }
+  set selectionMode(val: SelectionMode) {
+    const next: SelectionMode =
+      val === 'multiple' || (val as string) === 'multi' ? 'multiple' : 'single';
+    this._config.selectionMode = next;
+    if (typeof this._config.selection === 'object' && this._config.selection) {
+      this._config.selection = { ...this._config.selection, mode: next };
+    }
+    if (next === 'single' && this.#selectedIds.length > 1) {
+      this.#selectedIds = [this.#selectedIds[this.#selectedIds.length - 1]];
+    }
+    if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
+      this.render();
+    }
+  }
+
+  get selectedIds(): readonly string[] {
+    if (!this.selectable) return Object.freeze([]);
+    return Object.freeze([...this.#selectedIds]);
+  }
+
+  get selectedItems(): readonly SelectedChartItem[] {
+    const engine = getSelectionEngine();
+    if (!engine || !this.selectable) return Object.freeze([]);
+    return Object.freeze(engine.getSelectedItems(this.#selectionAdapter()));
+  }
+
+  public isItemSelected(id: string): boolean {
+    return this.selectable && this.#selectedIds.includes(id);
+  }
+
+  public selectItem(
+    idOrIds: string | string[],
+    options: { mode?: SelectionMode; silent?: boolean } = {}
+  ): SelectedChartItem[] {
+    return (
+      getSelectionEngine()?.mutate(
+        this.#selectionAdapter(),
+        'select',
+        idOrIds,
+        options
+      ) ?? []
+    );
+  }
+
+  public deselectItem(
+    idOrIds: string | string[],
+    options: { silent?: boolean } = {}
+  ): SelectedChartItem[] {
+    return (
+      getSelectionEngine()?.mutate(
+        this.#selectionAdapter(),
+        'deselect',
+        idOrIds,
+        options
+      ) ?? []
+    );
+  }
+
+  public toggleItemSelection(
+    id: string,
+    options: { mode?: SelectionMode; silent?: boolean } = {}
+  ): SelectedChartItem[] {
+    return (
+      getSelectionEngine()?.mutate(
+        this.#selectionAdapter(),
+        'toggle',
+        id,
+        options
+      ) ?? []
+    );
+  }
+
+  public setSelectedIds(
+    ids: string[],
+    options: { silent?: boolean } = {}
+  ): SelectedChartItem[] {
+    return (
+      getSelectionEngine()?.mutate(
+        this.#selectionAdapter(),
+        'set',
+        ids,
+        options
+      ) ?? []
+    );
+  }
+
+  public clearSelection(
+    options: {
+      silent?: boolean;
+      source?: 'pointer' | 'keyboard' | 'api';
+    } = {}
+  ): SelectedChartItem[] {
+    const engine = getSelectionEngine();
+    if (!engine) {
+      this.#selectedIds = [];
+      return [];
+    }
+    return engine.mutate(this.#selectionAdapter(), 'clear', undefined, options);
+  }
+
+  #selectionAdapter(): SelectionHostAdapter {
+    const self = this;
+    return {
+      host: this,
+      chartType: this.chartType,
+      shadowRoot: this.shadowRoot,
+      records: this.#selectableRecords,
+      margin: this._lastMargin,
+      get selectedIds() {
+        return self.#selectedIds;
+      },
+      set selectedIds(ids: string[]) {
+        self.#selectedIds = ids;
+      },
+      resolveConfig: () => this.resolveSelectionConfig(),
+      onSyncIds: (nextIds: string[]) => {
+        this.#setCustomState('has-selection', nextIds.length > 0);
+        if (
+          typeof this._config.selection === 'object' &&
+          this._config.selection?.selectedIds !== undefined
+        ) {
+          this._config.selection = {
+            ...this._config.selection,
+            selectedIds: [...nextIds]
+          };
+        }
+      }
+    };
+  }
+
+  #handleUnifiedClickForSelection(ev: {
+    target: string;
+    category: string;
+    targetId?: string;
+    element: Element;
+    nativeEvent: Event;
+    chartX: number;
+    chartY: number;
+    data?: Record<string, any>;
+  }): void {
+    getSelectionEngine()?.handleClick(
+      this.#selectionAdapter(),
+      ev,
+      this.#isKeyboardActivating
+    );
   }
 
   get animationConfig(): Partial<AnimationConfig> | null {
@@ -1846,6 +2084,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     this.cancelTransitions(false);
     rootGroup.replaceChildren();
     this._decoratedAriaItems = [];
+    this.#selectableRecords.clear();
     if (defs) defs.replaceChildren();
 
     if (controlsEl) {
@@ -1864,6 +2103,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
     const colorScale = createOrdinalColorScale(theme);
     const initialThresholdCtrl = this.markerEngine.createThresholdContext([]);
+    const selectionConfig = this.resolveSelectionConfig();
+    const isSelectionEnabled =
+      isChartFeatureEnabled('selection') && selectionConfig.enabled;
 
     const ctx: ChartRenderContext<TData> = {
       chartType: this.chartType,
@@ -1881,6 +2123,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       animationConfig,
       ariaConfig,
       isInteractive,
+      isSelectionEnabled,
       legendConfig,
       markers: [],
       thresholds: initialThresholdCtrl,
@@ -1922,14 +2165,27 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
             onItemBlur: () => this.#handleAriaItemBlur(),
             onItemActivate: (activatedItem, label, el) =>
               this.#handleAriaItemActivate(activatedItem, label, el),
+            onItemEscape: () => {
+              if (this.selectable && this.#selectedIds.length > 0) {
+                this.clearSelection({ source: 'keyboard' });
+              }
+            },
             navigateRelative: (currentEl, delta) =>
               this.#navigateAriaItems(currentEl, delta)
           },
           i18n
         );
+        decorated.setAttribute('data-aria-id', item.id);
         this._decoratedAriaItems.push({
           item,
           label: decorated.getAttribute('aria-label') || item.id
+        });
+        const existingRecord = this.#selectableRecords.get(item.id);
+        this.#selectableRecords.set(item.id, {
+          id: item.id,
+          element: decorated,
+          ariaItem: item,
+          ...(existingRecord?.eventReg ? { eventReg: existingRecord.eventReg } : {})
         });
         return decorated;
       },
@@ -1938,10 +2194,30 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       registerEventTarget: <TEventData = any>(
         element: Element,
         registration: ChartEventTargetRegistration<TEventData>
-      ) =>
-        isInteractive
-          ? this.eventEngine.registerTarget(element, registration)
-          : element,
+      ) => {
+        if (!isInteractive) return element;
+        const registered = this.eventEngine.registerTarget(element, registration);
+        if (
+          registration.category === 'item' &&
+          registration.id !== undefined &&
+          registration.target !== 'sunburstCenter' &&
+          registration.target !== 'lineSlice' &&
+          registration.target !== 'gaugeNeedle'
+        ) {
+          const id = element.getAttribute('data-aria-id') ?? registration.id;
+          const existingRecord = this.#selectableRecords.get(id);
+          if (existingRecord) {
+            existingRecord.eventReg = registration;
+          } else if (element instanceof SVGElement) {
+            this.#selectableRecords.set(id, {
+              id,
+              element,
+              eventReg: registration
+            });
+          }
+        }
+        return registered;
+      },
       evaluateThresholds: initialThresholdCtrl.evaluate,
       showTooltip: (
         content: TooltipInput,
@@ -2038,6 +2314,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     });
 
     this.afterRender(ctx);
+    this.#finalizeSelectionAfterRender(svg, containerEl, selectionConfig);
 
     if (ariaTableContainer) {
       ariaTableContainer.innerHTML =
@@ -2156,12 +2433,36 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     }
   }
 
+  #finalizeSelectionAfterRender(
+    svg: SVGSVGElement,
+    containerEl: HTMLDivElement | null,
+    selectionConfig: ResolvedSelectionConfig
+  ): void {
+    const engine = getSelectionEngine();
+    const isEnabled = Boolean(engine) && selectionConfig.enabled;
+    const hasSelection = engine
+      ? engine.finalizeRender(this.#selectionAdapter())
+      : false;
+    if (!engine) {
+      svg.removeAttribute('data-has-selection');
+      svg.removeAttribute('data-selection-mode');
+      containerEl?.removeAttribute('data-has-selection');
+    }
+    this.#setCustomState('selectable', isEnabled);
+    this.#setCustomState('has-selection', hasSelection);
+  }
+
   #handleAriaItemActivate(
     item: AriaItemDescriptor,
     label: string,
     element: SVGElement
   ): void {
-    element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    this.#isKeyboardActivating = true;
+    try {
+      element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    } finally {
+      this.#isKeyboardActivating = false;
+    }
     this.dispatchEvent(
       new CustomEvent('mc-item-activate', {
         bubbles: true,
