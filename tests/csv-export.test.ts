@@ -470,7 +470,7 @@ describe('Customizable CSV Data Export Studio guide', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const charts = renderGuidePage(root, 'csv-export', 'dark');
-    expect(charts).toHaveLength(2);
+    expect(charts).toHaveLength(3);
 
     // Example 1: Preset switching updates CSV readout and live editor
     const ex1 = root.querySelector<HTMLElement>('#ce-custom-csv')!;
@@ -542,4 +542,58 @@ describe('Customizable CSV Data Export Studio guide', () => {
     editor2.dispatchEvent(new Event('input', { bubbles: true }));
     ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
   }, 20000);
+
+  it('applies the live bootstrap editor to the CSV preview and guide export buttons', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const charts = renderGuidePage(root, 'csv-export', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#bs-bootstrap-code textarea')!;
+    const entrypoint = root.querySelector<HTMLSelectElement>('#bs-entrypoint')!;
+    const chartType = root.querySelector<HTMLSelectElement>('#bs-chart-type')!;
+    const csvExport = root.querySelector<HTMLInputElement>('#bs-csv-export')!;
+    const download = root.querySelector<HTMLButtonElement>('#bs-download-csv')!;
+    const preview = root.querySelector<HTMLElement>('#bs-csv-output')!;
+    const exportButton = root.querySelector<HTMLButtonElement>('#ce-btn-export-1')!;
+    const handlerButton = root.querySelector<HTMLButtonElement>('#ce-btn-handler-2')!;
+    const chartDemos = charts.slice(0, 2);
+
+    expect(charts).toHaveLength(3);
+    expect(csvExport.checked).toBe(true);
+    await vi.waitFor(() => {
+      expect(preview.textContent).toContain('quarter,Cloud,Edge,OnPrem');
+      expect(download.disabled).toBe(false);
+      expect(exportButton.disabled).toBe(false);
+      expect(handlerButton.disabled).toBe(false);
+    });
+
+    editor.value = `import { registerHeatmapChart } from 'modern-charts/heatmap';
+await registerHeatmapChart({ features: { zoom: false, csvExport: false } });`;
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(editor.getAttribute('aria-invalid')).toBe('false');
+      expect(entrypoint.value).toBe('standalone');
+      expect(chartType.value).toBe('heatmap');
+      expect(csvExport.checked).toBe(false);
+      expect(charts).toHaveLength(3);
+      expect(charts[0]).toBe(chartDemos[0]);
+      expect(charts[1]).toBe(chartDemos[1]);
+      expect(root.querySelector('#bs-chart mc-heatmap-chart')).toBe(charts[2]);
+      expect(preview.textContent).toBe('');
+      expect(root.querySelector('#ce-readout-1')?.textContent).toContain('quarter,Cloud,Edge,OnPrem');
+      expect(download.disabled).toBe(true);
+      expect(exportButton.disabled).toBe(true);
+      expect(handlerButton.disabled).toBe(true);
+    });
+
+    editor.value = editor.value.replace('csvExport: false', 'csvExport: true');
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(csvExport.checked).toBe(true);
+      expect(download.disabled).toBe(false);
+      expect(exportButton.disabled).toBe(false);
+      expect(handlerButton.disabled).toBe(false);
+      expect(charts[2].toCsv()).toContain('row,x,y');
+      expect(preview.textContent).toBe(charts[2].toCsv());
+    });
+  });
 });

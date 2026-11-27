@@ -218,7 +218,7 @@ function handleRoute(): void {
     }
   }
 
-  if (activeGuide?.id === 'bootstrapping') {
+  if (activeGuide) {
     void configureChartFeatures({ features: { zoom: true, csvExport: true } });
   }
   activeDetailEntry = null;

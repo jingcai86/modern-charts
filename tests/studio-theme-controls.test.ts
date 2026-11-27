@@ -313,14 +313,18 @@ describe('Studio Theme and Appearance controls', () => {
     expect(localizedChart.resolveI18n().locale).toBe('de-DE');
   }, 15_000);
 
-  it('restores Studio features when returning home from the Bootstrapping guide', async () => {
+  it.each([
+    ['bootstrapping', { zoom: false, csvExport: false }],
+    ['csv-export', { zoom: false, csvExport: true }],
+    ['view-zoom', { zoom: true, csvExport: false }]
+  ] as const)('restores Studio features when returning home from the %s guide', async (guideId, features) => {
     route('#/chart/bar');
     await vi.waitFor(() => expect(detailChart()).not.toBeNull());
     expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true });
 
-    route('#/guide/bootstrapping');
+    route(`#/guide/${guideId}`);
     await vi.waitFor(() => expect(document.querySelector('#bs-chart mc-bar-chart')).not.toBeNull());
-    expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false });
+    expect(getChartFeatures()).toEqual(features);
 
     route('#/');
     expect((await revealPreview('bar')).localName).toBe('mc-bar-chart');

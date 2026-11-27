@@ -343,7 +343,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const charts = renderGuidePage(root, 'view-zoom', 'dark');
-    expect(charts).toHaveLength(2);
+    expect(charts).toHaveLength(3);
 
     // Example 1: Zoom toggle, zoom in/out/reset, and live config editor synchronization
     const ex1 = root.querySelector<HTMLElement>('#vz-zoom-toggle')!;
@@ -421,6 +421,54 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
     expect(readout2.textContent).toContain('zoomable: true');
   }, 20000);
+
+  it('applies editable Zoom guide bootstrap options to the preview and existing demos', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const charts = renderGuidePage(root, 'view-zoom', 'dark');
+    const zoom = root.querySelector<HTMLInputElement>('#bs-zoom')!;
+    const csv = root.querySelector<HTMLInputElement>('#bs-csv-export')!;
+    const editor = root.querySelector<HTMLTextAreaElement>('#bs-bootstrap-code textarea')!;
+    const entrypoint = root.querySelector<HTMLSelectElement>('#bs-entrypoint')!;
+    const chartType = root.querySelector<HTMLSelectElement>('#bs-chart-type')!;
+    const zoomActions = Array.from(root.querySelectorAll<HTMLButtonElement>(
+      '#vz-zoom-toggle-btn, #vz-zoom-in-btn, #vz-zoom-out-btn, #vz-zoom-reset-btn'
+    ));
+    const readout1 = root.querySelector('#vz-readout-1')!;
+    const readout2 = root.querySelector('#vz-readout-2')!;
+    const previewControls = () => charts[2].shadowRoot!
+      .querySelector<HTMLElement>('.mc-view-controls')!;
+
+    expect(zoom.checked).toBe(true);
+    expect(csv.checked).toBe(false);
+    expect(previewControls().hidden).toBe(false);
+    expect(zoomActions.every((button) => !button.disabled)).toBe(true);
+
+    editor.value = editor.value.replace('zoom: true', 'zoom: false');
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(zoom.checked).toBe(false);
+    expect(previewControls().hidden).toBe(true);
+    expect(zoomActions.every((button) => button.disabled)).toBe(true);
+    expect(readout1.textContent).toContain('zoomable: false');
+    expect(readout2.textContent).toContain('zoomable: false | pannable: false');
+    expect(charts[0].config.view?.zoomable).toBe(true);
+
+    entrypoint.value = 'standalone';
+    entrypoint.dispatchEvent(new Event('change', { bubbles: true }));
+    chartType.value = 'line';
+    chartType.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.value).toContain("import { registerLineChart } from 'modern-charts/line';");
+    expect(charts).toHaveLength(3);
+    expect(charts[2]).toBe(root.querySelector('#bs-chart mc-line-chart'));
+    expect(previewControls().hidden).toBe(true);
+
+    zoom.click();
+    expect(editor.value).toContain('zoom: true');
+    expect(previewControls().hidden).toBe(false);
+    expect(zoomActions.every((button) => !button.disabled)).toBe(true);
+    expect(readout1.textContent).toContain('zoomable: true');
+    expect(readout2.textContent).toContain('zoomable: true | pannable: true');
+  });
 
   it('bootstraps a live preview with the selected entry point, chart, and features', async () => {
     expect(GUIDES_CATALOG.find(({ id }) => id === 'bootstrapping')?.title).toContain(

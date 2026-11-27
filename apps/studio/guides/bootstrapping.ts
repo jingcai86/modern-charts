@@ -3,7 +3,7 @@ import { getGlobalPalette } from '../state/theme';
 import { parseConfigObjectLiteral } from '../utils/code-sync';
 import type { MCBaseChart } from '../../../src/core/base-chart';
 import { configureChartFeatures } from '../../../src/core/features';
-import type { ThemeModePreference } from '../../../src/core/types';
+import type { ChartFeaturesConfig, ThemeModePreference } from '../../../src/core/types';
 import { createCodeBlock, createLiveCodeEditor } from './shared';
 
 const REGISTER_FN_BY_ID: Record<string, string> = {
@@ -124,14 +124,26 @@ function createFeatureMatrixSection(): HTMLElement {
   return card;
 }
 
-function createBootstrapPlayground(
+interface BootstrapPlaygroundOptions {
+  title?: string;
+  initialFeatures?: Required<ChartFeaturesConfig>;
+  onFeaturesChanged?: () => void;
+}
+
+export function createBootstrapPlayground(
   themeMode: ThemeModePreference,
-  mounted: MCBaseChart<any>[]
+  mounted: MCBaseChart<any>[],
+  {
+    title = 'Try Feature Bootstrapping',
+    initialFeatures = { zoom: false, csvExport: false },
+    onFeaturesChanged
+  }: BootstrapPlaygroundOptions = {}
 ): HTMLElement {
+  const mountedIndex = mounted.length;
   const section = document.createElement('section');
   section.className = 'panel-card guide-section';
   section.innerHTML = `
-    <h2 class="panel-title">Try Feature Bootstrapping</h2>
+    <h2 class="panel-title"></h2>
     <p class="guide-prose">
       Edit the registration code or use the controls to try features on the chart.
     </p>
@@ -167,6 +179,7 @@ function createBootstrapPlayground(
     </details>
   `;
 
+  section.querySelector('.panel-title')!.textContent = title;
   const entrypoint = section.querySelector<HTMLSelectElement>('#bs-entrypoint')!;
   const chartType = section.querySelector<HTMLSelectElement>('#bs-chart-type')!;
   const zoom = section.querySelector<HTMLInputElement>('#bs-zoom')!;
@@ -188,6 +201,8 @@ function createBootstrapPlayground(
     chartType.appendChild(option);
   }
   chartType.value = 'bar';
+  zoom.checked = initialFeatures.zoom;
+  csvExport.checked = initialFeatures.csvExport;
   const selectedChart = () => CHART_CATALOG.find(({ id }) => id === chartType.value)!;
   let chart: MCBaseChart<any>;
 
@@ -233,7 +248,7 @@ function createBootstrapPlayground(
       animate: false
     });
     stage.replaceChildren(chart);
-    mounted[0] = chart;
+    mounted[mountedIndex] = chart;
     syncCsvPreview(!download.disabled);
   };
 
@@ -245,7 +260,9 @@ function createBootstrapPlayground(
     syncCsvPreview(false);
     status.textContent = features.zoom || features.csvExport ? 'Loading features…' : '';
     try {
-      await configureChartFeatures({ features });
+      const loading = configureChartFeatures({ features });
+      onFeaturesChanged?.();
+      await loading;
       if (id !== changeId) return;
       status.textContent = '';
       syncCsvPreview(features.csvExport);

@@ -17,7 +17,8 @@ import {
   type MCBaseChart,
   type ThemeModePreference
 } from '../../../src/index';
-import { createCodeBlock, createLiveConfigEditor } from './shared';
+import { createBootstrapPlayground } from './bootstrapping';
+import { createLiveConfigEditor } from './shared';
 
 export function renderCsvExportGuide(
   container: HTMLElement,
@@ -37,7 +38,7 @@ export function renderCsvExportGuide(
       and is enabled via <code>registerModernCharts({ features: { csvExport: true } })</code> or per-chart
       <code>registerBarChart({ features: { csvExport: true } })</code> (see the
       <a href="#/guide/bootstrapping">🚀 Feature Bootstrapping &amp; Lazy Loading guide</a>).
-      Studio enables <code>csvExport: true</code> automatically across all examples.
+      CSV export starts enabled in this guide. Change it in the bootstrap example to test the export buttons in both states.
     </p>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
       <table class="guide-table">
@@ -99,7 +100,7 @@ export function renderCsvExportGuide(
         <button type="button" data-csv-preset="columns" aria-pressed="false">Custom Columns &amp; Headers</button>
         <button type="button" data-csv-preset="formatted" aria-pressed="false">Formatted Values</button>
         <button type="button" data-csv-preset="serializer" aria-pressed="false">Custom Serializer</button>
-        <button type="button" id="ce-btn-export-1">⬇ Export CSV</button>
+        <button type="button" id="ce-btn-export-1" disabled>⬇ Export CSV</button>
       </div>
     </div>
     <div class="guide-example-grid">
@@ -269,7 +270,7 @@ export function renderCsvExportGuide(
     <div class="inspector-box" style="margin-top:12px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
         <div class="inspector-title" id="ce-handler-status-2">Built-in CSV rows &amp; headers</div>
-        <button type="button" id="ce-btn-handler-2">⚡ Run Custom Export Handler</button>
+        <button type="button" id="ce-btn-handler-2" disabled>⚡ Run Custom Export Handler</button>
       </div>
       <div class="inspector-readout" id="ce-readout-2" role="status" aria-live="polite" aria-atomic="true" style="white-space:pre;font-family:var(--font-mono, monospace);margin-top:6px;"></div>
     </div>
@@ -480,53 +481,15 @@ export function renderCsvExportGuide(
     }
   });
 
-  // Reference Code Snippet
-  const reference = document.createElement('section');
-  reference.className = 'panel-card guide-section';
-  reference.innerHTML = `
-    <h2 class="panel-title">Programmatic CSV Export API</h2>
-    <p class="guide-prose">
-      Use <code>chart.exportCsv()</code> and <code>chart.toCsv()</code> on any
-      <code>&lt;mc-*-chart&gt;</code> element, or call <code>serializeChartCsv()</code> directly from
-      <code>modern-charts</code> or <code>modern-charts/core</code>.
-    </p>
-  `;
-  reference.appendChild(
-    createCodeBlock(
-      `import { serializeChartCsv } from 'modern-charts/core';
-import 'modern-charts/bar';
-
-const chart = document.querySelector('mc-bar-chart');
-chart.config = {
-  title: 'Quarterly Spend ($K)',
-  indexBy: 'quarter',
-  keys: ['Cloud', 'Edge'],
-  data: [
-    { quarter: 'Q1', Cloud: 142, Edge: 94 },
-    { quarter: 'Q2', Cloud: 168, Edge: 118 }
-  ],
-  csvExport: {
-    filename: 'quarterly-spend.csv',
-    columns: ['quarter', 'Cloud', 'Edge'],
-    headers: { quarter: 'Quarter', Cloud: 'Cloud ($K)', Edge: 'Edge ($K)' },
-    formatValue: (value, { key }) =>
-      key !== 'quarter' && typeof value === 'number' ? \`$\${value}K\` : value
-  }
-};
-
-// 1. Get serialized CSV string
-const csvText = chart.toCsv();
-
-// 2. Trigger export with a custom handler (or omit handler for browser download)
-chart.exportCsv({
-  handler: ({ csv, filename, rows }) => {
-    console.log('Exported', filename, rows.length, csv);
-  }
-});`,
-      'CSV Export Usage'
-    )
-  );
-  container.appendChild(reference);
+  container.appendChild(createBootstrapPlayground(themeMode, mounted, {
+    title: 'Bootstrap CSV Export',
+    initialFeatures: { zoom: false, csvExport: true },
+    onFeaturesChanged: () => {
+      const enabled = bar1.isFeatureEnabled('csvExport');
+      exportBtn1.disabled = !enabled;
+      handlerBtn2.disabled = !enabled;
+    }
+  }));
 
   return mounted;
 }
