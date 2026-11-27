@@ -121,6 +121,28 @@ export interface ViewConfig {
   initialPanY: number;
 }
 
+export interface ChartFeaturesConfig {
+  /**
+   * Enables viewport zoom, pan, brush, range slider, and on-chart zoom toggle controls.
+   * Defaults to `false` so standalone chart bundles do not download the zoom controller unless enabled.
+   */
+  zoom?: boolean;
+  /**
+   * Enables customizable CSV data serialization and export (`chart.toCsv()`, `chart.exportCsv()`).
+   * Defaults to `false` so standalone chart bundles do not download the CSV serializer unless enabled.
+   */
+  csvExport?: boolean;
+}
+
+export interface ChartBootstrapOptions {
+  /** Optional features to lazy-load and enable at bootstrap. All features default to `false`. */
+  features?: ChartFeaturesConfig;
+  /** Shorthand for `features.zoom` (default `false`). */
+  zoom?: boolean;
+  /** Shorthand for `features.csvExport` (default `false`). */
+  csvExport?: boolean;
+}
+
 // ============================================================================
 // Customizable CSV Data Export (Issue #125)
 // ============================================================================

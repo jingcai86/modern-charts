@@ -4,7 +4,7 @@ import { registerCoreComponents } from '../core/registry';
 export * from '../core/i18n';
 export * from '../core/format';
 export * from '../core/types';
-export * from '../core/csv-export';
+export * from '../core/features';
 export * from '../core/theme';
 export * from '../core/label-truncate';
 export * from '../core/label-engine';

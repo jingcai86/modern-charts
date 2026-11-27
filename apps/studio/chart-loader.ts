@@ -1,4 +1,5 @@
 import type { ChartCatalogEntry } from './catalog';
+import { configureChartFeatures } from '../../src/core/features';
 
 const chartModules = new Map<string, () => Promise<unknown>>([
   ['line', () => import('../../src/entries/line')],
@@ -16,6 +17,7 @@ const loading = new Map<string, Promise<void>>();
 
 /** Share a pending chart import between its preview and playground. */
 export function loadChart(entry: ChartCatalogEntry): Promise<void> {
+  void configureChartFeatures({ features: { csvExport: true } });
   if (customElements.get(entry.tagName)) return Promise.resolve();
   const pending = loading.get(entry.id);
   if (pending) return pending;
@@ -23,7 +25,10 @@ export function loadChart(entry: ChartCatalogEntry): Promise<void> {
   const importModule = chartModules.get(entry.id);
   if (!importModule) return Promise.reject(new Error(`Unknown chart: ${entry.id}`));
 
-  const result = importModule().then(() => {
+  const result = Promise.all([
+    importModule(),
+    configureChartFeatures({ features: { csvExport: true } })
+  ]).then(() => {
     if (!customElements.get(entry.tagName)) {
       throw new Error(`Chart module did not register ${entry.tagName}`);
     }

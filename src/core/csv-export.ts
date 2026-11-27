@@ -1,4 +1,5 @@
 import { createChartI18n, type ChartI18n } from './i18n';
+import { registerCsvExporter } from './features';
 import type {
   ChartConfig,
   CsvCellContext,
@@ -457,3 +458,8 @@ export function downloadCsv(
     URL.revokeObjectURL?.(url);
   }
 }
+
+registerCsvExporter({
+  serialize: serializeChartCsv,
+  download: downloadCsv
+});

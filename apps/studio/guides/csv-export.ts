@@ -33,7 +33,11 @@ export function renderCsvExportGuide(
     <p class="guide-prose">
       Every chart component includes built-in RFC 4180 CSV serialization tailored to its data model
       (<code>chart.toCsv()</code>, <code>chart.exportCsv()</code>, and standalone <code>serializeChartCsv()</code>).
-      Customize exported columns, column headers, cell value formatting, filenames, custom serializers, or custom export handlers.
+      To keep standalone chart downloads small, the CSV export feature defaults to <code>false</code> at bootstrap
+      and is enabled via <code>registerModernCharts({ features: { csvExport: true } })</code> or per-chart
+      <code>registerBarChart({ features: { csvExport: true } })</code> (see the
+      <a href="#/guide/bootstrapping">🚀 Feature Bootstrapping &amp; Lazy Loading guide</a>).
+      Studio enables <code>csvExport: true</code> automatically across all examples.
     </p>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
       <table class="guide-table">

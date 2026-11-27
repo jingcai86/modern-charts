@@ -2,9 +2,14 @@ import { MCHeatmapChart } from '../charts/mc-heatmap-chart';
 import { MCCellItem } from '../presentation/items/cell.item';
 import {
   CORE_COMPONENT_REGISTRY,
+  configureChartFeatures,
+  getChartFeatures,
+  isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
+export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
 export type * from '../core/types';
 export * from '../models/heatmap.model';
 export {
@@ -27,11 +32,16 @@ export const HEATMAP_COMPONENT_REGISTRY: Record<
  * Registers `<mc-heatmap-chart>`, `<mc-cell-item>`, and shared core capability
  * components idempotently.
  */
-export function registerHeatmapChart(): void {
-  registerChartComponents({
-    'mc-cell-item': MCCellItem,
-    'mc-heatmap-chart': MCHeatmapChart
-  });
+export function registerHeatmapChart(
+  options?: ChartBootstrapOptions | ChartFeaturesConfig
+): Promise<void> {
+  return registerChartComponents(
+    {
+      'mc-cell-item': MCCellItem,
+      'mc-heatmap-chart': MCHeatmapChart
+    },
+    options
+  );
 }
 
-registerHeatmapChart();
+void registerHeatmapChart();

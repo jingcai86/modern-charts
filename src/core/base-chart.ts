@@ -35,6 +35,7 @@ import type {
   ChartEventName,
   ChartEventsConfig,
   ChartEventTargetRegistration,
+  ChartFeaturesConfig,
   ChartGradientConfig,
   ChartMargin,
   ChartPaletteName,
@@ -69,7 +70,7 @@ import type {
   TooltipPositionMode,
   ViewConfig
 } from './types';
-import { downloadCsv, serializeChartCsv } from './csv-export';
+import { getCsvExporter, isChartFeatureEnabled } from './features';
 import {
   MCAnimationLayer,
   MCAriaLayer,
@@ -841,6 +842,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     }
   }
 
+  public isFeatureEnabled(feature: keyof ChartFeaturesConfig): boolean {
+    return isChartFeatureEnabled(feature);
+  }
+
   public toCsv(options: CsvExportOptions<TData> = {}): string {
     return this.#buildCsvPayload(options).csv;
   }
@@ -848,6 +853,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   public exportCsv(
     options: CsvExportOptions<TData> = {}
   ): CsvExportPayload<TData> {
+    const exporter = getCsvExporter();
+    if (!exporter) {
+      return this.#buildCsvPayload(options);
+    }
     const merged: CsvExportOptions<TData> = {
       ...(this._config.export ?? {}),
       ...(this._config.csvExport ?? {}),
@@ -866,16 +875,29 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     const handler = merged.handler ?? merged.exportHandler ?? merged.onExport;
     if (typeof handler === 'function') {
       if (handler(payload) === true && merged.download === true && notCanceled) {
-        downloadCsv(payload.csv, payload.filename, payload.mimeType);
+        exporter.download(payload.csv, payload.filename, payload.mimeType);
       }
     } else if (notCanceled && merged.download !== false) {
-      downloadCsv(payload.csv, payload.filename, payload.mimeType);
+      exporter.download(payload.csv, payload.filename, payload.mimeType);
     }
     return payload;
   }
 
   #buildCsvPayload(options: CsvExportOptions<TData>): CsvExportPayload<TData> {
-    return serializeChartCsv<TData>(
+    const exporter = getCsvExporter();
+    if (!exporter) {
+      return {
+        csv: '',
+        filename: '',
+        chartType: this.chartType,
+        rows: [],
+        columns: [],
+        headers: [],
+        data: this._data as TData,
+        mimeType: 'text/csv;charset=utf-8;'
+      };
+    }
+    return exporter.serialize<TData>(
       this.chartType,
       this._data as TData,
       {

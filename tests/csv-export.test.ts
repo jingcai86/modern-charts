@@ -1,15 +1,28 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
+  configureChartFeatures,
   configureI18n,
   downloadCsv,
   escapeCsvCell,
   extractChartCsvRows,
+  getChartFeatures,
+  isChartFeatureEnabled,
   normalizeCsvFilename,
   registerModernCharts,
   serializeChartCsv,
   type CsvExportPayload,
   type MCBaseChart
 } from '../src/index';
+import { registerBarChart } from '../src/entries/bar';
+import { registerLineChart } from '../src/entries/line';
+import { registerPieChart } from '../src/entries/pie';
+import { registerHeatmapChart } from '../src/entries/heatmap';
+import { registerRadarChart } from '../src/entries/radar';
+import { registerSunburstChart } from '../src/entries/sunburst';
+import { registerSankeyChart } from '../src/entries/sankey';
+import { registerScatterChart } from '../src/entries/scatter';
+import { registerTreemapChart } from '../src/entries/treemap';
+import { registerGaugeChart } from '../src/entries/gauge';
 import { CHART_CATALOG } from '../apps/studio/catalog';
 import {
   SAMPLE_BAR_DATA,
@@ -30,21 +43,79 @@ import {
   parseConfigObjectLiteral
 } from '../apps/studio/utils/code-sync';
 
-beforeAll(() => {
-  registerModernCharts();
+beforeAll(async () => {
+  await registerModernCharts();
 });
 
-afterEach(() => {
+afterEach(async () => {
   document.body.replaceChildren();
   configureI18n({});
+  await configureChartFeatures({ features: { csvExport: false, zoom: false } });
   for (const entry of CHART_CATALOG) {
     resetChartConfig(entry);
   }
   vi.restoreAllMocks();
 });
 
+describe('Opt-in csvExport feature bootstrapping (default false across all charts)', () => {
+  it('defaults csvExport feature to false on registerModernCharts() and all 10 register<Chart>() entrypoints, and enables when features.csvExport is true', async () => {
+    await configureChartFeatures({ features: { csvExport: false } });
+    expect(isChartFeatureEnabled('csvExport')).toBe(false);
+    expect(getChartFeatures().csvExport).toBe(false);
+
+    // Calling registerModernCharts() and all 10 per-chart registrars without options keeps csvExport: false
+    await registerModernCharts();
+    const registrars = [
+      registerBarChart,
+      registerLineChart,
+      registerPieChart,
+      registerHeatmapChart,
+      registerRadarChart,
+      registerSunburstChart,
+      registerSankeyChart,
+      registerScatterChart,
+      registerTreemapChart,
+      registerGaugeChart
+    ];
+    for (const registerFn of registrars) {
+      await registerFn();
+      expect(isChartFeatureEnabled('csvExport')).toBe(false);
+    }
+
+    // Mount a chart while csvExport feature is false (default)
+    const bar = document.createElement('mc-bar-chart') as MCBaseChart<any>;
+    bar.config = {
+      width: 480,
+      height: 280,
+      animate: false,
+      indexBy: 'quarter',
+      keys: ['Cloud'],
+      data: SAMPLE_BAR_DATA
+    };
+    document.body.appendChild(bar);
+
+    expect(bar.isFeatureEnabled('csvExport')).toBe(false);
+    expect(bar.toCsv()).toBe('');
+    const disabledPayload = bar.exportCsv();
+    expect(disabledPayload.csv).toBe('');
+    expect(disabledPayload.rows).toEqual([]);
+
+    // Enable csvExport via per-chart bootstrap function
+    await registerBarChart({ features: { csvExport: true } });
+    expect(isChartFeatureEnabled('csvExport')).toBe(true);
+    expect(bar.isFeatureEnabled('csvExport')).toBe(true);
+    expect(bar.toCsv()).toContain('quarter,Cloud');
+
+    // Disabling csvExport feature at runtime turns off CSV serialization
+    await registerBarChart({ features: { csvExport: false } });
+    expect(bar.isFeatureEnabled('csvExport')).toBe(false);
+    expect(bar.toCsv()).toBe('');
+  });
+});
+
 describe('Customizable CSV export across all 10 chart types (Issue #125)', () => {
-  it('provides built-in CSV serialization for all 10 chart types via chart.toCsv() and chart.exportCsv()', () => {
+  it('provides built-in CSV serialization for all 10 chart types via chart.toCsv() and chart.exportCsv()', async () => {
+    await registerModernCharts({ features: { csvExport: true } });
     const cases: Array<{
       id: string;
       tag: string;
@@ -195,7 +266,8 @@ describe('Customizable CSV export across all 10 chart types (Issue #125)', () =>
     }
   });
 
-  it('customizes columns, headers (array and map), value formatting, and filename', () => {
+  it('customizes columns, headers (array and map), value formatting, and filename', async () => {
+    await registerModernCharts({ features: { csvExport: true } });
     const bar = document.createElement('mc-bar-chart') as MCBaseChart<any>;
     bar.config = {
       width: 480,
@@ -261,7 +333,8 @@ describe('Customizable CSV export across all 10 chart types (Issue #125)', () =>
     );
   });
 
-  it('supports custom data serializers returning strings, row objects, or 2D arrays, and custom export handlers', () => {
+  it('supports custom data serializers returning strings, row objects, or 2D arrays, and custom export handlers', async () => {
+    await registerModernCharts({ features: { csvExport: true } });
     const pie = document.createElement('mc-pie-chart') as MCBaseChart<any>;
     pie.config = {
       width: 400,
@@ -388,8 +461,8 @@ describe('Customizable CSV export across all 10 chart types (Issue #125)', () =>
   }, 20000);
 });
 
-describe('Customizable CSV Data Export Studio guide', () => {
-  it('renders interactive CSV export presets and all 10 chart switchers', () => {
+describe('Customizable CSV Data Export & Bootstrapping Studio guides', () => {
+  it('renders interactive CSV export presets and all 10 chart switchers in csv-export guide', () => {
     expect(
       GUIDES_CATALOG.find((g) => g.id === 'csv-export')?.title
     ).toContain('Customizable CSV Data Export');
@@ -465,6 +538,73 @@ describe('Customizable CSV Data Export Studio guide', () => {
     // Edit and reset live config editor 2
     const cfg2 = parseConfigObjectLiteral(editor2.value);
     cfg2.title = 'Updated Efficiency';
+    editor2.value = formatConfigAssignment(cfg2);
+    editor2.dispatchEvent(new Event('input', { bubbles: true }));
+    ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+  }, 20000);
+
+  it('renders the Feature Bootstrapping & Lazy Loading guide with links to csv-export and view-zoom and interactive true vs false examples', () => {
+    expect(
+      GUIDES_CATALOG.find((g) => g.id === 'bootstrapping')?.title
+    ).toContain('Feature Bootstrapping & Lazy Loading');
+
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const charts = renderGuidePage(root, 'bootstrapping', 'dark');
+    expect(charts).toHaveLength(2);
+
+    // Verify links to the current bootstrap feature guides
+    expect(
+      root.querySelector('a[href="#/guide/csv-export"]')
+    ).not.toBeNull();
+    expect(
+      root.querySelector('a[href="#/guide/view-zoom"]')
+    ).not.toBeNull();
+
+    // Example 1: Toggle between Explicit Enable (csvExport: true) and Default Bootstrap (csvExport: false)
+    const ex1 = root.querySelector<HTMLElement>('#bs-default-vs-enabled')!;
+    const btnEnabled = ex1.querySelector<HTMLButtonElement>('#bs-mode-enabled')!;
+    const btnDefault = ex1.querySelector<HTMLButtonElement>('#bs-mode-default')!;
+    const readout1 = ex1.querySelector<HTMLElement>('#bs-readout-1')!;
+    const editor1 = ex1.querySelector<HTMLTextAreaElement>('textarea')!;
+
+    expect(readout1.textContent).toContain('features.csvExport: true');
+    expect(editor1.value).not.toContain('registerModernCharts');
+
+    btnDefault.click();
+    expect(isChartFeatureEnabled('csvExport')).toBe(false);
+    expect(readout1.textContent).toContain('features.csvExport: false');
+
+    btnEnabled.click();
+    expect(isChartFeatureEnabled('csvExport')).toBe(true);
+    expect(readout1.textContent).toContain('features.csvExport: true');
+
+    // Edit & reset live config editor 1
+    const cfg1 = parseConfigObjectLiteral(editor1.value);
+    cfg1.title = 'Updated Spend';
+    editor1.value = formatConfigAssignment(cfg1);
+    editor1.dispatchEvent(new Event('input', { bubbles: true }));
+    ex1.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+
+    // Example 2: Switch across all 10 per-chart subpath bootstrap examples
+    const ex2 = root.querySelector<HTMLElement>('#bs-per-chart')!;
+    const readout2 = ex2.querySelector<HTMLElement>('#bs-readout-2')!;
+    const editor2 = ex2.querySelector<HTMLTextAreaElement>('textarea')!;
+    const typeBtns = Array.from(
+      ex2.querySelectorAll<HTMLButtonElement>('button[data-bs-chart-type]')
+    );
+    expect(typeBtns).toHaveLength(10);
+
+    for (const btn of typeBtns) {
+      btn.click();
+      expect(btn.getAttribute('aria-pressed')).toBe('true');
+      expect(readout2.textContent).toContain(
+        `from 'modern-charts/${btn.dataset.bsChartType}'`
+      );
+    }
+
+    const cfg2 = parseConfigObjectLiteral(editor2.value);
+    cfg2.title = 'Updated Gauge';
     editor2.value = formatConfigAssignment(cfg2);
     editor2.dispatchEvent(new Event('input', { bubbles: true }));
     ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();

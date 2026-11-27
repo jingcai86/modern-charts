@@ -2,9 +2,14 @@ import { MCBarChart } from '../charts/mc-bar-chart';
 import { MCBarItem } from '../presentation/items/bar.item';
 import {
   CORE_COMPONENT_REGISTRY,
+  configureChartFeatures,
+  getChartFeatures,
+  isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
+export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
 export type * from '../core/types';
 export * from '../models/bar.model';
 export * from '../presentation/items/bar.item';
@@ -22,11 +27,16 @@ export const BAR_COMPONENT_REGISTRY: Record<string, CustomElementConstructor> =
  * Registers `<mc-bar-chart>`, `<mc-bar-item>`, and shared core capability
  * components idempotently.
  */
-export function registerBarChart(): void {
-  registerChartComponents({
-    'mc-bar-item': MCBarItem,
-    'mc-bar-chart': MCBarChart
-  });
+export function registerBarChart(
+  options?: ChartBootstrapOptions | ChartFeaturesConfig
+): Promise<void> {
+  return registerChartComponents(
+    {
+      'mc-bar-item': MCBarItem,
+      'mc-bar-chart': MCBarChart
+    },
+    options
+  );
 }
 
-registerBarChart();
+void registerBarChart();

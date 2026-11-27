@@ -13,7 +13,8 @@ export type GuideId =
   | 'dynamic-updates'
   | 'chart-state'
   | 'patterns'
-  | 'csv-export';
+  | 'csv-export'
+  | 'bootstrapping';
 
 export interface GuideMeta {
   id: GuideId;
@@ -143,5 +144,13 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '📥',
     summary:
       'Export chart data to RFC 4180 CSV with built-in serialization across all 10 chart types, custom columns, headers, value formatting, filenames, custom serializers, and export handlers.'
+  },
+  {
+    id: 'bootstrapping',
+    title: 'Feature Bootstrapping & Lazy Loading',
+    shortLabel: 'Bootstrapping',
+    icon: '🚀',
+    summary:
+      'Keep browser downloads minimal with opt-in feature bootstrapping (features: { csvExport, zoom } — default false) across registerModernCharts() and per-chart register<Chart>() entrypoints.'
   }
 ];

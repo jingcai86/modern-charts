@@ -1,7 +1,8 @@
-import type {
-  ChartConfig,
-  CsvExportPayload,
-  MCBaseChart
+import {
+  configureChartFeatures,
+  type ChartConfig,
+  type CsvExportPayload,
+  type MCBaseChart
 } from '../../../../src/index';
 import {
   getAllAttributesForChart,
@@ -32,6 +33,7 @@ export function renderChartDetailPage(
   root: HTMLElement,
   entry: ChartCatalogEntry
 ): MCBaseChart<any> {
+  void configureChartFeatures({ features: { csvExport: true } });
   root.replaceChildren();
 
   const config = getOrInitChartConfig(entry);
