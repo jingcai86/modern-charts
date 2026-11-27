@@ -34,6 +34,10 @@ export function gaugeTrianglePoints(cos: number, sin: number, length: number, wi
   ].join(' ');
 }
 
+function finiteOption(value: number | undefined, fallback: number): number {
+  return Number.isFinite(value) ? value! : fallback;
+}
+
 export interface ComputedGaugeBandModel {
   band: GaugeBand;
   pathD: string;
@@ -138,12 +142,9 @@ export function computeGaugeChartModel(
   ctx: ChartRenderContext<GaugeDataInput>,
   input: GaugeModelInput
 ): GaugeChartModel {
-  const rawData = ctx.data;
-  const items: GaugeDatum[] = Array.isArray(rawData)
-    ? rawData.length > 0
-      ? rawData
-      : [{ value: 0, min: 0, max: 100 }]
-    : [rawData ?? { value: 0, min: 0, max: 100 }];
+  const fallback: GaugeDatum = { value: 0, min: 0, max: 100 };
+  const data = Array.isArray(ctx.data) ? ctx.data : [ctx.data ?? fallback];
+  const items = data.length ? data : [fallback];
 
   const primaryDatum: GaugeDatum = items[0];
   const min = Number(input.min ?? primaryDatum.min ?? 0);
@@ -154,12 +155,8 @@ export function computeGaugeChartModel(
     input.centerLabel !== undefined ? input.centerLabel : primaryDatum.label;
   const enableLabels = input.enableLabels !== false;
 
-  const startAngleDeg = Number.isFinite(input.startAngle)
-    ? Number(input.startAngle)
-    : -135;
-  const endAngleDeg = Number.isFinite(input.endAngle)
-    ? Number(input.endAngle)
-    : 135;
+  const startAngleDeg = finiteOption(input.startAngle, -135);
+  const endAngleDeg = finiteOption(input.endAngle, 135);
   const startAngle = (startAngleDeg * Math.PI) / 180;
   const endAngle = (endAngleDeg * Math.PI) / 180;
 
@@ -202,42 +199,17 @@ export function computeGaugeChartModel(
     Math.min(maxOuterByWidth, maxOuterByHeight)
   );
 
-  let innerRadius = outerRadius * 0.76;
-  if (input.innerRadius !== undefined && Number.isFinite(input.innerRadius)) {
-    const ir = Number(input.innerRadius);
-    if (ir > 0 && ir < 1) {
-      innerRadius = outerRadius * Math.max(0.2, Math.min(0.95, ir));
-    } else if (ir >= 1) {
-      innerRadius = Math.max(12, Math.min(outerRadius - 6, ir));
-    }
-  }
+  const ir = finiteOption(input.innerRadius, 0.76);
+  const innerRadius = ir >= 1
+    ? Math.max(12, Math.min(outerRadius - 6, ir))
+    : outerRadius * (ir > 0 ? Math.max(0.2, Math.min(0.95, ir)) : 0.76);
 
-  const cornerRadius = Math.max(
-    0,
-    Number.isFinite(input.cornerRadius) ? Number(input.cornerRadius) : 8
-  );
-  const splitNumber = Math.max(
-    0,
-    Math.round(Number.isFinite(input.splitNumber) ? Number(input.splitNumber) : 5)
-  );
-  const minorSplitNumber = Math.max(
-    0,
-    Math.round(
-      Number.isFinite(input.minorSplitNumber) ? Number(input.minorSplitNumber) : 4
-    )
-  );
+  const cornerRadius = Math.max(0, finiteOption(input.cornerRadius, 8));
+  const splitNumber = Math.max(0, Math.round(finiteOption(input.splitNumber, 5)));
+  const minorSplitNumber = Math.max(0, Math.round(finiteOption(input.minorSplitNumber, 4)));
   const pointerType: GaugePointerType = input.pointerType ?? 'needle';
-  const pointerLength = Math.max(
-    0.1,
-    Math.min(
-      1.2,
-      Number.isFinite(input.pointerLength) ? Number(input.pointerLength) : 0.88
-    )
-  );
-  const pointerWidth = Math.max(
-    1,
-    Number.isFinite(input.pointerWidth) ? Number(input.pointerWidth) : 2.5
-  );
+  const pointerLength = Math.max(0.1, Math.min(1.2, finiteOption(input.pointerLength, 0.88)));
+  const pointerWidth = Math.max(1, finiteOption(input.pointerWidth, 2.5));
 
   const bandOuterRadius = outerRadius + bandPad;
   const arcBottomY = bandOuterRadius * maxBottomRatio;
@@ -282,10 +254,7 @@ export function computeGaugeChartModel(
     const itemScale =
       itemMin === min && itemSafeMax === safeMax
         ? angleScale
-        : scaleLinear()
-            .domain([itemMin, itemSafeMax])
-            .range([startAngle, endAngle])
-            .clamp(true);
+        : angleScale.copy().domain([itemMin, itemSafeMax]);
 
     const geometry = { startAngle, endAngle, innerRadius: ringInnerRadius, outerRadius: ringOuterRadius, cornerRadius };
     const valueAngle = itemScale(itemVal);

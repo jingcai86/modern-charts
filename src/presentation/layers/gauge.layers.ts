@@ -9,6 +9,7 @@ import {
   gaugeArcPath,
   gaugeTrianglePoints,
   type ComputedGaugeSeriesModel,
+  type ComputedGaugeTickLineModel,
   type GaugeArcGeometry,
   type GaugeChartModel
 } from '../../models/gauge.model';
@@ -25,7 +26,6 @@ interface GaugeFrame extends GaugeArcGeometry {
 }
 
 const displayed = new WeakMap<SVGGElement, GaugeFrame>();
-const needleHolders = new WeakMap<SVGGElement, SVGGElement>();
 
 function gaugeSeriesKey(item: ComputedGaugeSeriesModel): string {
   return item.datum.label ? `label:${item.datum.label}` : `index:${item.index}`;
@@ -48,28 +48,23 @@ function withoutEntrance(ctx: ChartRenderContext<GaugeDataInput>): ChartRenderCo
   return { ...ctx, animateItem: () => {} };
 }
 
-type GaugeDraw = (mark: SVGElement, frame: GaugeFrame) => void;
-
-function drawValueArc(mark: SVGElement, frame: GaugeFrame): void {
-  mark.setAttribute('d', gaugeArcPath(frame));
-}
-
-function drawNeedle(mark: SVGElement, frame: GaugeFrame): void {
+function drawGaugeItem(mark: SVGElement, frame: GaugeFrame): void {
+  if (mark.localName === 'path') {
+    mark.setAttribute('d', gaugeArcPath(frame));
+    return;
+  }
   const angle = frame.endAngle - Math.PI / 2;
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   if (mark.localName === 'polygon') {
     mark.setAttribute('points', gaugeTrianglePoints(cos, sin, frame.needleLength, frame.pointerWidth));
-  } else if (mark.localName === 'circle') {
-    const centerRadius = (frame.innerRadius + frame.outerRadius) / 2;
-    mark.setAttribute('cx', String(cos * centerRadius));
-    mark.setAttribute('cy', String(sin * centerRadius));
-    mark.setAttribute('r', String(frame.pinRadius));
-  } else {
-    mark.setAttribute('x2', String(cos * frame.needleLength));
-    mark.setAttribute('y2', String(sin * frame.needleLength));
-    mark.setAttribute('stroke-width', String(frame.pointerWidth));
+    return;
   }
+  const pin = mark.localName === 'circle';
+  const radius = pin ? (frame.innerRadius + frame.outerRadius) / 2 : frame.needleLength;
+  mark.setAttribute(pin ? 'cx' : 'x2', String(cos * radius));
+  mark.setAttribute(pin ? 'cy' : 'y2', String(sin * radius));
+  mark.setAttribute(pin ? 'r' : 'stroke-width', String(pin ? frame.pinRadius : frame.pointerWidth));
 }
 
 function collapse(frame: GaugeFrame): GaugeFrame {
@@ -80,8 +75,6 @@ function tweenGaugeItem(
   group: SVGGElement,
   mark: SVGElement,
   target: GaugeFrame,
-  draw: GaugeDraw,
-  mode: 'enter' | 'update' | 'exit',
   motion?: ItemMotion
 ): void {
   const source = displayed.get(group) ?? collapse(target);
@@ -93,36 +86,28 @@ function tweenGaugeItem(
 
   const frame = { ...source };
   displayed.set(group, frame);
-  if (mode !== 'exit') {
-    mark.setAttribute('data-animated', 'true');
-    mark.setAttribute('data-item-transition', mode);
-  }
   motion((t) => {
     for (const field of fields) frame[field] = source[field] + (target[field] - source[field]) * t;
-    draw(mark, frame);
-  }, () => {
-    displayed.set(group, target);
-    mark.removeAttribute('data-item-transition');
-  });
+    drawGaugeItem(mark, frame);
+  }, () => displayed.set(group, target));
 }
 
 function joinGaugeSeries(
   layer: SVGGElement,
   model: GaugeChartModel,
   ctx: ChartRenderContext<GaugeDataInput>,
-  render: (group: SVGGElement, item: ComputedGaugeSeriesModel, initial: boolean) => SVGElement,
-  draw: GaugeDraw
+  render: (group: SVGGElement, item: ComputedGaugeSeriesModel, initial: boolean) => SVGElement
 ): void {
   joinChartItems(layer, model.series, gaugeSeriesKey, ctx.animationConfig,
-    (group, item, { initial, entered, motion }) => {
+    (group, item, { initial, motion }) => {
       const mark = render(group, item, initial);
       group.replaceChildren(mark);
-      tweenGaugeItem(group, mark, gaugeFrame(model, item), draw, entered ? 'enter' : 'update', motion);
+      tweenGaugeItem(group, mark, gaugeFrame(model, item), motion);
     },
     (group, motion) => {
       const mark = group.lastElementChild as SVGElement | null;
       const frame = displayed.get(group);
-      if (mark && frame) tweenGaugeItem(group, mark, collapse(frame), draw, 'exit', motion);
+      if (mark && frame) tweenGaugeItem(group, mark, collapse(frame), motion);
     }
   );
 }
@@ -174,7 +159,23 @@ export function renderGaugeValueArcLayer(
   joinGaugeSeries(ctx.layerGroup, model, ctx, (group, item, initial) => {
     group.setAttribute('transform', center);
     return renderGaugeValueArcItem(model, initial ? ctx : staticCtx, item);
-  }, drawValueArc);
+  });
+}
+
+function appendTick(
+  group: SVGGElement,
+  tick: ComputedGaugeTickLineModel,
+  stroke: string,
+  minor = false
+): void {
+  const line = document.createElementNS(SVG_NS, 'line');
+  line.setAttribute('class', minor ? 'mc-gauge-minor-tick-line' : 'mc-gauge-tick-line');
+  for (const coord of ['x1', 'y1', 'x2', 'y2'] as const) {
+    line.setAttribute(coord, String(tick[coord]));
+  }
+  line.setAttribute('stroke', stroke);
+  line.setAttribute('stroke-width', minor ? '1' : '1.5');
+  group.appendChild(line);
 }
 
 export function renderGaugeTicksLayer(
@@ -184,34 +185,11 @@ export function renderGaugeTicksLayer(
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
-  (model.minorTicks ?? []).forEach((mt) => {
-    const line = document.createElementNS(SVG_NS, 'line');
-    line.setAttribute('class', 'mc-gauge-minor-tick-line');
-    line.setAttribute('x1', String(mt.x1));
-    line.setAttribute('y1', String(mt.y1));
-    line.setAttribute('x2', String(mt.x2));
-    line.setAttribute('y2', String(mt.y2));
-    line.setAttribute('stroke', ctx.theme.gridColor);
-    line.setAttribute('stroke-width', '1');
-    g.appendChild(line);
-  });
+  (model.minorTicks ?? []).forEach((tick) => appendTick(g, tick, ctx.theme.gridColor, true));
 
   model.ticks.forEach((tick) => {
-    if (
-      Number.isFinite(tick.x1) &&
-      Number.isFinite(tick.y1) &&
-      Number.isFinite(tick.x2) &&
-      Number.isFinite(tick.y2)
-    ) {
-      const line = document.createElementNS(SVG_NS, 'line');
-      line.setAttribute('class', 'mc-gauge-tick-line');
-      line.setAttribute('x1', String(tick.x1));
-      line.setAttribute('y1', String(tick.y1));
-      line.setAttribute('x2', String(tick.x2));
-      line.setAttribute('y2', String(tick.y2));
-      line.setAttribute('stroke', ctx.theme.axisColor);
-      line.setAttribute('stroke-width', '1.5');
-      g.appendChild(line);
+    if ([tick.x1, tick.y1, tick.x2, tick.y2].every(Number.isFinite)) {
+      appendTick(g, tick, ctx.theme.axisColor);
     }
 
     if (model.enableLabels === false) return;
@@ -258,17 +236,15 @@ export function renderGaugeNeedleLayer(
   const layer = ctx.layerGroup;
   if (model.pointerType === 'none') {
     layer.replaceChildren();
-    needleHolders.delete(layer);
     return;
   }
-  const previous = needleHolders.get(layer);
+  const previous = layer.querySelector<SVGGElement>(':scope > g > g');
   const rendered = renderGaugeNeedleItem(model, previous ? withoutEntrance(ctx) : ctx);
   const holder = previous ?? document.createElementNS(SVG_NS, 'g');
-  needleHolders.set(layer, holder);
   const marks = rendered.querySelectorAll<SVGElement>('.mc-gauge-needle');
   rendered.prepend(holder);
   layer.replaceChildren(rendered);
-  joinGaugeSeries(holder, model, ctx, (_group, item) => marks[item.index], drawNeedle);
+  joinGaugeSeries(holder, model, ctx, (_group, item) => marks[item.index]);
 }
 
 export function renderGaugeCenterLayer(
