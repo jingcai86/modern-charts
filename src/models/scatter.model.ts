@@ -13,6 +13,7 @@ export interface ComputedScatterNodeModel {
   index: number;
   totalNodes: number;
   seriesId: string;
+  itemKey?: string;
   originalColor: string;
   color: string;
   xValue: number;
@@ -214,6 +215,7 @@ export function computeScatterChartModel(
 
       rawNodes.push({
         seriesId: s.id,
+        itemKey: JSON.stringify(pt.id === undefined ? [s.id, pt.label ?? idx] : [s.id, pt.id, 'id']),
         originalColor: baseColor,
         color,
         xValue: Number(pt.x),

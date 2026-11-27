@@ -116,7 +116,8 @@ export function showScatterNodeTooltip(
  */
 export function renderScatterNodeItem(
   node: ComputedScatterNodeModel,
-  ctx: ChartRenderContext<any>
+  ctx: ChartRenderContext<any>,
+  initial = true
 ): SVGElement {
   const isCircle = node.symbol === 'circle';
   const el: SVGElement = isCircle
@@ -222,12 +223,16 @@ export function renderScatterNodeItem(
     }
   });
 
-  ctx.animateItem(el, {
-    type: 'point-pop',
-    index: node.index,
-    originX: node.px,
-    originY: node.py
-  });
+  if (initial) {
+    ctx.animateItem(el, {
+      type: 'point-pop',
+      index: node.index,
+      originX: node.px,
+      originY: node.py
+    });
+  } else {
+    el.setAttribute('data-animated', 'false');
+  }
 
   if (interactive) {
     el.addEventListener('mouseenter', (e) => {
