@@ -558,10 +558,10 @@ export function restoreSerializedFunctions(parsed: any, prev: any): any {
 }
 
 /**
- * Extracts the `{ ... }` object literal assigned to `chart.config = { ... }` from HTML/JS markup.
+ * Finds the `{ ... }` object literal assigned to `chart.config` and its end offset in the source.
  * Safely skips single-quoted, double-quoted, and template strings as well as `//` and `/* *\/` comments.
  */
-export function extractChartConfigBlock(markup: string): string | null {
+export function findChartConfigBlock(markup: string): { literal: string; end: number } | null {
   const assignMatch = /\bchart\.config\s*=\s*\{/.exec(markup);
   if (!assignMatch) return null;
   const startIdx = assignMatch.index + assignMatch[0].length - 1;
@@ -617,11 +617,16 @@ export function extractChartConfigBlock(markup: string): string | null {
     } else if (ch === '}') {
       depth--;
       if (depth === 0) {
-        return markup.slice(startIdx, i + 1);
+        const end = i + 1;
+        return { literal: markup.slice(startIdx, end), end };
       }
     }
   }
   return null;
+}
+
+export function extractChartConfigBlock(markup: string): string | null {
+  return findChartConfigBlock(markup)?.literal ?? null;
 }
 
 export function extractTagAttributes(

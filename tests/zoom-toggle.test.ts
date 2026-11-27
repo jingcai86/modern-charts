@@ -437,6 +437,86 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(readout2.textContent).toContain('zoomable: true | pannable: true');
   });
 
+  it('updates custom zoom controls from the editor and restores them on Reset', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [radar] = renderGuidePage(root, 'view-zoom', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#vz-editor-1 textarea')!;
+    const peer = root.querySelector<HTMLTextAreaElement>('#vz-editor-2 textarea')!;
+    const controls = radar.shadowRoot!.querySelector<HTMLElement>('.mc-view-controls')!;
+    const readout = root.querySelector('#vz-readout-1')!;
+    const extraButton = () => radar.querySelector<HTMLButtonElement>('[slot="zoom-controls-extra"]');
+    const apply = (source: string) => {
+      editor.value = source;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const initialSource = editor.value;
+    const buttonMarkup = '<button type="button" slot="zoom-controls-extra" aria-label="Zoom in by 2×">2×</button>';
+    expect(initialSource).toContain(buttonMarkup);
+    expect(extraButton()?.textContent).toBe('2×');
+
+    apply(initialSource.replace(buttonMarkup, ''));
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    expect(extraButton()).toBeNull();
+    expect(radar.querySelectorAll('svg[slot]')).toHaveLength(3);
+
+    const config = extractChartConfigBlock(initialSource)!;
+    apply(initialSource.slice(0, initialSource.indexOf(config) + config.length) + ';');
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    expect(radar.querySelectorAll('[slot]')).toHaveLength(0);
+    expect(radar.classList.contains('vz-custom-zoom')).toBe(false);
+    expect(Array.from(controls.querySelectorAll('button'), (button) => button.dataset.zoom))
+      .toEqual(['in', 'out', 'reset']);
+    controls.querySelector<HTMLButtonElement>('[data-zoom="in"]')!.click();
+    expect(readout.textContent).toContain('scale(1.25)');
+
+    peer.value = peer.value.replace('zoom: true', 'zoom: false');
+    peer.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(controls.hidden).toBe(true);
+    peer.value = peer.value.replace('zoom: false', 'zoom: true');
+    peer.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(controls.hidden).toBe(false);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    radar.setZoomEnabled(false);
+    expect(extraButton()).toBeNull();
+    expect(editor.value).not.toContain('zoom-controls-extra');
+
+    root.querySelector<HTMLButtonElement>('#vz-editor-1 .guide-reset-btn')!.click();
+    expect(editor.value).toBe(initialSource);
+    expect(extraButton()?.textContent).toBe('2×');
+    extraButton()!.click();
+    expect(readout.textContent).toContain('scale(2)');
+  });
+
+  it('keeps the last valid custom controls while the editor markup is incomplete', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [radar] = renderGuidePage(root, 'view-zoom', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#vz-editor-1 textarea')!;
+    const initialSource = editor.value;
+    const apply = (source: string) => {
+      editor.value = source;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const validMarkupEdit = initialSource.replace('>2×</button>', '>Magnify</button>');
+    apply(validMarkupEdit.replace('\n`);', '\n);'));
+    expect(editor.getAttribute('aria-invalid')).toBe('true');
+    expect(radar.querySelector('[slot="zoom-controls-extra"]')?.textContent).toBe('2×');
+
+    apply(validMarkupEdit.replace('<button type="button"', '<button onclick="return false" type="button"')
+      .replace('>Magnify</button>', '>Magnify</button>\n<span data-preview-only="unrelated">Ignored</span>'));
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    const editedButton = radar.querySelector('[slot="zoom-controls-extra"]');
+    expect(editedButton?.textContent).toBe('Magnify');
+    expect(editedButton?.hasAttribute('onclick')).toBe(false);
+    expect(radar.querySelector('[data-preview-only]')).toBeNull();
+
+    root.querySelector<HTMLButtonElement>('#vz-editor-1 .guide-reset-btn')!.click();
+    expect(radar.querySelector('[slot="zoom-controls-extra"]')?.textContent).toBe('2×');
+  });
+
   it('bootstraps a live preview with the selected entry point, chart, and features', async () => {
     expect(GUIDES_CATALOG.find(({ id }) => id === 'bootstrapping')?.title).toContain(
       'Feature Bootstrapping & Lazy Loading'

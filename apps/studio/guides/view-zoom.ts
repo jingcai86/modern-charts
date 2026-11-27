@@ -11,7 +11,9 @@ import {
   SAMPLE_SUNBURST_DATA
 } from '../sample-data';
 import type { MCBaseChart, ThemeModePreference } from '../../../src/index';
+import { parseConfigObjectLiteral } from '../utils/code-sync';
 import { createFeatureGuideBootstrap } from './bootstrapping';
+import { sanitizeChartChildren } from './shared';
 
 const CUSTOM_ZOOM_CONTROLS = `<svg slot="zoom-in-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
   <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor"/>
@@ -46,6 +48,42 @@ const CUSTOM_ZOOM_STYLES = `.vz-custom-zoom::part(zoom-button) {
   cursor: default;
   opacity: 0.55;
 }`;
+
+const ZOOM_MARKUP_START = `chart.classList.add('vz-custom-zoom');
+chart.insertAdjacentHTML('beforeend', `;
+
+const ZOOM_MARKUP_END = `);
+
+const style = document.createElement('style');
+style.textContent = \`
+${CUSTOM_ZOOM_STYLES}
+\`;
+document.head.appendChild(style);
+
+const zoomDouble = chart.querySelector('[slot="zoom-controls-extra"]');
+const syncZoomDouble = () => {
+  if (zoomDouble) zoomDouble.disabled = !chart.zoomable;
+};
+zoomDouble?.addEventListener('click', () => chart.zoomIn(2));
+chart.addEventListener('mc-zoom-toggle', (event) => {
+  console.log('Zoom enabled:', event.detail.zoomable);
+  syncZoomDouble();
+});
+syncZoomDouble();`;
+
+const DEFAULT_ZOOM_USAGE = `${ZOOM_MARKUP_START}\`\n${CUSTOM_ZOOM_CONTROLS}\n\`${ZOOM_MARKUP_END}`;
+const ZOOM_SLOTS = new Set(['zoom-in-icon', 'zoom-out-icon', 'zoom-reset-icon', 'zoom-controls-extra']);
+
+function parseZoomControlMarkup(usage: string): string {
+  if (!usage) return '';
+  if (!usage.startsWith(ZOOM_MARKUP_START) || !usage.endsWith(ZOOM_MARKUP_END)) {
+    throw new SyntaxError('Edit the HTML passed to insertAdjacentHTML or remove the custom setup to use the default controls.');
+  }
+  const literal = usage.slice(ZOOM_MARKUP_START.length, -ZOOM_MARKUP_END.length);
+  const { markup } = parseConfigObjectLiteral(`{ markup: ${literal} }`);
+  if (typeof markup !== 'string') throw new SyntaxError('Use an HTML string for the custom controls.');
+  return markup;
+}
 
 export function renderViewZoomGuide(
   container: HTMLElement,
@@ -142,15 +180,26 @@ export function renderViewZoomGuide(
   container.appendChild(ex1);
 
   const radar1 = document.createElement('mc-radar-chart') as MCBaseChart<any>;
-  radar1.classList.add('vz-custom-zoom');
-  radar1.insertAdjacentHTML('beforeend', CUSTOM_ZOOM_CONTROLS);
   const style = document.createElement('style');
   style.textContent = CUSTOM_ZOOM_STYLES;
-  ex1.prepend(style);
   ex1.querySelector('#vz-chart-1')!.appendChild(radar1);
   mounted.push(radar1);
 
-  const zoomDouble = radar1.querySelector<HTMLButtonElement>('[slot="zoom-controls-extra"]')!;
+  let zoomDouble: HTMLButtonElement | null;
+  const applyZoomControls = (usage: string) => {
+    const template = document.createElement('template');
+    template.innerHTML = parseZoomControlMarkup(usage);
+    const controls = sanitizeChartChildren(template.content).filter((node) =>
+      node instanceof Element && ZOOM_SLOTS.has(node.getAttribute('slot') ?? '')
+    );
+    radar1.classList.toggle('vz-custom-zoom', Boolean(usage));
+    radar1.replaceChildren(...controls);
+    if (usage) ex1.prepend(style);
+    else style.remove();
+    zoomDouble = radar1.querySelector<HTMLButtonElement>('button[slot="zoom-controls-extra"]');
+    zoomDouble?.addEventListener('click', () => radar1.zoomIn(2));
+  };
+  applyZoomControls(DEFAULT_ZOOM_USAGE);
   const readoutEl1 = ex1.querySelector<HTMLElement>('#vz-readout-1')!;
 
   const initialCfg1: Record<string, any> = {
@@ -172,7 +221,7 @@ export function renderViewZoomGuide(
     const viewport = radar1.shadowRoot?.querySelector('.mc-chart-viewport');
     const transform =
       viewport?.getAttribute('transform') || 'translate(0, 0) scale(1)';
-    zoomDouble.disabled = !zoomable;
+    if (zoomDouble) zoomDouble.disabled = !zoomable;
     readoutEl1.textContent = `zoomable: ${zoomable} | transform: ${transform}`;
   };
 
@@ -193,26 +242,9 @@ export function renderViewZoomGuide(
     title: 'Custom Zoom Controls',
     initialConfig: initialCfg1,
     chartId: () => 'radar',
-    usage: `chart.classList.add('vz-custom-zoom');
-chart.insertAdjacentHTML('beforeend', \`
-${CUSTOM_ZOOM_CONTROLS}
-\`);
-
-const style = document.createElement('style');
-style.textContent = \`
-${CUSTOM_ZOOM_STYLES}
-\`;
-document.head.appendChild(style);
-
-const zoomDouble = chart.querySelector('[slot="zoom-controls-extra"]');
-const syncZoomDouble = () => { zoomDouble.disabled = !chart.zoomable; };
-zoomDouble.addEventListener('click', () => chart.zoomIn(2));
-chart.addEventListener('mc-zoom-toggle', (event) => {
-  console.log('Zoom enabled:', event.detail.zoomable);
-  syncZoomDouble();
-});
-syncZoomDouble();`,
-    hint: 'Edit features.zoom for both examples or view.zoomable for this chart.',
+    usage: DEFAULT_ZOOM_USAGE,
+    onUsageChange: applyZoomControls,
+    hint: 'Edit the bootstrap flags, chart config, or HTML inside insertAdjacentHTML. Remove the custom setup to preview the default buttons.',
     onConfigChange: (nextCfg) => {
       applyEx1Config(nextCfg);
     },
@@ -224,11 +256,9 @@ syncZoomDouble();`,
   });
   ex1.querySelector('#vz-editor-1')!.appendChild(editor1.element);
 
-  zoomDouble.addEventListener('click', () => radar1.zoomIn(2));
-
   radar1.addEventListener('mc-zoom-toggle', (event) => {
     const { zoomable } = (event as CustomEvent<{ zoomable: boolean }>).detail;
-    console.log('Zoom enabled:', zoomable);
+    if (radar1.classList.contains('vz-custom-zoom')) console.log('Zoom enabled:', zoomable);
     syncEx1Readout();
     editor1.syncConfig({
       ...radar1.config,
