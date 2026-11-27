@@ -9,6 +9,7 @@ export const GAUGE_CHART_ENTRY: ChartCatalogEntry = {
     'ECharts-style radial gauge with configurable start/end angles, major & minor graduation ticks, needle/triangle/pin pointers, rounded or flat progress arcs, and single or multi-ring series.',
   subComponents: [
     'mc-theme-layer',
+    'mc-view-layer',
     'mc-animation-layer',
     'mc-aria-layer',
     'mc-label',
@@ -17,7 +18,7 @@ export const GAUGE_CHART_ENTRY: ChartCatalogEntry = {
   defaultLayers: ['track', 'bands', 'valueArc', 'ticks', 'needle', 'center'],
   supportsMarkers: false,
   supportsCartesianScales: false,
-  supportsViewZoom: false,
+  supportsViewZoom: true,
   createDefaultConfig: (themeMode) => ({
     data: { ...SAMPLE_GAUGE_DATA },
     autoSize: true,
@@ -37,6 +38,7 @@ export const GAUGE_CHART_ENTRY: ChartCatalogEntry = {
     enableLabels: true,
     themeMode,
     palette: 'shadcn',
+    view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Real-Time Text Layout Efficiency Gauge',

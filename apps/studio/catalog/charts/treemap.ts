@@ -9,6 +9,7 @@ export const TREEMAP_CHART_ENTRY: ChartCatalogEntry = {
     'Hierarchical treemap supporting 6 D3 tiling algorithms, parent group headers, automatic vertical label orientation for narrow tiles, colorBy modes, and interactive subtree drilldown.',
   subComponents: [
     'mc-theme-layer',
+    'mc-view-layer',
     'mc-animation-layer',
     'mc-aria-layer',
     'mc-label',
@@ -17,7 +18,7 @@ export const TREEMAP_CHART_ENTRY: ChartCatalogEntry = {
   defaultLayers: ['tiles', 'labels', 'legends'],
   supportsMarkers: false,
   supportsCartesianScales: false,
-  supportsViewZoom: false,
+  supportsViewZoom: true,
   createDefaultConfig: (themeMode) => ({
     data: SAMPLE_SUNBURST_DATA,
     autoSize: true,
@@ -34,6 +35,7 @@ export const TREEMAP_CHART_ENTRY: ChartCatalogEntry = {
     enableLabels: true,
     themeMode,
     palette: 'shadcn',
+    view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Package Size Treemap',

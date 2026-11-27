@@ -159,8 +159,22 @@ export const baseChartStyles = `
           transition: background 150ms ease, transform 100ms ease;
         }
 
-        .mc-view-btn:hover {
+        .mc-view-btn:hover:not(:disabled) {
           background: #ffffff;
+        }
+
+        .mc-view-btn:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+
+        .mc-view-btn--toggle[aria-pressed="true"] {
+          background: #0284c7;
+          color: #ffffff;
+        }
+
+        .mc-view-btn--toggle[aria-pressed="true"]:hover:not(:disabled) {
+          background: #0369a1;
         }
 
         .mc-view-btn:focus-visible {
@@ -168,7 +182,7 @@ export const baseChartStyles = `
           outline-offset: 2px;
         }
 
-        .mc-view-btn:active {
+        .mc-view-btn:active:not(:disabled) {
           transform: scale(0.96);
         }
 

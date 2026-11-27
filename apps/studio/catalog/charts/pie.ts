@@ -9,6 +9,7 @@ export const PIE_CHART_ENTRY: ChartCatalogEntry = {
     'Radial pie, donut, half-donut, and Nightingale Rose chart with configurable start/end angles, slice sorting, hover pop-out offset, and customizable radial polyline link labels.',
   subComponents: [
     'mc-theme-layer',
+    'mc-view-layer',
     'mc-animation-layer',
     'mc-aria-layer',
     'mc-label',
@@ -17,7 +18,7 @@ export const PIE_CHART_ENTRY: ChartCatalogEntry = {
   defaultLayers: ['arcs', 'arcLabels', 'arcLinkLabels', 'center', 'legends'],
   supportsMarkers: false,
   supportsCartesianScales: false,
-  supportsViewZoom: false,
+  supportsViewZoom: true,
   createDefaultConfig: (themeMode) => ({
     data: SAMPLE_PIE_DATA,
     autoSize: true,
@@ -39,6 +40,7 @@ export const PIE_CHART_ENTRY: ChartCatalogEntry = {
     centerLabel: '',
     themeMode,
     palette: 'shadcn',
+    view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Runtime Footprint Breakdown Donut Chart',

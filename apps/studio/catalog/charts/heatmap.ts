@@ -160,6 +160,7 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
   subComponents: [
     'mc-theme-layer',
     'mc-scale-layer',
+    'mc-view-layer',
     'mc-animation-layer',
     'mc-aria-layer',
     'mc-legend',
@@ -169,7 +170,7 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
   defaultLayers: ['axes', 'cells', 'labels', 'legends'],
   supportsMarkers: false,
   supportsCartesianScales: false,
-  supportsViewZoom: false,
+  supportsViewZoom: true,
   createDefaultConfig: (themeMode) => ({
     data: SAMPLE_HEATMAP_DATA,
     autoSize: true,
@@ -185,6 +186,7 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
     enableLabels: true,
     themeMode,
     palette: 'shadcn',
+    view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Cluster Compute Utilization Heatmap',

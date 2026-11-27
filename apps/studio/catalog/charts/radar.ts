@@ -9,6 +9,7 @@ export const RADAR_CHART_ENTRY: ChartCatalogEntry = {
     'Multi-series polar radar chart with circular or linear concentric grid levels, splitArea shading, rotation startAngle, Pretext perimeter axis labels, blend modes, and customizable vertex dots.',
   subComponents: [
     'mc-theme-layer',
+    'mc-view-layer',
     'mc-animation-layer',
     'mc-aria-layer',
     'mc-label',
@@ -17,7 +18,7 @@ export const RADAR_CHART_ENTRY: ChartCatalogEntry = {
   defaultLayers: ['grid', 'axes', 'layers', 'dots', 'labels', 'legends'],
   supportsMarkers: false,
   supportsCartesianScales: false,
-  supportsViewZoom: false,
+  supportsViewZoom: true,
   createDefaultConfig: (themeMode) => ({
     data: SAMPLE_RADAR_DATA,
     autoSize: true,
@@ -37,6 +38,7 @@ export const RADAR_CHART_ENTRY: ChartCatalogEntry = {
     dotBorderWidth: 1.8,
     themeMode,
     palette: 'shadcn',
+    view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Architecture Benchmark Radar Chart',

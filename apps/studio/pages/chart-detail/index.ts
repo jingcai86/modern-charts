@@ -54,6 +54,16 @@ export function renderChartDetailPage(
         )}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button
+          type="button"
+          id="btn-detail-zoom-toggle"
+          data-action="toggle-zoom"
+          aria-label="Toggle zoom"
+          aria-pressed="true"
+          data-zoom-state="on"
+        >
+          🔍 Zoom: On
+        </button>
         <button type="button" id="btn-detail-ai-stream" class="btn-primary">
           ▶ Stream AI Layers
         </button>
@@ -190,6 +200,52 @@ export function renderChartDetailPage(
     return `${header} | data: ${JSON.stringify(preview)}`;
   };
 
+  const zoomToggleBtn = chartCard.querySelector<HTMLButtonElement>(
+    '#btn-detail-zoom-toggle'
+  );
+
+  function syncZoomToggleButton(): void {
+    if (!zoomToggleBtn) return;
+    const zoomable = chartEl.resolveViewConfig().zoomable;
+    zoomToggleBtn.setAttribute('aria-pressed', String(zoomable));
+    zoomToggleBtn.setAttribute('data-zoom-state', zoomable ? 'on' : 'off');
+    zoomToggleBtn.textContent = zoomable ? '🔍 Zoom: On' : '🔍 Zoom: Off';
+  }
+  syncZoomToggleButton();
+
+  function wireKeyboardActivation(btn: HTMLButtonElement | null): void {
+    if (!btn) return;
+    let spaceDown = false;
+    btn.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (btn.disabled || e.isComposing || e.keyCode === 229) return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        btn.click();
+      } else if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        spaceDown = true;
+        btn.click();
+      }
+    });
+    btn.addEventListener('keyup', (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        if (spaceDown) {
+          spaceDown = false;
+          e.preventDefault();
+          return;
+        }
+        spaceDown = false;
+        if (!btn.disabled) {
+          e.preventDefault();
+          btn.click();
+        }
+      }
+    });
+  }
+  wireKeyboardActivation(zoomToggleBtn);
+
+  let isUpdatingZoomFromButton = false;
+
   let lastClickSummary = '';
   function wireChartEvents(chart: MCBaseChart<any>): void {
     chart.on('click', (ev) => {
@@ -202,6 +258,23 @@ export function renderChartDetailPage(
     });
     chart.on('focus', (ev) => {
       recordInspectorEvent(formatEventSummary(ev));
+    });
+    chart.addEventListener('mc-zoom-toggle', (e: Event) => {
+      const detail = (
+        e as CustomEvent<{ zoomable: boolean; chartType: string }>
+      ).detail;
+      recordInspectorEvent(
+        `mc-zoom-toggle → chartType="${detail.chartType}" | zoomable: ${detail.zoomable}`
+      );
+      if (isUpdatingZoomFromButton) return;
+      config.view = {
+        ...(config.view ?? { pannable: true, showControls: true, maxZoom: 6 }),
+        zoomable: detail.zoomable
+      };
+      setStoredChartConfig(entry.id, config);
+      syncZoomToggleButton();
+      attrPanel.syncAllControls();
+      editorPanel.syncFromConfig(config);
     });
   }
   wireChartEvents(chartEl);
@@ -303,7 +376,25 @@ export function renderChartDetailPage(
       }
       renderLayerChips();
     }
+    syncZoomToggleButton();
   }
+
+  zoomToggleBtn?.addEventListener('click', () => {
+    isUpdatingZoomFromButton = true;
+    try {
+      const nextZoomable = chartEl.toggleZoom();
+      config.view = {
+        ...(config.view ?? { pannable: true, showControls: true, maxZoom: 6 }),
+        zoomable: nextZoomable
+      };
+      setStoredChartConfig(entry.id, config);
+      syncZoomToggleButton();
+      attrPanel.syncAllControls();
+      editorPanel.syncFromConfig(config);
+    } finally {
+      isUpdatingZoomFromButton = false;
+    }
+  });
 
   // Action Buttons: Stream AI Layers & Replay Animation
   chartCard
