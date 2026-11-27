@@ -70,7 +70,8 @@ function clearSankeyFocusHighlight(ctx: ChartRenderContext<any>): void {
 export function renderSankeyLinkItem(
   link: ComputedSankeyLinkModel,
   ctx: ChartRenderContext<any>,
-  defs?: Element | null
+  defs?: Element | null,
+  initial = true
 ): SVGPathElement {
   const customLinkStroke =
     ctx.resolveFill?.({
@@ -177,10 +178,8 @@ export function renderSankeyLinkItem(
     }
   });
 
-  ctx.animateItem(path, {
-    type: 'sankey-flow',
-    index: link.index
-  });
+  if (initial) ctx.animateItem(path, { type: 'sankey-flow', index: link.index });
+  else path.setAttribute('data-animated', 'false');
 
   if (interactive) {
     path.addEventListener('mouseenter', (e) => {
@@ -248,7 +247,8 @@ export function renderSankeyLinkItem(
  */
 export function renderSankeyNodeItem(
   node: ComputedSankeyNodeModel,
-  ctx: ChartRenderContext<any>
+  ctx: ChartRenderContext<any>,
+  initial = true
 ): SVGRectElement {
   const rect = document.createElementNS(SVG_NS, 'rect');
   rect.setAttribute('class', 'mc-sankey-node');
@@ -305,12 +305,16 @@ export function renderSankeyNodeItem(
     }
   });
 
-  ctx.animateItem(rect, {
-    type: node.isVertical ? 'bar-horizontal' : 'bar-vertical',
-    index: node.index,
-    originX: node.isVertical ? node.x0 : (node.x0 + node.x1) / 2,
-    originY: node.isVertical ? (node.y0 + node.y1) / 2 : node.y1
-  });
+  if (initial) {
+    ctx.animateItem(rect, {
+      type: node.isVertical ? 'bar-horizontal' : 'bar-vertical',
+      index: node.index,
+      originX: node.isVertical ? node.x0 : (node.x0 + node.x1) / 2,
+      originY: node.isVertical ? (node.y0 + node.y1) / 2 : node.y1
+    });
+  } else {
+    rect.setAttribute('data-animated', 'false');
+  }
 
   if (interactive) {
     rect.addEventListener('mouseenter', (e) => {

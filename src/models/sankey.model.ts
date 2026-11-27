@@ -24,23 +24,26 @@ export interface ComputedSankeyNodeModel {
   isVertical: boolean;
 }
 
-export interface ComputedSankeyLinkModel {
+export interface SankeyLinkGeometry {
+  width: number;
+  sx: number;
+  sy: number;
+  tx: number;
+  ty: number;
+  curveness: number;
+  isVertical: boolean;
+}
+
+export interface ComputedSankeyLinkModel extends SankeyLinkGeometry {
   index: number;
   totalLinks: number;
   id: string;
   source: ComputedSankeyNodeModel;
   target: ComputedSankeyNodeModel;
   value: number;
-  width: number;
-  sx: number;
-  sy: number;
-  tx: number;
-  ty: number;
   pathD: string;
   gradientId: string;
   opacity: number;
-  curveness: number;
-  isVertical: boolean;
 }
 
 export interface SankeyChartModel {
@@ -65,6 +68,28 @@ export interface SankeyModelInput {
   borderRadius?: number;
   curveness?: number;
   focusMode?: SankeyFocusMode;
+}
+
+export function sankeyLinkPath({ sx, sy, tx, ty, width, curveness, isVertical }: SankeyLinkGeometry): string {
+  const half = width / 2;
+  if (isVertical) {
+    const sx0 = sx - half;
+    const sx1 = sx + half;
+    const tx0 = tx - half;
+    const tx1 = tx + half;
+    const dy = (ty - sy) * curveness;
+    const cy0 = sy + dy;
+    const cy1 = ty - dy;
+    return `M${sx0},${sy} C${sx0},${cy0} ${tx0},${cy1} ${tx0},${ty} L${tx1},${ty} C${tx1},${cy1} ${sx1},${cy0} ${sx1},${sy} Z`;
+  }
+  const sy0 = sy - half;
+  const sy1 = sy + half;
+  const ty0 = ty - half;
+  const ty1 = ty + half;
+  const dx = (tx - sx) * curveness;
+  const cx0 = sx + dx;
+  const cx1 = tx - dx;
+  return `M${sx},${sy0} C${cx0},${sy0} ${cx1},${ty0} ${tx},${ty0} L${tx},${ty1} C${cx1},${ty1} ${cx0},${sy1} ${sx},${sy1} Z`;
 }
 
 /**
@@ -358,43 +383,15 @@ export function computeSankeyChartModel(
     const outOff = linkOutOffsets[index];
     const inOff = linkInOffsets[index];
 
-    let sx = 0;
-    let sy = 0;
-    let tx = 0;
-    let ty = 0;
-    let pathD = '';
-
-    if (isVertical) {
-      const sx0 = source.x0 + outOff;
-      const sx1 = sx0 + w;
-      sx = sx0 + w / 2;
-
-      const tx0 = target.x0 + inOff;
-      const tx1 = tx0 + w;
-      tx = tx0 + w / 2;
-
-      sy = source.y1;
-      ty = target.y0;
-      const dy = ty - sy;
-      const cy0 = sy + dy * curveness;
-      const cy1 = ty - dy * curveness;
-      pathD = `M${sx0},${sy} C${sx0},${cy0} ${tx0},${cy1} ${tx0},${ty} L${tx1},${ty} C${tx1},${cy1} ${sx1},${cy0} ${sx1},${sy} Z`;
-    } else {
-      const sy0 = source.y0 + outOff;
-      const sy1 = sy0 + w;
-      sy = sy0 + w / 2;
-
-      const ty0 = target.y0 + inOff;
-      const ty1 = ty0 + w;
-      ty = ty0 + w / 2;
-
-      sx = source.x1;
-      tx = target.x0;
-      const dx = tx - sx;
-      const cx0 = sx + dx * curveness;
-      const cx1 = tx - dx * curveness;
-      pathD = `M${sx},${sy0} C${cx0},${sy0} ${cx1},${ty0} ${tx},${ty0} L${tx},${ty1} C${cx1},${ty1} ${cx0},${sy1} ${sx},${sy1} Z`;
-    }
+    const geometry = {
+      width: w,
+      sx: isVertical ? source.x0 + outOff + w / 2 : source.x1,
+      sy: isVertical ? source.y1 : source.y0 + outOff + w / 2,
+      tx: isVertical ? target.x0 + inOff + w / 2 : target.x0,
+      ty: isVertical ? target.y0 : target.y0 + inOff + w / 2,
+      curveness,
+      isVertical
+    };
 
     return {
       index,
@@ -403,16 +400,10 @@ export function computeSankeyChartModel(
       source,
       target,
       value: val,
-      width: w,
-      sx,
-      sy,
-      tx,
-      ty,
-      pathD,
+      ...geometry,
+      pathD: sankeyLinkPath(geometry),
       gradientId: `mc-sankey-grad-${index}`,
-      opacity: linkOpacity,
-      curveness,
-      isVertical
+      opacity: linkOpacity
     };
   });
 
