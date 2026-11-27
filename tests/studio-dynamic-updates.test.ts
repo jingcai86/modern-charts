@@ -138,6 +138,45 @@ describe('Dynamic Updates guide', () => {
       expect(readSlice().getAttribute('d')).not.toBe(slicePath);
     });
 
+    // Exercise add, remove, randomize, empty toggle, and reset across the remaining 8 chart tabs
+    const resetBtn = root.querySelector<HTMLButtonElement>(
+      '#guide-dyn-ex2-code .guide-reset-btn'
+    )!;
+    const emptyBtn = root.querySelector<HTMLButtonElement>('#btn-dyn-empty')!;
+    for (const tabId of [
+      'line',
+      'heatmap',
+      'radar',
+      'sunburst',
+      'sankey',
+      'scatter',
+      'treemap',
+      'gauge'
+    ] as const) {
+      root.querySelector<HTMLButtonElement>(`#dyn-tab-${tabId}`)!.click();
+      expect(localStorage.getItem('modern-charts-studio-dynamic-chart-tab')).toBe(tabId);
+      randomizeBtn.click();
+      addBtn.click();
+      removeBtn.click();
+      emptyBtn.click();
+      emptyBtn.click();
+      resetBtn.click();
+    }
+
+    // Exercise keyboard navigation (ArrowRight, ArrowLeft, Home, End) and beforematch on tabs
+    tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+    tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect(tabs[tabs.length - 1].getAttribute('aria-selected')).toBe('true');
+    tabs[tabs.length - 1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+
+    const piePanel = root.querySelector<HTMLElement>('[aria-labelledby="dyn-tab-pie"]')!;
+    piePanel.dispatchEvent(new Event('beforematch'));
+    expect(localStorage.getItem('modern-charts-studio-dynamic-chart-tab')).toBe('pie');
+
     // Re-mounting the guide restores the stored active tab from localStorage
     document.body.replaceChildren();
     const remounted = mountDynamicUpdatesGuide();

@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { registerModernCharts } from '../src/index';
 import { CHART_CATALOG } from '../apps/studio/catalog';
 import { renderChartDetailPage } from '../apps/studio/pages/chart-detail';
@@ -55,6 +55,43 @@ describe('Chart Detail Page Layout — Event Inspector beside HTML Markup', () =
     clearBtn.click();
     expect(bottomGrid!.querySelectorAll('.event-inspector-row').length).toBe(0);
     expect(bottomGrid!.querySelector('.event-inspector-empty')).not.toBeNull();
+  });
+
+  it('copies AI Context without mutating button text or shifting layout', async () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      text: async () => '# <mc-bar-chart>'
+    } as Response);
+
+    try {
+      const root = document.createElement('div');
+      document.body.appendChild(root);
+      const barEntry = CHART_CATALOG.find((c) => c.id === 'bar')!;
+      renderChartDetailPage(root, barEntry);
+
+      const copyBtn = root.querySelector<HTMLButtonElement>('#btn-copy-ai-context')!;
+      const statusEl = root.querySelector<HTMLElement>('#copy-ai-context-status')!;
+      const initialLabel = copyBtn.textContent;
+
+      copyBtn.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('# <mc-bar-chart>'));
+      expect(copyBtn.textContent).toBe(initialLabel);
+      expect(copyBtn.hasAttribute('data-copied')).toBe(true);
+      expect(statusEl.textContent).toBe('✓ Copied AI Context');
+
+      vi.advanceTimersByTime(1800);
+      expect(copyBtn.hasAttribute('data-copied')).toBe(false);
+      expect(statusEl.textContent).toBe('');
+    } finally {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    }
   });
 
   it('minimizes subtext into 4 hoverable info icon tooltips next to the 4 section titles on all 10 chart pages', () => {

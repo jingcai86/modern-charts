@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../src/index';
 import type { MCBaseChart } from '../src/index';
 import { GUIDES_CATALOG } from '../apps/studio/guides/types';
+import { createGuideNavigationGroups } from '../apps/studio/guides/navigation';
 import { disposeOverviewPage, renderOverviewPage } from '../apps/studio/pages/overview';
 
 afterEach(() => {
@@ -91,6 +92,15 @@ describe('Studio overview navigation', () => {
     const aiContext = restoredPanel.querySelector<HTMLAnchorElement>('a[href="./llms.txt"]')!;
     expect(aiContext.target).toBe('_blank');
     expect(aiContext.rel.split(' ')).toEqual(expect.arrayContaining(['noopener', 'noreferrer']));
+
+    const navHost = document.createElement('ul');
+    navHost.appendChild(createGuideNavigationGroups());
+    document.body.appendChild(navHost);
+    const navDetails = Array.from(navHost.querySelectorAll<HTMLDetailsElement>('details.nav-dropdown-group'));
+    expect(navDetails.filter((d) => d.open)).toEqual(navDetails.slice(1, 5));
+    navDetails[0].querySelector('summary')!.click();
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(navDetails[0].open).toBe(true);
   });
 
   it('mounts previews only as their cards approach the viewport', async () => {
