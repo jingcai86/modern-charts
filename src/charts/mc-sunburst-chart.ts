@@ -49,6 +49,10 @@ export class MCSunburstChart extends MCBaseChart<HierarchyNode> {
     return ['arcs', 'labels', 'center', 'legends'];
   }
 
+  protected override get retainedItemLayer(): string {
+    return 'arcs';
+  }
+
   protected getDefaultMargin(): ChartMargin {
     return { top: 36, right: 32, bottom: 58, left: 32 };
   }
@@ -113,6 +117,7 @@ export class MCSunburstChart extends MCBaseChart<HierarchyNode> {
           true
         ) !== false
     });
+    this.#focusPath = model.focusPath;
     ctx.state.model = model;
     ctx.state.computedArcs = model.arcs;
   }

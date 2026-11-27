@@ -2,7 +2,7 @@ import {
   arc,
   hierarchy as d3Hierarchy,
   partition as d3Partition,
-  type HierarchyRectangularNode
+  type DefaultArcObject
 } from 'd3';
 import { createOrdinalColorScale } from '../core/theme';
 import type {
@@ -30,6 +30,24 @@ function brightenHexColor(input: string, k: number): string {
   return `#${brightenChannel(0)}${brightenChannel(2)}${brightenChannel(4)}`;
 }
 
+export interface SunburstArcGeometry extends DefaultArcObject {
+  padAngle: number;
+  padRadius: number;
+  cornerRadius: number;
+}
+
+const sunburstShape = arc<SunburstArcGeometry>()
+  .padRadius((geometry) => geometry.padRadius)
+  .cornerRadius((geometry) => geometry.cornerRadius);
+
+export function sunburstArcPath(geometry: SunburstArcGeometry): string {
+  return sunburstShape(geometry) ?? '';
+}
+
+export function sunburstArcCentroid(geometry: SunburstArcGeometry): [number, number] {
+  return sunburstShape.centroid(geometry);
+}
+
 export interface ComputedSunburstArcModel {
   index: number;
   totalCount: number;
@@ -45,6 +63,7 @@ export interface ComputedSunburstArcModel {
   y0: number;
   y1: number;
   color: string;
+  geometry: SunburstArcGeometry;
   pathD: string;
   centroid: [number, number];
   rotation: number;
@@ -71,6 +90,7 @@ export interface SunburstChartModel {
   minArcAngleForLabel: number;
   total: number;
   activeRootName: string;
+  focusPath: string[];
   isDrilledDown: boolean;
   arcs: ComputedSunburstArcModel[];
   topCategories: { id: string; label: string; color: string }[];
@@ -94,14 +114,16 @@ export interface SunburstModelInput {
   interactiveDrilldown: boolean;
 }
 
-function findFocusNode(root: HierarchyNode, path: string[]): HierarchyNode {
+function resolveFocus(root: HierarchyNode, path: string[]) {
   let curr = root;
+  let depth = 0;
   for (const seg of path) {
     const child = curr.children?.find((c) => c.name === seg);
-    if (!child) break;
+    if (!child?.children?.length) break;
     curr = child;
+    depth++;
   }
-  return curr;
+  return { data: curr, path: path.slice(0, depth) };
 }
 
 function normalizeUprightAngle(deg: number): number {
@@ -123,10 +145,7 @@ export function computeSunburstChartModel(
   input: SunburstModelInput
 ): SunburstChartModel {
   const rawRoot = ctx.data ?? { name: 'Root', children: [] };
-  const activeRootData =
-    input.focusPath.length > 0
-      ? findFocusNode(rawRoot, input.focusPath)
-      : rawRoot;
+  const { data: activeRootData, path: focusPath } = resolveFocus(rawRoot, input.focusPath);
 
   const radius = Math.max(
     40,
@@ -200,17 +219,6 @@ export function computeSunburstChartModel(
   const scaleY = (y: number) =>
     innerHole + (y / Math.max(1, radius)) * (radius - innerHole);
 
-  const arcGen = arc<HierarchyRectangularNode<HierarchyNode>>()
-    .startAngle((d) => scaleAngle(d.x0))
-    .endAngle((d) => scaleAngle(d.x1))
-    .padAngle((d) =>
-      Math.min(Math.abs(scaleAngle(d.x1) - scaleAngle(d.x0)) / 2, padAngleRad)
-    )
-    .padRadius(radius / 2)
-    .innerRadius((d) => Math.max(0, scaleY(d.y0)))
-    .outerRadius((d) => Math.max(0, scaleY(d.y1) - 1.5))
-    .cornerRadius(input.cornerRadius);
-
   const descendants = root.descendants().filter((d) => d.depth > 0);
   const arcs: ComputedSunburstArcModel[] = descendants.map((d, index) => {
     let topAncestor = d;
@@ -257,9 +265,18 @@ export function computeSunburstChartModel(
       .reverse()
       .slice(1)
       .map((a) => a.data.name);
-    const pathNames = [...input.focusPath, ...ancestors];
+    const pathNames = [...focusPath, ...ancestors];
     const pathKey = pathNames.join('/');
     const breadcrumb = [rawRoot.name || ctx.i18n.messages.root, ...pathNames].join(' › ');
+    const geometry: SunburstArcGeometry = {
+      startAngle: a0,
+      endAngle: a1,
+      innerRadius: Math.max(0, scaleY(d.y0)),
+      outerRadius: Math.max(0, scaleY(d.y1) - 1.5),
+      padAngle: Math.min(sweepAngleRad / 2, padAngleRad),
+      padRadius: radius / 2,
+      cornerRadius: input.cornerRadius
+    };
 
     return {
       index,
@@ -276,8 +293,9 @@ export function computeSunburstChartModel(
       y0: scaleY(d.y0),
       y1: scaleY(d.y1),
       color: shade,
-      pathD: arcGen(d) || '',
-      centroid: arcGen.centroid(d),
+      geometry,
+      pathD: sunburstArcPath(geometry),
+      centroid: sunburstArcCentroid(geometry),
       rotation: radialRotation,
       tangentialRotation,
       labelRotation,
@@ -309,7 +327,8 @@ export function computeSunburstChartModel(
     minArcAngleForLabel,
     total,
     activeRootName: activeRootData.name,
-    isDrilledDown: input.focusPath.length > 0,
+    focusPath,
+    isDrilledDown: focusPath.length > 0,
     arcs,
     topCategories,
     enableLabels: input.enableLabels,
