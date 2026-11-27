@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { configureI18n, getI18nConfig } from '../src/index';
 import { GUIDES_CATALOG, renderGuidePage } from '../apps/studio/guides';
+import { createGuideNavigationGroups } from '../apps/studio/guides/navigation';
 import { formatConfigAssignment, parseConfigObjectLiteral } from '../apps/studio/utils/code-sync';
 
 afterEach(() => {
@@ -28,16 +29,13 @@ function mount() {
 }
 
 describe('Internationalization Studio guide', () => {
-  it('is discoverable and keeps application defaults unchanged when mounted and removed', async () => {
-    const fsModule = 'node:fs';
-    const { readFileSync } = await import(/* @vite-ignore */ fsModule);
+  it('is discoverable and keeps application defaults unchanged when mounted and removed', () => {
     configureI18n({ locale: 'ja-JP', messages: { loading: '読込中' } });
     const globalConfig = getI18nConfig();
     const { root, charts } = mount();
     expect(GUIDES_CATALOG.find((guide) => guide.id === 'i18n')?.title).toContain('Internationalization');
-    const navigation = document.createElement('template');
-    navigation.innerHTML = readFileSync('apps/studio/index.html', 'utf8');
-    expect(navigation.content.querySelector('[data-nav-route="guide:i18n"]')?.getAttribute('href')).toBe('#/guide/i18n');
+    const navigation = createGuideNavigationGroups();
+    expect(navigation.querySelector('[data-nav-route="guide:i18n"]')?.getAttribute('href')).toBe('#/guide/i18n');
     expect(root.querySelector('h1')!.textContent).toContain('Internationalization');
     expect(charts).toHaveLength(3);
     expect(charts.every((chart) => chart.config.themeMode === 'dark')).toBe(true);

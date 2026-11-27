@@ -1,7 +1,7 @@
 import type { MCBaseChart } from '../../../src/index';
 import { CHART_CATALOG, type ChartCatalogEntry } from '../catalog';
 import { loadChart } from '../chart-loader';
-import { GUIDES_CATALOG, type GuideId } from '../guides/types';
+import { GUIDE_GROUPS, GUIDES_CATALOG, type GuideId } from '../guides/types';
 import { escapeHtml } from '../utils/html';
 import { getOrInitChartConfig } from '../state/config-store';
 import { getGlobalThemeMode } from '../state/theme';
@@ -201,35 +201,26 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
     </svg>`
 };
 
-function createGuidesGrid(): HTMLElement {
-  const guidesGrid = document.createElement('section');
-  guidesGrid.className = 'overview-guides-grid';
+interface GuideCard {
+  id: GuideId | 'ai-context';
+  href: string;
+  external?: boolean;
+  icon: string;
+  title: string;
+  summary: string;
+}
 
-  const cards: Array<{
-    id: GuideId | 'ai-context';
-    href: string;
-    external?: boolean;
-    icon: string;
-    title: string;
-    summary: string;
-  }> = [
-    ...GUIDES_CATALOG.map((g) => ({
-      id: g.id,
-      href: `#/guide/${g.id}`,
-      icon: g.icon,
-      title: g.title,
-      summary: g.summary
-    })),
-    {
-      id: 'ai-context',
-      href: './llms.txt',
-      external: true,
-      icon: '🤖',
-      title: 'AI Context (llms.txt)',
-      summary:
-        'Machine-readable llms.txt index, full reference, per-chart specs, and JSON schema for coding agents.'
-    }
-  ];
+function createGuideGroup(id: string, title: string, cards: GuideCard[]): HTMLElement {
+  const group = document.createElement('section');
+  group.className = 'overview-guide-group';
+  const heading = document.createElement('h2');
+  heading.id = `overview-guide-group-${id}`;
+  heading.className = 'overview-guide-group-title';
+  heading.textContent = title;
+  group.setAttribute('aria-labelledby', heading.id);
+
+  const guidesGrid = document.createElement('div');
+  guidesGrid.className = 'overview-guides-grid';
 
   cards.forEach((item) => {
     const link = document.createElement('a');
@@ -241,7 +232,7 @@ function createGuidesGrid(): HTMLElement {
     }
     link.innerHTML = `
       <div class="overview-guide-card-header">
-        <h2 class="overview-guide-card-title">${item.icon} ${escapeHtml(item.title)}</h2>
+        <h3 class="overview-guide-card-title">${item.icon} ${escapeHtml(item.title)}</h3>
         <span class="overview-guide-arrow" aria-hidden="true">${item.external ? '↗' : '→'}</span>
       </div>
       <div class="overview-guide-preview">
@@ -252,7 +243,27 @@ function createGuidesGrid(): HTMLElement {
     guidesGrid.appendChild(link);
   });
 
-  return guidesGrid;
+  group.append(heading, guidesGrid);
+  return group;
+}
+
+function createGuideGroups(): HTMLElement {
+  const groups = document.createElement('div');
+  groups.className = 'overview-guide-groups';
+  for (const { id, title, guides } of GUIDE_GROUPS) {
+    const cards = guides.map((guide) => ({ ...guide, href: `#/guide/${guide.id}` }));
+    groups.appendChild(createGuideGroup(id, title, cards));
+  }
+  groups.appendChild(createGuideGroup('resources', 'Resources', [{
+    id: 'ai-context',
+    href: './llms.txt',
+    external: true,
+    icon: '🤖',
+    title: 'AI Context (llms.txt)',
+    summary:
+      'Machine-readable llms.txt index, full reference, per-chart specs, and JSON schema for coding agents.'
+  }]));
+  return groups;
 }
 
 /**
@@ -509,7 +520,7 @@ export function renderOverviewPage(root: HTMLElement): MCBaseChart<any>[] {
   if (initialTab !== 'guides') {
     (guidesPanel as any).hidden = 'until-found';
   }
-  guidesPanel.appendChild(createGuidesGrid());
+  guidesPanel.appendChild(createGuideGroups());
 
   panelsContainer.append(examplesPanel, guidesPanel);
   tabsWrapper.append(tablist, panelsContainer);
