@@ -57,13 +57,13 @@
   {
     "name": "Standalone Heatmap chart (modern-charts/heatmap) [brotli]",
     "path": "dist/heatmap.js",
-    "limit": "90 kB"
+    "limit": "95 kB"
   },
   {
     "name": "Standalone Heatmap chart (modern-charts/heatmap) [gzip]",
     "path": "dist/heatmap.js",
     "gzip": true,
-    "limit": "105 kB"
+    "limit": "110 kB"
   },
   {
     "name": "Standalone Radar chart (modern-charts/radar) [brotli]",

@@ -18,6 +18,7 @@ import { renderI18nGuide } from './i18n';
 import { renderDynamicUpdatesGuide } from './dynamic-updates';
 import { renderChartStateGuide } from './chart-state';
 import { renderPatternsGuide } from './patterns';
+import { renderCsvExportGuide } from './csv-export';
 import type { GuideId } from './types';
 
 export { GUIDES_CATALOG, type GuideId, type GuideMeta } from './types';
@@ -61,5 +62,7 @@ export function renderGuidePage(
       return renderChartStateGuide(body, themeMode);
     case 'patterns':
       return renderPatternsGuide(body, themeMode);
+    case 'csv-export':
+      return renderCsvExportGuide(body, themeMode);
   }
 }

@@ -12,7 +12,8 @@ export type GuideId =
   | 'i18n'
   | 'dynamic-updates'
   | 'chart-state'
-  | 'patterns';
+  | 'patterns'
+  | 'csv-export';
 
 export interface GuideMeta {
   id: GuideId;
@@ -134,5 +135,13 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '✨',
     summary:
       'Reusable chart-scoped SVG patterns (dots, lines, squares, crosshatch, custom) and gradients across all 10 charts with color-blind friendly presets and declarative <mc-def>.'
+  },
+  {
+    id: 'csv-export',
+    title: 'Customizable CSV Data Export',
+    shortLabel: 'CSV Export',
+    icon: '📥',
+    summary:
+      'Export chart data to RFC 4180 CSV with built-in serialization across all 10 chart types, custom columns, headers, value formatting, filenames, custom serializers, and export handlers.'
   }
 ];

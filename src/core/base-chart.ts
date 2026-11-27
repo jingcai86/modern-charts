@@ -42,6 +42,8 @@ import type {
   ChartStateChangeDetail,
   ChartStateKind,
   ChartTheme,
+  CsvExportOptions,
+  CsvExportPayload,
   CustomLabelRenderer,
   FillMatchContext,
   FillRule,
@@ -67,6 +69,7 @@ import type {
   TooltipPositionMode,
   ViewConfig
 } from './types';
+import { downloadCsv, serializeChartCsv } from './csv-export';
 import {
   MCAnimationLayer,
   MCAriaLayer,
@@ -836,6 +839,53 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
+  }
+
+  public toCsv(options: CsvExportOptions<TData> = {}): string {
+    return this.#buildCsvPayload(options).csv;
+  }
+
+  public exportCsv(
+    options: CsvExportOptions<TData> = {}
+  ): CsvExportPayload<TData> {
+    const merged: CsvExportOptions<TData> = {
+      ...(this._config.export ?? {}),
+      ...(this._config.csvExport ?? {}),
+      ...options
+    };
+    const payload = this.#buildCsvPayload(merged);
+    const notCanceled = this.dispatchEvent(
+      new CustomEvent<CsvExportPayload<TData>>('mc-export', {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        detail: payload
+      })
+    );
+
+    const handler = merged.handler ?? merged.exportHandler ?? merged.onExport;
+    if (typeof handler === 'function') {
+      if (handler(payload) === true && merged.download === true && notCanceled) {
+        downloadCsv(payload.csv, payload.filename, payload.mimeType);
+      }
+    } else if (notCanceled && merged.download !== false) {
+      downloadCsv(payload.csv, payload.filename, payload.mimeType);
+    }
+    return payload;
+  }
+
+  #buildCsvPayload(options: CsvExportOptions<TData>): CsvExportPayload<TData> {
+    return serializeChartCsv<TData>(
+      this.chartType,
+      this._data as TData,
+      {
+        ...(this._config.export ?? {}),
+        ...(this._config.csvExport ?? {}),
+        ...options
+      },
+      this._config,
+      this.resolveI18n()
+    );
   }
 
   get animationConfig(): Partial<AnimationConfig> | null {

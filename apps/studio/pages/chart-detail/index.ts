@@ -1,4 +1,8 @@
-import type { ChartConfig, MCBaseChart } from '../../../../src/index';
+import type {
+  ChartConfig,
+  CsvExportPayload,
+  MCBaseChart
+} from '../../../../src/index';
 import {
   getAllAttributesForChart,
   type ChartCatalogEntry
@@ -54,6 +58,13 @@ export function renderChartDetailPage(
         )}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button
+          type="button"
+          id="btn-detail-export-csv"
+          data-action="export-csv"
+        >
+          ⬇ Export CSV
+        </button>
         <button type="button" id="btn-detail-ai-stream" class="btn-primary">
           ▶ Stream AI Layers
         </button>
@@ -190,6 +201,41 @@ export function renderChartDetailPage(
     return `${header} | data: ${JSON.stringify(preview)}`;
   };
 
+  const exportCsvBtn = chartCard.querySelector<HTMLButtonElement>(
+    '#btn-detail-export-csv'
+  );
+
+  function wireKeyboardActivation(btn: HTMLButtonElement | null): void {
+    if (!btn) return;
+    let spaceDown = false;
+    btn.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (btn.disabled || e.isComposing || e.keyCode === 229) return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        btn.click();
+      } else if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        spaceDown = true;
+        btn.click();
+      }
+    });
+    btn.addEventListener('keyup', (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        if (spaceDown) {
+          spaceDown = false;
+          e.preventDefault();
+          return;
+        }
+        spaceDown = false;
+        if (!btn.disabled) {
+          e.preventDefault();
+          btn.click();
+        }
+      }
+    });
+  }
+  wireKeyboardActivation(exportCsvBtn);
+
   let lastClickSummary = '';
   function wireChartEvents(chart: MCBaseChart<any>): void {
     chart.on('click', (ev) => {
@@ -202,6 +248,12 @@ export function renderChartDetailPage(
     });
     chart.on('focus', (ev) => {
       recordInspectorEvent(formatEventSummary(ev));
+    });
+    chart.addEventListener('mc-export', (e: Event) => {
+      const detail = (e as CustomEvent<CsvExportPayload>).detail;
+      recordInspectorEvent(
+        `mc-export → filename="${detail.filename}" | rows: ${detail.rows.length}, columns: ${JSON.stringify(detail.columns)}`
+      );
     });
   }
   wireChartEvents(chartEl);
@@ -304,6 +356,10 @@ export function renderChartDetailPage(
       renderLayerChips();
     }
   }
+
+  exportCsvBtn?.addEventListener('click', () => {
+    chartEl.exportCsv();
+  });
 
   // Action Buttons: Stream AI Layers & Replay Animation
   chartCard

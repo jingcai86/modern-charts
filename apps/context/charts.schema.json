@@ -37,6 +37,14 @@
       },
       "maxLines": "Maximum line count in truncating modes. The wrap strategy preserves all lines.",
       "enableTooltip": "Shows full text on hover and keyboard focus when the label is truncated or automatically rotated. Enabled by default."
+    },
+    "csvExport": {
+      "columns": "Array<string | CsvColumnConfig>; ordered column keys or column descriptors",
+      "headers": "string[] | Record<string, string>; custom CSV column headers",
+      "formatValue": "(value, context, row) => unknown; custom cell formatter",
+      "filename": "string | ((context) => string); download filename (.csv appended automatically)",
+      "serializer": "(context, defaultSerialize) => string | Array<Record<string, unknown>>; custom data serializer",
+      "handler": "(payload: CsvExportPayload) => boolean | void; custom export handler"
     }
   },
   "palettes": ["shadcn", "material", "bootstrap", "antd"],
