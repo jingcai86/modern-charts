@@ -58,6 +58,10 @@ export class MCScatterChart extends MCBaseChart<ScatterSeries[]> {
     ];
   }
 
+  protected override get retainedItemLayer(): string {
+    return 'nodes';
+  }
+
   protected getDefaultScaleConfig(): ScaleConfig {
     return createDefaultScaleConfig('linear', 'linear');
   }
