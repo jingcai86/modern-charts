@@ -436,11 +436,14 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     const csvExport = root.querySelector<HTMLInputElement>('#bs-csv-export')!;
     const download = root.querySelector<HTMLButtonElement>('#bs-download-csv')!;
     const csvOutput = root.querySelector<HTMLElement>('#bs-csv-output')!;
-    const code = () => root.querySelector<HTMLElement>('#bs-bootstrap-code code')!;
+    const editor = root.querySelector<HTMLTextAreaElement>('#bs-bootstrap-code textarea')!;
+    const featureCode = root.querySelector<HTMLElement>('#bs-feature-code')!;
+    const featureSnippet = () => featureCode.querySelector('code')?.textContent;
 
     expect(root.querySelector('a[href="#/guide/view-zoom"]')).not.toBeNull();
     expect(root.querySelector('a[href="#/guide/csv-export"]')).not.toBeNull();
-    expect(root.querySelector('textarea')).toBeNull();
+    expect(editor.closest('.guide-code-wrap')?.querySelector('.guide-code-live-badge')?.textContent)
+      .toBe('LIVE JS');
     expect(entrypoint.value).toBe('library');
     expect(chartType.value).toBe('bar');
     expect(Array.from(chartType.options, ({ value }) => value).sort()).toEqual(
@@ -449,11 +452,11 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(zoom.checked).toBe(false);
     expect(csvExport.checked).toBe(false);
     expect(download.disabled).toBe(true);
-    expect(code().textContent).toContain("import { registerModernCharts } from 'modern-charts';");
-    expect(code().textContent).toMatch(/registerModernCharts\(/);
-    expect(code().textContent).not.toMatch(/(?:zoom|csvExport):\s*true/);
+    expect(editor.value).toMatch(/^import \{ registerModernCharts \} from 'modern-charts';\s+await registerModernCharts\([\s\S]*\);$/);
+    expect(editor.value).not.toMatch(/(?:zoom|csvExport):\s*true/);
+    expect(featureCode.hidden).toBe(true);
     const copy = root.querySelector<HTMLButtonElement>('#bs-bootstrap-code button.guide-copy-btn')!;
-    expect(copy.getAttribute('commandfor')).toBe(code().id);
+    expect(copy.getAttribute('commandfor')).toBe(editor.id);
 
     await vi.waitFor(() => {
       expect(charts).toHaveLength(1);
@@ -467,8 +470,10 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     zoom.dispatchEvent(new Event('change', { bubbles: true }));
     await vi.waitFor(() => {
       expect(charts[0].zoomable).toBe(true);
-      expect(code().textContent).toMatch(/zoom:\s*true/);
-      expect(code().textContent).toMatch(/chart\.(?:zoomIn|toggleZoom)\(/);
+      expect(editor.value).toMatch(/zoom:\s*true/);
+      expect(editor.value).not.toContain('chart.toggleZoom');
+      expect(featureCode.hidden).toBe(false);
+      expect(featureSnippet()).toMatch(/chart\.(?:zoomIn|toggleZoom)\(/);
     });
     const zoomIn = charts[0].shadowRoot!.querySelector<HTMLButtonElement>(
       'button[data-zoom="in"]'
@@ -486,8 +491,9 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
       expect(charts[0].toCsv()).toContain('quarter,Cloud,Edge,OnPrem');
       expect(csvOutput.textContent).toContain(charts[0].toCsv());
       expect(download.disabled).toBe(false);
-      expect(code().textContent).toMatch(/csvExport:\s*true/);
-      expect(code().textContent).toContain('chart.toCsv()');
+      expect(editor.value).toMatch(/csvExport:\s*true/);
+      expect(editor.value).not.toContain('chart.toCsv');
+      expect(featureSnippet()).toContain('chart.toCsv()');
     });
 
     zoom.checked = false;
@@ -495,13 +501,14 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     await vi.waitFor(() => {
       expect(charts[0].zoomable).toBe(false);
       expect(charts[0].isFeatureEnabled('csvExport')).toBe(true);
-      expect(code().textContent).not.toMatch(/zoom:\s*true/);
-      expect(code().textContent).toMatch(/csvExport:\s*true/);
+      expect(editor.value).not.toMatch(/zoom:\s*true/);
+      expect(editor.value).toMatch(/csvExport:\s*true/);
+      expect(featureSnippet()).not.toMatch(/chart\.(?:zoomIn|toggleZoom)\(/);
     });
 
     entrypoint.value = 'standalone';
     entrypoint.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(code().textContent).toContain("import { registerBarChart } from 'modern-charts/bar';");
+    expect(editor.value).toContain("import { registerBarChart } from 'modern-charts/bar';");
     for (const { id, tagName } of CHART_CATALOG) {
       chartType.value = id;
       chartType.dispatchEvent(new Event('change', { bubbles: true }));
@@ -510,8 +517,8 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
         expect(charts).toHaveLength(1);
         expect(root.querySelector(`#bs-chart ${tagName}`)).toBe(charts[0]);
         expect(root.querySelector('#bs-chart')?.childElementCount).toBe(1);
-        expect(code().textContent).toContain(register);
-        expect(code().textContent).toMatch(new RegExp(`from\\s*['"]modern-charts/${id}['"]`));
+        expect(editor.value).toContain(`import { ${register} } from 'modern-charts/${id}';`);
+        expect(editor.value).toContain(`await ${register}(`);
         expect(charts[0].toCsv().split('\n').length).toBeGreaterThan(1);
       });
     }
@@ -521,7 +528,90 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     await vi.waitFor(() => {
       expect(charts[0].toCsv()).toBe('');
       expect(download.disabled).toBe(true);
-      expect(code().textContent).not.toMatch(/csvExport:\s*true/);
+      expect(editor.value).not.toMatch(/csvExport:\s*true/);
+      expect(featureCode.hidden).toBe(true);
+    });
+  }, 20000);
+
+  it('applies valid bootstrap editor changes and resets the single preview', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const charts = renderGuidePage(root, 'bootstrapping', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#bs-bootstrap-code textarea')!;
+    const entrypoint = root.querySelector<HTMLSelectElement>('#bs-entrypoint')!;
+    const chartType = root.querySelector<HTMLSelectElement>('#bs-chart-type')!;
+    const zoom = root.querySelector<HTMLInputElement>('#bs-zoom')!;
+    const csvExport = root.querySelector<HTMLInputElement>('#bs-csv-export')!;
+    const download = root.querySelector<HTMLButtonElement>('#bs-download-csv')!;
+    const defaultBootstrap = editor.value;
+    const editBootstrap = (source: string) => {
+      editor.value = source;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    editBootstrap(`import { registerModernCharts } from 'modern-charts';
+await registerModernCharts({ features: { zoom: true, csvExport: false } });`);
+    await vi.waitFor(() => {
+      expect(editor.getAttribute('aria-invalid')).toBe('false');
+      expect(entrypoint.value).toBe('library');
+      expect(chartType.value).toBe('bar');
+      expect(zoom.checked).toBe(true);
+      expect(csvExport.checked).toBe(false);
+      expect(charts[0].zoomable).toBe(true);
+      expect(charts[0].toCsv()).toBe('');
+    });
+
+    editBootstrap(`import { registerHeatmapChart } from 'modern-charts/heatmap';
+await registerHeatmapChart({ features: { zoom: false, csvExport: true } });`);
+    await vi.waitFor(() => {
+      expect(editor.getAttribute('aria-invalid')).toBe('false');
+      expect(entrypoint.value).toBe('standalone');
+      expect(chartType.value).toBe('heatmap');
+      expect(zoom.checked).toBe(false);
+      expect(csvExport.checked).toBe(true);
+      expect(root.querySelector('#bs-chart mc-heatmap-chart')).toBe(charts[0]);
+      expect(charts[0].zoomable).toBe(false);
+      expect(charts[0].toCsv()).toContain('row,x,y');
+      expect(download.disabled).toBe(false);
+    });
+
+    const heatmap = charts[0];
+    const gaugeImport = "import { registerGaugeChart } from 'modern-charts/gauge';";
+    for (const source of [
+      'await registerGaugeChart();',
+      `${gaugeImport}\nawait registerBarChart();`,
+      `${gaugeImport}\nawait registerGaugeChart(null);`,
+      `${gaugeImport}\nawait registerGaugeChart({ features: null });`,
+      `${gaugeImport}\nawait registerGaugeChart({ features: { zoom: true, csvExport: 'false' } });`
+    ]) {
+      editBootstrap(source);
+      expect(editor.getAttribute('aria-invalid')).toBe('true');
+      expect(entrypoint.value).toBe('standalone');
+      expect(chartType.value).toBe('heatmap');
+      expect(zoom.checked).toBe(false);
+      expect(csvExport.checked).toBe(true);
+      expect(charts[0]).toBe(heatmap);
+      expect(heatmap.toCsv()).toContain('row,x,y');
+    }
+
+    editBootstrap(`${gaugeImport}\nawait registerGaugeChart()`);
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    expect(chartType.value).toBe('gauge');
+    expect(charts[0].isFeatureEnabled('zoom')).toBe(false);
+    expect(charts[0].isFeatureEnabled('csvExport')).toBe(false);
+
+    root.querySelector<HTMLButtonElement>('#bs-bootstrap-code .guide-reset-btn')!.click();
+    await vi.waitFor(() => {
+      expect(editor.getAttribute('aria-invalid')).toBe('false');
+      expect(editor.value).toBe(defaultBootstrap);
+      expect(entrypoint.value).toBe('library');
+      expect(chartType.value).toBe('bar');
+      expect(zoom.checked).toBe(false);
+      expect(csvExport.checked).toBe(false);
+      expect(root.querySelector('#bs-chart mc-bar-chart')).toBe(charts[0]);
+      expect(charts[0].zoomable).toBe(false);
+      expect(charts[0].toCsv()).toBe('');
+      expect(download.disabled).toBe(true);
     });
   }, 20000);
 });

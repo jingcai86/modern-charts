@@ -160,7 +160,7 @@ export function createCodeBlock(code: string, title = 'Code Example'): HTMLEleme
 export interface LiveCodeEditorOptions {
   title: string;
   initialValue: string;
-  language?: 'config' | 'css' | 'html';
+  language?: 'config' | 'css' | 'html' | 'js';
   hint?: string;
   onApply: (rawValue: string) => void | string;
   onReset?: () => void;

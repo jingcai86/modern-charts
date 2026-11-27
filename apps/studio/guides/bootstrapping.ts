@@ -1,9 +1,10 @@
 import { CHART_CATALOG } from '../catalog';
 import { getGlobalPalette } from '../state/theme';
+import { parseConfigObjectLiteral } from '../utils/code-sync';
 import type { MCBaseChart } from '../../../src/core/base-chart';
 import { configureChartFeatures } from '../../../src/core/features';
 import type { ThemeModePreference } from '../../../src/core/types';
-import { createCodeBlock } from './shared';
+import { createCodeBlock, createLiveCodeEditor } from './shared';
 
 const REGISTER_FN_BY_ID: Record<string, string> = {
   bar: 'registerBarChart',
@@ -17,6 +18,39 @@ const REGISTER_FN_BY_ID: Record<string, string> = {
   treemap: 'registerTreemapChart',
   gauge: 'registerGaugeChart'
 };
+
+function parseBootstrap(source: string) {
+  const code = source.trim();
+  const declaration = /^import\s*\{\s*(register\w+)\s*\}\s*from\s*(['"])(modern-charts(?:\/[a-z]+)?)\2/.exec(code);
+  if (!declaration) throw new SyntaxError('Use a Modern Charts import followed by its registration call.');
+
+  const [, registrar, , modulePath] = declaration;
+  const chartId = modulePath === 'modern-charts' ? undefined : modulePath.slice('modern-charts/'.length);
+  const expectedRegistrar = chartId ? REGISTER_FN_BY_ID[chartId] : 'registerModernCharts';
+  const call = code.slice(declaration[0].length).trim().replace(/^;|;$/g, '').trim();
+  const registration = /^(?:await\s+)?(register\w+)\s*\(([\s\S]*)\)$/.exec(call);
+  if (registrar !== expectedRegistrar || registration?.[1] !== registrar) {
+    throw new SyntaxError('Match the registration function to its Modern Charts import.');
+  }
+
+  const rawOptions = registration[2].trim();
+  const literal = rawOptions.replace(/,$/, '').trimEnd();
+  if (rawOptions && (!literal.startsWith('{') || !literal.endsWith('}'))) {
+    throw new SyntaxError('Pass feature options as an object.');
+  }
+  const options: Record<string, unknown> = literal ? parseConfigObjectLiteral(literal) : {};
+  const features: unknown = 'features' in options ? options.features : options;
+  if (!features || typeof features !== 'object' || Array.isArray(features) ||
+      Object.entries(features).some(([key, value]) =>
+        (key !== 'zoom' && key !== 'csvExport') || typeof value !== 'boolean')) {
+    throw new SyntaxError('Set zoom and csvExport to true or false.');
+  }
+  return {
+    chartId,
+    zoom: 'zoom' in features && features.zoom === true,
+    csvExport: 'csvExport' in features && features.csvExport === true
+  };
+}
 
 interface BootstrapFeatureRow {
   label: string;
@@ -99,7 +133,7 @@ function createBootstrapPlayground(
   section.innerHTML = `
     <h2 class="panel-title">Try Feature Bootstrapping</h2>
     <p class="guide-prose">
-      Choose a registration example and enable features to try on the chart. The code updates with your choices.
+      Edit the registration code or use the controls to try features on the chart.
     </p>
     <div class="guide-controls-row">
       <label>Registration
@@ -118,7 +152,10 @@ function createBootstrapPlayground(
       <div>
         <div class="guide-chart-stage" id="bs-chart"></div>
       </div>
-      <div id="bs-bootstrap-code"></div>
+      <div class="guide-body-stack">
+        <div id="bs-bootstrap-code"></div>
+        <div id="bs-feature-code" hidden></div>
+      </div>
     </div>
     <div class="guide-controls-row">
       <button type="button" id="bs-download-csv" disabled>Download CSV</button>
@@ -139,9 +176,10 @@ function createBootstrapPlayground(
   const csvPreview = section.querySelector<HTMLDetailsElement>('#bs-csv-preview')!;
   const csvOutput = section.querySelector('#bs-csv-output')!;
   const status = section.querySelector('#bs-feature-status')!;
-  const codeBlock = createCodeBlock('', 'Bootstrap and use chart features');
-  const code = codeBlock.querySelector('code')!;
-  section.querySelector('#bs-bootstrap-code')!.appendChild(codeBlock);
+  const featureCode = section.querySelector<HTMLElement>('#bs-feature-code')!;
+  const featureExample = createCodeBlock('', 'Use the enabled features');
+  const featureSnippet = featureExample.querySelector('code')!;
+  featureCode.appendChild(featureExample);
 
   for (const entry of CHART_CATALOG) {
     const option = document.createElement('option');
@@ -153,28 +191,28 @@ function createBootstrapPlayground(
   const selectedChart = () => CHART_CATALOG.find(({ id }) => id === chartType.value)!;
   let chart: MCBaseChart<any>;
 
-  const syncSnippet = () => {
+  const formatBootstrap = () => {
     const chartEntry = selectedChart();
     const standalone = entrypoint.value === 'standalone';
     const registrar = standalone ? REGISTER_FN_BY_ID[chartEntry.id] : 'registerModernCharts';
     const source = standalone ? `modern-charts/${chartEntry.id}` : 'modern-charts';
-    const lines = [
+    return [
       `import { ${registrar} } from '${source}';`,
       '',
       `await ${registrar}({`,
       `  features: { zoom: ${zoom.checked}, csvExport: ${csvExport.checked} }`,
       '});'
-    ];
+    ].join('\n');
+  };
 
-    if (zoom.checked || csvExport.checked) {
-      lines.push('', '// Use the enabled features on your configured chart.',
-        `const chart = document.querySelector('${chartEntry.tagName}');`);
-      if (zoom.checked) lines.push('chart.toggleZoom(true);');
-      if (csvExport.checked) {
-        lines.push('const csv = chart.toCsv();', '// Call chart.exportCsv() to download the CSV.');
-      }
+  const syncFeatureExample = () => {
+    featureCode.hidden = !zoom.checked && !csvExport.checked;
+    const lines = [`const chart = document.querySelector('${selectedChart().tagName}');`];
+    if (zoom.checked) lines.push('chart.toggleZoom(true);');
+    if (csvExport.checked) {
+      lines.push('const csv = chart.toCsv();', '// Call chart.exportCsv() to download the CSV.');
     }
-    code.textContent = lines.join('\n');
+    featureSnippet.textContent = lines.join('\n');
   };
 
   const syncCsvPreview = (available: boolean) => {
@@ -185,6 +223,7 @@ function createBootstrapPlayground(
 
   const mountChart = () => {
     const entry = selectedChart();
+    if (chart?.localName === entry.tagName) return;
     chart = document.createElement(entry.tagName) as MCBaseChart<any>;
     chart.setConfig({
       ...entry.createDefaultConfig(themeMode),
@@ -195,7 +234,6 @@ function createBootstrapPlayground(
     });
     stage.replaceChildren(chart);
     mounted[0] = chart;
-    syncSnippet();
     syncCsvPreview(!download.disabled);
   };
 
@@ -203,7 +241,7 @@ function createBootstrapPlayground(
   const applyFeatures = async () => {
     const id = ++changeId;
     const features = { zoom: zoom.checked, csvExport: csvExport.checked };
-    syncSnippet();
+    syncFeatureExample();
     syncCsvPreview(false);
     status.textContent = features.zoom || features.csvExport ? 'Loading features…' : '';
     try {
@@ -216,10 +254,42 @@ function createBootstrapPlayground(
     }
   };
 
+  const editor = createLiveCodeEditor({
+    title: 'Bootstrap and use chart features',
+    initialValue: formatBootstrap(),
+    language: 'js',
+    hint: 'Edit the Modern Charts import and registration options to update the preview.',
+    onApply: (source) => {
+      const parsed = parseBootstrap(source);
+      entrypoint.value = parsed.chartId ? 'standalone' : 'library';
+      if (parsed.chartId) chartType.value = parsed.chartId;
+      zoom.checked = parsed.zoom;
+      csvExport.checked = parsed.csvExport;
+      mountChart();
+      void applyFeatures();
+    },
+    onReset: () => {
+      chartType.value = 'bar';
+      editor.setValue(editorDefault, { resetBaseline: false });
+      editor.applyCurrent();
+    }
+  });
+  const editorDefault = editor.getValue();
+  section.querySelector('#bs-bootstrap-code')!.appendChild(editor.element);
+
+  const syncSnippet = () => editor.setValue(formatBootstrap(), { resetBaseline: false });
+  const updateFeaturesFromControls = () => {
+    syncSnippet();
+    void applyFeatures();
+  };
   entrypoint.addEventListener('change', syncSnippet);
-  chartType.addEventListener('change', mountChart);
-  zoom.addEventListener('change', () => void applyFeatures());
-  csvExport.addEventListener('change', () => void applyFeatures());
+  chartType.addEventListener('change', () => {
+    mountChart();
+    syncSnippet();
+    syncFeatureExample();
+  });
+  zoom.addEventListener('change', updateFeaturesFromControls);
+  csvExport.addEventListener('change', updateFeaturesFromControls);
   download.addEventListener('click', () => chart.exportCsv());
 
   mountChart();
