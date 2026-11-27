@@ -32,4 +32,4 @@ export * from '../components/mc-aria';
 export * from '../components/mc-marker';
 export * from '../components/layers/mc-layers';
 
-registerCoreComponents();
+void registerCoreComponents();

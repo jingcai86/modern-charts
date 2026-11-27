@@ -1,15 +1,6 @@
+import { CHART_CATALOG, type ChartCatalogEntry } from '../catalog';
 import { getGlobalPalette } from '../state/theme';
-import {
-  SAMPLE_BAR_DATA,
-  SAMPLE_GAUGE_DATA,
-  SAMPLE_HEATMAP_DATA,
-  SAMPLE_LINE_DATA,
-  SAMPLE_PIE_DATA,
-  SAMPLE_RADAR_DATA,
-  SAMPLE_SANKEY_DATA,
-  SAMPLE_SCATTER_DATA,
-  SAMPLE_SUNBURST_DATA
-} from '../sample-data';
+import { SAMPLE_BAR_DATA } from '../sample-data';
 import {
   configureChartFeatures,
   getChartFeatures,
@@ -18,6 +9,19 @@ import {
   type ThemeModePreference
 } from '../../../src/index';
 import { createCodeBlock, createLiveConfigEditor } from './shared';
+
+const REGISTER_FN_BY_ID: Record<string, string> = {
+  bar: 'registerBarChart',
+  line: 'registerLineChart',
+  pie: 'registerPieChart',
+  heatmap: 'registerHeatmapChart',
+  radar: 'registerRadarChart',
+  sunburst: 'registerSunburstChart',
+  sankey: 'registerSankeyChart',
+  scatter: 'registerScatterChart',
+  treemap: 'registerTreemapChart',
+  gauge: 'registerGaugeChart'
+};
 
 export function renderBootstrappingGuide(
   container: HTMLElement,
@@ -189,7 +193,7 @@ export function renderBootstrappingGuide(
       <div>
         <h2 class="panel-title">Example 2: Per-Chart Subpath Bootstrapping Across All 10 Chart Types</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Select any chart type to preview its standalone subpath bootstrap call with default (<code>false</code>) vs. explicit (<code>true</code>) feature flags.
+          Select any chart from the catalog to preview its standalone subpath bootstrap call with default (<code>false</code>) vs. explicit (<code>true</code>) feature flags.
         </p>
       </div>
       <div class="guide-controls-row" role="group" aria-label="Per-chart bootstrap switcher" id="bs-type-buttons"></div>
@@ -205,198 +209,93 @@ export function renderBootstrappingGuide(
   `;
   container.appendChild(ex2);
 
-  interface ChartBootstrapSpec {
-    id: string;
-    label: string;
-    tag: string;
-    registerFn: string;
-    config: Record<string, any>;
-  }
-
-  const chartSpecs: ChartBootstrapSpec[] = [
-    {
-      id: 'bar',
-      label: 'Bar',
-      tag: 'mc-bar-chart',
-      registerFn: 'registerBarChart',
-      config: {
-        title: 'Quarterly Spend',
-        indexBy: 'quarter',
-        keys: ['Cloud', 'Edge'],
-        data: SAMPLE_BAR_DATA.slice(0, 3)
-      }
-    },
-    {
-      id: 'line',
-      label: 'Line',
-      tag: 'mc-line-chart',
-      registerFn: 'registerLineChart',
-      config: {
-        title: 'Throughput',
-        data: SAMPLE_LINE_DATA.slice(0, 2)
-      }
-    },
-    {
-      id: 'pie',
-      label: 'Pie',
-      tag: 'mc-pie-chart',
-      registerFn: 'registerPieChart',
-      config: {
-        title: 'Runtime Footprint',
-        innerRadius: 0.52,
-        data: SAMPLE_PIE_DATA.slice(0, 4)
-      }
-    },
-    {
-      id: 'heatmap',
-      label: 'Heatmap',
-      tag: 'mc-heatmap-chart',
-      registerFn: 'registerHeatmapChart',
-      config: {
-        title: 'CPU Load (%)',
-        data: SAMPLE_HEATMAP_DATA.slice(0, 3)
-      }
-    },
-    {
-      id: 'radar',
-      label: 'Radar',
-      tag: 'mc-radar-chart',
-      registerFn: 'registerRadarChart',
-      config: {
-        title: 'Benchmark Score',
-        indexBy: 'metric',
-        keys: ['ModernCharts', 'TraditionalChart'],
-        data: SAMPLE_RADAR_DATA.slice(0, 5)
-      }
-    },
-    {
-      id: 'sunburst',
-      label: 'Sunburst',
-      tag: 'mc-sunburst-chart',
-      registerFn: 'registerSunburstChart',
-      config: {
-        title: 'Module Hierarchy',
-        data: SAMPLE_SUNBURST_DATA
-      }
-    },
-    {
-      id: 'sankey',
-      label: 'Sankey',
-      tag: 'mc-sankey-chart',
-      registerFn: 'registerSankeyChart',
-      config: {
-        title: 'Pipeline Flow',
-        data: SAMPLE_SANKEY_DATA
-      }
-    },
-    {
-      id: 'scatter',
-      label: 'Scatter',
-      tag: 'mc-scatter-chart',
-      registerFn: 'registerScatterChart',
-      config: {
-        title: 'FPS vs Size',
-        data: SAMPLE_SCATTER_DATA
-      }
-    },
-    {
-      id: 'treemap',
-      label: 'Treemap',
-      tag: 'mc-treemap-chart',
-      registerFn: 'registerTreemapChart',
-      config: {
-        title: 'Package Footprint',
-        data: SAMPLE_SUNBURST_DATA
-      }
-    },
-    {
-      id: 'gauge',
-      label: 'Gauge',
-      tag: 'mc-gauge-chart',
-      registerFn: 'registerGaugeChart',
-      config: {
-        title: 'Layout Efficiency',
-        data: { ...SAMPLE_GAUGE_DATA }
-      }
-    }
-  ];
-
   const stage2 = ex2.querySelector<HTMLElement>('#bs-chart-2')!;
   const typeBtnsWrap = ex2.querySelector<HTMLElement>('#bs-type-buttons')!;
   const readoutEl2 = ex2.querySelector<HTMLElement>('#bs-readout-2')!;
-  let activeSpec2 = chartSpecs[0];
+  let activeEntry2: ChartCatalogEntry = CHART_CATALOG[0];
   let activeChart2: MCBaseChart<any> = document.createElement(
-    activeSpec2.tag
+    activeEntry2.tagName
   ) as MCBaseChart<any>;
   stage2.appendChild(activeChart2);
   mounted.push(activeChart2);
 
-  const updateEx2Chart = (spec: ChartBootstrapSpec, cfg: Record<string, any>) => {
-    if (activeChart2.tagName.toLowerCase() !== spec.tag) {
-      const nextEl = document.createElement(spec.tag) as MCBaseChart<any>;
-      stage2.replaceChildren(nextEl);
-      const idx = mounted.indexOf(activeChart2);
-      if (idx !== -1) mounted[idx] = nextEl;
-      else mounted.push(nextEl);
-      activeChart2 = nextEl;
+  const getEntryDemoConfig = (entry: ChartCatalogEntry): Record<string, any> => ({
+    title: entry.title,
+    ...structuredClone(entry.defaultConfig)
+  });
+
+  const mountCatalogEntry2 = (
+    entry: ChartCatalogEntry,
+    cfg: Record<string, any>
+  ) => {
+    if (activeChart2.tagName.toLowerCase() !== entry.tagName) {
+      const replacement = document.createElement(
+        entry.tagName
+      ) as MCBaseChart<any>;
+      stage2.replaceChildren(replacement);
+      const pos = mounted.indexOf(activeChart2);
+      if (pos >= 0) mounted[pos] = replacement;
+      else mounted.push(replacement);
+      activeChart2 = replacement;
     }
     activeChart2.setConfig({
+      ...cfg,
       autoSize: true,
       themeMode,
       palette: getGlobalPalette(),
-      animate: false,
-      ...cfg
+      animate: false
     });
+    const fnName = REGISTER_FN_BY_ID[entry.id] ?? 'registerModernCharts';
     readoutEl2.textContent = [
       `// 1. Default bootstrap (csvExport: false, zoom: false — feature chunks are NOT downloaded):`,
-      `import { ${spec.registerFn} } from 'modern-charts/${spec.id}';`,
-      `await ${spec.registerFn}();`,
+      `import { ${fnName} } from 'modern-charts/${entry.id}';`,
+      `await ${fnName}();`,
       ``,
       `// 2. Explicitly enable features on bootstrap (lazy-loads only requested feature chunks):`,
-      `await ${spec.registerFn}({ features: { csvExport: true, zoom: true } });`
+      `await ${fnName}({ features: { csvExport: true, zoom: true } });`
     ].join('\n');
   };
 
   const editor2 = createLiveConfigEditor({
     title: 'Selected Chart Config (Live)',
-    initialConfig: structuredClone(activeSpec2.config),
+    initialConfig: getEntryDemoConfig(activeEntry2),
     hint: 'Live chart.config editor (Studio enables bootstrap features automatically for all interactive previews).',
     onConfigChange: (nextCfg) => {
-      updateEx2Chart(activeSpec2, nextCfg);
+      mountCatalogEntry2(activeEntry2, nextCfg);
     },
     onReset: () => {
-      const fresh = structuredClone(activeSpec2.config);
-      updateEx2Chart(activeSpec2, fresh);
+      const fresh = getEntryDemoConfig(activeEntry2);
+      mountCatalogEntry2(activeEntry2, fresh);
       editor2.syncConfig(fresh);
     }
   });
   ex2.querySelector('#bs-editor-2')!.appendChild(editor2.element);
 
-  chartSpecs.forEach((spec) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.dataset.bsChartType = spec.id;
-    btn.textContent = spec.label;
-    const isSelected = spec.id === activeSpec2.id;
-    btn.setAttribute('aria-pressed', String(isSelected));
-    btn.classList.toggle('btn-primary', isSelected);
-    btn.addEventListener('click', () => {
-      activeSpec2 = spec;
-      typeBtnsWrap
-        .querySelectorAll<HTMLButtonElement>('button[data-bs-chart-type]')
-        .forEach((b) => {
-          const active = b.dataset.bsChartType === spec.id;
-          b.setAttribute('aria-pressed', String(active));
-          b.classList.toggle('btn-primary', active);
-        });
-      const fresh = structuredClone(spec.config);
-      updateEx2Chart(spec, fresh);
-      editor2.syncConfig(fresh);
+  for (const entry of CHART_CATALOG) {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.dataset.bsChartType = entry.id;
+    pill.textContent = entry.title.replace(/\s+Chart$/i, '');
+    const selected = entry.id === activeEntry2.id;
+    pill.setAttribute('aria-pressed', String(selected));
+    pill.classList.toggle('btn-primary', selected);
+    pill.addEventListener('click', () => {
+      activeEntry2 = entry;
+      for (const b of typeBtnsWrap.querySelectorAll<HTMLButtonElement>(
+        'button[data-bs-chart-type]'
+      )) {
+        const isMatch = b.dataset.bsChartType === entry.id;
+        b.setAttribute('aria-pressed', String(isMatch));
+        b.classList.toggle('btn-primary', isMatch);
+      }
+      const nextCfg = getEntryDemoConfig(entry);
+      mountCatalogEntry2(entry, nextCfg);
+      editor2.syncConfig(nextCfg);
     });
-    typeBtnsWrap.appendChild(btn);
-  });
+    typeBtnsWrap.appendChild(pill);
+  }
 
-  updateEx2Chart(activeSpec2, structuredClone(activeSpec2.config));
+  mountCatalogEntry2(activeEntry2, getEntryDemoConfig(activeEntry2));
 
   // Reference Code Snippets (Default false vs Explicitly true)
   const reference = document.createElement('section');
