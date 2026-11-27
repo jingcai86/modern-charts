@@ -19,6 +19,15 @@ import {
 } from '../../../src/index';
 import { createFeatureGuideBootstrap } from './bootstrapping';
 
+function csvActionSnippet(label: string, onClick: string): string {
+  return `const exportButton = document.createElement('button');
+exportButton.type = 'button';
+exportButton.textContent = ${JSON.stringify(label)};
+exportButton.disabled = !chart.isFeatureEnabled('csvExport');
+exportButton.addEventListener('click', ${onClick});
+document.body.appendChild(exportButton);`;
+}
+
 export function renderCsvExportGuide(
   container: HTMLElement,
   themeMode: ThemeModePreference
@@ -216,10 +225,10 @@ export function renderCsvExportGuide(
   syncEx1Preview(initialCfg1);
 
   const editor1 = bootstrap.createEditor({
-    title: 'CSV Export Configuration',
+    title: 'Bootstrap and Export CSV',
     initialConfig: initialCfg1,
     chartId: () => 'bar',
-    usage: 'const csv = chart.toCsv();\n// Call chart.exportCsv() to download the CSV.',
+    usage: `const csv = chart.toCsv();\n\n${csvActionSnippet('Export CSV', '() => chart.exportCsv()')}`,
     knownCallbacks: {
       'csvExport.formatValue': currencyFormatter,
       'csvExport.serializer': summarySerializer
@@ -253,13 +262,9 @@ export function renderCsvExportGuide(
 
   const exportBtn1 = ex1.querySelector<HTMLButtonElement>('#ce-btn-export-1')!;
   exportBtn1.addEventListener('click', () => {
-    const payload = bar1.exportCsv({
-      handler: (result) => {
-        filenameEl1.textContent = `${result.filename} (exported ${result.rows.length} rows)`;
-        readoutEl1.textContent = result.csv;
-      }
-    });
+    const payload = bar1.exportCsv();
     filenameEl1.textContent = `${payload.filename} (exported ${payload.rows.length} rows)`;
+    readoutEl1.textContent = payload.csv;
   });
 
   // ============================================================================
@@ -448,14 +453,14 @@ export function renderCsvExportGuide(
   };
 
   const editor2 = bootstrap.createEditor({
-    title: 'Multi-Chart CSV Config',
+    title: 'Bootstrap and Use a CSV Handler',
     initialConfig: structuredClone(activeSpec2.config),
     chartId: () => activeSpec2.id,
-    usage: `chart.exportCsv({
+    usage: csvActionSnippet('Run Custom Export Handler', `() => chart.exportCsv({
   handler: ({ filename, rows }) => {
     console.log(filename, rows.length);
   }
-});`,
+})`),
     hint: 'Edit the registration flags or add csvExport to chart.config to update this chart’s CSV output.',
     onConfigChange: (nextCfg) => {
       updateEx2Chart(activeSpec2, nextCfg);

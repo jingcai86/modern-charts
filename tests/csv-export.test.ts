@@ -482,6 +482,7 @@ describe('Customizable CSV Data Export Studio guide', () => {
     expect(editor1.value).toContain('await registerBarChart(');
     expect(editor1.value).toContain("document.createElement('mc-bar-chart')");
     expect(editor1.value).toContain('chart.toCsv()');
+    expect(editor1.value).toContain("addEventListener('click', () => chart.exportCsv())");
 
     ex1
       .querySelector<HTMLButtonElement>('[data-csv-preset="columns"]')!
@@ -505,7 +506,9 @@ describe('Customizable CSV Data Export Studio guide', () => {
       .click();
     expect(readout1.textContent).toContain('Quarter,Cloud,Edge,Total');
 
+    const createUrlSpy = vi.spyOn(URL, 'createObjectURL');
     ex1.querySelector<HTMLButtonElement>('#ce-btn-export-1')!.click();
+    expect(createUrlSpy).toHaveBeenCalledTimes(1);
     expect(ex1.querySelector('#ce-filename-1')!.textContent).toContain(
       'exported 4 rows'
     );
@@ -544,12 +547,13 @@ describe('Customizable CSV Data Export Studio guide', () => {
     }
 
     ex2.querySelector<HTMLButtonElement>('#ce-btn-handler-2')!.click();
+    expect(createUrlSpy).toHaveBeenCalledTimes(1);
     expect(ex2.querySelector('#ce-handler-status-2')!.textContent).toContain(
       'Custom handler invoked'
     );
 
     // Edit and reset live config editor 2
-    expect(editor2.value).toContain('chart.exportCsv({');
+    expect(editor2.value).toContain("addEventListener('click', () => chart.exportCsv({");
     const configBlock2 = extractChartConfigBlock(editor2.value)!;
     const cfg2 = parseConfigObjectLiteral(configBlock2);
     cfg2.title = 'Updated Efficiency';
