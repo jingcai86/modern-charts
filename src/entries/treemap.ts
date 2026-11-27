@@ -2,9 +2,14 @@ import { MCTreemapChart } from '../charts/mc-treemap-chart';
 import { MCCellItem } from '../presentation/items/cell.item';
 import {
   CORE_COMPONENT_REGISTRY,
+  configureChartFeatures,
+  getChartFeatures,
+  isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
+export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
 export type * from '../core/types';
 export * from '../models/treemap.model';
 export {
@@ -27,11 +32,16 @@ export const TREEMAP_COMPONENT_REGISTRY: Record<
  * Registers `<mc-treemap-chart>`, `<mc-cell-item>`, and shared core capability
  * components idempotently.
  */
-export function registerTreemapChart(): void {
-  registerChartComponents({
-    'mc-cell-item': MCCellItem,
-    'mc-treemap-chart': MCTreemapChart
-  });
+export function registerTreemapChart(
+  options?: ChartBootstrapOptions | ChartFeaturesConfig
+): Promise<void> {
+  return registerChartComponents(
+    {
+      'mc-cell-item': MCCellItem,
+      'mc-treemap-chart': MCTreemapChart
+    },
+    options
+  );
 }
 
-registerTreemapChart();
+void registerTreemapChart();

@@ -14,6 +14,15 @@ import {
   MCThemeLayer,
   MCViewLayer
 } from '../components/layers/mc-layers';
+import { configureChartFeatures } from './features';
+import type { ChartBootstrapOptions, ChartFeaturesConfig } from './types';
+
+export {
+  configureChartFeatures,
+  getChartFeatures,
+  isChartFeatureEnabled,
+  subscribeChartFeatures
+} from './features';
 
 export class MCAnimationElement extends MCAnimationLayer {}
 export class MCAriaElement extends MCAriaLayer {}
@@ -59,22 +68,29 @@ export function defineCustomElement(
 }
 
 /**
- * Registers only the shared core capability/layer Web Components.
+ * Registers only the shared core capability/layer Web Components and optional features.
+ * Optional features (`zoom`, `csvExport`) default to `false`.
  */
-export function registerCoreComponents(): void {
+export function registerCoreComponents(
+  options?: ChartBootstrapOptions | ChartFeaturesConfig
+): Promise<void> {
   for (const [tag, ctor] of Object.entries(CORE_COMPONENT_REGISTRY)) {
     defineCustomElement(tag, ctor);
   }
+  return configureChartFeatures(options);
 }
 
 /**
- * Registers the shared core components plus a specific chart's custom elements.
+ * Registers the shared core components plus a specific chart's custom elements
+ * and optional features (`zoom`, `csvExport` — both default to `false`).
  */
 export function registerChartComponents(
-  chartComponents: Record<string, CustomElementConstructor>
-): void {
-  registerCoreComponents();
+  chartComponents: Record<string, CustomElementConstructor>,
+  options?: ChartBootstrapOptions | ChartFeaturesConfig
+): Promise<void> {
+  const ready = registerCoreComponents(options);
   for (const [tag, ctor] of Object.entries(chartComponents)) {
     defineCustomElement(tag, ctor);
   }
+  return ready;
 }

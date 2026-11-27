@@ -1,9 +1,13 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import '../src/index';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { registerModernCharts } from '../src/index';
 import type { MCBarChart } from '../src/charts/mc-bar-chart';
 import type { MCLineChart } from '../src/charts/mc-line-chart';
 import type { MCScatterChart } from '../src/charts/mc-scatter-chart';
 import type { ViewConfig } from '../src/core/types';
+
+beforeAll(async () => {
+  await registerModernCharts({ features: { zoom: true } });
+});
 
 afterEach(() => document.body.replaceChildren());
 

@@ -166,6 +166,25 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="90" y="18" width="38" height="60" rx="6" fill="url(#ov-pat-dots)"/>
       <rect x="146" y="34" width="38" height="44" rx="6" fill="url(#ov-pat-grad)"/>
     </svg>`,
+  'view-zoom': `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="24" y="18" width="104" height="60" rx="8" fill="#0ea5e9" fill-opacity="0.14" stroke="#38bdf8" stroke-width="1.5"/>
+      <path d="M40 58L64 38L88 46L112 28" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="164" cy="44" r="18" fill="#10b981" fill-opacity="0.18" stroke="#34d399" stroke-width="1.8"/>
+      <path d="M158 44H170M164 38V50" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
+      <path d="M177 57L190 70" stroke="#34d399" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>`,
+  bootstrapping: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="22" y="20" width="76" height="56" rx="8" fill="#6366f1" fill-opacity="0.14" stroke="#818cf8" stroke-width="1.5"/>
+      <rect x="34" y="34" width="52" height="10" rx="5" fill="#818cf8" fill-opacity="0.35"/>
+      <circle cx="42" cy="39" r="3.5" fill="#94a3b8"/>
+      <rect x="34" y="52" width="52" height="10" rx="5" fill="#10b981" fill-opacity="0.3"/>
+      <circle cx="78" cy="57" r="3.5" fill="#34d399"/>
+      <path d="M106 48H126M120 42L126 48L120 54" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="134" y="20" width="64" height="56" rx="8" fill="#0ea5e9" fill-opacity="0.14" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <path d="M152 54L164 38L176 46L184 34" stroke="#34d399" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
   'ai-context': `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
       <rect x="34" y="18" width="152" height="60" rx="10" fill="currentColor" fill-opacity="0.06" stroke="#a855f7" stroke-opacity="0.6" stroke-width="1.5"/>

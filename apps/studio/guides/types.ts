@@ -12,7 +12,9 @@ export type GuideId =
   | 'i18n'
   | 'dynamic-updates'
   | 'chart-state'
-  | 'patterns';
+  | 'patterns'
+  | 'view-zoom'
+  | 'bootstrapping';
 
 export interface GuideMeta {
   id: GuideId;
@@ -134,5 +136,21 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '✨',
     summary:
       'Reusable chart-scoped SVG patterns (dots, lines, squares, crosshatch, custom) and gradients across all 10 charts with color-blind friendly presets and declarative <mc-def>.'
+  },
+  {
+    id: 'view-zoom',
+    title: 'Zoom Controls & Viewport Lock (<mc-view-layer>)',
+    shortLabel: 'Zoom Controls',
+    icon: '🔍',
+    summary:
+      'Universal viewport zoom and pan across all 10 chart types with a keyboard-accessible Zoom: On / Off toggle button, brush & range slider lock, and mc-zoom-toggle events.'
+  },
+  {
+    id: 'bootstrapping',
+    title: 'Feature Bootstrapping & Lazy Loading',
+    shortLabel: 'Bootstrapping',
+    icon: '🚀',
+    summary:
+      'Keep browser downloads minimal with opt-in feature bootstrapping (features: { zoom, csvExport } — default false) across registerModernCharts() and per-chart register<Chart>() entrypoints.'
   }
 ];

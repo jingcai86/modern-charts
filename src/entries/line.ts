@@ -2,9 +2,14 @@ import { MCLineChart } from '../charts/mc-line-chart';
 import { MCLineItem, MCPointItem } from '../presentation/items/line.item';
 import {
   CORE_COMPONENT_REGISTRY,
+  configureChartFeatures,
+  getChartFeatures,
+  isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
+export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
 export type * from '../core/types';
 export * from '../models/line.model';
 export * from '../presentation/items/line.item';
@@ -23,12 +28,17 @@ export const LINE_COMPONENT_REGISTRY: Record<string, CustomElementConstructor> =
  * Registers `<mc-line-chart>`, `<mc-line-item>`, `<mc-point-item>`, and shared
  * core capability components idempotently.
  */
-export function registerLineChart(): void {
-  registerChartComponents({
-    'mc-line-item': MCLineItem,
-    'mc-point-item': MCPointItem,
-    'mc-line-chart': MCLineChart
-  });
+export function registerLineChart(
+  options?: ChartBootstrapOptions | ChartFeaturesConfig
+): Promise<void> {
+  return registerChartComponents(
+    {
+      'mc-line-item': MCLineItem,
+      'mc-point-item': MCPointItem,
+      'mc-line-chart': MCLineChart
+    },
+    options
+  );
 }
 
-registerLineChart();
+void registerLineChart();

@@ -5,9 +5,14 @@ import {
 } from '../presentation/items/sankey.item';
 import {
   CORE_COMPONENT_REGISTRY,
+  configureChartFeatures,
+  getChartFeatures,
+  isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
+export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
 export type * from '../core/types';
 export * from '../models/sankey.model';
 export * from '../presentation/items/sankey.item';
@@ -28,12 +33,17 @@ export const SANKEY_COMPONENT_REGISTRY: Record<
  * Registers `<mc-sankey-chart>`, `<mc-sankey-node-item>`, `<mc-sankey-link-item>`,
  * and shared core capability components idempotently.
  */
-export function registerSankeyChart(): void {
-  registerChartComponents({
-    'mc-sankey-node-item': MCSankeyNodeItem,
-    'mc-sankey-link-item': MCSankeyLinkItem,
-    'mc-sankey-chart': MCSankeyChart
-  });
+export function registerSankeyChart(
+  options?: ChartBootstrapOptions | ChartFeaturesConfig
+): Promise<void> {
+  return registerChartComponents(
+    {
+      'mc-sankey-node-item': MCSankeyNodeItem,
+      'mc-sankey-link-item': MCSankeyLinkItem,
+      'mc-sankey-chart': MCSankeyChart
+    },
+    options
+  );
 }
 
-registerSankeyChart();
+void registerSankeyChart();

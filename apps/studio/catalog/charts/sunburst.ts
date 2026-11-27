@@ -9,6 +9,7 @@ export const SUNBURST_CHART_ENTRY: ChartCatalogEntry = {
     'Multi-ring hierarchical partition chart (d3-hierarchy + d3-partition) with configurable start/end angles, ancestor/descendant focus highlighting, radial/tangential labels, and interactive drilldown.',
   subComponents: [
     'mc-theme-layer',
+    'mc-view-layer',
     'mc-animation-layer',
     'mc-aria-layer',
     'mc-label',
@@ -17,7 +18,7 @@ export const SUNBURST_CHART_ENTRY: ChartCatalogEntry = {
   defaultLayers: ['arcs', 'labels', 'center', 'legends'],
   supportsMarkers: false,
   supportsCartesianScales: false,
-  supportsViewZoom: false,
+  supportsViewZoom: true,
   createDefaultConfig: (themeMode) => ({
     data: SAMPLE_SUNBURST_DATA,
     autoSize: true,
@@ -36,6 +37,7 @@ export const SUNBURST_CHART_ENTRY: ChartCatalogEntry = {
     interactiveDrilldown: true,
     themeMode,
     palette: 'shadcn',
+    view: { zoomable: true, pannable: true, showControls: true, maxZoom: 6 },
     animate: true,
     motionConfig: 'default',
     ariaLabel: 'Modern Charts Module Hierarchy Sunburst',

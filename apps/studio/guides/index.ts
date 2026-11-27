@@ -18,6 +18,8 @@ import { renderI18nGuide } from './i18n';
 import { renderDynamicUpdatesGuide } from './dynamic-updates';
 import { renderChartStateGuide } from './chart-state';
 import { renderPatternsGuide } from './patterns';
+import { renderViewZoomGuide } from './view-zoom';
+import { renderBootstrappingGuide } from './bootstrapping';
 import type { GuideId } from './types';
 
 export { GUIDES_CATALOG, type GuideId, type GuideMeta } from './types';
@@ -27,7 +29,7 @@ export function renderGuidePage(
   guideId: GuideId,
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
-  registerModernCharts();
+  void registerModernCharts({ features: { zoom: true } });
   const body = document.createElement('div');
   body.className = 'guide-body-stack';
   root.replaceChildren(renderGuideHeader(guideId), body);
@@ -61,5 +63,9 @@ export function renderGuidePage(
       return renderChartStateGuide(body, themeMode);
     case 'patterns':
       return renderPatternsGuide(body, themeMode);
+    case 'view-zoom':
+      return renderViewZoomGuide(body, themeMode);
+    case 'bootstrapping':
+      return renderBootstrappingGuide(body, themeMode);
   }
 }
