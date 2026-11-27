@@ -215,7 +215,7 @@ export function computeScatterChartModel(
 
       rawNodes.push({
         seriesId: s.id,
-        itemKey: JSON.stringify([s.id, pt.id ?? pt.label ?? idx]),
+        itemKey: JSON.stringify(pt.id === undefined ? [s.id, pt.label ?? idx] : [s.id, pt.id, 'id']),
         originalColor: baseColor,
         color,
         xValue: Number(pt.x),

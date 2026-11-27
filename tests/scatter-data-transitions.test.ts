@@ -2,7 +2,7 @@ import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { registerScatterChart, type MCScatterChart, type ScatterPoint } from '../src/entries/scatter';
 
 const mover: ScatterPoint = { id: 'move', label: 'Shared label', x: 2, y: 3, symbol: 'diamond' };
-const stationary: ScatterPoint = { id: 'stay', label: 'Shared label', x: 8, y: 6 };
+const stationary: ScatterPoint = { label: 'move', x: 8, y: 6 };
 
 beforeAll(() => registerScatterChart());
 afterEach(() => document.body.replaceChildren());
@@ -31,7 +31,7 @@ function node(chart: MCScatterChart, index: number): SVGElement {
   return chart.shadowRoot!.querySelector(`.mc-scatter-node[data-node-index="${index}"]`)!;
 }
 
-it('slides and resizes retained points by ID and starts rapid changes from the visible frame', async () => {
+it('distinguishes IDs from fallback labels and starts rapid changes from the visible frame', async () => {
   const chart = mountScatter();
   const group = node(chart, 0).parentElement!;
   const initialX = Number(node(chart, 0).getAttribute('cx'));
