@@ -1,11 +1,18 @@
+import { joinChartItems } from '../../core/chart-item-join';
 import { physicalTextAnchor } from '../../core/i18n';
 import { formatGroupedNumber } from '../../core/format';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, HierarchyNode } from '../../core/types';
 import type { TreemapChartModel } from '../../models/treemap.model';
 import { renderTreemapTileItem } from '../items/cell.item';
+import {
+  bindRectangularItemLabel,
+  renderRectangularItem,
+  retractRectangularItem
+} from './rectangular-item-motion';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const tileLayers = new WeakMap<SVGGElement, { focus: string; leaves: SVGGElement }>();
 
 export function renderTreemapTilesLayer(
   model: TreemapChartModel,
@@ -13,6 +20,16 @@ export function renderTreemapTilesLayer(
   onDrilldown?: (pathNames: string[]) => void,
   onDrillUp?: () => void
 ): void {
+  // Drilldown changes the displayed subtree and breadcrumb immediately. Data edits within
+  // that subtree keep their keyed leaf geometry, including values updated during motion.
+  const focus = JSON.stringify([ctx.data?.name, ...model.focusPath]);
+  const previous = tileLayers.get(ctx.layerGroup);
+  const leaves = previous?.focus === focus
+    ? previous.leaves
+    : document.createElementNS(SVG_NS, 'g');
+  tileLayers.set(ctx.layerGroup, { focus, leaves });
+  ctx.layerGroup.replaceChildren();
+
   // 1. Breadcrumb bar when drilled down
   if (model.isDrilledDown && model.breadcrumbHeight > 0) {
     const bcG = document.createElementNS(SVG_NS, 'g');
@@ -85,17 +102,27 @@ export function renderTreemapTilesLayer(
   });
 
   // 3. Leaf tiles
-  model.leaves.forEach((leaf) => {
-    if (leaf.width <= 1 || leaf.height <= 1) return;
-    ctx.layerGroup.appendChild(
-      renderTreemapTileItem(
+  ctx.layerGroup.appendChild(leaves);
+  const updateContext: typeof ctx = {
+    ...ctx,
+    animateItem: (mark) => mark.setAttribute('data-animated', 'false')
+  };
+  joinChartItems(
+    leaves,
+    model.leaves.filter((leaf) => leaf.width > 1 && leaf.height > 1),
+    (leaf) => JSON.stringify(leaf.pathNames),
+    ctx.animationConfig,
+    (group, leaf, { initial, motion }) => {
+      const mark = renderTreemapTileItem(
         leaf,
-        ctx,
+        initial ? ctx : updateContext,
         model.interactiveDrilldown,
         onDrilldown
-      )
-    );
-  });
+      );
+      renderRectangularItem(group, mark, leaf, motion);
+    },
+    retractRectangularItem
+  );
 }
 
 export function renderTreemapLabelsLayer(
@@ -139,7 +166,7 @@ export function renderTreemapLabelsLayer(
 
     const text =
       minorSpan >= 42 ? `${leaf.name} (${leaf.value})` : leaf.name;
-    ctx.renderLabel(ctx.layerGroup, {
+    const label = ctx.renderLabel(ctx.layerGroup, {
       id: `treemap-label-${idx}`,
       text,
       x: leaf.x0 + leaf.width / 2,
@@ -160,6 +187,7 @@ export function renderTreemapLabelsLayer(
         value: leaf.value
       }
     });
+    bindRectangularItemLabel(leaf, label);
   });
 }
 
