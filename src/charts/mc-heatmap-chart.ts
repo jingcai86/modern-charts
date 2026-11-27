@@ -51,6 +51,10 @@ export class MCHeatmapChart extends MCBaseChart<HeatmapRow[]> {
     return ['axes', 'cells', 'labels', 'legends'];
   }
 
+  protected override get retainedItemLayer(): string {
+    return 'cells';
+  }
+
   protected getDefaultMargin(): ChartMargin {
     return { top: 36, right: 32, bottom: 52, left: 76 };
   }
@@ -80,14 +84,8 @@ export class MCHeatmapChart extends MCBaseChart<HeatmapRow[]> {
       cellPadding: this.getOption('cellPadding', 'cell-padding', 0.1) ?? 0.1,
       xInnerPadding: this.getOption('xInnerPadding', 'x-inner-padding'),
       yInnerPadding: this.getOption('yInnerPadding', 'y-inner-padding'),
-      sizeVariation:
-        this.getOption('sizeVariation', 'size-variation', 0) ?? 0,
-      emptyColor:
-        this.getOption(
-          'emptyColor',
-          'empty-color',
-          'rgba(148, 163, 184, 0.16)'
-        ) ?? 'rgba(148, 163, 184, 0.16)',
+      sizeVariation: this.getOption('sizeVariation', 'size-variation', 0),
+      emptyColor: this.getOption('emptyColor', 'empty-color'),
       forceSquare: Boolean(
         this.getOption('forceSquare', 'force-square', false)
       ),
