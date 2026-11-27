@@ -4,7 +4,6 @@ import { SAMPLE_BAR_DATA } from '../sample-data';
 import {
   configureChartFeatures,
   getChartFeatures,
-  isChartFeatureEnabled,
   type MCBaseChart,
   type ThemeModePreference
 } from '../../../src/index';
@@ -112,15 +111,15 @@ function mountDefaultVsEnabledDemo(
       <div>
         <h2 class="panel-title">Example 1: Default Bootstrap (<code>false</code>) vs. Explicit Enable (<code>true</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Compare how a chart behaves when bootstrapped with the default <code>features: { zoom: false }</code> (zero zoom chunk overhead, controls hidden) versus explicitly enabling <code>features: { zoom: true }</code>.
+          Compare how a chart behaves when bootstrapped with the default <code>features: { zoom: false, csvExport: false }</code> (zero feature chunk overhead) versus explicitly enabling <code>features: { zoom: true, csvExport: true }</code>.
         </p>
       </div>
       <div class="guide-controls-row" role="group" aria-label="Bootstrap mode presets">
         <button type="button" id="bs-mode-enabled" data-bs-mode="enabled" aria-pressed="true" class="btn-primary">
-          Explicitly Enabled (zoom: true)
+          Explicitly Enabled (zoom: true, csvExport: true)
         </button>
         <button type="button" id="bs-mode-default" data-bs-mode="default" aria-pressed="false">
-          Default Bootstrap (zoom: false)
+          Default Bootstrap (zoom: false, csvExport: false)
         </button>
       </div>
     </div>
@@ -129,7 +128,7 @@ function mountDefaultVsEnabledDemo(
       <div id="bs-editor-1"></div>
     </div>
     <div class="inspector-box" style="margin-top:12px;">
-      <div class="inspector-title">Active Bootstrap Feature State</div>
+      <div class="inspector-title">Active Bootstrap Feature State &amp; <code>chart.toCsv()</code> Output</div>
       <div class="inspector-readout" id="bs-readout-1" role="status" aria-live="polite" aria-atomic="true" style="white-space:pre-wrap;font-family:var(--font-mono, monospace);"></div>
     </div>
   `;
@@ -154,21 +153,25 @@ function mountDefaultVsEnabledDemo(
       pannable: true,
       showControls: true,
       maxZoom: 6
+    },
+    csvExport: {
+      filename: 'quarterly-spend.csv'
     }
   };
 
   const refreshStatus = () => {
     const flags = getChartFeatures();
-    const isZoomOn = isChartFeatureEnabled('zoom');
+    const isEnabled = flags.zoom || flags.csvExport;
     const ctrlEl = chart.shadowRoot?.querySelector<HTMLElement>('.mc-view-controls');
     const isCtrlShown = Boolean(ctrlEl && !ctrlEl.hidden);
-    btnEnabled.setAttribute('aria-pressed', String(isZoomOn));
-    btnEnabled.classList.toggle('btn-primary', isZoomOn);
-    btnDefault.setAttribute('aria-pressed', String(!isZoomOn));
-    btnDefault.classList.toggle('btn-primary', !isZoomOn);
-    readoutEl.textContent = isZoomOn
-      ? `Bootstrap: registerModernCharts({ features: { zoom: true } }) | features.zoom: ${flags.zoom} | On-chart zoom controls visible: ${isCtrlShown}`
-      : `Bootstrap: registerModernCharts() [Default] | features.zoom: ${flags.zoom} (chunk skipped on lazy load) | On-chart zoom controls visible: ${isCtrlShown}`;
+    const csvOutput = chart.toCsv();
+    btnEnabled.setAttribute('aria-pressed', String(isEnabled));
+    btnEnabled.classList.toggle('btn-primary', isEnabled);
+    btnDefault.setAttribute('aria-pressed', String(!isEnabled));
+    btnDefault.classList.toggle('btn-primary', !isEnabled);
+    readoutEl.textContent = isEnabled
+      ? `Bootstrap: registerModernCharts({ features: { zoom: true, csvExport: true } }) | features.zoom: ${flags.zoom} | features.csvExport: ${flags.csvExport} | On-chart zoom controls visible: ${isCtrlShown}\n${csvOutput}`
+      : `Bootstrap: registerModernCharts() [Default] | features.zoom: ${flags.zoom} | features.csvExport: ${flags.csvExport} (feature chunks skipped on lazy load) | chart.toCsv(): ""`;
   };
 
   const applyConfig = (cfg: Record<string, any>) => {
@@ -192,7 +195,7 @@ function mountDefaultVsEnabledDemo(
       applyConfig(nextCfg);
     },
     onReset: () => {
-      void configureChartFeatures({ features: { zoom: true } });
+      void configureChartFeatures({ features: { zoom: true, csvExport: true } });
       const fresh = structuredClone(baselineConfig);
       applyConfig(fresh);
       liveEditor.syncConfig(fresh);
@@ -201,12 +204,12 @@ function mountDefaultVsEnabledDemo(
   editorHost.appendChild(liveEditor.element);
 
   btnEnabled.addEventListener('click', () => {
-    void configureChartFeatures({ features: { zoom: true } });
+    void configureChartFeatures({ features: { zoom: true, csvExport: true } });
     refreshStatus();
   });
 
   btnDefault.addEventListener('click', () => {
-    void configureChartFeatures({ features: { zoom: false } });
+    void configureChartFeatures({ features: { zoom: false, csvExport: false } });
     refreshStatus();
   });
 

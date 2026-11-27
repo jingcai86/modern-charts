@@ -143,6 +143,132 @@ export interface ChartBootstrapOptions {
   csvExport?: boolean;
 }
 
+// ============================================================================
+// Customizable CSV Data Export (Issue #125)
+// ============================================================================
+
+export interface CsvCellContext<TRow = Record<string, unknown>> {
+  key: string;
+  column: string;
+  header: string;
+  row: TRow;
+  rowIndex: number;
+  columnIndex: number;
+  chartType: string;
+  i18n: ChartI18n;
+}
+
+export interface CsvColumnConfig<TRow = Record<string, unknown>> {
+  /** Property key or dot-path on the normalized chart row. */
+  key: string;
+  /** Custom column header text (defaults to `headers[key] ?? key`). */
+  header?: string;
+  /** Optional per-column cell formatter. */
+  format?: (value: unknown, row: TRow, context: CsvCellContext<TRow>) => unknown;
+  /** Alias for `format`. */
+  formatter?: (value: unknown, row: TRow, context: CsvCellContext<TRow>) => unknown;
+  /** Optional computed value accessor for this column. */
+  value?: (row: TRow, rowIndex: number, context: CsvCellContext<TRow>) => unknown;
+}
+
+export type CsvColumnInput<TRow = Record<string, unknown>> =
+  | string
+  | CsvColumnConfig<TRow>;
+
+export interface ResolvedCsvColumn<TRow = Record<string, unknown>> {
+  key: string;
+  header: string;
+  format?: (value: unknown, row: TRow, context: CsvCellContext<TRow>) => unknown;
+  value?: (row: TRow, rowIndex: number, context: CsvCellContext<TRow>) => unknown;
+}
+
+export type CsvValueFormatter<TRow = Record<string, unknown>> = (
+  value: unknown,
+  context: CsvCellContext<TRow>,
+  row: TRow
+) => unknown;
+
+export interface CsvSerializerContext<
+  TData = any,
+  TRow = Record<string, unknown>
+> {
+  chartType: string;
+  data: TData;
+  rows: TRow[];
+  columns: ResolvedCsvColumn<TRow>[];
+  headers: string[];
+  filename: string;
+  delimiter: string;
+  lineEnding: string;
+  includeHeaders: boolean;
+  i18n: ChartI18n;
+  config?: ChartConfig<TData>;
+  defaultSerialize: () => string;
+}
+
+export type CsvSerializer<TData = any, TRow = Record<string, unknown>> = (
+  context: CsvSerializerContext<TData, TRow>,
+  defaultSerialize: () => string
+) => string | Array<Record<string, unknown>> | Array<unknown[]>;
+
+export interface CsvExportPayload<
+  TData = any,
+  TRow = Record<string, unknown>
+> {
+  csv: string;
+  filename: string;
+  chartType: string;
+  rows: TRow[];
+  columns: string[];
+  headers: string[];
+  data: TData;
+  mimeType: string;
+}
+
+export type CsvExportHandler<TData = any, TRow = Record<string, unknown>> = (
+  payload: CsvExportPayload<TData, TRow>
+) => boolean | void;
+
+export interface CsvExportOptions<
+  TData = any,
+  TRow = Record<string, unknown>
+> {
+  /** Ordered list of column keys or column descriptors to include in the CSV output. */
+  columns?: CsvColumnInput<TRow>[];
+  /** Custom column headers as an ordered `string[]` or a `{ [columnKey]: headerLabel }` map. */
+  headers?: string[] | Record<string, string>;
+  /** Custom value formatter applied to each cell before CSV escaping. */
+  formatValue?: CsvValueFormatter<TRow>;
+  /** Alias for `formatValue`. */
+  formatter?: CsvValueFormatter<TRow>;
+  /** Custom download filename (`.csv` is appended automatically if omitted) or filename generator. */
+  filename?:
+    | string
+    | ((context: { chartType: string; title?: string; data: TData }) => string);
+  /** Column separator character. Default `','`. */
+  delimiter?: string;
+  /** Row separator string. Default `'\n'`. */
+  lineEnding?: string;
+  /** Include the header row at the top of the CSV output. Default `true`. */
+  includeHeaders?: boolean;
+  /** Prepend a UTF-8 Byte Order Mark (`\uFEFF`) for spreadsheet software. Default `false`. */
+  bom?: boolean;
+  /** Format numbers and dates with the chart's active `i18n` locale when no custom formatter is set. Default `false`. */
+  useLocaleFormat?: boolean;
+  /** Custom data serializer returning a full CSV string or custom row records/arrays. */
+  serializer?: CsvSerializer<TData, TRow>;
+  /** Alias for `serializer`. */
+  serialize?: CsvSerializer<TData, TRow>;
+  /** Custom export handler invoked with the serialized `CsvExportPayload` instead of triggering a browser download. */
+  handler?: CsvExportHandler<TData, TRow>;
+  /** Alias for `handler`. */
+  exportHandler?: CsvExportHandler<TData, TRow>;
+  /** Alias for `handler`. */
+  onExport?: CsvExportHandler<TData, TRow>;
+  /** Whether `chart.exportCsv()` should trigger a browser file download when no custom handler is supplied. Default `true`. */
+  download?: boolean;
+}
+
 export type AnimationEasingName =
   | 'cubic-out'
   | 'linear'
@@ -1422,6 +1548,10 @@ export interface ChartConfig<TData = any> {
 
   // ECharts-style View / Roam / Zoom layer config
   view?: Partial<ViewConfig>;
+
+  // Customizable CSV Data Export config (Issue #125)
+  csvExport?: CsvExportOptions<TData>;
+  export?: CsvExportOptions<TData>;
 
   // Nivo-style Animation layer config (animate + motionConfig + animation)
   animate?: boolean;

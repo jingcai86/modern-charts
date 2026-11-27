@@ -12,6 +12,8 @@ export interface ChartMessages {
   toggleZoom: string;
   zoomOnLabel: string;
   zoomOffLabel: string;
+  exportCsv: string;
+  exportCsvLabel: string;
   loading: string;
   empty: string;
   total: string;
@@ -95,6 +97,8 @@ export const DEFAULT_CHART_MESSAGES: Readonly<ChartMessages> = Object.freeze({
   toggleZoom: 'Toggle zoom',
   zoomOnLabel: 'Zoom: On',
   zoomOffLabel: 'Zoom: Off',
+  exportCsv: 'Export CSV',
+  exportCsvLabel: 'Export CSV',
   loading: 'Loading…',
   empty: 'No data',
   total: 'Total',

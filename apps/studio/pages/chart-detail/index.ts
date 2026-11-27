@@ -1,4 +1,8 @@
-import type { ChartConfig, MCBaseChart } from '../../../../src/index';
+import type {
+  ChartConfig,
+  CsvExportPayload,
+  MCBaseChart
+} from '../../../../src/index';
 import { configureChartFeatures } from '../../../../src/core/features';
 import {
   getAllAttributesForChart,
@@ -29,7 +33,7 @@ export function renderChartDetailPage(
   root: HTMLElement,
   entry: ChartCatalogEntry
 ): MCBaseChart<any> {
-  void configureChartFeatures({ features: { zoom: true } });
+  void configureChartFeatures({ features: { zoom: true, csvExport: true } });
   root.replaceChildren();
 
   const config = getOrInitChartConfig(entry);
@@ -65,6 +69,13 @@ export function renderChartDetailPage(
           data-zoom-state="on"
         >
           🔍 Zoom: On
+        </button>
+        <button
+          type="button"
+          id="btn-detail-export-csv"
+          data-action="export-csv"
+        >
+          ⬇ Export CSV
         </button>
         <button type="button" id="btn-detail-ai-stream" class="btn-primary">
           ▶ Stream AI Layers
@@ -205,6 +216,9 @@ export function renderChartDetailPage(
   const zoomToggleBtn = chartCard.querySelector<HTMLButtonElement>(
     '#btn-detail-zoom-toggle'
   );
+  const exportCsvBtn = chartCard.querySelector<HTMLButtonElement>(
+    '#btn-detail-export-csv'
+  );
 
   function syncZoomToggleButton(): void {
     if (!zoomToggleBtn) return;
@@ -254,6 +268,12 @@ export function renderChartDetailPage(
       syncZoomToggleButton();
       attrPanel.syncAllControls();
       editorPanel.syncFromConfig(config);
+    });
+    chart.addEventListener('mc-export', (e: Event) => {
+      const detail = (e as CustomEvent<CsvExportPayload>).detail;
+      recordInspectorEvent(
+        `mc-export → filename="${detail.filename}" | rows: ${detail.rows.length}, columns: ${JSON.stringify(detail.columns)}`
+      );
     });
   }
   wireChartEvents(chartEl);
@@ -373,6 +393,10 @@ export function renderChartDetailPage(
     } finally {
       isUpdatingZoomFromButton = false;
     }
+  });
+
+  exportCsvBtn?.addEventListener('click', () => {
+    chartEl.exportCsv();
   });
 
   // Action Buttons: Stream AI Layers & Replay Animation

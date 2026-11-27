@@ -1,9 +1,13 @@
 import type {
   ChartBootstrapOptions,
+  ChartConfig,
   ChartDimensions,
   ChartFeaturesConfig,
+  CsvExportOptions,
+  CsvExportPayload,
   ViewConfig
 } from './types';
+import type { ChartI18n } from './i18n';
 
 export interface ZoomViewControllerLike {
   readonly hasInteraction: boolean;
@@ -28,12 +32,27 @@ export type ZoomControllerFactory = (
   onToggleZoom?: () => void
 ) => ZoomViewControllerLike;
 
+export interface CsvExporterImplementation {
+  serialize: <
+    TData = any,
+    TRow extends Record<string, unknown> = Record<string, unknown>
+  >(
+    chartType: string,
+    data: TData,
+    options?: CsvExportOptions<TData, TRow>,
+    config?: ChartConfig<TData>,
+    i18n?: ChartI18n
+  ) => CsvExportPayload<TData, TRow>;
+  download: (csv: string, filename: string, mimeType?: string) => boolean;
+}
+
 const activeFeatures: Required<ChartFeaturesConfig> = {
   zoom: false,
   csvExport: false
 };
 
 let zoomControllerFactory: ZoomControllerFactory | null = null;
+let csvExporterImpl: CsvExporterImplementation | null = null;
 const featureListeners = new Set<() => void>();
 
 function notifyFeatureListeners(): void {
@@ -57,6 +76,17 @@ export function createZoomController(
 ): ZoomViewControllerLike | null {
   if (!activeFeatures.zoom || !zoomControllerFactory) return null;
   return zoomControllerFactory(host, onZoomChange, onToggleZoom);
+}
+
+/** Registers the lazy-loaded CSV exporter implementation without changing the active `csvExport` feature flag. */
+export function registerCsvExporter(impl: CsvExporterImplementation): void {
+  csvExporterImpl = impl;
+}
+
+/** Returns the active CSV exporter implementation when `features.csvExport` is enabled, or `null` when disabled. */
+export function getCsvExporter(): CsvExporterImplementation | null {
+  if (!activeFeatures.csvExport || !csvExporterImpl) return null;
+  return csvExporterImpl;
 }
 
 /** Returns whether an optional chart feature (`'zoom'` or `'csvExport'`) is currently enabled. */
@@ -127,6 +157,13 @@ export function configureChartFeatures(
   if (activeFeatures.zoom && !zoomControllerFactory) {
     pendingLoads.push(
       import('./chart-view-controller').then(() => {
+        notifyFeatureListeners();
+      })
+    );
+  }
+  if (activeFeatures.csvExport && !csvExporterImpl) {
+    pendingLoads.push(
+      import('./csv-export').then(() => {
         notifyFeatureListeners();
       })
     );

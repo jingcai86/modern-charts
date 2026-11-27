@@ -14,6 +14,7 @@ export type GuideId =
   | 'chart-state'
   | 'patterns'
   | 'view-zoom'
+  | 'csv-export'
   | 'bootstrapping';
 
 export interface GuideMeta {
@@ -144,6 +145,14 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '🔍',
     summary:
       'Universal viewport zoom and pan across all 10 chart types with a keyboard-accessible Zoom: On / Off toggle button, brush & range slider lock, and mc-zoom-toggle events.'
+  },
+  {
+    id: 'csv-export',
+    title: 'Customizable CSV Data Export',
+    shortLabel: 'CSV Export',
+    icon: '📥',
+    summary:
+      'Export chart data to RFC 4180 CSV with built-in serialization across all 10 chart types, custom columns, headers, value formatting, filenames, custom serializers, and export handlers.'
   },
   {
     id: 'bootstrapping',

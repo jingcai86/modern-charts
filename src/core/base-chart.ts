@@ -43,6 +43,8 @@ import type {
   ChartStateChangeDetail,
   ChartStateKind,
   ChartTheme,
+  CsvExportOptions,
+  CsvExportPayload,
   CustomLabelRenderer,
   FillMatchContext,
   FillRule,
@@ -90,6 +92,7 @@ import { resolveChartDimensions, resolveChartMargin } from './chart-layout';
 import { baseChartStyles } from './chart-styles';
 import {
   createZoomController,
+  getCsvExporter,
   isChartFeatureEnabled,
   subscribeChartFeatures,
   type ZoomViewControllerLike
@@ -852,6 +855,70 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
   public isFeatureEnabled(feature: keyof ChartFeaturesConfig): boolean {
     return isChartFeatureEnabled(feature);
+  }
+
+  public toCsv(options: CsvExportOptions<TData> = {}): string {
+    return this.#buildCsvPayload(options).csv;
+  }
+
+  public exportCsv(
+    options: CsvExportOptions<TData> = {}
+  ): CsvExportPayload<TData> {
+    const exporter = getCsvExporter();
+    if (!exporter) {
+      return this.#buildCsvPayload(options);
+    }
+    const merged: CsvExportOptions<TData> = {
+      ...(this._config.export ?? {}),
+      ...(this._config.csvExport ?? {}),
+      ...options
+    };
+    const payload = this.#buildCsvPayload(merged);
+    const notCanceled = this.dispatchEvent(
+      new CustomEvent<CsvExportPayload<TData>>('mc-export', {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        detail: payload
+      })
+    );
+
+    const handler = merged.handler ?? merged.exportHandler ?? merged.onExport;
+    if (typeof handler === 'function') {
+      if (handler(payload) === true && merged.download === true && notCanceled) {
+        exporter.download(payload.csv, payload.filename, payload.mimeType);
+      }
+    } else if (notCanceled && merged.download !== false) {
+      exporter.download(payload.csv, payload.filename, payload.mimeType);
+    }
+    return payload;
+  }
+
+  #buildCsvPayload(options: CsvExportOptions<TData>): CsvExportPayload<TData> {
+    const exporter = getCsvExporter();
+    if (!exporter) {
+      return {
+        csv: '',
+        filename: '',
+        chartType: this.chartType,
+        rows: [],
+        columns: [],
+        headers: [],
+        data: this._data as TData,
+        mimeType: 'text/csv;charset=utf-8;'
+      };
+    }
+    return exporter.serialize<TData>(
+      this.chartType,
+      this._data as TData,
+      {
+        ...(this._config.export ?? {}),
+        ...(this._config.csvExport ?? {}),
+        ...options
+      },
+      this._config,
+      this.resolveI18n()
+    );
   }
 
   get zoomable(): boolean {
