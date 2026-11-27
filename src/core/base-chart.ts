@@ -110,11 +110,11 @@ const getBaseChartTemplate = lazyTemplate(`
         <g class="mc-chart-root"></g>
       </g>
     </svg>
-    <div class="mc-view-controls" part="controls" hidden>
-      <button type="button" class="mc-view-btn mc-view-btn--toggle" data-zoom="toggle" aria-label="Toggle zoom" aria-pressed="true" data-zoom-state="on">Zoom: On</button>
-      <button type="button" class="mc-view-btn" data-zoom="in" aria-label="Zoom in">+</button>
-      <button type="button" class="mc-view-btn" data-zoom="out" aria-label="Zoom out">−</button>
-      <button type="button" class="mc-view-btn" data-zoom="reset" aria-label="Reset zoom">Reset</button>
+    <div class="mc-view-controls" part="controls zoom-controls" hidden>
+      <button type="button" class="mc-view-btn" part="zoom-button zoom-in" data-zoom="in" aria-label="Zoom in"><slot name="zoom-in-icon">+</slot></button>
+      <button type="button" class="mc-view-btn" part="zoom-button zoom-out" data-zoom="out" aria-label="Zoom out"><slot name="zoom-out-icon">−</slot></button>
+      <button type="button" class="mc-view-btn" part="zoom-button zoom-reset" data-zoom="reset" aria-label="Reset zoom"><slot name="zoom-reset-icon">Reset</slot></button>
+      <slot name="zoom-controls-extra"></slot>
     </div>
     <mc-chart-state
       class="mc-chart-state"
@@ -2567,18 +2567,6 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     if (!controlsEl) return;
 
     const zoomable = Boolean(viewConfig.zoomable);
-    const toggleBtn = controlsEl.querySelector<HTMLButtonElement>(
-      '[data-zoom="toggle"]'
-    );
-    if (toggleBtn) {
-      toggleBtn.setAttribute('aria-label', i18n.messages.toggleZoom);
-      toggleBtn.setAttribute('aria-pressed', String(zoomable));
-      toggleBtn.setAttribute('data-zoom-state', zoomable ? 'on' : 'off');
-      toggleBtn.textContent = zoomable
-        ? i18n.messages.zoomOnLabel
-        : i18n.messages.zoomOffLabel;
-    }
-
     for (const [zoom, key] of [
       ['in', 'zoomIn'],
       ['out', 'zoomOut'],
@@ -2590,7 +2578,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       if (!button) continue;
       button.setAttribute('aria-label', i18n.messages[key]);
       if (zoom === 'reset') {
-        button.textContent = i18n.messages.resetZoomLabel;
+        const iconSlot = button.querySelector('slot');
+        if (iconSlot) iconSlot.textContent = i18n.messages.resetZoomLabel;
       }
       button.disabled = !zoomable;
     }

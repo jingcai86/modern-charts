@@ -115,6 +115,10 @@ export interface ViewConfig {
   minZoom: number;
   maxZoom: number;
   direction: 'xy' | 'x' | 'y';
+  /**
+   * Shows the Zoom In, Zoom Out, and Reset buttons and any `zoom-controls-extra` slot content.
+   * Replace button icons with the `zoom-in-icon`, `zoom-out-icon`, or `zoom-reset-icon` slot.
+   */
   showControls: boolean;
   initialZoom: number;
   initialPanX: number;
@@ -123,7 +127,7 @@ export interface ViewConfig {
 
 export interface ChartFeaturesConfig {
   /**
-   * Enables viewport zoom, pan, brush, range slider, and on-chart zoom toggle controls.
+   * Enables viewport zoom, pan, brush, range slider, and customizable on-chart zoom controls.
    * Defaults to `false` so standalone chart bundles do not download the zoom controller unless enabled.
    */
   zoom?: boolean;

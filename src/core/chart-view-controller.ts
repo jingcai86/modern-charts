@@ -15,8 +15,7 @@ export class ChartViewController {
 
   constructor(
     private readonly host: HTMLElement,
-    private readonly onZoomChange: (zoomed: boolean) => void,
-    private readonly onToggleZoom?: () => void
+    private readonly onZoomChange: (zoomed: boolean) => void
   ) {}
 
   get hasInteraction(): boolean {
@@ -52,54 +51,41 @@ export class ChartViewController {
   }
 
   bindControls(): void {
-    const controls = this.host.shadowRoot?.querySelector('.mc-view-controls');
+    const controls = this.host.shadowRoot?.querySelector<HTMLDivElement>('.mc-view-controls');
     if (!controls || (controls as any).__mcBound) return;
     (controls as any).__mcBound = true;
 
-    controls.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest(
-        'button[data-zoom]'
-      ) as HTMLButtonElement | null;
-      if (!btn) return;
+    const findPresetButton = (event: Event) => event.composedPath().find(
+      (target): target is HTMLButtonElement => target instanceof HTMLButtonElement &&
+        target.parentElement === controls && target.hasAttribute('data-zoom')
+    );
 
-      const action = btn.getAttribute('data-zoom');
-      if (action === 'toggle') {
-        this.onToggleZoom?.();
-        return;
-      }
-      if (!this.#interaction || !this.#zoomable || btn.disabled) return;
+    controls.addEventListener('click', (event) => {
+      const button = findPresetButton(event);
+      if (!button || button.disabled) return;
 
+      const action = button.dataset.zoom;
       if (action === 'in') {
-        this.#interaction.scaleBy(1.25);
+        this.scaleBy(1.25);
       } else if (action === 'out') {
-        this.#interaction.scaleBy(0.8);
+        this.scaleBy(0.8);
       } else if (action === 'reset') {
-        this.#interaction.reset();
+        this.reset();
       }
     });
 
-    let spaceBtn: HTMLButtonElement | null = null;
-    const onKey = (e: Event, up: boolean) => {
-      const ke = e as KeyboardEvent;
-      if (ke.isComposing || ke.keyCode === 229) return;
-      const isSpace = ke.key === ' ' || ke.key === 'Spacebar';
-      if (!isSpace && (up || ke.key !== 'Enter')) return;
-      const btn = (ke.target as HTMLElement | null)?.closest?.(
-        'button[data-zoom]'
-      ) as HTMLButtonElement | null;
-      if (up && spaceBtn === btn) {
-        spaceBtn = null;
-        ke.preventDefault();
-        return;
-      }
-      spaceBtn = up || !isSpace ? null : btn;
-      if (btn && !btn.disabled) {
-        ke.preventDefault();
-        btn.click();
-      }
+    const onKey = (event: KeyboardEvent, keyup: boolean) => {
+      if (event.isComposing || event.keyCode === 229) return;
+      const isSpace = event.key === ' ' || event.key === 'Spacebar';
+      if (!isSpace && (keyup || event.key !== 'Enter')) return;
+      const button = findPresetButton(event);
+      if (!button || button.disabled) return;
+
+      event.preventDefault();
+      if (!keyup) button.click();
     };
-    controls.addEventListener('keydown', (e) => onKey(e, false));
-    controls.addEventListener('keyup', (e) => onKey(e, true));
+    controls.addEventListener('keydown', (event) => onKey(event, false));
+    controls.addEventListener('keyup', (event) => onKey(event, true));
   }
 
   configure(
@@ -524,6 +510,5 @@ export class ChartViewController {
 }
 
 registerZoomControllerFactory(
-  (host, onZoomChange, onToggleZoom) =>
-    new ChartViewController(host, onZoomChange, onToggleZoom)
+  (host, onZoomChange) => new ChartViewController(host, onZoomChange)
 );

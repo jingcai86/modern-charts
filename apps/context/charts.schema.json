@@ -47,9 +47,9 @@
       "handler": "(payload: CsvExportPayload) => boolean | void; custom export handler"
     },
     "view": {
-      "zoomable": "boolean; enables wheel, brush, slider, and button zoom (toggled via chart.toggleZoom() or [data-zoom=\"toggle\"])",
-      "pannable": "boolean; enables click-and-drag panning across the chart viewport",
-      "showControls": "boolean; displays on-chart [Zoom: On/Off], [+], [−], and [Reset] controls"
+      "zoomable": "boolean. Enables wheel, pinch, and button zoom. Change it programmatically with chart.toggleZoom().",
+      "pannable": "boolean. Enables click-and-drag panning across the chart viewport.",
+      "showControls": "boolean. Shows Zoom In, Zoom Out, Reset, and any controls added through the zoom-controls-extra slot."
     }
   },
   "palettes": ["shadcn", "material", "bootstrap", "antd"],

@@ -13,6 +13,40 @@ import {
 import type { MCBaseChart, ThemeModePreference } from '../../../src/index';
 import { createFeatureGuideBootstrap } from './bootstrapping';
 
+const CUSTOM_ZOOM_CONTROLS = `<svg slot="zoom-in-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+  <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor"/>
+  <path d="M5 8h6m-3-3v6" fill="none" stroke="currentColor" stroke-linecap="round"/>
+</svg>
+<svg slot="zoom-out-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+  <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor"/>
+  <path d="M5 8h6" fill="none" stroke="currentColor" stroke-linecap="round"/>
+</svg>
+<svg slot="zoom-reset-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+  <path d="M12.5 5.5A5 5 0 1 0 13 9m-.5-7v3.5H9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+<button type="button" slot="zoom-controls-extra" aria-label="Zoom in by 2×">2×</button>`;
+
+const CUSTOM_ZOOM_STYLES = `.vz-custom-zoom::part(zoom-button) {
+  background: #efe7ff;
+  border-color: #ab94e1;
+  border-radius: 6px;
+  color: #422485;
+  font-weight: 700;
+}
+.vz-custom-zoom [slot="zoom-controls-extra"] {
+  background: #6542bf;
+  border: 1px solid #6542bf;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  padding-inline: 8px;
+}
+.vz-custom-zoom [slot="zoom-controls-extra"]:disabled {
+  cursor: default;
+  opacity: 0.55;
+}`;
+
 export function renderViewZoomGuide(
   container: HTMLElement,
   themeMode: ThemeModePreference
@@ -24,7 +58,7 @@ export function renderViewZoomGuide(
   const intro = document.createElement('section');
   intro.className = 'panel-card guide-section';
   intro.innerHTML = `
-    <h2 class="panel-title">Universal Viewport Zoom Controls &amp; Keyboard-Accessible Zoom Toggle</h2>
+    <h2 class="panel-title">Viewport Zoom Controls &amp; Customization</h2>
     <p class="guide-prose">
       Every chart component supports shared viewport zoom and pan via <code>&lt;mc-view-layer&gt;</code>,
       <code>config.view</code>, and <code>chart.toggleZoom()</code>. To keep standalone chart downloads small,
@@ -46,12 +80,17 @@ export function renderViewZoomGuide(
         </thead>
         <tbody>
           <tr>
-            <td><strong>On-Chart Toggle Button</strong></td>
-            <td><code>button[data-zoom="toggle"]</code></td>
-            <td>Renders inside <code>.mc-view-controls</code> with <code>aria-pressed="true|false"</code> and <code>data-zoom-state="on|off"</code>; keyboard-activatable via <kbd>Enter</kbd> and <kbd>Space</kbd>.</td>
+            <td><strong>On-Chart Controls</strong></td>
+            <td><code>::part(zoom-controls)</code>, <code>::part(zoom-button)</code>, <code>::part(zoom-in)</code>, <code>::part(zoom-out)</code>, <code>::part(zoom-reset)</code></td>
+            <td>Style the control group and the Zoom In, Zoom Out, and Reset buttons.</td>
           </tr>
           <tr>
-            <td><strong>Programmatic Zoom Toggle</strong></td>
+            <td><strong>Zoom Slots</strong></td>
+            <td><code>zoom-in-icon</code>, <code>zoom-out-icon</code>, <code>zoom-reset-icon</code>, <code>zoom-controls-extra</code></td>
+            <td>Supply SVG or image icons, or add an action to the control group.</td>
+          </tr>
+          <tr>
+            <td><strong>Programmatic Viewport Lock</strong></td>
             <td><code>chart.toggleZoom(force?)</code>, <code>chart.setZoomEnabled(bool)</code>, <code>chart.zoomable</code></td>
             <td>Enables or disables zoom gestures (wheel, brush, range slider) and disables <code>+</code>, <code>−</code>, and <code>Reset</code> buttons without resetting the current pan/zoom transform.</td>
           </tr>
@@ -77,24 +116,18 @@ export function renderViewZoomGuide(
   container.appendChild(intro);
 
   // ============================================================================
-  // Example 1: Interactive Zoom On/Off Toggle & View Lock
+  // Example 1: Custom controls and viewport lock
   // ============================================================================
   const ex1 = document.createElement('section');
   ex1.className = 'panel-card guide-section';
-  ex1.id = 'vz-zoom-toggle';
+  ex1.id = 'vz-custom-controls';
   ex1.innerHTML = `
     <div class="panel-header">
       <div>
-        <h2 class="panel-title">Example 1: Keyboard-Accessible Zoom On/Off Toggle &amp; View Lock</h2>
+        <h2 class="panel-title">Example 1: Custom Icons &amp; a 2× Zoom Action</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Toggle zoom on or off using the toolbar button, the on-chart <code>Zoom: On / Off</code> control, or keyboard <kbd>Enter</kbd> / <kbd>Space</kbd>. Disabling zoom locks the view against wheel, brush, slider, and zoom buttons while keeping the current transform intact.
+          Try the custom icons and <strong>2×</strong> action on the chart. Edit <code>view.zoomable</code> to disable zoom or call <code>chart.setZoomEnabled(false)</code> to lock the current zoom level.
         </p>
-      </div>
-      <div class="guide-controls-row" role="group" aria-label="Zoom controls">
-        <button type="button" id="vz-zoom-toggle-btn" class="btn-primary" aria-pressed="true" data-zoom-state="on">Zoom: On</button>
-        <button type="button" id="vz-zoom-in-btn">+ Zoom In</button>
-        <button type="button" id="vz-zoom-out-btn">− Zoom Out</button>
-        <button type="button" id="vz-zoom-reset-btn">↺ Reset</button>
       </div>
     </div>
     <div class="guide-example-grid">
@@ -109,17 +142,15 @@ export function renderViewZoomGuide(
   container.appendChild(ex1);
 
   const radar1 = document.createElement('mc-radar-chart') as MCBaseChart<any>;
+  radar1.classList.add('vz-custom-zoom');
+  radar1.insertAdjacentHTML('beforeend', CUSTOM_ZOOM_CONTROLS);
+  const style = document.createElement('style');
+  style.textContent = CUSTOM_ZOOM_STYLES;
+  ex1.prepend(style);
   ex1.querySelector('#vz-chart-1')!.appendChild(radar1);
   mounted.push(radar1);
 
-  const zoomToggleBtn1 = ex1.querySelector<HTMLButtonElement>(
-    '#vz-zoom-toggle-btn'
-  )!;
-  const zoomInBtn1 = ex1.querySelector<HTMLButtonElement>('#vz-zoom-in-btn')!;
-  const zoomOutBtn1 = ex1.querySelector<HTMLButtonElement>('#vz-zoom-out-btn')!;
-  const zoomResetBtn1 = ex1.querySelector<HTMLButtonElement>(
-    '#vz-zoom-reset-btn'
-  )!;
+  const zoomDouble = radar1.querySelector<HTMLButtonElement>('[slot="zoom-controls-extra"]')!;
   const readoutEl1 = ex1.querySelector<HTMLElement>('#vz-readout-1')!;
 
   const initialCfg1: Record<string, any> = {
@@ -141,14 +172,7 @@ export function renderViewZoomGuide(
     const viewport = radar1.shadowRoot?.querySelector('.mc-chart-viewport');
     const transform =
       viewport?.getAttribute('transform') || 'translate(0, 0) scale(1)';
-    zoomToggleBtn1.disabled = !radar1.isFeatureEnabled('zoom');
-    zoomToggleBtn1.setAttribute('aria-pressed', String(zoomable));
-    zoomToggleBtn1.setAttribute('data-zoom-state', zoomable ? 'on' : 'off');
-    zoomToggleBtn1.textContent = zoomable ? 'Zoom: On' : 'Zoom: Off';
-    zoomToggleBtn1.classList.toggle('btn-primary', zoomable);
-    zoomInBtn1.disabled = !zoomable;
-    zoomOutBtn1.disabled = !zoomable;
-    zoomResetBtn1.disabled = !zoomable;
+    zoomDouble.disabled = !zoomable;
     readoutEl1.textContent = `zoomable: ${zoomable} | transform: ${transform}`;
   };
 
@@ -166,13 +190,29 @@ export function renderViewZoomGuide(
   applyEx1Config(initialCfg1);
 
   const editor1 = bootstrap.createEditor({
-    title: 'View & Zoom Toggle Config (Live)',
+    title: 'Custom Zoom Controls',
     initialConfig: initialCfg1,
     chartId: () => 'radar',
-    usage: `chart.addEventListener('mc-zoom-toggle', (event) => {
+    usage: `chart.classList.add('vz-custom-zoom');
+chart.insertAdjacentHTML('beforeend', \`
+${CUSTOM_ZOOM_CONTROLS}
+\`);
+
+const style = document.createElement('style');
+style.textContent = \`
+${CUSTOM_ZOOM_STYLES}
+\`;
+document.head.appendChild(style);
+
+const zoomDouble = chart.querySelector('[slot="zoom-controls-extra"]');
+const syncZoomDouble = () => { zoomDouble.disabled = !chart.zoomable; };
+zoomDouble.addEventListener('click', () => chart.zoomIn(2));
+chart.addEventListener('mc-zoom-toggle', (event) => {
   console.log('Zoom enabled:', event.detail.zoomable);
-});`,
-    hint: 'Edit features.zoom for both examples or view.zoomable for this chart. The Zoom button logs to the browser console.',
+  syncZoomDouble();
+});
+syncZoomDouble();`,
+    hint: 'Edit features.zoom for both examples or view.zoomable for this chart.',
     onConfigChange: (nextCfg) => {
       applyEx1Config(nextCfg);
     },
@@ -184,7 +224,7 @@ export function renderViewZoomGuide(
   });
   ex1.querySelector('#vz-editor-1')!.appendChild(editor1.element);
 
-  zoomToggleBtn1.addEventListener('click', () => radar1.toggleZoom());
+  zoomDouble.addEventListener('click', () => radar1.zoomIn(2));
 
   radar1.addEventListener('mc-zoom-toggle', (event) => {
     const { zoomable } = (event as CustomEvent<{ zoomable: boolean }>).detail;
@@ -199,22 +239,7 @@ export function renderViewZoomGuide(
     });
   });
 
-  radar1.addEventListener('mc-zoom', () => {
-    syncEx1Readout();
-  });
-
-  zoomInBtn1.addEventListener('click', () => {
-    radar1.zoomIn();
-    syncEx1Readout();
-  });
-  zoomOutBtn1.addEventListener('click', () => {
-    radar1.zoomOut();
-    syncEx1Readout();
-  });
-  zoomResetBtn1.addEventListener('click', () => {
-    radar1.resetZoom();
-    syncEx1Readout();
-  });
+  radar1.addEventListener('mc-zoom', syncEx1Readout);
 
   // ============================================================================
   // Example 2: Universal Zoom & Pan Across All 10 Chart Types
@@ -227,7 +252,7 @@ export function renderViewZoomGuide(
       <div>
         <h2 class="panel-title">Example 2: Universal Zoom &amp; Pan Across All 10 Chart Types</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Switch across all 10 chart types to test on-chart <code>Zoom: On / Off</code>, <code>+</code>, <code>−</code>, and <code>Reset</code> controls on cartesian, radial, hierarchy, and flow charts.
+          Switch chart types to try the default Zoom In, Zoom Out, and Reset controls on cartesian, radial, hierarchy, and flow charts.
         </p>
       </div>
       <div class="guide-controls-row" role="group" aria-label="Chart type zoom presets" id="vz-type-buttons"></div>

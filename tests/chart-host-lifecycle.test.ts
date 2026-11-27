@@ -31,6 +31,76 @@ afterEach(() => {
 });
 
 describe('chart host lifecycle and declarative configuration', () => {
+  it('keeps zoom actions working with slotted icons and consumer-owned buttons', () => {
+    const chart = createChart();
+    chart.config = {
+      data, width: 480, height: 300, animate: false,
+      indexBy: 'category', keys: ['value'],
+      view: { zoomable: true, showControls: true }
+    };
+    document.body.append(chart);
+
+    const controls = chart.shadowRoot!.querySelector<HTMLElement>('.mc-view-controls')!;
+    const buttons = Array.from(controls.querySelectorAll<HTMLButtonElement>('button'));
+    expect(buttons.map((button) => button.dataset.zoom)).toEqual(['in', 'out', 'reset']);
+    const [zoomIn, zoomOut, reset] = buttons;
+    expect(zoomIn.getAttribute('part')?.split(' ')).toEqual(['zoom-button', 'zoom-in']);
+    expect(zoomOut.getAttribute('part')?.split(' ')).toEqual(['zoom-button', 'zoom-out']);
+    expect(reset.getAttribute('part')?.split(' ')).toEqual(['zoom-button', 'zoom-reset']);
+
+    const icon = document.createElementNS(svgNamespace, 'svg');
+    icon.setAttribute('slot', 'zoom-in-icon');
+    const path = document.createElementNS(svgNamespace, 'path');
+    icon.append(path);
+    const image = document.createElement('img');
+    image.slot = 'zoom-reset-icon';
+    image.alt = '';
+    const extra = document.createElement('button');
+    extra.slot = 'zoom-controls-extra';
+    extra.className = 'custom-zoom';
+    extra.addEventListener('click', () => chart.zoomIn(2));
+    chart.append(icon, image, extra);
+
+    const zoomInIcon = zoomIn.querySelector('slot')!;
+    const resetIcon = reset.querySelector('slot')!;
+    const extraSlot = controls.querySelector<HTMLSlotElement>('slot[name="zoom-controls-extra"]')!;
+    expect(zoomInIcon.assignedElements()).toEqual([icon]);
+    expect(resetIcon.assignedElements()).toEqual([image]);
+    expect(extraSlot.assignedElements()).toEqual([extra]);
+    expect(extra.className).toBe('custom-zoom');
+
+    const transform = () => svg(chart).querySelector('.mc-chart-viewport')!.getAttribute('transform');
+    // Happy DOM exposes assigned elements without dispatching their composed slot path.
+    const clickIcon = (targets: EventTarget[]) => {
+      const click = new MouseEvent('click', { bubbles: true, composed: true });
+      const nativePath = click.composedPath.bind(click);
+      vi.spyOn(click, 'composedPath').mockImplementation(() =>
+        click.eventPhase === Event.AT_TARGET ? [...targets, controls] : nativePath()
+      );
+      controls.dispatchEvent(click);
+    };
+    clickIcon([path, icon, zoomInIcon, zoomIn]);
+    expect(transform()).toContain('scale(1.25)');
+    zoomOut.click();
+    expect(transform()).toContain('scale(1)');
+    extra.click();
+    expect(transform()).toContain('scale(2)');
+
+    chart.config = {
+      ...chart.config, i18n: { messages: { resetZoom: 'Restore zoom', resetZoomLabel: 'Restore' } }
+    };
+    expect(reset.getAttribute('aria-label')).toBe('Restore zoom');
+    expect(resetIcon.textContent).toBe('Restore');
+    expect(resetIcon.assignedElements()).toEqual([image]);
+    clickIcon([image, resetIcon, reset]);
+    expect(transform()).toContain('scale(1)');
+
+    chart.toggleZoom(false);
+    expect(buttons.every((button) => button.disabled)).toBe(true);
+    extra.click();
+    expect(transform()).toContain('scale(1)');
+  });
+
   it('keeps the last valid chart while attributes are being edited and clears it when data is removed', () => {
     const chart = createChart();
     chart.setAttribute('config', JSON.stringify({ title: 'Sales', animate: false, keys: ['value'] }));

@@ -131,6 +131,7 @@ export const baseChartStyles = `
           bottom: 10px;
           right: 12px;
           display: inline-flex;
+          align-items: center;
           gap: 4px;
           background: rgba(15, 23, 42, 0.06);
           backdrop-filter: blur(6px);
@@ -145,6 +146,9 @@ export const baseChartStyles = `
         }
 
         .mc-view-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           font: inherit;
           color: inherit;
           font-size: 11px;
@@ -166,15 +170,6 @@ export const baseChartStyles = `
         .mc-view-btn:disabled {
           opacity: 0.45;
           cursor: not-allowed;
-        }
-
-        .mc-view-btn--toggle[aria-pressed="true"] {
-          background: #0284c7;
-          color: #ffffff;
-        }
-
-        .mc-view-btn--toggle[aria-pressed="true"]:hover:not(:disabled) {
-          background: #0369a1;
         }
 
         .mc-view-btn:focus-visible {

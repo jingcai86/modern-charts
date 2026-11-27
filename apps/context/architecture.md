@@ -97,7 +97,7 @@ interface SharedChartConfig<TData> {
     minZoom?: number;
     maxZoom?: number;
     direction?: 'xy' | 'x' | 'y';
-    showControls?: boolean;
+    showControls?: boolean; // Zoom In, Zoom Out, Reset, and any slotted extra controls
     initialZoom?: number;
     initialPanX?: number;
     initialPanY?: number;
@@ -442,4 +442,48 @@ chart.addEventListener('mc-event', (e) => console.log(e.detail));
 - `chart.streamLayers(delayMs?)` — Streams layers progressively, firing `mc-layer-stream` per layer and `mc-stream-complete` on finish.
 - `chart.getTooltipElement()` — Returns the chart's singleton item `<mc-tooltip>` instance.
 - `chart.getLegendTooltipElement()` — Returns the chart's dedicated singleton legend `<mc-tooltip>` instance.
+- `chart.toggleZoom(force?)` / `chart.setZoomEnabled(enabled)` — Change whether zoom is enabled and return the new state. Listen for `mc-zoom-toggle` to track it.
+- `chart.zoomIn(factor?)` / `chart.zoomOut(factor?)` / `chart.resetZoom()` — Scale or reset the viewport when zoom is enabled.
 - Events: `mc-event`, `mc-click`, `mc-focus`, `mc-blur`, `mc-mouseover`, `mc-mouseenter`, `mc-mouseleave`, `mc-item-*`, `mc-axis-*`, `mc-legend-*`, `mc-marker-*`, `mc-title-*`, `mc-canvas-*`, `mc-zoom`, `mc-aria-focus`, `mc-item-activate`, `mc-tooltip-show`, `mc-tooltip-hide`, `mc-legend-tooltip-show`, `mc-legend-tooltip-hide`, `mc-layer-stream`, `mc-stream-complete`.
+
+---
+
+## 11. Customizing Zoom Controls
+
+Enable the zoom feature at registration with `{ features: { zoom: true } }`. Set `view.showControls: true` or use `<mc-view-layer show-controls>` to display **Zoom In**, **Zoom Out**, and **Reset**. `chart.toggleZoom()` remains available for programmatic control.
+
+- Replace a button icon with a direct chart child such as an `<svg>` or `<img>` assigned to `zoom-in-icon`, `zoom-out-icon`, or `zoom-reset-icon`. The built-in button keeps its action and accessible name. Use `aria-hidden="true"` on decorative SVGs and `alt=""` on decorative images.
+- Add a direct child `<button type="button" slot="zoom-controls-extra">` to place an action after the built-in buttons. Style it as ordinary page HTML and attach a click handler that calls a chart method.
+- Style the built-in wrapper with `::part(controls)` and the three buttons with `::part(zoom-button)`. Target an individual button with `::part(zoom-in)`, `::part(zoom-out)`, or `::part(zoom-reset)`.
+
+Add this example to an HTML page served by a JavaScript bundler with `modern-charts` installed.
+
+```html
+<style>
+  #zoom-example::part(controls) { gap: 6px; }
+  #zoom-example::part(zoom-button) { border-radius: 6px; }
+  #zoom-example::part(zoom-reset) { font-weight: 700; }
+  #zoom-example > button[slot="zoom-controls-extra"] { border-radius: 6px; }
+</style>
+
+<mc-bar-chart id="zoom-example" style="height: 300px">
+  <svg slot="zoom-in-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M3 8h10M8 3v10" stroke="currentColor" stroke-width="2" />
+  </svg>
+  <button id="zoom-double" type="button" slot="zoom-controls-extra">Zoom 2×</button>
+</mc-bar-chart>
+
+<script type="module">
+  import { registerBarChart } from 'modern-charts/bar';
+  await registerBarChart({ features: { zoom: true } });
+
+  const chart = document.querySelector('#zoom-example');
+  chart.config = {
+    data: [{ month: 'May', sales: 12 }, { month: 'June', sales: 18 }],
+    indexBy: 'month',
+    keys: ['sales'],
+    view: { zoomable: true, showControls: true }
+  };
+  document.querySelector('#zoom-double').addEventListener('click', () => chart.zoomIn(2));
+</script>
+```
