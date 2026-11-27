@@ -90,7 +90,9 @@ describe('chart host lifecycle and declarative configuration', () => {
       ...chart.config, i18n: { messages: { resetZoom: 'Restore zoom', resetZoomLabel: 'Restore' } }
     };
     expect(reset.getAttribute('aria-label')).toBe('Restore zoom');
-    expect(resetIcon.textContent).toBe('Restore');
+    expect(reset.title).toBe('Restore');
+    expect(resetIcon.textContent?.trim()).toBe('');
+    expect(resetIcon.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(resetIcon.assignedElements()).toEqual([image]);
     clickIcon([image, resetIcon, reset]);
     expect(transform()).toContain('scale(1)');

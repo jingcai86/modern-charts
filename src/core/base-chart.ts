@@ -113,7 +113,13 @@ const getBaseChartTemplate = lazyTemplate(`
     <div class="mc-view-controls" part="controls zoom-controls" hidden>
       <button type="button" class="mc-view-btn" part="zoom-button zoom-in" data-zoom="in" aria-label="Zoom in"><slot name="zoom-in-icon">+</slot></button>
       <button type="button" class="mc-view-btn" part="zoom-button zoom-out" data-zoom="out" aria-label="Zoom out"><slot name="zoom-out-icon">−</slot></button>
-      <button type="button" class="mc-view-btn" part="zoom-button zoom-reset" data-zoom="reset" aria-label="Reset zoom"><slot name="zoom-reset-icon">Reset</slot></button>
+      <button type="button" class="mc-view-btn" part="zoom-button zoom-reset" data-zoom="reset" aria-label="Reset zoom" title="Reset">
+        <slot name="zoom-reset-icon">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false">
+            <path d="M12.5 5.5A5 5 0 1 0 13 9m-.5-7v3.5H9" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </slot>
+      </button>
       <slot name="zoom-controls-extra"></slot>
     </div>
     <mc-chart-state
@@ -2574,8 +2580,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       if (!button) continue;
       button.setAttribute('aria-label', i18n.messages[key]);
       if (zoom === 'reset') {
-        const iconSlot = button.querySelector('slot');
-        if (iconSlot) iconSlot.textContent = i18n.messages.resetZoomLabel;
+        button.title = i18n.messages.resetZoomLabel;
       }
       button.disabled = !zoomable;
     }
