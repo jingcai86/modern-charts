@@ -1,14 +1,27 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
+  configureChartFeatures,
   configureI18n,
+  getChartFeatures,
+  isChartFeatureEnabled,
   registerModernCharts,
   type MCBaseChart
 } from '../src/index';
+import { registerBarChart } from '../src/entries/bar';
+import { registerLineChart } from '../src/entries/line';
+import { registerPieChart } from '../src/entries/pie';
+import { registerHeatmapChart } from '../src/entries/heatmap';
+import { registerRadarChart } from '../src/entries/radar';
+import { registerSunburstChart } from '../src/entries/sunburst';
+import { registerSankeyChart } from '../src/entries/sankey';
+import { registerScatterChart } from '../src/entries/scatter';
+import { registerTreemapChart } from '../src/entries/treemap';
+import { registerGaugeChart } from '../src/entries/gauge';
 import {
   CHART_CATALOG,
   getAllAttributesForChart
 } from '../apps/studio/catalog';
-import { SAMPLE_LINE_DATA } from '../apps/studio/sample-data';
+import { SAMPLE_BAR_DATA, SAMPLE_LINE_DATA } from '../apps/studio/sample-data';
 import { renderChartDetailPage } from '../apps/studio/pages/chart-detail';
 import { resetChartConfig } from '../apps/studio/state/config-store';
 import { GUIDES_CATALOG, renderGuidePage } from '../apps/studio/guides';
@@ -17,20 +30,96 @@ import {
   parseConfigObjectLiteral
 } from '../apps/studio/utils/code-sync';
 
-beforeAll(() => {
-  registerModernCharts();
+beforeAll(async () => {
+  await registerModernCharts();
 });
 
-afterEach(() => {
+afterEach(async () => {
   document.body.replaceChildren();
   configureI18n({});
+  await configureChartFeatures({ features: { zoom: false, csvExport: false } });
   for (const entry of CHART_CATALOG) {
     resetChartConfig(entry);
   }
 });
 
+describe('Opt-in zoom feature bootstrapping (default false across all charts)', () => {
+  it('defaults zoom feature to false on registerModernCharts() and all 10 register<Chart>() entrypoints, and enables when features.zoom is true', async () => {
+    await configureChartFeatures({ features: { zoom: false } });
+    expect(isChartFeatureEnabled('zoom')).toBe(false);
+    expect(getChartFeatures().zoom).toBe(false);
+
+    // Calling registerModernCharts() and all 10 per-chart registrars without options keeps zoom: false
+    await registerModernCharts();
+    const registrars = [
+      registerBarChart,
+      registerLineChart,
+      registerPieChart,
+      registerHeatmapChart,
+      registerRadarChart,
+      registerSunburstChart,
+      registerSankeyChart,
+      registerScatterChart,
+      registerTreemapChart,
+      registerGaugeChart
+    ];
+    for (const registerFn of registrars) {
+      await registerFn();
+      expect(isChartFeatureEnabled('zoom')).toBe(false);
+    }
+
+    // Mount a chart while zoom feature is false (default)
+    const bar = document.createElement('mc-bar-chart') as MCBaseChart<any>;
+    bar.config = {
+      width: 480,
+      height: 280,
+      animate: false,
+      indexBy: 'quarter',
+      keys: ['Cloud'],
+      data: SAMPLE_BAR_DATA,
+      view: { zoomable: true, pannable: true, showControls: true }
+    };
+    document.body.appendChild(bar);
+
+    expect(bar.isFeatureEnabled('zoom')).toBe(false);
+    expect(bar.zoomable).toBe(false);
+    const controls = bar.shadowRoot!.querySelector<HTMLElement>(
+      '.mc-view-controls'
+    )!;
+    expect(controls.hidden).toBe(true);
+    expect(bar.toggleZoom()).toBe(false);
+    bar.zoomIn();
+    bar.zoomOut();
+    bar.resetZoom();
+    expect(
+      bar.shadowRoot!.querySelector('.mc-chart-viewport')!.hasAttribute('transform')
+    ).toBe(false);
+
+    // Enable zoom via per-chart bootstrap function
+    await registerBarChart({ features: { zoom: true } });
+    expect(isChartFeatureEnabled('zoom')).toBe(true);
+    expect(bar.isFeatureEnabled('zoom')).toBe(true);
+    expect(bar.zoomable).toBe(true);
+    expect(controls.hidden).toBe(false);
+
+    bar.zoomIn();
+    expect(
+      bar.shadowRoot!.querySelector('.mc-chart-viewport')!.getAttribute('transform')
+    ).toContain('scale(1.25)');
+
+    // Disabling zoom feature at runtime hides controls and resets transform
+    await registerBarChart({ features: { zoom: false } });
+    expect(bar.isFeatureEnabled('zoom')).toBe(false);
+    expect(controls.hidden).toBe(true);
+    expect(
+      bar.shadowRoot!.querySelector('.mc-chart-viewport')!.hasAttribute('transform')
+    ).toBe(false);
+  });
+});
+
 describe('Dedicated Zoom on/off button and zoom support across all 10 chart types (Issue #125)', () => {
-  it('enables zoom support in Studio catalog and renders a keyboard-accessible Zoom on/off toggle button for all 10 charts', () => {
+  it('enables zoom support in Studio catalog and renders a keyboard-accessible Zoom on/off toggle button for all 10 charts', async () => {
+    await registerModernCharts({ features: { zoom: true } });
     expect(CHART_CATALOG).toHaveLength(10);
 
     for (const entry of CHART_CATALOG) {
@@ -148,14 +237,15 @@ describe('Dedicated Zoom on/off button and zoom support across all 10 chart type
       // 6. Programmatic zoomable setter and setZoomEnabled helper
       chart.zoomable = false;
       expect(chart.zoomable, entry.id).toBe(false);
-      expect( chart.setZoomEnabled(true), entry.id).toBe(true);
+      expect(chart.setZoomEnabled(true), entry.id).toBe(true);
       expect(chart.zoomable, entry.id).toBe(true);
 
       root.remove();
     }
   }, 20000);
 
-  it('prevents brush and slider zoom gestures from changing the view when zoom is disabled', () => {
+  it('prevents brush and slider zoom gestures from changing the view when zoom is disabled', async () => {
+    await registerModernCharts({ features: { zoom: true } });
     const line = document.createElement('mc-line-chart') as MCBaseChart<any>;
     line.config = {
       width: 500,
@@ -244,8 +334,8 @@ describe('Dedicated Zoom on/off button and zoom support across all 10 chart type
   });
 });
 
-describe('Zoom Controls & Viewport Lock Studio guide', () => {
-  it('renders interactive zoom toggle controls and all 10 chart switchers', () => {
+describe('Zoom Controls & Bootstrapping Studio guides', () => {
+  it('renders interactive zoom toggle controls and all 10 chart switchers in view-zoom guide', () => {
     expect(
       GUIDES_CATALOG.find((g) => g.id === 'view-zoom')?.title
     ).toContain('Zoom Controls & Viewport Lock');
@@ -330,5 +420,72 @@ describe('Zoom Controls & Viewport Lock Studio guide', () => {
 
     ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
     expect(readout2.textContent).toContain('zoomable: true');
+  }, 20000);
+
+  it('renders the Feature Bootstrapping & Lazy Loading guide with links to zoom and csv-export and interactive true vs false examples', () => {
+    expect(
+      GUIDES_CATALOG.find((g) => g.id === 'bootstrapping')?.title
+    ).toContain('Feature Bootstrapping & Lazy Loading');
+
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const charts = renderGuidePage(root, 'bootstrapping', 'dark');
+    expect(charts).toHaveLength(2);
+
+    // Verify links to the current bootstrap feature guides
+    expect(
+      root.querySelector('a[href="#/guide/view-zoom"]')
+    ).not.toBeNull();
+    expect(
+      root.querySelector('a[href="#/guide/csv-export"]')
+    ).not.toBeNull();
+
+    // Example 1: Toggle between Explicit Enable (zoom: true) and Default Bootstrap (zoom: false)
+    const ex1 = root.querySelector<HTMLElement>('#bs-default-vs-enabled')!;
+    const btnEnabled = ex1.querySelector<HTMLButtonElement>('#bs-mode-enabled')!;
+    const btnDefault = ex1.querySelector<HTMLButtonElement>('#bs-mode-default')!;
+    const readout1 = ex1.querySelector<HTMLElement>('#bs-readout-1')!;
+    const editor1 = ex1.querySelector<HTMLTextAreaElement>('textarea')!;
+
+    expect(readout1.textContent).toContain('features.zoom: true');
+    expect(editor1.value).not.toContain('registerModernCharts');
+
+    btnDefault.click();
+    expect(isChartFeatureEnabled('zoom')).toBe(false);
+    expect(readout1.textContent).toContain('features.zoom: false');
+
+    btnEnabled.click();
+    expect(isChartFeatureEnabled('zoom')).toBe(true);
+    expect(readout1.textContent).toContain('features.zoom: true');
+
+    // Edit & reset live config editor 1
+    const cfg1 = parseConfigObjectLiteral(editor1.value);
+    cfg1.title = 'Updated Spend';
+    editor1.value = formatConfigAssignment(cfg1);
+    editor1.dispatchEvent(new Event('input', { bubbles: true }));
+    ex1.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+
+    // Example 2: Switch across all 10 per-chart subpath bootstrap examples
+    const ex2 = root.querySelector<HTMLElement>('#bs-per-chart')!;
+    const readout2 = ex2.querySelector<HTMLElement>('#bs-readout-2')!;
+    const editor2 = ex2.querySelector<HTMLTextAreaElement>('textarea')!;
+    const typeBtns = Array.from(
+      ex2.querySelectorAll<HTMLButtonElement>('button[data-bs-chart-type]')
+    );
+    expect(typeBtns).toHaveLength(10);
+
+    for (const btn of typeBtns) {
+      btn.click();
+      expect(btn.getAttribute('aria-pressed')).toBe('true');
+      expect(readout2.textContent).toContain(
+        `from 'modern-charts/${btn.dataset.bsChartType}'`
+      );
+    }
+
+    const cfg2 = parseConfigObjectLiteral(editor2.value);
+    cfg2.title = 'Updated Gauge';
+    editor2.value = formatConfigAssignment(cfg2);
+    editor2.dispatchEvent(new Event('input', { bubbles: true }));
+    ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
   }, 20000);
 });

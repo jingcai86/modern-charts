@@ -2,9 +2,14 @@ import { MCScatterChart } from '../charts/mc-scatter-chart';
 import { MCScatterItem } from '../presentation/items/scatter.item';
 import {
   CORE_COMPONENT_REGISTRY,
+  configureChartFeatures,
+  getChartFeatures,
+  isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
+export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
 export type * from '../core/types';
 export * from '../models/scatter.model';
 export * from '../presentation/items/scatter.item';
@@ -24,11 +29,16 @@ export const SCATTER_COMPONENT_REGISTRY: Record<
  * Registers `<mc-scatter-chart>`, `<mc-scatter-item>`, and shared core
  * capability components idempotently.
  */
-export function registerScatterChart(): void {
-  registerChartComponents({
-    'mc-scatter-item': MCScatterItem,
-    'mc-scatter-chart': MCScatterChart
-  });
+export function registerScatterChart(
+  options?: ChartBootstrapOptions | ChartFeaturesConfig
+): Promise<void> {
+  return registerChartComponents(
+    {
+      'mc-scatter-item': MCScatterItem,
+      'mc-scatter-chart': MCScatterChart
+    },
+    options
+  );
 }
 
-registerScatterChart();
+void registerScatterChart();

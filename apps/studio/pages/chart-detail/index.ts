@@ -1,4 +1,8 @@
-import type { ChartConfig, MCBaseChart } from '../../../../src/index';
+import {
+  configureChartFeatures,
+  type ChartConfig,
+  type MCBaseChart
+} from '../../../../src/index';
 import {
   getAllAttributesForChart,
   type ChartCatalogEntry
@@ -28,6 +32,7 @@ export function renderChartDetailPage(
   root: HTMLElement,
   entry: ChartCatalogEntry
 ): MCBaseChart<any> {
+  void configureChartFeatures({ features: { zoom: true } });
   root.replaceChildren();
 
   const config = getOrInitChartConfig(entry);

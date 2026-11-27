@@ -1,4 +1,5 @@
 import type { ChartDimensions, ViewConfig } from './types';
+import { registerZoomControllerFactory } from './features';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -521,3 +522,8 @@ export class ChartViewController {
     }
   }
 }
+
+registerZoomControllerFactory(
+  (host, onZoomChange, onToggleZoom) =>
+    new ChartViewController(host, onZoomChange, onToggleZoom)
+);

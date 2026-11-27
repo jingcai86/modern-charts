@@ -35,6 +35,7 @@ import type {
   ChartEventName,
   ChartEventsConfig,
   ChartEventTargetRegistration,
+  ChartFeaturesConfig,
   ChartGradientConfig,
   ChartMargin,
   ChartPaletteName,
@@ -87,7 +88,12 @@ import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
 import { resolveChartLayers, type ResolvedChartLayer } from './chart-layers';
 import { resolveChartDimensions, resolveChartMargin } from './chart-layout';
 import { baseChartStyles } from './chart-styles';
-import { ChartViewController } from './chart-view-controller';
+import {
+  createZoomController,
+  isChartFeatureEnabled,
+  subscribeChartFeatures,
+  type ZoomViewControllerLike
+} from './features';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -176,19 +182,14 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   #lastRenderedWidth = 0;
   #lastRenderedHeight = 0;
   #mutationObserver: MutationObserver | null = null;
-  #viewController = new ChartViewController(
-    this,
-    (zoomed) => this.#setCustomState('zoomed', zoomed),
-    () => {
-      this.toggleZoom();
-    }
-  );
+  #viewController: ZoomViewControllerLike | null = null;
   #isTogglingZoom = false;
   #streamTimer: ReturnType<typeof setTimeout> | null = null;
   #currentChartState: ChartStateKind | null = null;
   #suppressAttributeRender = false;
   #isStreamingLayers = false;
   #unsubscribeI18n?: () => void;
+  #unsubscribeFeatures?: () => void;
   #lastI18n?: ChartI18n;
   #tooltipMoveHandler: ((e: MouseEvent) => void) | null = null;
 
@@ -385,7 +386,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     this._isConnected = true;
     this.#unsubscribeI18n?.();
     this.#unsubscribeI18n = subscribeI18n(() => this.render());
-    this.#viewController.bindControls();
+    this.#unsubscribeFeatures?.();
+    this.#unsubscribeFeatures = subscribeChartFeatures(() => {
+      if (this._isConnected) this.render();
+    });
     this.#setupStateSlotListeners();
     this.#setupChildObservers();
     this.#syncAutoSizeObserver();
@@ -412,11 +416,13 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     this._isConnected = false;
     this.#unsubscribeI18n?.();
     this.#unsubscribeI18n = undefined;
+    this.#unsubscribeFeatures?.();
+    this.#unsubscribeFeatures = undefined;
     this.cancelTransitions(true);
     this.eventEngine.detach();
     this.#syncTooltipPointerTracking(false);
     this.#teardownAutoSizeObserver();
-    this.#viewController.destroy();
+    this.#viewController?.destroy();
     if (this.#mutationObserver) {
       this.#mutationObserver.disconnect();
       this.#mutationObserver = null;
@@ -844,14 +850,19 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     }
   }
 
+  public isFeatureEnabled(feature: keyof ChartFeaturesConfig): boolean {
+    return isChartFeatureEnabled(feature);
+  }
+
   get zoomable(): boolean {
-    return this.resolveViewConfig().zoomable;
+    return isChartFeatureEnabled('zoom') && this.resolveViewConfig().zoomable;
   }
   set zoomable(val: boolean) {
     this.toggleZoom(Boolean(val));
   }
 
   public toggleZoom(force?: boolean): boolean {
+    if (!isChartFeatureEnabled('zoom')) return false;
     const current = this.resolveViewConfig();
     const zoomable = force !== undefined ? Boolean(force) : !current.zoomable;
     const base = this._config.view ?? {};
@@ -882,10 +893,18 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       const svg = this.shadowRoot.querySelector<SVGSVGElement>('.mc-chart-svg');
       const vp = this.shadowRoot.querySelector<SVGGElement>('.mc-chart-viewport');
       const ctrl = this.shadowRoot.querySelector<HTMLDivElement>('.mc-view-controls');
-      if (this.#viewController.hasInteraction) {
+      this.#viewController ??= createZoomController(
+        this,
+        (zoomed) => this.#setCustomState('zoomed', zoomed),
+        () => {
+          this.toggleZoom();
+        }
+      );
+      this.#viewController?.bindControls();
+      if (this.#viewController?.hasInteraction) {
         this.#viewController.setZoomable(resolved.zoomable);
       } else if (svg && vp) {
-        this.#viewController.configure(svg, vp, resolved, this.resolveDimensions());
+        this.#viewController?.configure(svg, vp, resolved, this.resolveDimensions());
       }
       if (ctrl && !this.loading && this.hasPlottableData(this._data)) {
         ctrl.hidden = !(this.resolveIsInteractive() && resolved.showControls);
@@ -908,15 +927,18 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   }
 
   public zoomIn(factor = 1.25): void {
-    this.#viewController.scaleBy(factor);
+    if (!isChartFeatureEnabled('zoom')) return;
+    this.#viewController?.scaleBy(factor);
   }
 
   public zoomOut(factor = 0.8): void {
-    this.#viewController.scaleBy(factor);
+    if (!isChartFeatureEnabled('zoom')) return;
+    this.#viewController?.scaleBy(factor);
   }
 
   public resetZoom(): void {
-    this.#viewController.reset();
+    if (!isChartFeatureEnabled('zoom')) return;
+    this.#viewController?.reset();
   }
 
   get animationConfig(): Partial<AnimationConfig> | null {
@@ -1682,8 +1704,12 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     svg.setAttribute('lang', i18n.locale);
     svg.setAttribute('direction', i18n.direction);
 
+    const zoomFeatureEnabled = isChartFeatureEnabled('zoom');
     this.#syncViewControlButtons(viewConfig, i18n);
-    this.#setCustomState('zoomable', viewConfig.zoomable);
+    this.#setCustomState(
+      'zoomable',
+      zoomFeatureEnabled && viewConfig.zoomable
+    );
 
     const effectiveTitle =
       ariaConfig.label ||
@@ -1751,6 +1777,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
     if (controlsEl) {
       controlsEl.hidden = !(
+        zoomFeatureEnabled &&
         isInteractive &&
         viewConfig.showControls
       );
@@ -1950,7 +1977,23 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
           : '';
     }
 
-    this.#viewController.configure(svg, viewportGroup, viewConfig, dims);
+    if (zoomFeatureEnabled) {
+      this.#viewController ??= createZoomController(
+        this,
+        (zoomed) => this.#setCustomState('zoomed', zoomed),
+        () => {
+          this.toggleZoom();
+        }
+      );
+      this.#viewController?.bindControls();
+      this.#viewController?.configure(svg, viewportGroup, viewConfig, dims);
+    } else {
+      this.#viewController?.destroy();
+      viewportGroup.removeAttribute('transform');
+      this.shadowRoot.querySelector('.mc-view-slider')?.remove();
+      svg.querySelector('.mc-view-brush')?.remove();
+      this.#setCustomState('zoomed', false);
+    }
     this.#setCustomState('rendered', true);
     this.#commitChartState('ready');
   }

@@ -26,9 +26,12 @@ export function renderViewZoomGuide(
     <h2 class="panel-title">Universal Viewport Zoom Controls &amp; Keyboard-Accessible Zoom Toggle</h2>
     <p class="guide-prose">
       Every chart component supports shared viewport zoom and pan via <code>&lt;mc-view-layer&gt;</code>,
-      <code>config.view</code>, and <code>chart.toggleZoom()</code>. Users can toggle zoom on or off at any time using the
-      dedicated <code>[data-zoom="toggle"]</code> control via pointer or keyboard (<kbd>Enter</kbd> / <kbd>Space</kbd>),
-      locking wheel, brush, slider, and zoom buttons while preserving the active viewport transform.
+      <code>config.view</code>, and <code>chart.toggleZoom()</code>. To keep standalone chart downloads small,
+      the zoom feature defaults to <code>false</code> at bootstrap and is enabled via
+      <code>registerModernCharts({ features: { zoom: true } })</code> or per-chart
+      <code>registerBarChart({ features: { zoom: true } })</code> (see the
+      <a href="#/guide/bootstrapping">🚀 Feature Bootstrapping &amp; Lazy Loading guide</a>).
+      Studio enables <code>zoom: true</code> automatically across all examples.
     </p>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
       <table class="guide-table">

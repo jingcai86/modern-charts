@@ -29,6 +29,7 @@ import {
   MCAnimationLayer,
   MCAriaLayer,
   MCMarkerLayer,
+  registerModernCharts,
   type ChartEventPayload,
   type LegendItem,
   type TooltipPayload
@@ -2700,6 +2701,7 @@ describe('Lightweight Core Primitives & Native Pan/Zoom Controller', () => {
   });
 
   it('handles native zoom controls (+, −, Reset), initialZoom, and direction locking without d3-zoom', () => {
+    void registerModernCharts({ features: { zoom: true } });
     const bar = document.createElement('mc-bar-chart') as MCBarChart;
     document.body.appendChild(bar);
 
