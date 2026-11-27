@@ -113,18 +113,34 @@ it('animates only entering and exiting bar marks while committing the new data i
   expect(root.querySelectorAll('.mc-bar-rect[data-index="Q3"]')).toHaveLength(2);
 });
 
-it('keys pie item transitions by slice ID while setConfig applies new values and sort order', async () => {
+it('renders one pie transition when setConfig emits an internal layer change', async () => {
   const calls = captureAnimations();
   const chart = mountPie({ itemTransitions: true, sort: 'desc' });
   const root = chart.shadowRoot!;
   const oldStorage = root.querySelector('.mc-pie-arc[data-id="Storage"]')!;
   const originalRootTransform = root.querySelector('.mc-chart-root')!.getAttribute('transform');
   const originalArcTransform = oldStorage.parentElement!.getAttribute('transform');
+  const themeLayer = chart.getSubComponents().themeLayer!;
+  const applyTheme = themeLayer.applyFromConfig.bind(themeLayer);
+  const notifyLayerChange = () => {
+    themeLayer.dispatchEvent(new CustomEvent('mc-layer-change', {
+      bubbles: true,
+      composed: true,
+      detail: { source: 'mc-theme-layer', element: themeLayer }
+    }));
+  };
+  const applyFromConfig = vi.spyOn(themeLayer, 'applyFromConfig').mockImplementation((theme) => {
+    applyTheme(theme);
+    notifyLayerChange();
+  });
+  const render = vi.spyOn(chart, 'render');
   calls.length = 0;
   const next = [network, { ...compute, value: 60 }, { id: 'AI Ops', value: 20 }];
 
   chart.setConfig({ ...chart.config, data: next, width: 560, margin: { left: 95 } });
 
+  expect(applyFromConfig).toHaveBeenCalledOnce();
+  expect(render).toHaveBeenCalledOnce();
   expect(chart.data).toBe(next);
   expect(animatedItemIds(calls, 'data-id')).toEqual(['enter:AI Ops', 'exit:Storage']);
   const retiringStorage = root.querySelector(`${exitLayerSelector} [data-id="Storage"]`)!;
@@ -138,6 +154,12 @@ it('keys pie item transitions by slice ID while setConfig applies new values and
   await Promise.all(calls.map(({ animation }) => animation.finished));
   expect(root.querySelector(exitLayerSelector)).toBeNull();
   expect(root.querySelector('.mc-pie-arc[data-id="AI Ops"]')).not.toBeNull();
+
+  render.mockClear();
+  calls.length = 0;
+  notifyLayerChange();
+  expect(render).toHaveBeenCalledOnce();
+  expect(calls).toHaveLength(0);
 });
 
 it('remaps copied paint and clip references for a retiring threshold bar', async () => {

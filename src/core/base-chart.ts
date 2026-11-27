@@ -580,10 +580,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
         if (this._config.loading) this.setAttribute('loading', '');
         else this.removeAttribute('loading');
       }
+      this.#syncInternalSubComponentsFromConfig();
     } finally {
       this.#suppressAttributeRender = prevSuppress;
     }
-    this.#syncInternalSubComponentsFromConfig();
     if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
@@ -2854,7 +2854,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
     this.addEventListener('mc-layer-change', (e) => {
       e.stopPropagation();
-      if (this._isConnected && !this.#isTogglingZoom) {
+      if (this._isConnected && !this.#isTogglingZoom && !this.#suppressAttributeRender) {
         this.render();
       }
     });
