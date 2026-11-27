@@ -6,6 +6,10 @@ import {
   type GuideId
 } from '../apps/studio/guides/index';
 import {
+  formatGuideConfigAssignment,
+  parseGuideConfig
+} from '../apps/studio/guides/callback-config';
+import {
   extractChartConfigBlock,
   formatConfigAsJsObject,
   formatConfigAssignment,
@@ -13,6 +17,11 @@ import {
 } from '../apps/studio/utils/code-sync';
 import { createCodeEditorPanel } from '../apps/studio/pages/chart-detail/code-editor';
 import { CHART_CATALOG } from '../apps/studio/catalog';
+
+function findRunCallbacksButton(editor: HTMLTextAreaElement): HTMLButtonElement | undefined {
+  return [...editor.closest('.guide-code-wrap')!.querySelectorAll<HTMLButtonElement>('button')]
+    .find((button) => button.textContent?.trim() === 'Run callback edits');
+}
 
 describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
   beforeAll(() => {
@@ -41,6 +50,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
       ).toBeGreaterThan(0);
 
       for (const ta of editors) {
+        expect(ta.value).not.toContain('[Function]');
         expect(ta.getAttribute('aria-invalid')).toBe('false');
         expect(ta.hasAttribute('aria-describedby')).toBe(false);
         const wrap = ta.closest('.guide-code-wrap');
@@ -127,7 +137,10 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     editor.value = formatConfigAssignment(editedConfig);
     editor.dispatchEvent(new Event('input'));
     expect(maxLines.value).toBe('4');
-    expect(chart.config.label).toMatchObject({ overflow: { maxLines: 4 } });
+    expect(chart.config.label).toMatchObject([
+      { target: 'axis-tick', overflow: { maxLines: 4 } },
+      { target: 'data', overflow: { maxLines: 4 } }
+    ]);
 
     editor.closest('.guide-code-wrap')!.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
     expect(overflow()).toEqual({ strategy: 'truncate', maxWidth: 82, enableTooltip: true });
@@ -226,20 +239,112 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     const layerEditor = root.querySelector<HTMLTextAreaElement>(
       'textarea.guide-code-editor'
     )!;
-    const cfg = parseConfigObjectLiteral(layerEditor.value);
+    const { config: cfg, hasPendingCallbacks } = parseGuideConfig(layerEditor.value, lineChart.config);
+    expect(hasPendingCallbacks).toBe(false);
     const customObj = cfg.layers.find((l: any) => l?.name === 'peak-and-mean');
     expect(customObj).toBeTruthy();
     cfg.layers = ['grid', customObj, 'axes', 'lines', 'points', 'legends'];
     cfg.data[0].data[0].y = 110;
-    layerEditor.value = formatConfigAssignment(cfg);
+    layerEditor.value = formatGuideConfigAssignment(cfg);
     layerEditor.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(layerEditor.getAttribute('aria-invalid')).toBe('false');
+    expect(findRunCallbacksButton(layerEditor)).toBeUndefined();
     const customLayerG = lineChart.shadowRoot?.querySelector(
       '[data-layer-name="peak-and-mean"]'
     );
     expect(customLayerG).not.toBeNull();
     expect(customLayerG!.textContent).toContain('Peak: 110K (Mon)');
+  });
+
+  it('applies SVG renderer edits on request and restores the original renderer on reset', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'custom-layers', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-custom-layer-code-1 textarea')!;
+    const bandFill = () => chart.shadowRoot
+      ?.querySelector('[data-layer-name="peak-and-mean"] rect')
+      ?.getAttribute('fill');
+
+    expect(editor.value).toContain('document.createElementNS');
+    expect(bandFill()).toBe('#6366f1');
+    expect(findRunCallbacksButton(editor)).toBeUndefined();
+
+    editor.value = editor.value.replace('#6366f1', '#abcdef');
+    editor.dispatchEvent(new Event('input'));
+    expect(bandFill()).toBe('#6366f1');
+    findRunCallbacksButton(editor)!.click();
+    await vi.waitFor(() => expect(bandFill()).toBe('#abcdef'));
+    expect(findRunCallbacksButton(editor)).toBeUndefined();
+
+    root.querySelector<HTMLButtonElement>('#btn-layer-pos-back')!.click();
+    expect(bandFill()).toBe('#abcdef');
+    const toggleLayer = root.querySelector<HTMLButtonElement>('#btn-layer-toggle')!;
+    toggleLayer.click();
+    expect(bandFill()).toBeUndefined();
+    toggleLayer.click();
+    expect(bandFill()).toBe('#abcdef');
+    expect(editor.value).toContain('#abcdef');
+
+    editor.closest('.guide-code-wrap')!.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+    expect(bandFill()).toBe('#6366f1');
+    expect(editor.value).toContain('#6366f1');
+  });
+
+  it('keeps an edited D3 renderer when updating its confidence band', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'd3', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-d3-code-1 textarea')!;
+    const slider = root.querySelector<HTMLInputElement>('#d3-band-slider')!;
+    const ribbon = () => chart.shadowRoot!.querySelector('[data-layer-name="d3-confidence-band"] path')!;
+    const initialPath = ribbon().getAttribute('d');
+    expect(initialPath).toBeTruthy();
+
+    editor.value = editor.value.replace('#06b6d4', '#abcdef');
+    editor.dispatchEvent(new Event('input'));
+    expect(ribbon().getAttribute('fill')).toBe('#06b6d4');
+    findRunCallbacksButton(editor)!.click();
+    await vi.waitFor(() => expect(ribbon().getAttribute('fill')).toBe('#abcdef'));
+    expect(ribbon().getAttribute('d')).toBe(initialPath);
+
+    slider.value = '20';
+    slider.dispatchEvent(new Event('input'));
+    expect(editor.value).toContain('#abcdef');
+    expect(ribbon().getAttribute('fill')).toBe('#abcdef');
+    expect(ribbon().getAttribute('d')).not.toBe(initialPath);
+
+    editor.closest('.guide-code-wrap')!.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+    expect(ribbon().getAttribute('fill')).toBe('#06b6d4');
+    expect(ribbon().getAttribute('d')).toBe(initialPath);
+  });
+
+  it('applies a JavaScript axis label formatter edit on request', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'custom-labels', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-label-code-1 textarea')!;
+    const axisLabels = () => Array.from(
+      chart.shadowRoot!.querySelectorAll('[data-label-id^="y-tick-"]'),
+      (label) => label.textContent ?? ''
+    );
+
+    expect(editor.value).toContain('$${text}K');
+    const originalLabels = axisLabels();
+    expect(originalLabels.some(label => label.startsWith('$'))).toBe(true);
+
+    editor.value = editor.value.replace('$${text}K', '€${text}K');
+    editor.dispatchEvent(new Event('input'));
+    expect(axisLabels()).toEqual(originalLabels);
+    findRunCallbacksButton(editor)!.click();
+    const editedLabels = originalLabels.map(label => label.replace(/^\$/, '€'));
+    await vi.waitFor(() => expect(axisLabels()).toEqual(editedLabels));
+
+    editor.value = editor.value.replace('€${text}K', '${window.document.title}');
+    editor.dispatchEvent(new Event('input'));
+    findRunCallbacksButton(editor)!.click();
+    await vi.waitFor(() => expect(editor.getAttribute('aria-invalid')).toBe('true'));
+    expect(axisLabels()).toEqual(editedLabels);
   });
 
   it.each([
@@ -271,6 +376,108 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     expect(Object.keys(overflow).sort()).toEqual(
       visible.filter(key => key !== 'maxChars').sort()
     );
+  });
+
+  it('applies the truncation guide controls and full-text tooltips to the chosen label targets', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'truncation', 'dark');
+    const select = root.querySelector<HTMLSelectElement>('#tr-target-select')!;
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-trunc-code-1 textarea')!;
+    const tooltip = chart.getTooltipElement()!;
+    const readConfig = () => parseConfigObjectLiteral(editor.value);
+    const selectScope = (value: string) => {
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    expect(Array.from(select.options, ({ value }) => value).sort()).toEqual(['axis-tick', 'both', 'data']);
+    expect(select.value).toBe('axis-tick');
+    root.querySelector<HTMLButtonElement>('[data-trunc-strat="rotate"]')!.click();
+
+    for (const scope of ['axis-tick', 'data', 'both']) {
+      selectScope(scope);
+      const { data, label } = readConfig();
+      if (scope === 'both') {
+        expect(label.map((entry: { target: string }) => entry.target).sort()).toEqual(['axis-tick', 'data']);
+      } else {
+        expect(label.target).toBe(scope);
+      }
+
+      for (const [target, id, fullText] of [
+        ['axis-tick', 'x-tick-0', data[0].dept],
+        ['data', 'bar-label-0', data[0].itemLabel]
+      ] as const) {
+        const renderedLabel = chart.shadowRoot!.querySelector(`[data-label-id="${id}"]`)!;
+        const selected = scope === 'both' || scope === target;
+        expect(renderedLabel.getAttribute('data-applied-rotation')).toBe(selected ? '-45' : null);
+        if (selected) {
+          expect(renderedLabel.getAttribute('data-overflow-strategy')).toBe('rotate');
+          expect(renderedLabel.getAttribute('data-full-text')).toBe(fullText);
+          renderedLabel.dispatchEvent(new MouseEvent('mouseenter', { clientX: 50, clientY: 60 }));
+          expect(tooltip.hidden).toBe(false);
+          expect(tooltip.shadowRoot!.querySelector('[part="header"]')?.textContent).toBe(fullText);
+          renderedLabel.dispatchEvent(new MouseEvent('mouseleave'));
+          expect(tooltip.hidden).toBe(true);
+        }
+      }
+    }
+
+    root.querySelector<HTMLInputElement>('#tr-tip-toggle')!.click();
+    for (const id of ['x-tick-0', 'bar-label-0']) {
+      const renderedLabel = chart.shadowRoot!.querySelector(`[data-label-id="${id}"]`)!;
+      expect(renderedLabel.classList.contains('mc-label--interactive')).toBe(false);
+    }
+
+    root.querySelector<HTMLButtonElement>('[data-trunc-strat="none"]')!.click();
+    expect(select.closest('[hidden]')).toBeNull();
+    expect(select.value).toBe('both');
+    selectScope('data');
+    expect(readConfig().label).toMatchObject({ target: 'data', overflow: { strategy: 'none' } });
+  });
+
+  it('syncs label targets edited in the truncation guide snippet and preserves those edits until reset', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'truncation', 'dark');
+    const select = root.querySelector<HTMLSelectElement>('#tr-target-select')!;
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-trunc-code-1 textarea')!;
+    const readConfig = () => parseConfigObjectLiteral(editor.value);
+    const initial = readConfig();
+    const itemLabel = 'A long custom caption inside the spending bar';
+    const dept = 'A renamed category with a long axis caption';
+    const data = [{ ...initial.data[0], itemLabel, dept }, ...initial.data.slice(1)];
+    const overflow = { strategy: 'truncate', maxWidth: 60, maxChars: 9, ellipsis: '~', enableTooltip: false };
+    const dataLabel = { target: 'data', formatter: '{{itemLabel}}', overflow };
+    const axisLabel = { target: 'axis-tick', overflow };
+    const edit = (label: typeof dataLabel | Array<typeof dataLabel | typeof axisLabel>) => {
+      editor.value = formatConfigAssignment({ ...initial, data, label });
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(editor.getAttribute('aria-invalid')).toBe('false');
+    };
+
+    edit(dataLabel);
+    expect(select.value).toBe('data');
+    const renderedDataLabel = () => chart.shadowRoot!.querySelector('[data-label-id="bar-label-0"]')!;
+    expect(renderedDataLabel().getAttribute('data-full-text')).toBe(itemLabel);
+    expect(renderedDataLabel().textContent).toContain('~');
+    expect(renderedDataLabel().classList.contains('mc-label--interactive')).toBe(false);
+
+    edit([axisLabel, dataLabel]);
+    expect(select.value).toBe('both');
+    root.querySelector<HTMLButtonElement>('[data-trunc-strat="rotate-wrap-truncate"]')!.click();
+    const updated = readConfig();
+    expect(updated.data[0]).toMatchObject({ itemLabel, dept });
+    expect(updated.label).toEqual(expect.arrayContaining(['axis-tick', 'data'].map((target) =>
+      expect.objectContaining({ target, overflow: expect.objectContaining({
+        ...overflow, strategy: 'rotate-wrap-truncate'
+      }) })
+    )));
+
+    editor.closest('.guide-code-wrap')!.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+    expect(select.value).toBe('axis-tick');
+    expect(readConfig().data[0]).toEqual(initial.data[0]);
+    expect(readConfig().label).toMatchObject({ target: 'axis-tick', overflow: { strategy: 'truncate' } });
   });
 
   it('offers three ellipsis presets with hover and keyboard help', () => {

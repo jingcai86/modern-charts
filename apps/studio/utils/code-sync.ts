@@ -52,14 +52,19 @@ function isSimplePrimitive(val: unknown): boolean {
   );
 }
 
+type FormatCallback = (callback: Function) => string;
+
 /**
- * Serializes a chart config object into clean, idiomatic JavaScript object literal syntax
- * (unquoted identifier keys, single-quoted strings, compact primitive arrays).
- * Functions are serialized as `'[Function]'` so `restoreSerializedFunctions()` can restore them.
+ * Serializes a chart config as a JavaScript object literal.
+ * By default, functions use a placeholder that restoreSerializedFunctions() can restore.
  */
-export function formatConfigAsJsObject(value: unknown, indent = 0): string {
+export function formatConfigAsJsObject(
+  value: unknown,
+  indent = 0,
+  formatCallback?: FormatCallback
+): string {
   if (typeof value === 'function') {
-    return "'[Function]'";
+    return formatCallback?.(value) ?? "'[Function]'";
   }
   if (value === null) return 'null';
   if (value === undefined) return 'undefined';
@@ -85,7 +90,7 @@ export function formatConfigAsJsObject(value: unknown, indent = 0): string {
       }
     }
     const items = value.map(
-      (item) => `${nextPad}${formatConfigAsJsObject(item, indent + 2)}`
+      (item) => `${nextPad}${formatConfigAsJsObject(item, indent + 2, formatCallback)}`
     );
     return `[\n${items.join(',\n')}\n${pad}]`;
   }
@@ -97,7 +102,7 @@ export function formatConfigAsJsObject(value: unknown, indent = 0): string {
     if (entries.length === 0) return '{}';
     const props = entries.map(([key, val]) => {
       const formattedKey = isValidJsIdentifier(key) ? key : formatJsString(key);
-      return `${nextPad}${formattedKey}: ${formatConfigAsJsObject(val, indent + 2)}`;
+      return `${nextPad}${formattedKey}: ${formatConfigAsJsObject(val, indent + 2, formatCallback)}`;
     });
     return `{\n${props.join(',\n')}\n${pad}}`;
   }
@@ -107,9 +112,10 @@ export function formatConfigAsJsObject(value: unknown, indent = 0): string {
 
 export function formatConfigAssignment(
   config: Record<string, any>,
-  assignPrefix = 'chart.config ='
+  assignPrefix = 'chart.config =',
+  formatCallback?: FormatCallback
 ): string {
-  const body = formatConfigAsJsObject(config);
+  const body = formatConfigAsJsObject(config, 0, formatCallback);
   const trimmedPrefix = assignPrefix.trim();
   return trimmedPrefix ? `${trimmedPrefix} ${body};` : body;
 }
@@ -120,9 +126,13 @@ export function formatConfigAssignment(
  * Supports unquoted Unicode identifier keys, single/double-quoted strings, trailing commas,
  * and `//` or `/* *\/` comments — with zero `eval` or `new Function`.
  */
-export function parseConfigObjectLiteral(source: string): any {
+export function parseConfigObjectLiteral(
+  source: string,
+  readCallbacks?: (source: string, start: number) => ReadonlyMap<number, { value: unknown; end: number }>
+): any {
   let pos = 0;
   const len = source.length;
+  let callbacks: ReturnType<NonNullable<typeof readCallbacks>> | undefined;
 
   const isWs = (code: number): boolean =>
     code === 32 || code === 9 || code === 10 || code === 13 || code === 0xfeff;
@@ -455,6 +465,11 @@ export function parseConfigObjectLiteral(source: string): any {
     if (pos >= len) {
       throw new SyntaxError('Unexpected end of config');
     }
+    const callback = callbacks?.get(pos);
+    if (callback) {
+      pos = callback.end;
+      return callback.value;
+    }
     const ch = source[pos];
     if (ch === '{') return parseObject(depth);
     if (ch === '[') return parseArray(depth);
@@ -479,6 +494,8 @@ export function parseConfigObjectLiteral(source: string): any {
   };
 
   trySkipAssignmentPrefix();
+  skipWsAndComments();
+  callbacks = readCallbacks?.(source, pos);
   const result = parseValue(0);
   skipWsAndComments();
   if (pos < len && source[pos] === ';') {

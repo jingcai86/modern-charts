@@ -3,6 +3,7 @@ import type {
   MCBaseChart,
   ThemeModePreference
 } from '../../../src/index';
+import { guideCallback } from './callback-source';
 import { createLiveConfigEditor } from './shared';
 
 export function renderD3Guide(
@@ -69,12 +70,12 @@ export function renderD3Guide(
   let bandPct = 15;
   const confidenceLayer = {
     name: 'd3-confidence-band',
-    render(ctx: ChartRenderContext<typeof forecastData>) {
+    render: guideCallback(function renderConfidenceBand(ctx: ChartRenderContext<typeof forecastData>) {
       const { d3, xScale, yScale, layerGroup } = ctx;
       const pts = ctx.data?.[0]?.data ?? [];
       if (!pts.length || !xScale || !yScale) return;
 
-      const pct = bandPct;
+      const pct = (ctx.config as { confidenceBandPct?: number }).confidenceBandPct ?? 15;
       const ratio = pct / 100;
       const root = d3.select(layerGroup);
 
@@ -133,7 +134,7 @@ export function renderD3Guide(
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '6 4')
         .attr('pointer-events', 'none');
-    }
+    })
   };
 
   const d3Chart1 = document.createElement('mc-line-chart') as MCBaseChart<any>;
@@ -143,38 +144,40 @@ export function renderD3Guide(
   const slider = ex1.querySelector('#d3-band-slider') as HTMLInputElement;
   const sliderVal = ex1.querySelector('#d3-band-val') as HTMLElement;
 
+  const getConfidenceBandTitle = () => `Demand Forecast with D3 ±${bandPct}% Ribbon & OLS Trend`;
   const buildD3Chart1Config = () => ({
     confidenceBandPct: bandPct,
-    title: `Demand Forecast with D3 ±${bandPct}% Ribbon & OLS Trend`,
+    title: getConfidenceBandTitle(),
     palette: 'bootstrap',
     curve: 'monotoneX',
     yScale: { type: 'linear', min: 30, max: 175 },
     data: forecastData,
     layers: ['grid', confidenceLayer, 'axes', 'lines', 'points', 'legends']
   });
+  let activeD3Config: Record<string, any> = buildD3Chart1Config();
 
   const applyD3Chart1 = (cfg: Record<string, any>) => {
-    const { confidenceBandPct, ...chartCfg } = cfg;
+    const { confidenceBandPct } = cfg;
     if (typeof confidenceBandPct === 'number' && Number.isFinite(confidenceBandPct)) {
       bandPct = Math.max(1, Math.min(50, confidenceBandPct));
       slider.value = String(Math.max(5, Math.min(30, bandPct)));
       sliderVal.textContent = `±${bandPct}%`;
     }
+    activeD3Config = { ...cfg, confidenceBandPct: bandPct };
     d3Chart1.setConfig({
       autoSize: true,
       themeMode,
       enableArea: false,
       margin: { top: 44, right: 24, bottom: 60, left: 52 },
-      ...chartCfg
+      ...activeD3Config
     });
   };
 
-  const initialD3Cfg1 = buildD3Chart1Config();
-  applyD3Chart1(initialD3Cfg1);
+  applyD3Chart1(activeD3Config);
 
   const editor1 = createLiveConfigEditor({
     title: 'D3 Confidence Ribbon & Trend Config (Live)',
-    initialConfig: initialD3Cfg1,
+    initialConfig: activeD3Config,
     layerRegistry: { 'd3-confidence-band': confidenceLayer },
     hint: 'Edit confidenceBandPct, data points, curve, or yScale — the D3 ribbon & OLS trendline recompute live.',
     onConfigChange: (nextCfg) => {
@@ -182,8 +185,6 @@ export function renderD3Guide(
     },
     onReset: () => {
       bandPct = 15;
-      slider.value = '15';
-      sliderVal.textContent = '±15%';
       const resetCfg = buildD3Chart1Config();
       applyD3Chart1(resetCfg);
       editor1.syncConfig(resetCfg);
@@ -192,9 +193,13 @@ export function renderD3Guide(
   ex1.querySelector('#guide-d3-code-1')!.appendChild(editor1.element);
 
   slider.addEventListener('input', () => {
+    const previousTitle = getConfidenceBandTitle();
     bandPct = Number(slider.value);
-    sliderVal.textContent = `±${bandPct}%`;
-    const nextCfg = buildD3Chart1Config();
+    const nextCfg = {
+      ...activeD3Config,
+      confidenceBandPct: bandPct,
+      title: activeD3Config.title === previousTitle ? getConfidenceBandTitle() : activeD3Config.title
+    };
     applyD3Chart1(nextCfg);
     editor1.syncConfig(nextCfg);
   });
@@ -246,7 +251,7 @@ export function renderD3Guide(
 
   const d3QuartileLayer = {
     name: 'd3-iqr-box',
-    render(ctx: ChartRenderContext<typeof scatterData>) {
+    render: guideCallback(function renderQuartileBox(ctx: ChartRenderContext<typeof scatterData>) {
       const { d3, xScale, yScale, layerGroup } = ctx;
       const allPts = (ctx.data ?? []).flatMap((s) => s.data ?? []);
       if (allPts.length < 4 || !xScale || !yScale) return;
@@ -310,7 +315,7 @@ export function renderD3Guide(
         fontWeight: 700,
         color: '#c084fc'
       });
-    }
+    })
   };
 
   const d3Chart2 = document.createElement('mc-scatter-chart') as MCBaseChart<any>;
