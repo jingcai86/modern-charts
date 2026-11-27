@@ -7,7 +7,12 @@ import { configureChartFeatures } from '../../src/core/features';
 import { CHART_CATALOG, type ChartCatalogEntry } from './catalog';
 import { loadChart, STUDIO_BOOTSTRAP_OPTIONS } from './chart-loader';
 import { createGuideNavigationGroups } from './guides/navigation';
-import { GUIDES_CATALOG, type GuideId } from './guides/types';
+import {
+  GUIDES_CATALOG,
+  readStoredGuideGroups,
+  wireGuideGroupPersistence,
+  type GuideId
+} from './guides/types';
 import { disposeOverviewPage, renderOverviewPage, writeStoredHomeTab } from './pages/overview';
 import { renderChartDetailPage } from './pages/chart-detail';
 import { syncAllStoredConfigsPalette, syncAllStoredConfigsTheme } from './state/config-store';
@@ -50,11 +55,30 @@ function openGuideMenuGroup(link: Element | null): void {
 }
 
 if (navTrigger && navMenu) {
-  navMenu.insertBefore(createGuideNavigationGroups(), navMenu.querySelector('#studio-pages-resources'));
+  const resourcesItem = navMenu.querySelector('#studio-pages-resources');
+  navMenu.insertBefore(createGuideNavigationGroups(), resourcesItem);
+  const resourcesDetails = resourcesItem?.querySelector<HTMLDetailsElement>(
+    'details.nav-dropdown-group'
+  );
+  const resourcesSummary = resourcesDetails?.querySelector<HTMLElement>('summary');
+  if (resourcesDetails && resourcesSummary) {
+    wireGuideGroupPersistence(resourcesDetails, resourcesSummary, 'resources', false);
+  }
   navMenu.addEventListener('toggle', (event) => {
     const isOpen = (event as ToggleEvent).newState === 'open';
     navTrigger.setAttribute('aria-expanded', String(isOpen));
-    if (isOpen) openGuideMenuGroup(navMenu.querySelector('[aria-current="page"]'));
+    if (isOpen) {
+      const stored = readStoredGuideGroups();
+      navMenu
+        .querySelectorAll<HTMLDetailsElement>('details.nav-dropdown-group[data-guide-group-id]')
+        .forEach((group) => {
+          const id = group.dataset.guideGroupId!;
+          if (typeof stored[id] === 'boolean') {
+            group.open = stored[id];
+          }
+        });
+      openGuideMenuGroup(navMenu.querySelector('[aria-current="page"]'));
+    }
 
     // Anchor positioning fallback for browsers without CSS `position-area`
     if (

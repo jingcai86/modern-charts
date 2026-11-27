@@ -210,6 +210,29 @@ export function writeStoredGuideGroupOpen(groupId: string, open: boolean): void 
   }
 }
 
+export function wireGuideGroupPersistence(
+  group: HTMLDetailsElement,
+  summary: HTMLElement,
+  groupId: string,
+  defaultOpen: boolean
+): void {
+  let lastOpen = isGuideGroupOpen(groupId, defaultOpen);
+  group.dataset.guideGroupId = groupId;
+  group.open = lastOpen;
+
+  const syncOpenState = () => {
+    if (group.open === lastOpen) return;
+    lastOpen = group.open;
+    writeStoredGuideGroupOpen(groupId, lastOpen);
+  };
+
+  group.addEventListener('toggle', syncOpenState);
+  summary.addEventListener('click', () => {
+    queueMicrotask(syncOpenState);
+    setTimeout(syncOpenState, 0);
+  });
+}
+
 const GUIDE_GROUP_ORDER = [
   ['integrations', 'Integrations & Extensions', ['ssr', 'd3', 'custom-layers']],
   ['colors-patterns-and-gradients', 'Colors, Patterns & Gradients', ['themes', 'patterns']],

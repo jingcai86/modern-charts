@@ -5,8 +5,7 @@ import {
   DEFAULT_OPEN_GUIDE_GROUP_COUNT,
   GUIDE_GROUPS,
   GUIDES_CATALOG,
-  isGuideGroupOpen,
-  writeStoredGuideGroupOpen,
+  wireGuideGroupPersistence,
   type GuideId
 } from '../guides/types';
 import { escapeHtml } from '../utils/html';
@@ -229,8 +228,6 @@ interface GuideCard {
 function createGuideGroup(id: string, title: string, cards: GuideCard[], defaultOpen = false): HTMLDetailsElement {
   const group = document.createElement('details');
   group.className = 'overview-guide-group';
-  group.dataset.guideGroupId = id;
-  group.open = isGuideGroupOpen(id, defaultOpen);
   const summary = document.createElement('summary');
   summary.className = 'overview-guide-group-summary';
   const heading = document.createElement('h2');
@@ -239,11 +236,7 @@ function createGuideGroup(id: string, title: string, cards: GuideCard[], default
   heading.textContent = title;
   group.setAttribute('aria-labelledby', heading.id);
   summary.appendChild(heading);
-  summary.addEventListener('click', () => {
-    queueMicrotask(() => {
-      writeStoredGuideGroupOpen(id, group.open);
-    });
-  });
+  wireGuideGroupPersistence(group, summary, id, defaultOpen);
 
   const guidesGrid = document.createElement('div');
   guidesGrid.className = 'overview-guides-grid';
