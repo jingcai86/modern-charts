@@ -340,13 +340,13 @@ describe('Studio Theme and Appearance controls', () => {
   }, 15_000);
 
   it.each([
-    ['bootstrapping', '#bs-bootstrap-code textarea', { zoom: false, csvExport: false }],
-    ['csv-export', '#ce-editor-1 textarea', { zoom: false, csvExport: true }],
-    ['view-zoom', '#vz-editor-1 textarea', { zoom: true, csvExport: false }]
+    ['bootstrapping', '#bs-bootstrap-code textarea', { zoom: false, csvExport: false, chartState: true }],
+    ['csv-export', '#ce-editor-1 textarea', { zoom: false, csvExport: true, chartState: true }],
+    ['view-zoom', '#vz-editor-1 textarea', { zoom: true, csvExport: false, chartState: true }]
   ] as const)('restores Studio features when returning home from the %s guide', async (guideId, editorSelector, features) => {
     route('#/chart/bar');
     await vi.waitFor(() => expect(detailChart()).not.toBeNull());
-    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true });
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true, chartState: true });
 
     route(`#/guide/${guideId}`);
     await vi.waitFor(() => expect(document.querySelector(editorSelector)).not.toBeNull());
@@ -354,8 +354,41 @@ describe('Studio Theme and Appearance controls', () => {
 
     route('#/');
     expect((await revealPreview('bar')).localName).toBe('mc-bar-chart');
-    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true });
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true, chartState: true });
   }, 15_000);
+
+  it('applies the overlay opt-out in the bootstrapping guide and restores it on the chart page', async () => {
+    route('#/guide/bootstrapping');
+    const chart = await vi.waitFor(() => {
+      const preview = document.querySelector<MCBaseChart<any>>('#bs-chart mc-bar-chart');
+      expect(preview).not.toBeNull();
+      return preview!;
+    });
+    const editor = document.querySelector<HTMLTextAreaElement>('#bs-bootstrap-code textarea')!;
+    const overlay = document.querySelector<HTMLInputElement>('#bs-chart-state')!;
+    const loading = document.querySelector<HTMLInputElement>('#bs-example-loading')!;
+    expect(overlay.checked).toBe(true);
+    expect(editor.value).toContain('chartState: true');
+
+    overlay.click();
+    loading.click();
+    expect(editor.value).toContain('chartState: false');
+    expect(getChartFeatures().chartState).toBe(false);
+    expect(chart.chartState).toBe('loading');
+    expect(chart.getAttribute('aria-busy')).toBe('true');
+    expect(chart.getStateElement()?.hidden).toBe(true);
+
+    editor.value = editor.value.replace('chartState: false', 'chartState: true');
+    editor.dispatchEvent(new Event('input'));
+    expect(overlay.checked).toBe(true);
+    await vi.waitFor(() => expect(chart.getStateElement()?.hidden).toBe(false));
+
+    overlay.click();
+    expect(getChartFeatures().chartState).toBe(false);
+    route('#/chart/bar');
+    await vi.waitFor(() => expect(detailChart()).not.toBeNull());
+    expect(getChartFeatures().chartState).toBe(true);
+  });
 
   it('synchronizes palette changes across tabs and keeps OS appearance updates independent', () => {
     localStorage.setItem(paletteKey, 'neutral');

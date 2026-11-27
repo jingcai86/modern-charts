@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   CORE_COMPONENT_REGISTRY,
   MCChartStateElement,
+  configureChartFeatures,
+  isChartFeatureEnabled,
   registerModernCharts,
   type ChartStateChangeDetail,
   type MCBarChart,
@@ -20,7 +22,16 @@ import {
   SAMPLE_SUNBURST_DATA
 } from '../apps/studio/sample-data';
 
-registerModernCharts();
+const viewImport = vi.hoisted(() => ({
+  started: vi.fn(),
+  pending: undefined as Promise<void> | undefined
+}));
+
+vi.mock('../src/components/chart-state-view', async (importOriginal) => {
+  viewImport.started();
+  await viewImport.pending;
+  return importOriginal();
+});
 
 const ALL_TEN_CHARTS: Array<{
   tag: string;
@@ -129,6 +140,72 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     document.body.innerHTML = '';
   });
 
+  it('loads the shared renderer at bootstrap when enabled and discards stale overlay requests', async () => {
+    expect(isChartFeatureEnabled('chartState')).toBe(true);
+
+    const chart = document.createElement('mc-bar-chart') as MCBarChart;
+    chart.config = ALL_TEN_CHARTS[0].validConfig;
+    document.body.appendChild(chart);
+    const readyHost = chart.getStateElement()!;
+    expect(readyHost.hidden).toBe(true);
+    expect(readyHost.shadowRoot!.children).toHaveLength(0);
+
+    const stateChange = vi.fn();
+    chart.addEventListener('mc-state-change', stateChange);
+    const emptyChart = document.createElement('mc-bar-chart') as MCBarChart;
+    emptyChart.emptyText = 'Nothing in range';
+    const emptyHost = emptyChart.getStateElement()!;
+    document.body.appendChild(emptyChart);
+    await registerModernCharts({ features: { chartState: false } });
+    chart.loading = true;
+    expect(chart.chartState).toBe('loading');
+    expect(chart.getAttribute('aria-busy')).toBe('true');
+    expect(readyHost.hidden).toBe(true);
+    expect(stateChange).toHaveBeenCalledOnce();
+    expect(stateChange.mock.calls[0][0].detail).toMatchObject({ state: 'loading', previousState: 'ready' });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await vi.dynamicImportSettled();
+    expect(viewImport.started).not.toHaveBeenCalled();
+
+    chart.loading = false;
+    emptyChart.remove();
+    let releaseView!: () => void;
+    viewImport.pending = new Promise<void>((resolve) => { releaseView = resolve; });
+    const enabled = registerModernCharts({ features: { chartState: true } });
+
+    const detached = document.createElement('mc-chart-state') as MCChartStateElement;
+    detached.state = 'loading';
+
+    try {
+      await vi.waitFor(() => expect(viewImport.started).toHaveBeenCalledOnce());
+      chart.loading = true;
+      document.body.append(emptyChart, detached);
+      expect(readyHost.shadowRoot!.children).toHaveLength(0);
+      expect(emptyHost.shadowRoot!.children).toHaveLength(0);
+
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      chart.loading = false;
+      detached.remove();
+      await configureChartFeatures({ features: { chartState: false } });
+    } finally {
+      releaseView();
+      await enabled;
+    }
+
+    expect(chart.chartState).toBe('ready');
+    expect(readyHost.shadowRoot!.children).toHaveLength(0);
+    expect(detached.shadowRoot!.children).toHaveLength(0);
+    expect(emptyChart.chartState).toBe('empty');
+    expect(emptyHost.hidden).toBe(true);
+    expect(emptyHost.shadowRoot!.children).toHaveLength(0);
+
+    await registerModernCharts({ features: { chartState: true } });
+    expect(readyHost.shadowRoot!.children).toHaveLength(0);
+    expect(emptyHost.hidden).toBe(false);
+    expect(emptyHost.shadowRoot!.querySelector('[part="state-message"]')?.textContent).toBe('Nothing in range');
+    expect(viewImport.started).toHaveBeenCalledOnce();
+  });
+
   it('registers <mc-chart-state> in CORE_COMPONENT_REGISTRY and mounts strictly one instance per chart across all 10 charts', () => {
     expect(CORE_COMPONENT_REGISTRY['mc-chart-state']).toBe(MCChartStateElement);
     expect(customElements.get('mc-chart-state')).toBe(MCChartStateElement);
@@ -158,7 +235,7 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     }
   });
 
-  it('automatically detects empty states (null, [], and non-plottable data) across all 10 charts while keeping valid zero values ready', () => {
+  it('automatically detects empty states (null, [], and non-plottable data) across all 10 charts while keeping valid zero values ready', async () => {
     for (const c of ALL_TEN_CHARTS) {
       const chart = document.createElement(c.tag) as any;
       document.body.appendChild(chart);
@@ -171,9 +248,9 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
         expect(chart.chartState, `${c.tag} empty variant`).toBe('empty');
         expect(stateEl.hidden).toBe(false);
         expect(stateEl.getAttribute('state')).toBe('empty');
-        expect(
+        await vi.waitFor(() => expect(
           stateEl.shadowRoot?.querySelector('[part="state-message"]')?.textContent
-        ).toBe('No data');
+        ).toBe('No data'));
       }
     }
 
@@ -197,7 +274,7 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     expect(gauge.getStateElement()?.hidden).toBe(true);
   });
 
-  it('handles loading attribute/property, text overrides, aria-busy, role="status", and mc-state-change transitions', () => {
+  it('handles loading attribute/property, text overrides, aria-busy, role="status", and mc-state-change transitions', async () => {
     const chart = document.createElement('mc-bar-chart') as MCBarChart;
     const events: ChartStateChangeDetail[] = [];
     chart.addEventListener('mc-state-change', (e: Event) => {
@@ -209,6 +286,7 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     document.body.appendChild(chart);
 
     const stateEl = chart.getStateElement()!;
+    await vi.waitFor(() => expect(stateEl.shadowRoot?.querySelector('[part="state"]')).not.toBeNull());
     const overlay = stateEl.shadowRoot?.querySelector('[part="state"]');
     const indicator = stateEl.shadowRoot?.querySelector('[part="state-indicator"]');
     const message = stateEl.shadowRoot?.querySelector('[part="state-message"]');
@@ -293,7 +371,7 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     });
   });
 
-  it('forwards slot="loading" and slot="empty" from chart into <mc-chart-state> to override defaults', () => {
+  it('forwards slot="loading" and slot="empty" from chart into <mc-chart-state> to override defaults', async () => {
     const chart = document.createElement('mc-line-chart') as MCLineChart;
     chart.setAttribute('loading', '');
 
@@ -310,6 +388,7 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     document.body.appendChild(chart);
 
     const stateEl = chart.getStateElement()!;
+    await vi.waitFor(() => expect(stateEl.shadowRoot?.querySelector('slot[name="loading"]')).not.toBeNull());
     const loadingSlot = stateEl.shadowRoot?.querySelector(
       'slot[name="loading"]'
     ) as HTMLSlotElement;
@@ -343,12 +422,13 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     ).toBe('No data');
   });
 
-  it('defines CSS parts, --mc-state-* custom properties, and prefers-reduced-motion rules in <mc-chart-state> stylesheet', () => {
+  it('defines CSS parts, --mc-state-* custom properties, and prefers-reduced-motion rules in <mc-chart-state> stylesheet', async () => {
     const stateEl = document.createElement('mc-chart-state') as MCChartStateElement;
+    stateEl.state = 'empty';
     document.body.appendChild(stateEl);
 
     const shadow = stateEl.shadowRoot!;
-    expect(shadow.querySelector('[part="state"]')).not.toBeNull();
+    await vi.waitFor(() => expect(shadow.querySelector('[part="state"]')).not.toBeNull());
     expect(shadow.querySelector('[part="state-indicator"]')).not.toBeNull();
     expect(shadow.querySelector('[part="state-message"]')).not.toBeNull();
 
@@ -365,5 +445,30 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     expect(cssText).toContain('--mc-state-spinner-size');
     expect(cssText).toContain('prefers-reduced-motion');
     expect(cssText).toContain('animation: none');
+  });
+
+  it('mounts a standalone state view when shown and supports clearing its state and text overrides', async () => {
+    const stateEl = document.createElement('mc-chart-state') as MCChartStateElement;
+    stateEl.hidden = true;
+    stateEl.setAttribute('state', ' LOADING ');
+    stateEl.loadingText = 'Fetching data';
+    stateEl.emptyText = 'Nothing found';
+    document.body.appendChild(stateEl);
+    expect(stateEl.shadowRoot!.children).toHaveLength(0);
+
+    stateEl.hidden = false;
+    const message = () => stateEl.shadowRoot!.querySelector('[part="state-message"]')?.textContent;
+    await vi.waitFor(() => expect(message()).toBe('Fetching data'));
+
+    stateEl.loadingText = undefined;
+    expect(message()).toBe('Loading…');
+    stateEl.state = 'empty';
+    expect(message()).toBe('Nothing found');
+    stateEl.emptyText = undefined;
+    expect(message()).toBe('No data');
+
+    stateEl.state = null;
+    expect(stateEl.state).toBeNull();
+    expect(stateEl.shadowRoot!.querySelector('.mc-state-default')?.hasAttribute('hidden')).toBe(true);
   });
 });

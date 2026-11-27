@@ -7,6 +7,7 @@ import {
   isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import { registerComponentDefinitions } from '../core/dom';
 import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
 export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
@@ -39,4 +40,4 @@ export function registerPieChart(
   );
 }
 
-void registerPieChart();
+registerComponentDefinitions(PIE_COMPONENT_REGISTRY);

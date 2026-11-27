@@ -1,5 +1,10 @@
 import type { ChartCatalogEntry } from './catalog';
 import { configureChartFeatures } from '../../src/core/features';
+import type { ChartBootstrapOptions } from '../../src/core/types';
+
+export const STUDIO_BOOTSTRAP_OPTIONS = {
+  features: { zoom: true, csvExport: true, chartState: true }
+} satisfies ChartBootstrapOptions;
 
 const chartModules = new Map<string, () => Promise<unknown>>([
   ['line', () => import('../../src/entries/line')],
@@ -17,7 +22,7 @@ const loading = new Map<string, Promise<void>>();
 
 /** Share a pending chart import between its preview and playground. */
 export function loadChart(entry: ChartCatalogEntry): Promise<void> {
-  void configureChartFeatures({ features: { zoom: true, csvExport: true } });
+  void configureChartFeatures(STUDIO_BOOTSTRAP_OPTIONS);
   if (customElements.get(entry.tagName)) return Promise.resolve();
   const pending = loading.get(entry.id);
   if (pending) return pending;
@@ -27,7 +32,7 @@ export function loadChart(entry: ChartCatalogEntry): Promise<void> {
 
   const result = Promise.all([
     importModule(),
-    configureChartFeatures({ features: { zoom: true, csvExport: true } })
+    configureChartFeatures(STUDIO_BOOTSTRAP_OPTIONS)
   ]).then(() => {
     if (!customElements.get(entry.tagName)) {
       throw new Error(`Chart module did not register ${entry.tagName}`);

@@ -10,6 +10,7 @@ import {
   isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import { registerComponentDefinitions } from '../core/dom';
 import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
 export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
@@ -46,4 +47,4 @@ export function registerSankeyChart(
   );
 }
 
-void registerSankeyChart();
+registerComponentDefinitions(SANKEY_COMPONENT_REGISTRY);

@@ -15,6 +15,7 @@ import {
   MCViewLayer
 } from '../components/layers/mc-layers';
 import { configureChartFeatures } from './features';
+import { registerComponentDefinitions } from './dom';
 import type { ChartBootstrapOptions, ChartFeaturesConfig } from './types';
 
 export {
@@ -23,6 +24,7 @@ export {
   isChartFeatureEnabled,
   subscribeChartFeatures
 } from './features';
+export { defineCustomElement } from './dom';
 
 export class MCAnimationElement extends MCAnimationLayer {}
 export class MCAriaElement extends MCAriaLayer {}
@@ -51,46 +53,23 @@ export const CORE_COMPONENT_REGISTRY: Record<string, CustomElementConstructor> =
 };
 
 /**
- * Registers a single custom element idempotently.
- */
-export function defineCustomElement(
-  tag: string,
-  ctor: CustomElementConstructor
-): void {
-  if (
-    typeof document === 'undefined' ||
-    typeof HTMLElement === 'undefined' ||
-    typeof customElements === 'undefined'
-  ) return;
-  if (!customElements.get(tag)) {
-    customElements.define(tag, ctor);
-  }
-}
-
-/**
- * Registers only the shared core capability/layer Web Components and optional features.
- * Optional features (`zoom`, `csvExport`) default to `false`.
+ * Registers the shared core capability and layer components and loads enabled features.
  */
 export function registerCoreComponents(
   options?: ChartBootstrapOptions | ChartFeaturesConfig
 ): Promise<void> {
-  for (const [tag, ctor] of Object.entries(CORE_COMPONENT_REGISTRY)) {
-    defineCustomElement(tag, ctor);
-  }
+  registerComponentDefinitions(CORE_COMPONENT_REGISTRY);
   return configureChartFeatures(options);
 }
 
 /**
- * Registers the shared core components plus a specific chart's custom elements
- * and optional features (`zoom`, `csvExport` — both default to `false`).
+ * Registers the shared core and chart-specific components and loads enabled features.
  */
 export function registerChartComponents(
   chartComponents: Record<string, CustomElementConstructor>,
   options?: ChartBootstrapOptions | ChartFeaturesConfig
 ): Promise<void> {
   const ready = registerCoreComponents(options);
-  for (const [tag, ctor] of Object.entries(chartComponents)) {
-    defineCustomElement(tag, ctor);
-  }
+  registerComponentDefinitions(chartComponents);
   return ready;
 }

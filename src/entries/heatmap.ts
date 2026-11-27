@@ -7,6 +7,7 @@ import {
   isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import { registerComponentDefinitions } from '../core/dom';
 import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
 export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
@@ -44,4 +45,4 @@ export function registerHeatmapChart(
   );
 }
 
-void registerHeatmapChart();
+registerComponentDefinitions(HEATMAP_COMPONENT_REGISTRY);

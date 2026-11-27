@@ -1,4 +1,5 @@
 import { getGlobalPalette } from '../state/theme';
+import { configureChartFeatures } from '../../../src/core/features';
 import type {
   ChartStateChangeDetail,
   MCBaseChart,
@@ -58,11 +59,11 @@ export function renderChartStateGuide(
   intro.innerHTML = `
     <h2 class="panel-title">Shared Loading &amp; Empty States (<code>&lt;mc-chart-state&gt;</code>)</h2>
     <p class="guide-prose">
-      All 10 chart components mount a single minimal <code>&lt;mc-chart-state&gt;</code> element inside their Shadow DOM.
-      When the chart is <code>ready</code>, it stays hidden via the <code>hidden</code> attribute with zero animation or
-      layout overhead. Toggle <code>loading</code> at any time, let empty datasets (<code>[]</code>, <code>null</code>,
-      or non-plottable data) trigger automatically, and customize via <strong>slots</strong>, <strong>CSS <code>::part()</code></strong>,
-      or <strong><code>--mc-state-*</code> custom properties</strong>.
+      All 10 charts include a loading and empty state overlay by default. Registration loads its renderer as a separate chunk.
+      With a side-effect-only import, that chunk loads when a chart first needs the overlay.
+      Set <code>features.chartState</code> to <code>false</code> at registration to skip the visuals and keep chart state,
+      <code>mc-state-change</code>, and <code>aria-busy</code> available.
+      See the <a href="#/guide/bootstrapping">Feature Bootstrapping &amp; Lazy Loading guide</a>.
     </p>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
       <table class="guide-table">
@@ -74,6 +75,7 @@ export function renderChartStateGuide(
           </tr>
         </thead>
         <tbody>
+          <tr><td><strong>Bootstrap</strong></td><td><code>registerModernCharts({ features: { chartState: false } })</code></td><td>Skips loading the built-in overlay. Pass the same option to a standalone chart’s registration function.</td></tr>
           <tr><td><strong>Chart API</strong></td><td><code>loading</code>, <code>config.loadingText</code>, <code>config.emptyText</code></td><td>Boolean attr/prop sets loading (sets <code>aria-busy="true"</code>). Defaults: <code>"Loading…"</code> / <code>"No data"</code>.</td></tr>
           <tr><td><strong>Event</strong></td><td><code>mc-state-change</code></td><td>Composed event emitting <code>{ state: 'loading' | 'empty' | 'ready', previousState, chartType }</code>.</td></tr>
           <tr><td><strong>Slots</strong></td><td><code>slot="loading"</code>, <code>slot="empty"</code></td><td>Replaces default spinner/icon and text inside the chart's <code>&lt;mc-chart-state&gt;</code>.</td></tr>
@@ -94,7 +96,7 @@ export function renderChartStateGuide(
       <div>
         <h2 class="panel-title">Example 1: State Transitions &amp; <code>mc-state-change</code></h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Toggle preset buttons or edit <code>loading</code>, <code>loadingText</code>, <code>emptyText</code>, and <code>data</code> directly in the live config editor.
+          Toggle presets or edit the chart config to try each state. Turn off the overlay to see state events continue.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -103,6 +105,7 @@ export function renderChartStateGuide(
         <button type="button" data-cs-mode="empty">Empty ([])</button>
         <button type="button" data-cs-mode="custom-text">Custom Text</button>
         <span id="cs-event-badge" class="comp-pill">state: ready · aria-busy: false</span>
+        <label><input type="checkbox" id="cs-overlay-enabled" checked> Show overlay in all examples</label>
       </div>
     </div>
     <div class="guide-example-grid cs-example-grid">
@@ -114,6 +117,12 @@ export function renderChartStateGuide(
 
   const bar1 = document.createElement('mc-bar-chart') as MCBaseChart<any>;
   const badge1 = ex1.querySelector('#cs-event-badge') as HTMLElement;
+  const overlayEnabled = ex1.querySelector<HTMLInputElement>('#cs-overlay-enabled')!;
+  overlayEnabled.addEventListener('change', () => {
+    void configureChartFeatures({ features: { chartState: overlayEnabled.checked } }).catch(() => {
+      badge1.textContent = 'The overlay could not load. Toggle it to retry.';
+    });
+  });
   bar1.addEventListener('mc-state-change', (e: Event) => {
     const detail = (e as CustomEvent<ChartStateChangeDetail>).detail;
     const busy = bar1.getAttribute('aria-busy') === 'true';

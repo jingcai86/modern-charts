@@ -38,6 +38,16 @@ const BOOTSTRAP_FEATURES: readonly BootstrapFeatureRow[] = [
     guideHref: '#/guide/csv-export',
     guideKey: 'csv-export',
     guideTitle: '📥 Customizable CSV Data Export'
+  },
+  {
+    label: 'Loading & Empty State Overlay',
+    optionKey: 'features.chartState',
+    defaultValue: 'true',
+    description:
+      'Loads the overlay as a separate chunk at registration. Set the flag to false to skip the built-in visuals and continue receiving chart state events.',
+    guideHref: '#/guide/chart-state',
+    guideKey: 'chart-state',
+    guideTitle: '⏳ Loading & Empty States'
   }
 ];
 
@@ -58,10 +68,11 @@ function createFeatureMatrixSection(): HTMLElement {
   const card = document.createElement('section');
   card.className = 'panel-card guide-section';
   card.innerHTML = `
-    <h2 class="panel-title">Opt-In Feature Bootstrapping &amp; Lazy Browser Downloads</h2>
+    <h2 class="panel-title">Optional Features &amp; Lazy Browser Downloads</h2>
     <p class="guide-prose">
       Pass <code>features</code> to <code>registerModernCharts()</code> or a standalone chart’s registration function.
-      Both features default to <code>false</code>. Standalone imports load the enabled feature chunks on demand.
+      Zoom and CSV export default to <code>false</code>. The chart state overlay defaults to <code>true</code>.
+      Registration loads the enabled features as separate chunks.
     </p>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
       <table class="guide-table">
@@ -102,6 +113,7 @@ function createBootstrapPlayground(
       <div class="guide-controls-row" role="group" aria-label="Bootstrap features">
         <label><input id="bs-zoom" type="checkbox"> Zoom</label>
         <label><input id="bs-csv-export" type="checkbox"> CSV export</label>
+        <label><input id="bs-chart-state" type="checkbox" checked> Loading &amp; empty overlay</label>
       </div>
     </div>
     <div class="guide-example-grid">
@@ -114,6 +126,7 @@ function createBootstrapPlayground(
       </div>
     </div>
     <div class="guide-controls-row">
+      <label><input id="bs-example-loading" type="checkbox"> Set chart loading</label>
       <button type="button" id="bs-download-csv" disabled>Download CSV</button>
       <span id="bs-feature-status" role="status"></span>
     </div>
@@ -127,6 +140,8 @@ function createBootstrapPlayground(
   const chartType = section.querySelector<HTMLSelectElement>('#bs-chart-type')!;
   const zoom = section.querySelector<HTMLInputElement>('#bs-zoom')!;
   const csvExport = section.querySelector<HTMLInputElement>('#bs-csv-export')!;
+  const chartState = section.querySelector<HTMLInputElement>('#bs-chart-state')!;
+  const loading = section.querySelector<HTMLInputElement>('#bs-example-loading')!;
   const stage = section.querySelector('#bs-chart')!;
   const download = section.querySelector<HTMLButtonElement>('#bs-download-csv')!;
   const csvPreview = section.querySelector<HTMLDetailsElement>('#bs-csv-preview')!;
@@ -146,10 +161,15 @@ function createBootstrapPlayground(
   chartType.value = 'bar';
   const selectedChart = () => CHART_CATALOG.find(({ id }) => id === chartType.value)!;
   let chart: MCBaseChart<any>;
+  const selectedFeatures = () => ({
+    zoom: zoom.checked,
+    csvExport: csvExport.checked,
+    chartState: chartState.checked
+  });
 
   const bootstrapCode = () => formatBootstrap(
     entrypoint.value === 'standalone' ? selectedChart().id : undefined,
-    { zoom: zoom.checked, csvExport: csvExport.checked }
+    selectedFeatures()
   );
 
   const syncFeatureExample = () => {
@@ -177,7 +197,8 @@ function createBootstrapPlayground(
       autoSize: true,
       themeMode,
       palette: getGlobalPalette(),
-      animate: false
+      animate: false,
+      loading: loading.checked
     });
     stage.replaceChildren(chart);
     mounted[0] = chart;
@@ -187,12 +208,14 @@ function createBootstrapPlayground(
   let changeId = 0;
   const applyFeatures = async () => {
     const id = ++changeId;
-    const features = { zoom: zoom.checked, csvExport: csvExport.checked };
+    const features = selectedFeatures();
     syncFeatureExample();
     syncCsvPreview(false);
-    status.textContent = features.zoom || features.csvExport ? 'Loading features…' : '';
+    status.textContent = Object.values(features).some(Boolean) ? 'Loading features…' : '';
     try {
-      await configureChartFeatures({ features });
+      const ready = configureChartFeatures({ features });
+      mountChart();
+      await ready;
       if (id !== changeId) return;
       status.textContent = '';
       syncCsvPreview(features.csvExport);
@@ -212,13 +235,15 @@ function createBootstrapPlayground(
       if (parsed.chartId) chartType.value = parsed.chartId;
       zoom.checked = parsed.zoom;
       csvExport.checked = parsed.csvExport;
-      mountChart();
+      chartState.checked = parsed.chartState;
       void applyFeatures();
     },
     onReset: () => {
       chartType.value = 'bar';
+      loading.checked = false;
       editor.setValue(editorDefault, { resetBaseline: false });
       editor.applyCurrent();
+      chart.loading = false;
     }
   });
   const editorDefault = editor.getValue();
@@ -237,9 +262,10 @@ function createBootstrapPlayground(
   });
   zoom.addEventListener('change', updateFeaturesFromControls);
   csvExport.addEventListener('change', updateFeaturesFromControls);
+  chartState.addEventListener('change', updateFeaturesFromControls);
+  loading.addEventListener('change', () => { chart.loading = loading.checked; });
   download.addEventListener('click', () => chart.exportCsv());
 
-  mountChart();
   void applyFeatures();
   return section;
 }

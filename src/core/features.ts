@@ -8,6 +8,7 @@ import type {
   ViewConfig
 } from './types';
 import type { ChartI18n } from './i18n';
+import { loadChartStateView } from '../components/chart-state-loader';
 
 export interface ZoomViewControllerLike {
   readonly hasInteraction: boolean;
@@ -48,11 +49,13 @@ export interface CsvExporterImplementation {
 
 const activeFeatures: Required<ChartFeaturesConfig> = {
   zoom: false,
-  csvExport: false
+  csvExport: false,
+  chartState: true
 };
 
 let zoomControllerFactory: ZoomControllerFactory | null = null;
 let csvExporterImpl: CsvExporterImplementation | null = null;
+let chartStateLoad: Promise<void> | undefined;
 const featureListeners = new Set<() => void>();
 
 function notifyFeatureListeners(): void {
@@ -89,14 +92,14 @@ export function getCsvExporter(): CsvExporterImplementation | null {
   return csvExporterImpl;
 }
 
-/** Returns whether an optional chart feature (`'zoom'` or `'csvExport'`) is currently enabled. */
+/** Returns whether an optional chart feature is currently enabled. */
 export function isChartFeatureEnabled(
   feature: keyof ChartFeaturesConfig
 ): boolean {
   return Boolean(activeFeatures[feature]);
 }
 
-/** Returns a snapshot of all optional chart feature flags (`{ zoom, csvExport }`). Both default to `false`. */
+/** Returns a snapshot of the active feature flags. */
 export function getChartFeatures(): Readonly<Required<ChartFeaturesConfig>> {
   return Object.freeze({ ...activeFeatures });
 }
@@ -111,8 +114,8 @@ export function subscribeChartFeatures(listener: () => void): () => void {
 
 function extractFeatureFlags(
   options?: ChartBootstrapOptions | ChartFeaturesConfig
-): ChartFeaturesConfig | undefined {
-  if (!options || typeof options !== 'object') return undefined;
+): ChartFeaturesConfig {
+  if (!options || typeof options !== 'object') return {};
   const asBootstrap = options as ChartBootstrapOptions;
   const nested = asBootstrap.features ?? {};
   const zoom =
@@ -123,22 +126,22 @@ function extractFeatureFlags(
     nested.csvExport !== undefined
       ? nested.csvExport
       : (options as ChartFeaturesConfig).csvExport;
-  if (zoom === undefined && csvExport === undefined) return undefined;
+  const chartState = nested.chartState ?? asBootstrap.chartState;
   return {
     ...(zoom !== undefined ? { zoom: Boolean(zoom) } : {}),
-    ...(csvExport !== undefined ? { csvExport: Boolean(csvExport) } : {})
+    ...(csvExport !== undefined ? { csvExport: Boolean(csvExport) } : {}),
+    ...(chartState !== undefined ? { chartState: Boolean(chartState) } : {})
   };
 }
 
 /**
- * Configures optional chart features (`zoom`, `csvExport`).
- * Both default to `false` so standalone chart imports do not download feature chunks unless enabled.
+ * Configures optional chart features and loads their enabled implementations.
+ * Chart state defaults to enabled. Zoom and CSV export default to disabled.
  */
 export function configureChartFeatures(
   options?: ChartBootstrapOptions | ChartFeaturesConfig
 ): Promise<void> {
   const flags = extractFeatureFlags(options);
-  if (!flags) return Promise.resolve();
 
   let changed = false;
   if (flags.zoom !== undefined && activeFeatures.zoom !== flags.zoom) {
@@ -150,6 +153,10 @@ export function configureChartFeatures(
     activeFeatures.csvExport !== flags.csvExport
   ) {
     activeFeatures.csvExport = flags.csvExport;
+    changed = true;
+  }
+  if (flags.chartState !== undefined && activeFeatures.chartState !== flags.chartState) {
+    activeFeatures.chartState = flags.chartState;
     changed = true;
   }
 
@@ -167,6 +174,14 @@ export function configureChartFeatures(
         notifyFeatureListeners();
       })
     );
+  }
+  if (activeFeatures.chartState && typeof document !== 'undefined') {
+    chartStateLoad ??= loadChartStateView()?.then(() => {
+      if (activeFeatures.chartState) notifyFeatureListeners();
+    }).finally(() => {
+      chartStateLoad = undefined;
+    });
+    if (chartStateLoad) pendingLoads.push(chartStateLoad);
   }
 
   if (changed) {

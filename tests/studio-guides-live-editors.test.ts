@@ -1,5 +1,5 @@
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { registerModernCharts } from '../src/index';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { getChartFeatures, registerModernCharts } from '../src/index';
 import {
   GUIDES_CATALOG,
   renderGuidePage,
@@ -61,6 +61,27 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     },
     15_000
   );
+
+  it('demonstrates the default-enabled overlay and preserves state events when it is disabled', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'chart-state', 'dark');
+    const overlay = root.querySelector<HTMLInputElement>('#cs-overlay-enabled')!;
+    const loading = root.querySelector<HTMLButtonElement>('[data-cs-mode="loading"]')!;
+    const badge = root.querySelector('#cs-event-badge')!;
+    expect(root.querySelector('h1')?.textContent).toContain('Default is true');
+    expect(overlay.checked).toBe(true);
+
+    overlay.click();
+    loading.click();
+    expect(getChartFeatures().chartState).toBe(false);
+    expect(chart.getStateElement()?.hidden).toBe(true);
+    expect(badge.textContent).toContain('loading · aria-busy: true');
+
+    overlay.click();
+    await vi.waitFor(() => expect(chart.getStateElement()?.hidden).toBe(false));
+    expect(getChartFeatures().chartState).toBe(true);
+  });
 
   it('shows and applies the active overflow settings in the Custom Labels guide', () => {
     const root = document.createElement('div');

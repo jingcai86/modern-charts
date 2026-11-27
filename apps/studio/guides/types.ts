@@ -126,10 +126,11 @@ export const GUIDES_CATALOG: GuideMeta[] = [
   {
     id: 'chart-state',
     title: 'Loading & Empty States (<mc-chart-state>)',
+    featureDefault: true,
     shortLabel: 'Chart States',
     icon: '⏳',
     summary:
-      'Shared minimal <mc-chart-state> overlay across all 10 charts with automatic empty detection, loading/empty slots, CSS ::part() hooks, and mc-state-change events.'
+      'Lazy-loaded loading and empty state overlay with an opt-out, custom slots and styles, and chart state events.'
   },
   {
     id: 'patterns',
@@ -163,7 +164,7 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     shortLabel: 'Bootstrapping',
     icon: '🚀',
     summary:
-      'Keep browser downloads minimal with opt-in feature bootstrapping (features: { zoom, csvExport } — default false) across registerModernCharts() and per-chart register<Chart>() entrypoints.'
+      'Choose which feature chunks to load at registration. Zoom and CSV export are opt-in, and the loading and empty state overlay is enabled by default.'
   }
 ];
 
@@ -173,8 +174,8 @@ const GUIDE_GROUP_ORDER = [
   ['integrations', 'Integrations & Extensions', ['ssr', 'd3', 'custom-layers']],
   ['colors-patterns-and-gradients', 'Colors, Patterns & Gradients', ['themes', 'patterns']],
   ['labels-and-layout', 'Labels & Layout', ['auto-size', 'custom-labels', 'truncation']],
-  ['data-and-interaction', 'Data & Interaction', ['dynamic-updates', 'chart-state', 'tooltips', 'events']],
-  ['optional-features', 'Optional Features', ['bootstrapping', 'view-zoom', 'csv-export']],
+  ['data-and-interaction', 'Data & Interaction', ['dynamic-updates', 'tooltips', 'events']],
+  ['optional-features', 'Optional Features', ['bootstrapping', 'view-zoom', 'csv-export', 'chart-state']],
   ['accessibility-and-localization', 'Accessibility & Localization', ['accessibility', 'i18n']]
 ] satisfies Array<[id: string, title: string, guides: GuideId[]]>;
 

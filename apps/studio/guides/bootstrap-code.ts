@@ -12,6 +12,8 @@ import { createLiveCodeEditor, type LiveConfigEditorHandle } from './shared';
 type BootstrapFeatures = Required<ChartFeaturesConfig>;
 type DemoConfig = Record<string, any>;
 
+const BOOTSTRAP_DEFAULTS: BootstrapFeatures = { zoom: false, csvExport: false, chartState: true };
+
 const REGISTER_FN_BY_ID: Record<string, string> = {
   bar: 'registerBarChart',
   line: 'registerLineChart',
@@ -48,14 +50,10 @@ export function parseBootstrap(source: string) {
   const features: unknown = 'features' in options ? options.features : options;
   if (!features || typeof features !== 'object' || Array.isArray(features) ||
       Object.entries(features).some(([key, value]) =>
-        (key !== 'zoom' && key !== 'csvExport') || typeof value !== 'boolean')) {
-    throw new SyntaxError('Set zoom and csvExport to true or false.');
+        !Object.hasOwn(BOOTSTRAP_DEFAULTS, key) || typeof value !== 'boolean')) {
+    throw new SyntaxError('Set zoom, csvExport, and chartState to true or false.');
   }
-  return {
-    chartId,
-    zoom: 'zoom' in features && features.zoom === true,
-    csvExport: 'csvExport' in features && features.csvExport === true
-  };
+  return { chartId, ...BOOTSTRAP_DEFAULTS, ...features };
 }
 
 export function formatBootstrap(chartId: string | undefined, features: BootstrapFeatures): string {
@@ -65,7 +63,7 @@ export function formatBootstrap(chartId: string | undefined, features: Bootstrap
     `import { ${registrar} } from '${modulePath}';`,
     '',
     `await ${registrar}({`,
-    `  features: { zoom: ${features.zoom}, csvExport: ${features.csvExport} }`,
+    `  features: { zoom: ${features.zoom}, csvExport: ${features.csvExport}, chartState: ${features.chartState} }`,
     '});'
   ].join('\n');
 }
@@ -83,14 +81,16 @@ interface FeatureGuideEditorOptions {
 }
 
 /** Keep the two examples consistent with the library's shared bootstrap feature flags. */
-export function createFeatureGuideBootstrap(defaultFeatures: BootstrapFeatures) {
+export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig) {
+  const defaultFeatures = { ...BOOTSTRAP_DEFAULTS, ...initialFeatures };
   let features = defaultFeatures;
   const refreshEditors = new Set<() => void>();
   const featureListeners = new Set<() => void>();
   void configureChartFeatures({ features });
 
   const setFeatures = (next: BootstrapFeatures, source: () => void) => {
-    if (next.zoom === features.zoom && next.csvExport === features.csvExport) return;
+    if (next.zoom === features.zoom && next.csvExport === features.csvExport &&
+        next.chartState === features.chartState) return;
     features = next;
     void configureChartFeatures({ features });
     for (const refresh of refreshEditors) {

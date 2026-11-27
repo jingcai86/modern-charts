@@ -5,7 +5,7 @@ import {
 import type { MCBaseChart } from '../../src/core/base-chart';
 import { configureChartFeatures } from '../../src/core/features';
 import { CHART_CATALOG, type ChartCatalogEntry } from './catalog';
-import { loadChart } from './chart-loader';
+import { loadChart, STUDIO_BOOTSTRAP_OPTIONS } from './chart-loader';
 import { createGuideNavigationGroups } from './guides/navigation';
 import { GUIDES_CATALOG, type GuideId } from './guides/types';
 import { disposeOverviewPage, renderOverviewPage, writeStoredHomeTab } from './pages/overview';
@@ -230,7 +230,8 @@ function handleRoute(): void {
   }
 
   if (activeGuide) {
-    void configureChartFeatures({ features: { zoom: true, csvExport: true } });
+    root.replaceChildren();
+    void configureChartFeatures(STUDIO_BOOTSTRAP_OPTIONS);
   }
   activeDetailEntry = null;
   activeGuide = null;

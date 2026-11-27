@@ -3,6 +3,7 @@ import {
   type MCBaseChart,
   type ThemeModePreference
 } from '../../../src/index';
+import { STUDIO_BOOTSTRAP_OPTIONS } from '../chart-loader';
 import { renderGuideHeader } from './shared';
 import { renderCustomLayersGuide } from './custom-layers';
 import { renderThemesGuide } from './themes';
@@ -30,12 +31,12 @@ export function renderGuidePage(
   guideId: GuideId,
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
-  void registerModernCharts(
-    guideId === 'bootstrapping' ? undefined : { features: { zoom: true, csvExport: true } }
-  );
   const body = document.createElement('div');
   body.className = 'guide-body-stack';
   root.replaceChildren(renderGuideHeader(guideId), body);
+  if (guideId !== 'bootstrapping') {
+    void registerModernCharts(STUDIO_BOOTSTRAP_OPTIONS);
+  }
 
   switch (guideId) {
     case 'custom-layers':

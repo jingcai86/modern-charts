@@ -204,6 +204,8 @@ describe('Per-chart standalone subpath exports & scoped registration (Issue #11)
     // Core bundle must not pull in ANY chart tag
     visited.clear();
     const coreCode = collectSource(resolvePath(cwd, 'dist/core.js'));
+    expect(coreCode).not.toContain('mc-state-overlay');
+    expect(coreCode).toMatch(/import\(["'][^"']*chart-state-view-/);
     for (const tag of Object.values(chartTagBySubpath)) {
       expect(coreCode).not.toContain(tag);
     }
@@ -214,6 +216,7 @@ describe('Per-chart standalone subpath exports & scoped registration (Issue #11)
       const graphCode = collectSource(resolvePath(cwd, `dist/${subpath}.js`));
       const ownTag = chartTagBySubpath[subpath];
       expect(graphCode).toContain(ownTag);
+      expect(graphCode).not.toContain('mc-state-overlay');
       for (const [otherSubpath, otherTag] of Object.entries(chartTagBySubpath)) {
         if (otherSubpath !== subpath) {
           expect(graphCode).not.toContain(otherTag);
@@ -224,6 +227,9 @@ describe('Per-chart standalone subpath exports & scoped registration (Issue #11)
         expect(graphCode).not.toContain('interpolateViridis');
       }
     }
+
+    visited.clear();
+    expect(collectSource(resolvePath(cwd, 'dist/index.js'))).not.toContain('mc-state-overlay');
 
     // Verify declaration files exist for all subpaths
     for (const subpath of ['core', ...ALL_CHART_SUBPATHS]) {
