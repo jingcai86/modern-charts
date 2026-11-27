@@ -51,6 +51,10 @@ export class MCHeatmapChart extends MCBaseChart<HeatmapRow[]> {
     return ['axes', 'cells', 'labels', 'legends'];
   }
 
+  protected override get retainedItemLayer(): string {
+    return 'cells';
+  }
+
   protected getDefaultMargin(): ChartMargin {
     return { top: 36, right: 32, bottom: 52, left: 76 };
   }

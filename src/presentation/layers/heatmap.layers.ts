@@ -1,16 +1,34 @@
+import { joinChartItems } from '../../core/chart-item-join';
 import { renderUnifiedLegendLayer } from '../../core/legend-engine';
 import type { ChartRenderContext, HeatmapRow } from '../../core/types';
 import type { HeatmapChartModel } from '../../models/heatmap.model';
 import { renderHeatmapCellItem } from '../items/cell.item';
 import { renderHeatmapColorLegend } from './heatmap-color-legend';
+import {
+  bindRectangularItemLabel,
+  renderRectangularItem,
+  retractRectangularItem
+} from './rectangular-item-motion';
 
 export function renderHeatmapCellsLayer(
   model: HeatmapChartModel,
   ctx: ChartRenderContext<HeatmapRow[]>
 ): void {
-  model.cells.forEach((cell) => {
-    ctx.layerGroup.appendChild(renderHeatmapCellItem(cell, ctx));
-  });
+  const updateContext: typeof ctx = {
+    ...ctx,
+    animateItem: (mark) => mark.setAttribute('data-animated', 'false')
+  };
+  joinChartItems(
+    ctx.layerGroup,
+    model.cells,
+    (cell) => JSON.stringify([cell.rowId, cell.colId]),
+    ctx.animationConfig,
+    (group, cell, { initial, motion }) => {
+      const mark = renderHeatmapCellItem(cell, initial ? ctx : updateContext);
+      renderRectangularItem(group, mark, cell, motion, true);
+    },
+    retractRectangularItem
+  );
 }
 
 export function renderHeatmapCellLabelsLayer(
@@ -28,7 +46,7 @@ export function renderHeatmapCellLabelsLayer(
     ) {
       return;
     }
-    ctx.renderLabel(ctx.layerGroup, {
+    const label = ctx.renderLabel(ctx.layerGroup, {
       id: `heatmap-label-${idx}`,
       text: ctx.i18n.formatNumber(cell.value, { useGrouping: false }),
       x: cell.x + cell.width / 2,
@@ -47,6 +65,7 @@ export function renderHeatmapCellLabelsLayer(
         value: cell.value
       }
     });
+    bindRectangularItemLabel(cell, label);
   });
 }
 
