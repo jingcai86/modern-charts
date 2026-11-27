@@ -8,10 +8,13 @@ const secondary = { source: 'A', target: 'C', value: 16 };
 beforeAll(() => registerSankeyChart());
 afterEach(() => document.body.replaceChildren());
 
-function mountSankey(layout: 'horizontal' | 'vertical' = 'horizontal') {
+function mountSankey(
+  layout: 'horizontal' | 'vertical' = 'horizontal',
+  data: SankeyData = { nodes, links: [main, secondary] }
+) {
   const chart = document.createElement('mc-sankey-chart') as MCSankeyChart;
   chart.config = {
-    data: { nodes, links: [main, secondary] },
+    data,
     width: 540,
     height: 340,
     layout,
@@ -48,6 +51,22 @@ it('keeps node and ribbon identities through reordering and resumes from the cur
   chart.data = { nodes, links: [{ ...main, value: 12 }, secondary] };
   expect(link(chart, 'B').getAttribute('d')).toBe(currentPath);
   expect(node(chart, 'B').getAttribute('height')).toBe(currentHeight);
+});
+
+it('retracts multiple ribbons toward their departing target node center', async () => {
+  const chart = mountSankey('vertical', {
+    nodes,
+    links: [main, secondary, { source: 'B', target: 'C', value: 12 }]
+  });
+  const departing = node(chart, 'C');
+  const center = Number(departing.getAttribute('x')) + Number(departing.getAttribute('width')) / 2;
+  const ribbon = link(chart, 'C');
+
+  chart.data = { nodes, links: [main] };
+
+  await vi.waitFor(() => expect(ribbon.isConnected).toBe(false));
+  const targetX = ribbon.getAttribute('d')!.split(' L')[1].split(',')[0];
+  expect(Number(targetX)).toBeCloseTo(center);
 });
 
 it('grows inferred nodes and ribbons while leaving marks shrink with their original paint', async () => {

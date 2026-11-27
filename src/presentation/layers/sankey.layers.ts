@@ -132,7 +132,11 @@ export function renderSankeyLinksLayer(
       retainSankeyGradient(group, path, state.gradient);
       const source = path.getAttribute('data-source') ?? '';
       const target = path.getAttribute('data-target') ?? '';
-      const collapsed = collapseLink(state.frame, nextNodes.get(source), nextNodes.get(target));
+      const collapsed = collapseLink(
+        state.frame,
+        nextNodes.get(source) ?? priorNodes?.get(source),
+        nextNodes.get(target) ?? priorNodes?.get(target)
+      );
       tweenLink(path, state.frame, collapsed, motion, state.gradient);
     }
   );
