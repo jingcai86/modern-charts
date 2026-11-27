@@ -6,6 +6,7 @@ import type { MCBaseChart } from '../../src/core/base-chart';
 import { configureChartFeatures } from '../../src/core/features';
 import { CHART_CATALOG, type ChartCatalogEntry } from './catalog';
 import { loadChart } from './chart-loader';
+import { createGuideNavigationGroups } from './guides/navigation';
 import { GUIDES_CATALOG, type GuideId } from './guides/types';
 import { disposeOverviewPage, renderOverviewPage, writeStoredHomeTab } from './pages/overview';
 import { renderChartDetailPage } from './pages/chart-detail';
@@ -43,10 +44,17 @@ const navCurrentLabel = document.getElementById(
 ) as HTMLSpanElement | null;
 const navMenu = document.getElementById('studio-pages-menu') as HTMLElement | null;
 
+function openGuideMenuGroup(link: Element | null): void {
+  const group = link?.closest<HTMLDetailsElement>('details.nav-dropdown-group');
+  if (group) group.open = true;
+}
+
 if (navTrigger && navMenu) {
+  navMenu.insertBefore(createGuideNavigationGroups(), navMenu.querySelector('#studio-pages-resources'));
   navMenu.addEventListener('toggle', (event) => {
     const isOpen = (event as ToggleEvent).newState === 'open';
     navTrigger.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) openGuideMenuGroup(navMenu.querySelector('[aria-current="page"]'));
 
     // Anchor positioning fallback for browsers without CSS `position-area`
     if (
@@ -54,8 +62,10 @@ if (navTrigger && navMenu) {
       (typeof CSS === 'undefined' || !CSS.supports('position-area', 'block-end'))
     ) {
       const triggerRect = navTrigger.getBoundingClientRect();
-      const menuRect = navMenu.getBoundingClientRect();
       const gap = 8;
+      const availableSpace = Math.max(triggerRect.top, window.innerHeight - triggerRect.bottom);
+      navMenu.style.maxBlockSize = `${Math.max(0, availableSpace - gap * 2)}px`;
+      const menuRect = navMenu.getBoundingClientRect();
       let top = triggerRect.bottom + gap;
       if (top + menuRect.height > window.innerHeight - gap) {
         top = Math.max(gap, triggerRect.top - menuRect.height - gap);
@@ -113,6 +123,7 @@ function syncTopNavActiveState(activeKey: string, showDropdown: boolean): void {
       const isCurrent = link.dataset.navRoute === activeKey;
       if (isCurrent) {
         link.setAttribute('aria-current', 'page');
+        openGuideMenuGroup(link);
         activeLabel = link.dataset.navLabel || link.textContent?.trim() || activeLabel;
       } else {
         link.removeAttribute('aria-current');

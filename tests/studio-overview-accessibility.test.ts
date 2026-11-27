@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../src/index';
 import type { MCBaseChart } from '../src/index';
+import { GUIDES_CATALOG } from '../apps/studio/guides/types';
 import { disposeOverviewPage, renderOverviewPage } from '../apps/studio/pages/overview';
 
 afterEach(() => {
@@ -25,11 +26,58 @@ describe('Studio overview navigation', () => {
       expect(card.querySelector('.overview-preview-stage')?.getAttribute('aria-hidden')).toBe('true');
       expect(card.tabIndex).toBe(0);
     }
-    expect(root.querySelectorAll('.overview-guide-card-title').length).toBeGreaterThan(0);
-    expect(root.querySelectorAll('h3.overview-guide-card-title')).toHaveLength(0);
     expect(cards[0].getAttribute('href')).toBe('#/chart/line');
     cards[0].click();
     expect(window.location.hash).toBe('#/chart/line');
+  });
+
+  it('groups every guide and resource under a labeled topic heading', () => {
+    localStorage.setItem('modern-charts-studio-home-tab', 'guides');
+    const root = document.createElement('main');
+    document.body.append(root);
+    renderOverviewPage(root);
+    const panel = root.querySelector('[role="tabpanel"][aria-labelledby="overview-tab-guides"]')!;
+    const groups = Array.from(panel.querySelectorAll<HTMLDetailsElement>('details.overview-guide-group'));
+    expect(groups.map((group) => group.querySelector('summary')?.textContent)).toEqual([
+      'Integrations & Extensions', 'Colors, Patterns & Gradients', 'Labels & Layout',
+      'Data & Interaction', 'Optional Features', 'Accessibility & Localization', 'Resources'
+    ]);
+    expect(groups.filter((group) => group.open)).toEqual(groups.slice(0, 4));
+
+    groups[4].querySelector('summary')!.click();
+    expect(groups.filter((group) => group.open)).toEqual(groups.slice(0, 5));
+    groups[0].querySelector('summary')!.click();
+    expect(groups.filter((group) => group.open)).toEqual(groups.slice(1, 5));
+
+    const urls = groups.flatMap((group) => {
+      const heading = group.querySelector('summary h2.overview-guide-group-title')!;
+      expect(heading.id).toBeTruthy();
+      expect(heading.textContent?.trim()).toBeTruthy();
+      expect(group.getAttribute('aria-labelledby')).toBe(heading.id);
+      const links = Array.from(group.querySelectorAll<HTMLAnchorElement>('.overview-guides-grid a.overview-guide-card'));
+      expect(links.length).toBeGreaterThan(0);
+      for (const link of links) {
+        expect(link.querySelector('h3.overview-guide-card-title')?.textContent?.trim()).toBeTruthy();
+      }
+      return links.map((link) => link.getAttribute('href'));
+    });
+    expect(panel.querySelectorAll('a.overview-guide-card')).toHaveLength(urls.length);
+    expect(urls.sort()).toEqual([...GUIDES_CATALOG.map(({ id }) => `#/guide/${id}`), './llms.txt'].sort());
+
+    const topicFor = (id: string) => panel.querySelector(`a[href="#/guide/${id}"]`)?.closest('.overview-guide-group');
+    const optionalFeatures = topicFor('bootstrapping');
+    expect(optionalFeatures).toBeInstanceOf(HTMLElement);
+    expect(topicFor('view-zoom')).toBe(optionalFeatures);
+    expect(topicFor('csv-export')).toBe(optionalFeatures);
+
+    const colors = topicFor('themes');
+    expect(colors).toBeInstanceOf(HTMLElement);
+    expect(topicFor('patterns')).toBe(colors);
+    expect(colors).not.toBe(optionalFeatures);
+
+    const aiContext = panel.querySelector<HTMLAnchorElement>('a[href="./llms.txt"]')!;
+    expect(aiContext.target).toBe('_blank');
+    expect(aiContext.rel.split(' ')).toEqual(expect.arrayContaining(['noopener', 'noreferrer']));
   });
 
   it('mounts previews only as their cards approach the viewport', async () => {

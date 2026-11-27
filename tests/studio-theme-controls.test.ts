@@ -111,6 +111,30 @@ describe('Studio Theme and Appearance controls', () => {
     expect(document.querySelector('nav a[href="#/guide/themes"]')).not.toBeNull();
   }, 15_000);
 
+  it('opens the current guide topic in the pages menu and keeps other topics independently collapsible', () => {
+    const menu = document.getElementById('studio-pages-menu')!;
+    const themes = menu.querySelector('[data-nav-route="guide:themes"]')!;
+    const zoom = menu.querySelector('[data-nav-route="guide:view-zoom"]')!;
+    const appearanceGroup = themes.closest<HTMLDetailsElement>('details.nav-dropdown-group')!;
+    const featuresGroup = zoom.closest<HTMLDetailsElement>('details.nav-dropdown-group')!;
+
+    expect(Array.from(menu.querySelectorAll('details[open] > summary'), (summary) => summary.textContent)).toEqual([
+      'Integrations & Extensions', 'Colors, Patterns & Gradients', 'Labels & Layout', 'Data & Interaction'
+    ]);
+    route('#/guide/themes');
+    expect(themes.getAttribute('aria-current')).toBe('page');
+    expect(appearanceGroup.open).toBe(true);
+    expect(featuresGroup.open).toBe(false);
+
+    featuresGroup.querySelector('summary')!.click();
+    expect(featuresGroup.open).toBe(true);
+    appearanceGroup.querySelector('summary')!.click();
+    expect(appearanceGroup.open).toBe(false);
+    menu.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'open' }));
+    expect(appearanceGroup.open).toBe(true);
+    expect(featuresGroup.open).toBe(true);
+  });
+
   it('applies the selected palette and appearance to existing and newly visible previews', async () => {
     const bar = await revealPreview('bar');
     const { data, markers, layers } = bar.config;

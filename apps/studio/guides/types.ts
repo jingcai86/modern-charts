@@ -166,3 +166,20 @@ export const GUIDES_CATALOG: GuideMeta[] = [
       'Keep browser downloads minimal with opt-in feature bootstrapping (features: { zoom, csvExport } — default false) across registerModernCharts() and per-chart register<Chart>() entrypoints.'
   }
 ];
+
+export const DEFAULT_OPEN_GUIDE_GROUP_COUNT = 4;
+
+const GUIDE_GROUP_ORDER = [
+  ['integrations', 'Integrations & Extensions', ['ssr', 'd3', 'custom-layers']],
+  ['colors-patterns-and-gradients', 'Colors, Patterns & Gradients', ['themes', 'patterns']],
+  ['labels-and-layout', 'Labels & Layout', ['auto-size', 'custom-labels', 'truncation']],
+  ['data-and-interaction', 'Data & Interaction', ['dynamic-updates', 'chart-state', 'tooltips', 'events']],
+  ['optional-features', 'Optional Features', ['bootstrapping', 'view-zoom', 'csv-export']],
+  ['accessibility-and-localization', 'Accessibility & Localization', ['accessibility', 'i18n']]
+] satisfies Array<[id: string, title: string, guides: GuideId[]]>;
+
+export const GUIDE_GROUPS = GUIDE_GROUP_ORDER.map(([id, title, guideIds]) => ({
+  id,
+  title,
+  guides: guideIds.map((guideId) => GUIDES_CATALOG.find((guide) => guide.id === guideId)!)
+}));
