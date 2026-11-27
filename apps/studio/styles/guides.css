@@ -25,6 +25,24 @@
   letter-spacing: -0.02em;
 }
 
+.guide-hero-title:has(> .guide-hero-feature-default) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.guide-hero-feature-default {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.guide-hero-feature-default code {
+  color: var(--pill-purple-fg);
+}
+
 .guide-hero-summary {
   margin: 6px 0 0;
   font-size: 0.92rem;

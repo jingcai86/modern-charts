@@ -20,6 +20,7 @@ export type GuideId =
 export interface GuideMeta {
   id: GuideId;
   title: string;
+  featureDefault?: boolean;
   shortLabel: string;
   icon: string;
   summary: string;
@@ -140,7 +141,8 @@ export const GUIDES_CATALOG: GuideMeta[] = [
   },
   {
     id: 'view-zoom',
-    title: 'Zoom Controls & Viewport Lock (<mc-view-layer>) · Default is false',
+    title: 'Zoom Controls & Viewport Lock',
+    featureDefault: false,
     shortLabel: 'Zoom Controls',
     icon: '🔍',
     summary:
