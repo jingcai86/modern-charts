@@ -461,7 +461,7 @@ describe('Customizable CSV export across all 10 chart types (Issue #125)', () =>
   }, 20000);
 });
 
-describe('Customizable CSV Data Export & Bootstrapping Studio guides', () => {
+describe('Customizable CSV Data Export Studio guide', () => {
   it('renders interactive CSV export presets and all 10 chart switchers in csv-export guide', () => {
     expect(
       GUIDES_CATALOG.find((g) => g.id === 'csv-export')?.title
@@ -538,73 +538,6 @@ describe('Customizable CSV Data Export & Bootstrapping Studio guides', () => {
     // Edit and reset live config editor 2
     const cfg2 = parseConfigObjectLiteral(editor2.value);
     cfg2.title = 'Updated Efficiency';
-    editor2.value = formatConfigAssignment(cfg2);
-    editor2.dispatchEvent(new Event('input', { bubbles: true }));
-    ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
-  }, 20000);
-
-  it('renders the Feature Bootstrapping & Lazy Loading guide with links to csv-export and view-zoom and interactive true vs false examples', () => {
-    expect(
-      GUIDES_CATALOG.find((g) => g.id === 'bootstrapping')?.title
-    ).toContain('Feature Bootstrapping & Lazy Loading');
-
-    const root = document.createElement('div');
-    document.body.appendChild(root);
-    const charts = renderGuidePage(root, 'bootstrapping', 'dark');
-    expect(charts).toHaveLength(2);
-
-    // Verify links to the current bootstrap feature guides
-    expect(
-      root.querySelector('a[href="#/guide/csv-export"]')
-    ).not.toBeNull();
-    expect(
-      root.querySelector('a[href="#/guide/view-zoom"]')
-    ).not.toBeNull();
-
-    // Example 1: Toggle between Explicit Enable (csvExport: true) and Default Bootstrap (csvExport: false)
-    const ex1 = root.querySelector<HTMLElement>('#bs-default-vs-enabled')!;
-    const btnEnabled = ex1.querySelector<HTMLButtonElement>('#bs-mode-enabled')!;
-    const btnDefault = ex1.querySelector<HTMLButtonElement>('#bs-mode-default')!;
-    const readout1 = ex1.querySelector<HTMLElement>('#bs-readout-1')!;
-    const editor1 = ex1.querySelector<HTMLTextAreaElement>('textarea')!;
-
-    expect(readout1.textContent).toContain('features.csvExport: true');
-    expect(editor1.value).not.toContain('registerModernCharts');
-
-    btnDefault.click();
-    expect(isChartFeatureEnabled('csvExport')).toBe(false);
-    expect(readout1.textContent).toContain('features.csvExport: false');
-
-    btnEnabled.click();
-    expect(isChartFeatureEnabled('csvExport')).toBe(true);
-    expect(readout1.textContent).toContain('features.csvExport: true');
-
-    // Edit & reset live config editor 1
-    const cfg1 = parseConfigObjectLiteral(editor1.value);
-    cfg1.title = 'Updated Spend';
-    editor1.value = formatConfigAssignment(cfg1);
-    editor1.dispatchEvent(new Event('input', { bubbles: true }));
-    ex1.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
-
-    // Example 2: Switch across all 10 per-chart subpath bootstrap examples
-    const ex2 = root.querySelector<HTMLElement>('#bs-per-chart')!;
-    const readout2 = ex2.querySelector<HTMLElement>('#bs-readout-2')!;
-    const editor2 = ex2.querySelector<HTMLTextAreaElement>('textarea')!;
-    const typeBtns = Array.from(
-      ex2.querySelectorAll<HTMLButtonElement>('button[data-bs-chart-type]')
-    );
-    expect(typeBtns).toHaveLength(10);
-
-    for (const btn of typeBtns) {
-      btn.click();
-      expect(btn.getAttribute('aria-pressed')).toBe('true');
-      expect(readout2.textContent).toContain(
-        `from 'modern-charts/${btn.dataset.bsChartType}'`
-      );
-    }
-
-    const cfg2 = parseConfigObjectLiteral(editor2.value);
-    cfg2.title = 'Updated Gauge';
     editor2.value = formatConfigAssignment(cfg2);
     editor2.dispatchEvent(new Event('input', { bubbles: true }));
     ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();

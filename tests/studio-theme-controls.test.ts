@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { PALETTES, generateColorPalette, type MCBaseChart } from '../src/index';
+import { PALETTES, generateColorPalette, getChartFeatures, type MCBaseChart } from '../src/index';
 import { extractChartConfigBlock, formatConfigAssignment, parseConfigObjectLiteral } from '../apps/studio/utils/code-sync';
 
 const paletteKey = 'modern-charts-palette';
@@ -311,6 +311,20 @@ describe('Studio Theme and Appearance controls', () => {
     expect(localizedChart.config.palette).toBe('neutral');
     expect(parseConfigObjectLiteral(localizedEditor.value).palette).toBe('neutral');
     expect(localizedChart.resolveI18n().locale).toBe('de-DE');
+  }, 15_000);
+
+  it('restores Studio features when returning home from the Bootstrapping guide', async () => {
+    route('#/chart/bar');
+    await vi.waitFor(() => expect(detailChart()).not.toBeNull());
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true });
+
+    route('#/guide/bootstrapping');
+    await vi.waitFor(() => expect(document.querySelector('#bs-chart mc-bar-chart')).not.toBeNull());
+    expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false });
+
+    route('#/');
+    expect((await revealPreview('bar')).localName).toBe('mc-bar-chart');
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true });
   }, 15_000);
 
   it('synchronizes palette changes across tabs and keeps OS appearance updates independent', () => {

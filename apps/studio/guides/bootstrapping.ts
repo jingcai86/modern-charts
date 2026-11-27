@@ -1,13 +1,9 @@
-import { CHART_CATALOG, type ChartCatalogEntry } from '../catalog';
+import { CHART_CATALOG } from '../catalog';
 import { getGlobalPalette } from '../state/theme';
-import { SAMPLE_BAR_DATA } from '../sample-data';
-import {
-  configureChartFeatures,
-  getChartFeatures,
-  type MCBaseChart,
-  type ThemeModePreference
-} from '../../../src/index';
-import { createCodeBlock, createLiveConfigEditor } from './shared';
+import type { MCBaseChart } from '../../../src/core/base-chart';
+import { configureChartFeatures } from '../../../src/core/features';
+import type { ThemeModePreference } from '../../../src/core/types';
+import { createCodeBlock } from './shared';
 
 const REGISTER_FN_BY_ID: Record<string, string> = {
   bar: 'registerBarChart',
@@ -74,13 +70,8 @@ function createFeatureMatrixSection(): HTMLElement {
   card.innerHTML = `
     <h2 class="panel-title">Opt-In Feature Bootstrapping &amp; Lazy Browser Downloads</h2>
     <p class="guide-prose">
-      To keep initial browser downloads minimal when lazy-loading standalone charts
-      (<code>modern-charts/bar</code>, <code>modern-charts/line</code>, etc.), optional features like
-      <strong>Zoom Controls</strong> and <strong>CSV Data Export</strong> are decoupled from core chart rendering
-      and default to <code>false</code>. When left at their default <code>false</code>, the browser never downloads
-      those feature chunks. Pass <code>{ features: { zoom: true, csvExport: true } }</code> to
-      <code>registerModernCharts()</code> or any per-chart <code>register&lt;Chart&gt;()</code> bootstrap function
-      to lazy-load and activate them.
+      Pass <code>features</code> to <code>registerModernCharts()</code> or a standalone chart’s registration function.
+      Both features default to <code>false</code>. Standalone imports load the enabled feature chunks on demand.
     </p>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
       <table class="guide-table">
@@ -99,237 +90,140 @@ function createFeatureMatrixSection(): HTMLElement {
   return card;
 }
 
-function mountDefaultVsEnabledDemo(
+function createBootstrapPlayground(
   themeMode: ThemeModePreference,
   mounted: MCBaseChart<any>[]
 ): HTMLElement {
   const section = document.createElement('section');
   section.className = 'panel-card guide-section';
-  section.id = 'bs-default-vs-enabled';
   section.innerHTML = `
-    <div class="panel-header">
-      <div>
-        <h2 class="panel-title">Example 1: Default Bootstrap (<code>false</code>) vs. Explicit Enable (<code>true</code>)</h2>
-        <p class="guide-prose" style="margin:4px 0 0;">
-          Compare how a chart behaves when bootstrapped with the default <code>features: { zoom: false, csvExport: false }</code> (zero feature chunk overhead) versus explicitly enabling <code>features: { zoom: true, csvExport: true }</code>.
-        </p>
-      </div>
-      <div class="guide-controls-row" role="group" aria-label="Bootstrap mode presets">
-        <button type="button" id="bs-mode-enabled" data-bs-mode="enabled" aria-pressed="true" class="btn-primary">
-          Explicitly Enabled (zoom: true, csvExport: true)
-        </button>
-        <button type="button" id="bs-mode-default" data-bs-mode="default" aria-pressed="false">
-          Default Bootstrap (zoom: false, csvExport: false)
-        </button>
+    <h2 class="panel-title">Try Feature Bootstrapping</h2>
+    <p class="guide-prose">
+      Choose a registration example and enable features to try on the chart. The code updates with your choices.
+    </p>
+    <div class="guide-controls-row">
+      <label>Registration
+        <select id="bs-entrypoint">
+          <option value="library">Full library</option>
+          <option value="standalone">Standalone chart</option>
+        </select>
+      </label>
+      <label>Chart <select id="bs-chart-type"></select></label>
+      <div class="guide-controls-row" role="group" aria-label="Bootstrap features">
+        <label><input id="bs-zoom" type="checkbox"> Zoom</label>
+        <label><input id="bs-csv-export" type="checkbox"> CSV export</label>
       </div>
     </div>
     <div class="guide-example-grid">
-      <div class="guide-chart-stage" id="bs-chart-1"></div>
-      <div id="bs-editor-1"></div>
+      <div>
+        <div class="guide-chart-stage" id="bs-chart"></div>
+      </div>
+      <div id="bs-bootstrap-code"></div>
     </div>
-    <div class="inspector-box" style="margin-top:12px;">
-      <div class="inspector-title">Active Bootstrap Feature State &amp; <code>chart.toCsv()</code> Output</div>
-      <div class="inspector-readout" id="bs-readout-1" role="status" aria-live="polite" aria-atomic="true" style="white-space:pre-wrap;font-family:var(--font-mono, monospace);"></div>
+    <div class="guide-controls-row">
+      <button type="button" id="bs-download-csv" disabled>Download CSV</button>
+      <span id="bs-feature-status" role="status"></span>
     </div>
+    <details id="bs-csv-preview" hidden>
+      <summary>CSV preview</summary>
+      <pre class="guide-code-pre" id="bs-csv-output"></pre>
+    </details>
   `;
 
-  const chartHost = section.querySelector<HTMLElement>('#bs-chart-1')!;
-  const editorHost = section.querySelector<HTMLElement>('#bs-editor-1')!;
-  const btnEnabled = section.querySelector<HTMLButtonElement>('#bs-mode-enabled')!;
-  const btnDefault = section.querySelector<HTMLButtonElement>('#bs-mode-default')!;
-  const readoutEl = section.querySelector<HTMLElement>('#bs-readout-1')!;
+  const entrypoint = section.querySelector<HTMLSelectElement>('#bs-entrypoint')!;
+  const chartType = section.querySelector<HTMLSelectElement>('#bs-chart-type')!;
+  const zoom = section.querySelector<HTMLInputElement>('#bs-zoom')!;
+  const csvExport = section.querySelector<HTMLInputElement>('#bs-csv-export')!;
+  const stage = section.querySelector('#bs-chart')!;
+  const download = section.querySelector<HTMLButtonElement>('#bs-download-csv')!;
+  const csvPreview = section.querySelector<HTMLDetailsElement>('#bs-csv-preview')!;
+  const csvOutput = section.querySelector('#bs-csv-output')!;
+  const status = section.querySelector('#bs-feature-status')!;
+  const codeBlock = createCodeBlock('', 'Bootstrap and use chart features');
+  const code = codeBlock.querySelector('code')!;
+  section.querySelector('#bs-bootstrap-code')!.appendChild(codeBlock);
 
-  const chart = document.createElement('mc-bar-chart') as MCBaseChart<any>;
-  chartHost.appendChild(chart);
-  mounted.push(chart);
+  for (const entry of CHART_CATALOG) {
+    const option = document.createElement('option');
+    option.value = entry.id;
+    option.textContent = entry.title;
+    chartType.appendChild(option);
+  }
+  chartType.value = 'bar';
+  const selectedChart = () => CHART_CATALOG.find(({ id }) => id === chartType.value)!;
+  let chart: MCBaseChart<any>;
 
-  const baselineConfig: Record<string, any> = {
-    title: 'Quarterly Spend ($K)',
-    indexBy: 'quarter',
-    keys: ['Cloud', 'Edge', 'OnPrem'],
-    data: structuredClone(SAMPLE_BAR_DATA),
-    view: {
-      zoomable: true,
-      pannable: true,
-      showControls: true,
-      maxZoom: 6
-    },
-    csvExport: {
-      filename: 'quarterly-spend.csv'
+  const syncSnippet = () => {
+    const chartEntry = selectedChart();
+    const standalone = entrypoint.value === 'standalone';
+    const registrar = standalone ? REGISTER_FN_BY_ID[chartEntry.id] : 'registerModernCharts';
+    const source = standalone ? `modern-charts/${chartEntry.id}` : 'modern-charts';
+    const lines = [
+      `import { ${registrar} } from '${source}';`,
+      '',
+      `await ${registrar}({`,
+      `  features: { zoom: ${zoom.checked}, csvExport: ${csvExport.checked} }`,
+      '});'
+    ];
+
+    if (zoom.checked || csvExport.checked) {
+      lines.push('', '// Use the enabled features on your configured chart.',
+        `const chart = document.querySelector('${chartEntry.tagName}');`);
+      if (zoom.checked) lines.push('chart.toggleZoom(true);');
+      if (csvExport.checked) {
+        lines.push('const csv = chart.toCsv();', '// Call chart.exportCsv() to download the CSV.');
+      }
     }
+    code.textContent = lines.join('\n');
   };
 
-  const refreshStatus = () => {
-    const flags = getChartFeatures();
-    const isEnabled = flags.zoom || flags.csvExport;
-    const ctrlEl = chart.shadowRoot?.querySelector<HTMLElement>('.mc-view-controls');
-    const isCtrlShown = Boolean(ctrlEl && !ctrlEl.hidden);
-    const csvOutput = chart.toCsv();
-    btnEnabled.setAttribute('aria-pressed', String(isEnabled));
-    btnEnabled.classList.toggle('btn-primary', isEnabled);
-    btnDefault.setAttribute('aria-pressed', String(!isEnabled));
-    btnDefault.classList.toggle('btn-primary', !isEnabled);
-    readoutEl.textContent = isEnabled
-      ? `Bootstrap: registerModernCharts({ features: { zoom: true, csvExport: true } }) | features.zoom: ${flags.zoom} | features.csvExport: ${flags.csvExport} | On-chart zoom controls visible: ${isCtrlShown}\n${csvOutput}`
-      : `Bootstrap: registerModernCharts() [Default] | features.zoom: ${flags.zoom} | features.csvExport: ${flags.csvExport} (feature chunks skipped on lazy load) | chart.toCsv(): ""`;
+  const syncCsvPreview = (available: boolean) => {
+    download.disabled = !available;
+    csvPreview.hidden = !available;
+    csvOutput.textContent = available ? chart.toCsv() : '';
   };
 
-  const applyConfig = (cfg: Record<string, any>) => {
+  const mountChart = () => {
+    const entry = selectedChart();
+    chart = document.createElement(entry.tagName) as MCBaseChart<any>;
     chart.setConfig({
-      autoSize: true,
-      themeMode,
-      palette: getGlobalPalette(),
-      animate: false,
-      ...cfg
-    });
-    refreshStatus();
-  };
-
-  applyConfig(baselineConfig);
-
-  const liveEditor = createLiveConfigEditor({
-    title: 'Chart Configuration (Live)',
-    initialConfig: baselineConfig,
-    hint: 'Note: In Studio live editors, chart.config is shown directly without bootstrap boilerplate.',
-    onConfigChange: (nextCfg) => {
-      applyConfig(nextCfg);
-    },
-    onReset: () => {
-      void configureChartFeatures({ features: { zoom: true, csvExport: true } });
-      const fresh = structuredClone(baselineConfig);
-      applyConfig(fresh);
-      liveEditor.syncConfig(fresh);
-    }
-  });
-  editorHost.appendChild(liveEditor.element);
-
-  btnEnabled.addEventListener('click', () => {
-    void configureChartFeatures({ features: { zoom: true, csvExport: true } });
-    refreshStatus();
-  });
-
-  btnDefault.addEventListener('click', () => {
-    void configureChartFeatures({ features: { zoom: false, csvExport: false } });
-    refreshStatus();
-  });
-
-  return section;
-}
-
-function mountPerChartSubpathExplorer(
-  themeMode: ThemeModePreference,
-  mounted: MCBaseChart<any>[]
-): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'panel-card guide-section';
-  section.id = 'bs-per-chart';
-  section.innerHTML = `
-    <div class="panel-header">
-      <div>
-        <h2 class="panel-title">Example 2: Per-Chart Subpath Bootstrapping Across All 10 Chart Types</h2>
-        <p class="guide-prose" style="margin:4px 0 0;">
-          Select any chart from the catalog to preview its standalone subpath bootstrap call with default (<code>false</code>) vs. explicit (<code>true</code>) feature flags.
-        </p>
-      </div>
-      <div class="guide-controls-row" role="group" aria-label="Per-chart bootstrap switcher" id="bs-type-buttons"></div>
-    </div>
-    <div class="guide-example-grid">
-      <div class="guide-chart-stage" id="bs-chart-2"></div>
-      <div id="bs-editor-2"></div>
-    </div>
-    <div class="inspector-box" style="margin-top:12px;">
-      <div class="inspector-title">Standalone Subpath Bootstrap Snippet</div>
-      <div class="inspector-readout" id="bs-readout-2" role="status" aria-live="polite" aria-atomic="true" style="white-space:pre;font-family:var(--font-mono, monospace);"></div>
-    </div>
-  `;
-
-  const stageEl = section.querySelector<HTMLElement>('#bs-chart-2')!;
-  const pillGroupEl = section.querySelector<HTMLElement>('#bs-type-buttons')!;
-  const snippetReadoutEl = section.querySelector<HTMLElement>('#bs-readout-2')!;
-  let currentEntry: ChartCatalogEntry = CHART_CATALOG[0];
-  let currentChart: MCBaseChart<any> = document.createElement(
-    currentEntry.tagName
-  ) as MCBaseChart<any>;
-  stageEl.appendChild(currentChart);
-  mounted.push(currentChart);
-
-  const buildEntryConfig = (entry: ChartCatalogEntry): Record<string, any> => ({
-    title: entry.title,
-    ...entry.createDefaultConfig(themeMode)
-  });
-
-  const renderSelectedCatalogEntry = (
-    entry: ChartCatalogEntry,
-    cfg: Record<string, any>
-  ) => {
-    if (currentChart.tagName.toLowerCase() !== entry.tagName) {
-      const replacement = document.createElement(
-        entry.tagName
-      ) as MCBaseChart<any>;
-      stageEl.replaceChildren(replacement);
-      const pos = mounted.indexOf(currentChart);
-      if (pos >= 0) mounted[pos] = replacement;
-      else mounted.push(replacement);
-      currentChart = replacement;
-    }
-    currentChart.setConfig({
-      ...cfg,
+      ...entry.createDefaultConfig(themeMode),
       autoSize: true,
       themeMode,
       palette: getGlobalPalette(),
       animate: false
     });
-    const fnName = REGISTER_FN_BY_ID[entry.id] ?? 'registerModernCharts';
-    snippetReadoutEl.textContent = [
-      `// 1. Default bootstrap (zoom: false, csvExport: false — feature chunks are NOT downloaded):`,
-      `import { ${fnName} } from 'modern-charts/${entry.id}';`,
-      `await ${fnName}();`,
-      ``,
-      `// 2. Explicitly enable features on bootstrap (lazy-loads only requested feature chunks):`,
-      `await ${fnName}({ features: { zoom: true, csvExport: true } });`
-    ].join('\n');
+    stage.replaceChildren(chart);
+    mounted[0] = chart;
+    syncSnippet();
+    syncCsvPreview(!download.disabled);
   };
 
-  const configEditor = createLiveConfigEditor({
-    title: 'Selected Chart Config (Live)',
-    initialConfig: buildEntryConfig(currentEntry),
-    hint: 'Live chart.config editor (Studio enables bootstrap features automatically for all interactive previews).',
-    onConfigChange: (nextCfg) => {
-      renderSelectedCatalogEntry(currentEntry, nextCfg);
-    },
-    onReset: () => {
-      const fresh = buildEntryConfig(currentEntry);
-      renderSelectedCatalogEntry(currentEntry, fresh);
-      configEditor.syncConfig(fresh);
+  let changeId = 0;
+  const applyFeatures = async () => {
+    const id = ++changeId;
+    const features = { zoom: zoom.checked, csvExport: csvExport.checked };
+    syncSnippet();
+    syncCsvPreview(false);
+    status.textContent = features.zoom || features.csvExport ? 'Loading features…' : '';
+    try {
+      await configureChartFeatures({ features });
+      if (id !== changeId) return;
+      status.textContent = '';
+      syncCsvPreview(features.csvExport);
+    } catch {
+      if (id === changeId) status.textContent = 'A feature could not load. Toggle it to retry.';
     }
-  });
-  section.querySelector('#bs-editor-2')!.appendChild(configEditor.element);
+  };
 
-  for (const entry of CHART_CATALOG) {
-    const pill = document.createElement('button');
-    pill.type = 'button';
-    pill.dataset.bsChartType = entry.id;
-    pill.textContent = entry.title.replace(' Chart', '');
-    const selected = entry.id === currentEntry.id;
-    pill.setAttribute('aria-pressed', String(selected));
-    pill.classList.toggle('btn-primary', selected);
-    pill.addEventListener('click', () => {
-      currentEntry = entry;
-      for (const b of pillGroupEl.querySelectorAll<HTMLButtonElement>(
-        'button[data-bs-chart-type]'
-      )) {
-        const isMatch = b.dataset.bsChartType === entry.id;
-        b.setAttribute('aria-pressed', String(isMatch));
-        b.classList.toggle('btn-primary', isMatch);
-      }
-      const nextCfg = buildEntryConfig(entry);
-      renderSelectedCatalogEntry(entry, nextCfg);
-      configEditor.syncConfig(nextCfg);
-    });
-    pillGroupEl.appendChild(pill);
-  }
+  entrypoint.addEventListener('change', syncSnippet);
+  chartType.addEventListener('change', mountChart);
+  zoom.addEventListener('change', () => void applyFeatures());
+  csvExport.addEventListener('change', () => void applyFeatures());
+  download.addEventListener('click', () => chart.exportCsv());
 
-  renderSelectedCatalogEntry(currentEntry, buildEntryConfig(currentEntry));
+  mountChart();
+  void applyFeatures();
   return section;
 }
 
@@ -338,51 +232,6 @@ export function renderBootstrappingGuide(
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
   const mounted: MCBaseChart<any>[] = [];
-
-  container.append(
-    createFeatureMatrixSection(),
-    mountDefaultVsEnabledDemo(themeMode, mounted),
-    mountPerChartSubpathExplorer(themeMode, mounted)
-  );
-
-  const reference = document.createElement('section');
-  reference.className = 'panel-card guide-section';
-  reference.innerHTML = `
-    <h2 class="panel-title">Bootstrapping Reference: Default (<code>false</code>) vs. Explicit (<code>true</code>)</h2>
-    <p class="guide-prose">
-      Use <code>registerModernCharts()</code> for full-library registration or
-      <code>registerBarChart()</code> / <code>registerLineChart()</code> / etc. for single-chart lazy loading.
-      Explore the individual feature guides for
-      <a href="#/guide/view-zoom">🔍 Zoom Controls</a> and
-      <a href="#/guide/csv-export">📥 CSV Data Export</a>.
-    </p>
-  `;
-  reference.appendChild(
-    createCodeBlock(
-      `// ============================================================================
-// A. Default Bootstrap (zoom: false, csvExport: false)
-// Browser only downloads the chart component — feature chunks are NOT fetched.
-// ============================================================================
-import { registerBarChart } from 'modern-charts/bar';
-
-await registerBarChart(); // equivalent to registerBarChart({ features: { zoom: false, csvExport: false } })
-
-// ============================================================================
-// B. Explicit Feature Bootstrap (zoom: true, csvExport: true)
-// Dynamically downloads only the enabled feature chunks on demand.
-// ============================================================================
-import { registerModernCharts } from 'modern-charts';
-
-await registerModernCharts({
-  features: {
-    zoom: true,      // enables <mc-view-layer>, [data-zoom="toggle"], chart.toggleZoom()
-    csvExport: true  // enables chart.toCsv(), chart.exportCsv(), custom CSV serializers
-  }
-});`,
-      'Default vs. Explicit Feature Bootstrapping'
-    )
-  );
-  container.appendChild(reference);
-
+  container.append(createFeatureMatrixSection(), createBootstrapPlayground(themeMode, mounted));
   return mounted;
 }

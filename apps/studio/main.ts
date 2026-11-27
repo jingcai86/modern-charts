@@ -3,6 +3,7 @@ import {
   type ThemeModePreference
 } from '../../src/core/types';
 import type { MCBaseChart } from '../../src/core/base-chart';
+import { configureChartFeatures } from '../../src/core/features';
 import { CHART_CATALOG, type ChartCatalogEntry } from './catalog';
 import { loadChart } from './chart-loader';
 import { GUIDES_CATALOG, type GuideId } from './guides/types';
@@ -217,6 +218,9 @@ function handleRoute(): void {
     }
   }
 
+  if (activeGuide?.id === 'bootstrapping') {
+    void configureChartFeatures({ features: { zoom: true, csvExport: true } });
+  }
   activeDetailEntry = null;
   activeGuide = null;
   activeOverviewCharts = renderOverviewPage(root);

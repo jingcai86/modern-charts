@@ -23,7 +23,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     document.body.innerHTML = '';
   });
 
-  it.each(GUIDES_CATALOG)(
+  it.each(GUIDES_CATALOG.filter(({ id }) => id !== 'bootstrapping'))(
     'renders live client-editable editors (no LIVE JSON) with accessible controls for guide "$id"',
     (guide) => {
       const root = document.createElement('div');
