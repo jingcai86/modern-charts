@@ -141,7 +141,10 @@ export interface ChartFeaturesConfig {
 }
 
 export interface ChartBootstrapOptions {
-  /** Optional features to load at bootstrap. `chartState` defaults to `true`; zoom and CSV default to `false`. */
+  /**
+   * Optional features to load at bootstrap. `chartState` defaults to `true`.
+   * Zoom and CSV export default to `false`.
+   */
   features?: ChartFeaturesConfig;
   /** Shorthand for `features.zoom` (default `false`). */
   zoom?: boolean;
