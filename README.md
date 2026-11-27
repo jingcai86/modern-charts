@@ -60,7 +60,7 @@ Give the chart a sized container. Import `modern-charts` to register every chart
 
 Studio automatically lazy-loads each chart as its gallery preview approaches the viewport or its playground opens. In your app, call `await import('modern-charts/bar')` when you need the bar chart, then assign its config.
 
-Loading and empty overlays are enabled by default. To skip the overlay download, set `features.chartState: false` when registering your charts. [Feature Bootstrapping guide](https://jingcai86.github.io/modern-charts/#/guide/bootstrapping).
+Loading and empty overlays and built-in tooltips are enabled by default. To skip their downloads, set `features.chartState: false` or `features.tooltip: false` when registering your charts, and mount custom tooltip UI in `slot="tooltip"`. [Feature Bootstrapping guide](https://jingcai86.github.io/modern-charts/#/guide/bootstrapping).
 
 For server-rendered apps, emit a sized chart host from the server and assign its config after the browser mounts. [Server-side rendering guide](https://jingcai86.github.io/modern-charts/#/guide/ssr).
 

@@ -34,17 +34,19 @@ The JavaScript entry points can be imported in Node without a DOM. Custom elemen
 
 ### Feature Bootstrapping
 
-Pass shared feature flags to `registerModernCharts()` or a per-chart registrar. `zoom` and `csvExport` default to `false`. `chartState` defaults to `true` and controls the loading and empty overlays. Explicit browser registration loads the enabled feature chunks. A side-effect import such as `import 'modern-charts/bar'` loads the state renderer the first time a chart displays a loading or empty overlay.
+Pass shared feature flags to `registerModernCharts()` or a per-chart registrar. `zoom`, `csvExport`, and `selection` default to `false`. `chartState` (loading and empty overlays) and `tooltip` (built-in `<mc-tooltip>` renderer) default to `true`. Explicit browser registration loads the enabled feature chunks. A side-effect import such as `import 'modern-charts/bar'` loads the state or tooltip renderer the first time a chart displays it.
 
-Set `features.chartState: false` during registration to skip the overlay download. A top-level `chartState: false` is also accepted as shorthand.
+Set `features.chartState: false` or `features.tooltip: false` during registration to skip those downloads. Top-level `chartState: false` and `tooltip: false` are also accepted as shorthands.
 
 ```js
 import { registerBarChart } from 'modern-charts/bar';
 
-await registerBarChart({ features: { chartState: false } });
+await registerBarChart({
+  features: { chartState: false, tooltip: false }
+});
 ```
 
-With the overlay disabled, `chart.loading`, `chart.chartState`, the `mc-state-change` event, and `aria-busy` continue to work. Use `configureChartFeatures({ features: { chartState: true } })` to enable the overlay again. [Feature Bootstrapping guide](https://jingcai86.github.io/modern-charts/#/guide/bootstrapping) · [Loading & Empty States guide](https://jingcai86.github.io/modern-charts/#/guide/chart-state).
+With `chartState` disabled, `chart.loading`, `chart.chartState`, the `mc-state-change` event, and `aria-busy` continue to work. With `tooltip` disabled, the chart skips downloading and mounting the chart-owned `<mc-tooltip>` hosts while preserving chart interactions, `mc-tooltip-show` / `mc-tooltip-hide`, `mc-legend-tooltip-show` / `mc-legend-tooltip-hide`, and custom tooltip elements mounted in `slot="tooltip"`. [Feature Bootstrapping guide](https://jingcai86.github.io/modern-charts/#/guide/bootstrapping) · [Loading & Empty States guide](https://jingcai86.github.io/modern-charts/#/guide/chart-state) · [Unified Tooltips guide](https://jingcai86.github.io/modern-charts/#/guide/tooltips).
 
 ---
 
@@ -393,14 +395,15 @@ chart.appendChild(layer);
 
 ---
 
-## 7. Unified Tooltip (`<mc-tooltip>`) & CSS `::part()` Styling
+## 7. Unified Tooltip (`<mc-tooltip>`), `slot="tooltip"` & CSS `::part()` Styling
 
-Every chart owns strictly **one** `<mc-tooltip>` instance inside its Shadow DOM (reused in-place on pointer hover/move) and passes a structured `TooltipPayload` (`chartType`, `title`, `label`, `seriesId`, `category`, `value`, `formattedValue`, `color`, `percentage`, `badge`, `items[]`, `threshold`, `datum`, `data`).
+When `features.tooltip` is `true` (default), every interactive chart lazy-loads the built-in tooltip renderer and owns strictly **one** item `<mc-tooltip>` and **one** legend `<mc-tooltip>` inside its Shadow DOM (reused in-place on pointer hover/move) and passes a structured `TooltipPayload` (`chartType`, `target`, `title`, `label`, `seriesId`, `category`, `value`, `formattedValue`, `color`, `percentage`, `badge`, `items[]`, `threshold`, `datum`, `data`).
 
 - **Positioning modes (`item` vs `follow`)**: Configure via `chart.config.tooltip.position`, `chart.config.tooltipPosition`, HTML attribute `tooltip-position="item|follow"`, or `<mc-tooltip position="item|follow" anchor-gap="10">`. Per-chart defaults anchor on top of discrete items (`bar`, `scatter`, `radar`, `gauge`) and follow the cursor on continuous/radial/matrix/flow charts (`line`, `pie`, `sunburst`, `heatmap`, `treemap`, `sankey`), with automatic viewport/container edge flipping & clamping. Keyboard `Tab`/`Arrow` focus always anchors cleanly to the active item and dismisses on `Escape`/`blur`.
 - **Customize via `chart.config.tooltip`**: `{ enabled, position, anchorGap, offsetX, offsetY, formatter, renderer }`.
 - **Customize declaratively**: `<mc-tooltip position="item" offset-x="16"><template>{{title}}: {{value}}</template></mc-tooltip>`.
 - **Style via CSS `::part()`**: `::part(tooltip)`, `::part(tooltip-header)`, `::part(tooltip-body)`, `::part(tooltip-row)`, `::part(tooltip-swatch)`, `::part(tooltip-label)`, `::part(tooltip-value)`, `::part(tooltip-badge)`.
+- **Custom tooltip slot (`slot="tooltip"`) & opt-out (`features.tooltip: false`)**: Pass `{ features: { tooltip: false } }` at registration to skip downloading and mounting the chart-owned `<mc-tooltip>` elements, and mount your own tooltip element or markup in `<mc-bar-chart><dashboard-tooltip slot="tooltip"></dashboard-tooltip></mc-bar-chart>`. Slotted elements with `show(payload, theme, containerRect, config, i18n)` and `hide(target)` methods are invoked automatically alongside `mc-tooltip-show` / `mc-tooltip-hide` (`payload.target === 'item'`) and `mc-legend-tooltip-show` / `mc-legend-tooltip-hide` (`payload.target === 'legend'`).
 
 ---
 

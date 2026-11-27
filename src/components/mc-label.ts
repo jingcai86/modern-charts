@@ -18,7 +18,7 @@ import type {
   TooltipInput,
   TooltipPayload
 } from '../core/types';
-import { MCTooltipElement } from './mc-tooltip';
+import type { MCTooltipElement } from './mc-tooltip';
 import { MCTruncateElement } from './mc-truncate';
 
 const getLabelTemplate = lazyTemplate(`

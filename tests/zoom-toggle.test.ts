@@ -40,7 +40,13 @@ afterEach(async () => {
   document.body.replaceChildren();
   configureI18n({});
   await configureChartFeatures({
-    features: { zoom: false, csvExport: false, selection: false, chartState: true }
+    features: {
+      zoom: false,
+      csvExport: false,
+      selection: false,
+      chartState: true,
+      tooltip: true
+    }
   });
   for (const entry of CHART_CATALOG) {
     resetChartConfig(entry);
@@ -404,14 +410,14 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(editor2.value).toContain('await registerPieChart(');
     expect(editor2.value).toContain("document.createElement('mc-pie-chart')");
     expect(editor2.value).toContain("chart.addEventListener('mc-zoom'");
-    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: false, selection: false, chartState: true });
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: false, selection: false, chartState: true, tooltip: true });
     expect(onChartControls()).toEqual([false, false]);
     expect(zoomDouble.disabled).toBe(false);
 
     editor1.value = editor1.value.replace('zoom: true', 'zoom: false');
     editor1.dispatchEvent(new Event('input', { bubbles: true }));
     expect(editor2.value).toContain('zoom: false');
-    expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false, selection: false, chartState: true });
+    expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false, selection: false, chartState: true, tooltip: true });
     expect(onChartControls()).toEqual([true, true]);
     expect(zoomDouble.disabled).toBe(true);
     expect(readout1.textContent).toContain('zoomable: false');
@@ -532,6 +538,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     const zoom = root.querySelector<HTMLInputElement>('#bs-zoom')!;
     const csvExport = root.querySelector<HTMLInputElement>('#bs-csv-export')!;
     const chartState = root.querySelector<HTMLInputElement>('#bs-chart-state')!;
+    const tooltip = root.querySelector<HTMLInputElement>('#bs-tooltip')!;
     const loading = root.querySelector<HTMLInputElement>('#bs-example-loading')!;
     const download = root.querySelector<HTMLButtonElement>('#bs-download-csv')!;
     const csvOutput = root.querySelector<HTMLElement>('#bs-csv-output')!;
@@ -541,6 +548,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
 
     expect(root.querySelector('a[href="#/guide/view-zoom"]')).not.toBeNull();
     expect(root.querySelector('a[href="#/guide/csv-export"]')).not.toBeNull();
+    expect(root.querySelector('a[href="#/guide/tooltips"]')).not.toBeNull();
     expect(editor.closest('.guide-code-wrap')?.querySelector('.guide-code-live-badge')?.textContent)
       .toBe('LIVE JS');
     expect(entrypoint.value).toBe('library');
@@ -551,10 +559,12 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(zoom.checked).toBe(false);
     expect(csvExport.checked).toBe(false);
     expect(chartState.checked).toBe(true);
+    expect(tooltip.checked).toBe(true);
     expect(download.disabled).toBe(true);
     expect(editor.value).toMatch(/^import \{ registerModernCharts \} from 'modern-charts';\s+await registerModernCharts\([\s\S]*\);$/);
     expect(editor.value).not.toMatch(/(?:zoom|csvExport):\s*true/);
     expect(editor.value).toContain('// chartState: false');
+    expect(editor.value).toContain('// tooltip: false');
     expect(featureCode.hidden).toBe(true);
     const copy = root.querySelector<HTMLButtonElement>('#bs-bootstrap-code button.guide-copy-btn')!;
     expect(copy.getAttribute('commandfor')).toBe(editor.id);
@@ -564,8 +574,24 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
       const bar = root.querySelector('#bs-chart mc-bar-chart') as MCBaseChart<any>;
       expect(bar).toBe(charts[0]);
       expect(bar.isFeatureEnabled('zoom')).toBe(false);
+      expect(bar.isFeatureEnabled('tooltip')).toBe(true);
+      expect(bar.getTooltipElement()).not.toBeNull();
       expect(bar.toCsv()).toBe('');
     });
+
+    editor.value = editor.value.replace('// tooltip: false', 'tooltip: false');
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    expect(tooltip.checked).toBe(false);
+    expect(charts[0].getTooltipElement()).toBeNull();
+    expect(featureCode.hidden).toBe(false);
+    expect(featureSnippet()).toContain("customTooltip.slot = 'tooltip';");
+
+    editor.value = editor.value.replace('    tooltip: false', '    // tooltip: false');
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(tooltip.checked).toBe(true);
+    expect(charts[0].getTooltipElement()).not.toBeNull();
+    expect(featureCode.hidden).toBe(true);
 
     loading.checked = true;
     loading.dispatchEvent(new Event('change', { bubbles: true }));

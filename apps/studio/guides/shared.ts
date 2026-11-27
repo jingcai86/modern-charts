@@ -501,6 +501,7 @@ const SAFE_HTML_TAGS = new Set([
   'small',
   'br',
   'button',
+  'dashboard-tooltip',
   'mc-tooltip',
   'mc-def',
   'mc-label',

@@ -103,6 +103,65 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     expect(editor.value).toMatch(commentedOptOut);
   });
 
+  it('applies the tooltip opt-out and drives the custom slot="tooltip" element for item and legend requests in the Tooltips guide', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const charts = renderGuidePage(root, 'tooltips', 'dark');
+    const bar5 = charts[4];
+    const builtinToggle = root.querySelector<HTMLInputElement>('#tp-builtin-enabled')!;
+    const badge = root.querySelector<HTMLElement>('#tp-slot-badge')!;
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-tooltip-code-5 textarea')!;
+    const customTooltip = bar5.querySelector<HTMLElement>('dashboard-tooltip[slot="tooltip"]')!;
+    const commentedOptOut = /^([ \t]*)\/\/[ \t]*(tooltip: false)/m;
+
+    expect(root.querySelector('h1')?.textContent).toContain('Default is true');
+    expect(builtinToggle.checked).toBe(true);
+    expect(customTooltip).not.toBeNull();
+    expect(editor.value).toContain("import { registerBarChart } from 'modern-charts/bar';");
+    expect(editor.value).toMatch(commentedOptOut);
+    expect(bar5.getTooltipElement()).not.toBeNull();
+    expect(bar5.getLegendTooltipElement()).not.toBeNull();
+
+    // Uncomment tooltip: false in live editor -> disables and unmounts built-in <mc-tooltip> hosts
+    editor.value = editor.value.replace(commentedOptOut, '$1$2');
+    editor.dispatchEvent(new Event('input'));
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    expect(builtinToggle.checked).toBe(false);
+    expect(getChartFeatures().tooltip).toBe(false);
+    expect(bar5.getTooltipElement()).toBeNull();
+    expect(bar5.getLegendTooltipElement()).toBeNull();
+    expect(bar5.shadowRoot?.querySelectorAll('mc-tooltip')).toHaveLength(0);
+    expect(badge.textContent).toContain('built-in: disabled (0 hosts)');
+
+    // Hover a bar -> custom slot="tooltip" receives target="item"
+    const firstBar = bar5.shadowRoot!.querySelector<SVGRectElement>('.mc-bar-rect')!;
+    firstBar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true, clientX: 120, clientY: 140 }));
+    expect(customTooltip.hidden).toBe(false);
+    expect(customTooltip.dataset.target).toBe('item');
+    expect(customTooltip.textContent).toContain('Item Tooltip');
+    expect(customTooltip.textContent).toContain('Q1');
+    expect(badge.textContent).toContain('target: item');
+    firstBar.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    expect(customTooltip.hidden).toBe(true);
+
+    // Hover a legend item -> custom slot="tooltip" receives target="legend"
+    const legendItem = bar5.shadowRoot!.querySelector<SVGGElement>('.mc-legend-item')!;
+    legendItem.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true, clientX: 180, clientY: 300 }));
+    expect(customTooltip.hidden).toBe(false);
+    expect(customTooltip.dataset.target).toBe('legend');
+    expect(customTooltip.textContent).toContain('Legend Tooltip');
+    expect(customTooltip.textContent).toContain('Cloud');
+    expect(badge.textContent).toContain('target: legend');
+    legendItem.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    expect(customTooltip.hidden).toBe(true);
+
+    // Re-enable built-in tooltip via checkbox -> remounts hosts and restores commented opt-out
+    builtinToggle.click();
+    await vi.waitFor(() => expect(bar5.getTooltipElement()).not.toBeNull());
+    expect(getChartFeatures().tooltip).toBe(true);
+    expect(editor.value).toMatch(commentedOptOut);
+  });
+
   it('shows and applies the active overflow settings in the Custom Labels guide', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);

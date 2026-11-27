@@ -143,11 +143,16 @@ export interface ChartFeaturesConfig {
   selection?: boolean;
   /** Enables the loading and empty-state overlay. Defaults to `true`. */
   chartState?: boolean;
+  /**
+   * Enables the built-in chart and legend `<mc-tooltip>` overlay.
+   * Defaults to `true`. Set to `false` to skip downloading and mounting the built-in tooltip while keeping tooltip events and `slot="tooltip"` active.
+   */
+  tooltip?: boolean;
 }
 
 export interface ChartBootstrapOptions {
   /**
-   * Optional features to load at bootstrap. `chartState` defaults to `true`.
+   * Optional features to load at bootstrap. `chartState` and `tooltip` default to `true`.
    * Zoom, CSV export, and item selection default to `false`.
    */
   features?: ChartFeaturesConfig;
@@ -159,6 +164,8 @@ export interface ChartBootstrapOptions {
   selection?: boolean;
   /** Shorthand for `features.chartState` (default `true`). */
   chartState?: boolean;
+  /** Shorthand for `features.tooltip` (default `true`). */
+  tooltip?: boolean;
 }
 
 // ============================================================================
@@ -1002,6 +1009,29 @@ export interface TooltipItemEntry {
 
 export type TooltipPositionMode = 'follow' | 'item';
 
+export type TooltipTarget = 'item' | 'legend';
+
+export interface TooltipHideDetail {
+  target: TooltipTarget;
+  chartType: string;
+}
+
+export interface CustomTooltipElement extends HTMLElement {
+  show?: (
+    payload: TooltipPayload<any>,
+    theme: ChartTheme,
+    containerRect: DOMRect,
+    config: TooltipConfig<any>,
+    i18n: ChartI18n
+  ) => boolean | void;
+  moveToPointer?: (
+    clientX: number,
+    clientY: number,
+    containerRect: DOMRect
+  ) => void;
+  hide?: (target?: TooltipTarget) => void;
+}
+
 export interface TooltipAnchorRect {
   /** Anchor left coordinate (viewport client px, or container-relative px when `relative: true`). */
   left: number;
@@ -1016,11 +1046,13 @@ export interface TooltipAnchorRect {
 }
 
 /**
- * Unified structured payload passed to `<mc-tooltip>` and client
- * `tooltip.formatter` / `tooltip.renderer` callbacks across all 10 charts.
+ * Unified structured payload passed to `<mc-tooltip>`, custom elements in `slot="tooltip"`,
+ * and client `tooltip.formatter` / `tooltip.renderer` callbacks across all 10 charts.
  */
 export interface TooltipPayload<TDatum = any> {
   chartType: string;
+  /** Distinguishes chart item tooltip requests (`'item'`) from legend tooltip requests (`'legend'`). */
+  target?: TooltipTarget;
   title?: string;
   label?: string;
   seriesId?: string;

@@ -26,8 +26,8 @@ const LINE_DATA_WITH_NULL: LineSeries[] = [
 ];
 
 describe('Line Chart Enhancements (Issue #73)', () => {
-  beforeAll(() => {
-    registerModernCharts();
+  beforeAll(async () => {
+    await registerModernCharts();
   });
 
   afterEach(() => {

@@ -58,6 +58,16 @@ const BOOTSTRAP_FEATURES: readonly BootstrapFeatureRow[] = [
     guideHref: '#/guide/chart-state',
     guideKey: 'chart-state',
     guideTitle: '⏳ Loading & Empty States'
+  },
+  {
+    label: 'Unified Built-In Tooltips',
+    optionKey: 'features.tooltip',
+    defaultValue: 'true',
+    description:
+      'Loads the built-in item and legend <mc-tooltip> renderer as a separate chunk at registration. Set to false to skip downloading and mounting the built-in tooltip hosts and mount custom UI in slot="tooltip".',
+    guideHref: '#/guide/tooltips',
+    guideKey: 'tooltips',
+    guideTitle: '💬 Unified Tooltips'
   }
 ];
 
@@ -81,7 +91,7 @@ function createFeatureMatrixSection(): HTMLElement {
     <h2 class="panel-title">Optional Features &amp; Lazy Browser Downloads</h2>
     <p class="guide-prose">
       Pass <code>features</code> to <code>registerModernCharts()</code> or a standalone chart’s registration function.
-      Zoom and CSV export default to <code>false</code>. The chart state overlay defaults to <code>true</code>.
+      Zoom, CSV export, and item selection default to <code>false</code>. The chart state overlay and built-in tooltips default to <code>true</code>.
       Registration loads the enabled features as separate chunks.
     </p>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
@@ -125,6 +135,7 @@ function createBootstrapPlayground(
         <label><input id="bs-csv-export" type="checkbox"> CSV export</label>
         <label><input id="bs-selection" type="checkbox"> Item selection</label>
         <label><input id="bs-chart-state" type="checkbox" checked> Loading &amp; empty overlay</label>
+        <label><input id="bs-tooltip" type="checkbox" checked> Built-in tooltip</label>
       </div>
     </div>
     <div class="guide-example-grid">
@@ -153,6 +164,7 @@ function createBootstrapPlayground(
   const csvExport = section.querySelector<HTMLInputElement>('#bs-csv-export')!;
   const selection = section.querySelector<HTMLInputElement>('#bs-selection')!;
   const chartState = section.querySelector<HTMLInputElement>('#bs-chart-state')!;
+  const tooltip = section.querySelector<HTMLInputElement>('#bs-tooltip')!;
   const loading = section.querySelector<HTMLInputElement>('#bs-example-loading')!;
   const stage = section.querySelector('#bs-chart')!;
   const download = section.querySelector<HTMLButtonElement>('#bs-download-csv')!;
@@ -177,17 +189,23 @@ function createBootstrapPlayground(
     zoom: zoom.checked,
     csvExport: csvExport.checked,
     selection: selection.checked,
-    chartState: chartState.checked
+    chartState: chartState.checked,
+    tooltip: tooltip.checked
   });
 
   const bootstrapCode = () => formatBootstrap(
     entrypoint.value === 'standalone' ? selectedChart().id : undefined,
     selectedFeatures(),
+    true,
     true
   );
 
   const syncFeatureExample = () => {
-    featureCode.hidden = !zoom.checked && !csvExport.checked && !selection.checked;
+    featureCode.hidden =
+      !zoom.checked &&
+      !csvExport.checked &&
+      !selection.checked &&
+      tooltip.checked;
     const lines = [`const chart = document.querySelector('${selectedChart().tagName}');`];
     if (zoom.checked) lines.push('chart.toggleZoom(true);');
     if (csvExport.checked) {
@@ -197,6 +215,13 @@ function createBootstrapPlayground(
       lines.push(
         'chart.selectable = true;',
         "chart.addEventListener('mc-selection-change', (e) => console.log(e.detail.selectedItems));"
+      );
+    }
+    if (!tooltip.checked) {
+      lines.push(
+        "const customTooltip = document.createElement('dashboard-tooltip');",
+        "customTooltip.slot = 'tooltip';",
+        'chart.appendChild(customTooltip);'
       );
     }
     featureSnippet.textContent = lines.join('\n');
@@ -249,7 +274,7 @@ function createBootstrapPlayground(
     title: 'Bootstrap and use chart features',
     initialValue: bootstrapCode(),
     language: 'js',
-    hint: 'Edit the Modern Charts import and registration options. Uncomment chartState: false to disable the overlay in the preview.',
+    hint: 'Edit the Modern Charts import and registration options. Uncomment chartState: false or tooltip: false to disable those built-in visuals in the preview.',
     onApply: (source) => {
       const parsed = parseBootstrap(source);
       entrypoint.value = parsed.chartId ? 'standalone' : 'library';
@@ -258,6 +283,7 @@ function createBootstrapPlayground(
       csvExport.checked = parsed.csvExport;
       selection.checked = parsed.selection;
       chartState.checked = parsed.chartState;
+      tooltip.checked = parsed.tooltip;
       void applyFeatures();
     },
     onReset: () => {
@@ -286,6 +312,7 @@ function createBootstrapPlayground(
   csvExport.addEventListener('change', updateFeaturesFromControls);
   selection.addEventListener('change', updateFeaturesFromControls);
   chartState.addEventListener('change', updateFeaturesFromControls);
+  tooltip.addEventListener('change', updateFeaturesFromControls);
   loading.addEventListener('change', () => { chart.loading = loading.checked; });
   download.addEventListener('click', () => chart.exportCsv());
 

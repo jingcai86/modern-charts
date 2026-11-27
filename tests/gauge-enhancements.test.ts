@@ -8,8 +8,8 @@ import {
 import type { GaugeChartModel } from '../src/models/gauge.model';
 
 describe('Gauge Chart Enhancements (Issue #73)', () => {
-  beforeAll(() => {
-    registerModernCharts();
+  beforeAll(async () => {
+    await registerModernCharts();
   });
 
   afterEach(() => {

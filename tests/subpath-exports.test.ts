@@ -205,7 +205,9 @@ describe('Per-chart standalone subpath exports & scoped registration (Issue #11)
     visited.clear();
     const coreCode = collectSource(resolvePath(cwd, 'dist/core.js'));
     expect(coreCode).not.toContain('mc-state-overlay');
+    expect(coreCode).not.toContain('mc-tooltip-surface');
     expect(coreCode).toMatch(/import\(["'][^"']*chart-state-view-/);
+    expect(coreCode).toMatch(/import\(["'][^"']*tooltip-view-/);
     for (const tag of Object.values(chartTagBySubpath)) {
       expect(coreCode).not.toContain(tag);
     }
@@ -217,6 +219,7 @@ describe('Per-chart standalone subpath exports & scoped registration (Issue #11)
       const ownTag = chartTagBySubpath[subpath];
       expect(graphCode).toContain(ownTag);
       expect(graphCode).not.toContain('mc-state-overlay');
+      expect(graphCode).not.toContain('mc-tooltip-surface');
       for (const [otherSubpath, otherTag] of Object.entries(chartTagBySubpath)) {
         if (otherSubpath !== subpath) {
           expect(graphCode).not.toContain(otherTag);
@@ -229,7 +232,9 @@ describe('Per-chart standalone subpath exports & scoped registration (Issue #11)
     }
 
     visited.clear();
-    expect(collectSource(resolvePath(cwd, 'dist/index.js'))).not.toContain('mc-state-overlay');
+    const indexCode = collectSource(resolvePath(cwd, 'dist/index.js'));
+    expect(indexCode).not.toContain('mc-state-overlay');
+    expect(indexCode).not.toContain('mc-tooltip-surface');
 
     // Verify declaration files exist for all subpaths
     for (const subpath of ['core', ...ALL_CHART_SUBPATHS]) {

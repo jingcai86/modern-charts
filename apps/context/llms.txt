@@ -13,7 +13,7 @@
 5. **Match the exact `data` shape** for the chosen chart (see matrix below and per-chart specs in `charts/*.md`).
 6. **Progressive AI streaming**: Call `chart.streamLayers()` (or append `<mc-chart-layer name="...">` children sequentially) to animate layers onto the canvas step-by-step during LLM streaming responses.
 7. **Internationalization**: import `configureI18n` from `modern-charts/core` for global defaults, or set `config.i18n = { locale, timeZone, direction, messages }` per chart. Defaults are en-US, runtime local timezone, ltr, and English messages. Custom layers use `ctx.i18n` formatNumber/formatDate/formatPercent/message helpers; numeric data and scales keep their original values. Use `timeZone: 'UTC'` for reproducible date labels.
-8. **Feature flags** default to `{ zoom: false, csvExport: false, chartState: true }`. Set `features.chartState: false` at registration to skip the loading and empty overlays. The chart still reports its state and emits `mc-state-change`. [Feature Bootstrapping](./architecture.md#feature-bootstrapping)
+8. **Feature flags** default to `{ zoom: false, csvExport: false, selection: false, chartState: true, tooltip: true }`. Set `features.chartState: false` or `features.tooltip: false` at registration to skip the built-in state overlay or built-in `<mc-tooltip>` downloads while keeping events and custom slots (`slot="loading"`, `slot="empty"`, `slot="tooltip"`) active. [Feature Bootstrapping](./architecture.md#feature-bootstrapping)
 
 ## Chart Selection Matrix (All 10 Charts)
 

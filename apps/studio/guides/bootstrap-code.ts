@@ -15,7 +15,8 @@ const BOOTSTRAP_DEFAULTS: BootstrapFeatures = {
   zoom: false,
   csvExport: false,
   selection: false,
-  chartState: true
+  chartState: true,
+  tooltip: true
 };
 
 const REGISTER_FN_BY_ID: Record<string, string> = {
@@ -55,7 +56,7 @@ export function parseBootstrap(source: string) {
   if (!features || typeof features !== 'object' || Array.isArray(features) ||
       Object.entries(features).some(([key, value]) =>
         !Object.hasOwn(BOOTSTRAP_DEFAULTS, key) || typeof value !== 'boolean')) {
-    throw new SyntaxError('Set zoom, csvExport, selection, and chartState to true or false.');
+    throw new SyntaxError('Set zoom, csvExport, selection, chartState, and tooltip to true or false.');
   }
   return { chartId, ...BOOTSTRAP_DEFAULTS, ...features };
 }
@@ -63,22 +64,50 @@ export function parseBootstrap(source: string) {
 export function formatBootstrap(
   chartId: string | undefined,
   features: BootstrapFeatures,
-  showChartStateOptOut = false
+  showChartStateOptOut = false,
+  showTooltipOptOut = false
 ): string {
   const registrar = chartId ? REGISTER_FN_BY_ID[chartId] : 'registerModernCharts';
   const modulePath = chartId ? `modern-charts/${chartId}` : 'modern-charts';
-  const featureLines = showChartStateOptOut
+  const featureLines = showChartStateOptOut && showTooltipOptOut
     ? [
         '  features: {',
         `    zoom: ${features.zoom},`,
         `    csvExport: ${features.csvExport},`,
         `    selection: ${features.selection},`,
         features.chartState
+          ? '    // chartState: false, // Uncomment to disable the loading and empty overlay.'
+          : '    chartState: false,',
+        features.tooltip
+          ? '    // tooltip: false // Uncomment to disable the built-in tooltip.'
+          : '    tooltip: false',
+        '  }'
+      ]
+    : showChartStateOptOut
+    ? [
+        '  features: {',
+        `    zoom: ${features.zoom},`,
+        `    csvExport: ${features.csvExport},`,
+        `    selection: ${features.selection},`,
+        `    tooltip: ${features.tooltip},`,
+        features.chartState
           ? '    // chartState: false // Uncomment to disable the loading and empty overlay.'
           : '    chartState: false',
         '  }'
       ]
-    : [`  features: { zoom: ${features.zoom}, csvExport: ${features.csvExport}, selection: ${features.selection}, chartState: ${features.chartState} }`];
+    : showTooltipOptOut
+    ? [
+        '  features: {',
+        `    zoom: ${features.zoom},`,
+        `    csvExport: ${features.csvExport},`,
+        `    selection: ${features.selection},`,
+        `    chartState: ${features.chartState},`,
+        features.tooltip
+          ? '    // tooltip: false // Uncomment to disable the built-in tooltip.'
+          : '    tooltip: false',
+        '  }'
+      ]
+    : [`  features: { zoom: ${features.zoom}, csvExport: ${features.csvExport}, selection: ${features.selection}, chartState: ${features.chartState}, tooltip: ${features.tooltip} }`];
   return [
     `import { ${registrar} } from '${modulePath}';`,
     '',
@@ -94,6 +123,7 @@ interface FeatureGuideEditorOptions {
   chartId: () => string;
   usage: string;
   showChartStateOptOut?: boolean;
+  showTooltipOptOut?: boolean;
   onUsageChange?: (usage: string) => void;
   hint?: string;
   onConfigChange: (config: DemoConfig) => void;
@@ -113,7 +143,8 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
       next.zoom === features.zoom &&
       next.csvExport === features.csvExport &&
       next.selection === features.selection &&
-      next.chartState === features.chartState
+      next.chartState === features.chartState &&
+      next.tooltip === features.tooltip
     ) {
       return Promise.resolve();
     }
@@ -142,7 +173,12 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
       const formatExample = () => {
         const chartId = options.chartId();
         return [
-          formatBootstrap(standalone ? chartId : undefined, features, options.showChartStateOptOut),
+          formatBootstrap(
+            standalone ? chartId : undefined,
+            features,
+            options.showChartStateOptOut,
+            options.showTooltipOptOut
+          ),
           `const chart = document.createElement('mc-${chartId}-chart');\nchart.style.height = '380px';\ndocument.body.appendChild(chart);`,
           formatGuideConfigAssignment(config),
           usage

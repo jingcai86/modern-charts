@@ -1,10 +1,13 @@
 import { getGlobalPalette } from '../state/theme';
-import type {
-  MCBaseChart,
-  MCTooltipElement,
-  ThemeModePreference,
-  TooltipPayload
+import {
+  defineCustomElement,
+  type MCBaseChart,
+  type MCTooltipElement,
+  type ThemeModePreference,
+  type TooltipPayload,
+  type TooltipTarget
 } from '../../../src/index';
+import { createFeatureGuideBootstrap } from './bootstrapping';
 import { guideCallback } from './callback-source';
 import {
   createLiveConfigEditor,
@@ -12,11 +15,75 @@ import {
   createLiveHtmlEditor
 } from './shared';
 
+export class DashboardTooltipElement extends HTMLElement {
+  #lastPayload: TooltipPayload | null = null;
+  #activeTarget: TooltipTarget | null = null;
+
+  connectedCallback(): void {
+    this.style.cssText =
+      'position:absolute;top:10px;right:12px;z-index:22;pointer-events:none;max-width:260px;padding:8px 12px;border-radius:10px;background:rgba(15,23,42,0.94);color:#f8fafc;border:1px solid #38bdf8;font-size:12px;line-height:1.4;box-shadow:0 10px 24px rgba(0,0,0,0.26);';
+    if (!this.#lastPayload) {
+      this.hidden = true;
+    }
+  }
+
+  get lastPayload(): TooltipPayload | null {
+    return this.#lastPayload;
+  }
+
+  get activeTarget(): TooltipTarget | null {
+    return this.#activeTarget;
+  }
+
+  public show(payload: TooltipPayload): boolean {
+    const target: TooltipTarget = payload.target ?? 'item';
+    this.#lastPayload = payload;
+    this.#activeTarget = target;
+    this.dataset.target = target;
+    this.dataset.source = payload.source ?? 'pointer';
+
+    const badge = document.createElement('div');
+    badge.className = 'dashboard-tooltip-kind';
+    badge.style.cssText =
+      'font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:2px;color:' +
+      (target === 'legend' ? '#a78bfa' : '#38bdf8');
+    badge.textContent = target === 'legend' ? 'Legend Tooltip' : 'Item Tooltip';
+
+    const detail = document.createElement('div');
+    detail.className = 'dashboard-tooltip-detail';
+    const title = payload.title ?? payload.category ?? '';
+    const label = payload.label ?? payload.seriesId ?? '';
+    const value =
+      payload.formattedValue ??
+      (payload.value !== undefined ? String(payload.value) : '');
+    detail.textContent =
+      target === 'legend'
+        ? [title || label, value].filter(Boolean).join(' · ')
+        : [title, label && value ? `${label}: ${value}` : label || value]
+            .filter(Boolean)
+            .join(' — ');
+
+    this.replaceChildren(badge, detail);
+    this.hidden = false;
+    return true;
+  }
+
+  public hide(target?: TooltipTarget): void {
+    if (!target || !this.#activeTarget || this.#activeTarget === target) {
+      this.hidden = true;
+      this.#activeTarget = null;
+    }
+  }
+}
+
+defineCustomElement('dashboard-tooltip', DashboardTooltipElement);
+
 export function renderTooltipsGuide(
   container: HTMLElement,
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
   const mounted: MCBaseChart<any>[] = [];
+  const bootstrap = createFeatureGuideBootstrap({ tooltip: true });
 
   // Architecture & CSS ::part() Reference Card
   const intro = document.createElement('section');
@@ -24,18 +91,23 @@ export function renderTooltipsGuide(
   intro.innerHTML = `
     <h2 class="guide-section-title">How Unified <code>&lt;mc-tooltip&gt;</code> Works</h2>
     <p class="guide-prose">
-      Every single chart in <code>modern-charts</code> (all 10 chart components) shares one unified
-      <code>&lt;mc-tooltip&gt;</code> Web Component. For maximum runtime performance, each chart creates
-      <strong>strictly one <code>&lt;mc-tooltip&gt;</code> instance</strong> inside its Shadow DOM and reuses it
-      in-place as the pointer moves across items — avoiding DOM churn even on dense charts.
+      Every chart in <code>modern-charts</code> (all 10 chart components) shares a unified
+      <code>&lt;mc-tooltip&gt;</code> Web Component. By default (<code>features.tooltip: true</code>),
+      registration lazy-loads the built-in tooltip renderer as a separate chunk, and each interactive chart mounts
+      one item <code>&lt;mc-tooltip&gt;</code> and one dedicated legend <code>&lt;mc-tooltip&gt;</code> inside its Shadow DOM —
+      reusing them in-place on pointer hover and keyboard focus.
     </p>
     <p class="guide-prose">
-      Whenever an item or slice is hovered, the chart passes a complete structured <code>TooltipPayload</code>
-      (<code>chartType</code>, <code>title</code>, <code>label</code>, <code>seriesId</code>, <code>category</code>,
-      <code>value</code>, <code>formattedValue</code>, <code>color</code>, <code>percentage</code>, <code>items[]</code>,
-      <code>threshold</code>, <code>datum</code>, and the full chart <code>data</code>) to your custom
-      <code>tooltip.formatter</code>, <code>tooltip.renderer</code>, declarative <code>&lt;mc-tooltip&gt;</code>, and
-      <code>mc-tooltip-show</code> event listeners.
+      Pass <code>registerModernCharts({ features: { tooltip: false } })</code> (or a per-chart registrar such as
+      <code>registerBarChart({ features: { tooltip: false } })</code>) to skip downloading and mounting the chart-owned
+      <code>&lt;mc-tooltip&gt;</code> elements while keeping chart interactions and tooltip events active. Mount caller-owned
+      tooltip markup or a custom element in <code>slot="tooltip"</code> (for example
+      <code>&lt;dashboard-tooltip slot="tooltip"&gt;&lt;/dashboard-tooltip&gt;</code>) to render your own tooltip UI.
+      Item and legend requests are distinguished via <code>payload.target</code> (<code>'item' | 'legend'</code>),
+      the <code>target</code> argument passed to custom <code>hide(target)</code> methods, and separate
+      <code>mc-tooltip-show</code> / <code>mc-tooltip-hide</code> vs.
+      <code>mc-legend-tooltip-show</code> / <code>mc-legend-tooltip-hide</code> events.
+      See the <a href="#/guide/bootstrapping">Feature Bootstrapping &amp; Lazy Loading guide</a>.
     </p>
     <div class="guide-table-wrap">
       <table class="guide-table">
@@ -504,7 +576,120 @@ mc-bar-chart::part(tooltip-badge) {
     tipEventReadout.textContent = 'mc-tooltip-hide → tooltip dismissed';
   });
 
-  // Section 5: TooltipConfig & TooltipPayload Reference Table
+  // Example 5: Custom Tooltip Slot (slot="tooltip") & features.tooltip: false Opt-Out
+  const ex5 = document.createElement('section');
+  ex5.className = 'panel-card guide-section';
+  ex5.innerHTML = `
+    <div class="guide-example-header">
+      <div>
+        <h3 class="guide-example-title">Example 5: Custom <code>slot="tooltip"</code> &amp; <code>features.tooltip: false</code> Opt-Out</h3>
+        <p class="guide-prose">
+          Uncomment <code>tooltip: false</code> in the live bootstrap editor (or toggle the checkbox) to disable and unmount the chart-owned
+          <code>&lt;mc-tooltip&gt;</code> hosts while keeping <code>&lt;dashboard-tooltip slot="tooltip"&gt;</code> active for both item
+          (<code>payload.target === 'item'</code>) and legend (<code>payload.target === 'legend'</code>) interactions.
+        </p>
+      </div>
+      <div class="guide-controls-row">
+        <label><input type="checkbox" id="tp-builtin-enabled" checked> Built-in <code>&lt;mc-tooltip&gt;</code> enabled</label>
+        <span id="tp-slot-badge" class="comp-pill">built-in: enabled · slot: idle</span>
+      </div>
+    </div>
+    <div class="guide-split">
+      <div class="guide-chart-box" id="guide-tooltip-chart-5"></div>
+      <div id="guide-tooltip-code-5"></div>
+    </div>
+  `;
+  container.appendChild(ex5);
+
+  const bar5 = document.createElement('mc-bar-chart') as MCBaseChart<any>;
+  bar5.style.width = '100%';
+  bar5.style.height = '340px';
+  const customSlotTooltip = document.createElement(
+    'dashboard-tooltip'
+  ) as DashboardTooltipElement;
+  customSlotTooltip.slot = 'tooltip';
+  bar5.appendChild(customSlotTooltip);
+  ex5.querySelector('#guide-tooltip-chart-5')!.appendChild(bar5);
+  mounted.push(bar5);
+
+  const builtinToggle = ex5.querySelector<HTMLInputElement>('#tp-builtin-enabled')!;
+  const slotBadge = ex5.querySelector<HTMLElement>('#tp-slot-badge')!;
+
+  const updateSlotBadge = (status = 'slot: idle') => {
+    const enabled = bar5.isFeatureEnabled('tooltip');
+    const hosts = bar5.shadowRoot?.querySelectorAll('mc-tooltip').length ?? 0;
+    slotBadge.textContent = `built-in: ${enabled ? 'enabled' : 'disabled'} (${hosts} hosts) · ${status}`;
+  };
+
+  bar5.addEventListener('mc-tooltip-show', (e: Event) => {
+    const p = (e as CustomEvent<TooltipPayload>).detail;
+    updateSlotBadge(
+      `target: ${p.target ?? 'item'} · ${p.category ?? p.title ?? ''}: ${
+        p.formattedValue ?? p.value ?? ''
+      }`
+    );
+  });
+  bar5.addEventListener('mc-legend-tooltip-show', (e: Event) => {
+    const p = (e as CustomEvent<TooltipPayload>).detail;
+    updateSlotBadge(
+      `target: ${p.target ?? 'legend'} · ${p.title ?? p.label ?? ''}`
+    );
+  });
+  bar5.addEventListener('mc-tooltip-hide', () => updateSlotBadge('slot: idle'));
+  bar5.addEventListener('mc-legend-tooltip-hide', () =>
+    updateSlotBadge('slot: idle')
+  );
+
+  const initialBar5Cfg = {
+    title: 'Hover Bars (target="item") or Legend (target="legend")',
+    indexBy: 'quarter',
+    keys: ['Cloud', 'Edge'],
+    data: [
+      { quarter: 'Q1', Cloud: 142, Edge: 88 },
+      { quarter: 'Q2', Cloud: 168, Edge: 104 },
+      { quarter: 'Q3', Cloud: 194, Edge: 118 },
+      { quarter: 'Q4', Cloud: 228, Edge: 148 }
+    ]
+  };
+
+  const applyBar5 = (cfg: Record<string, any>) => {
+    bar5.setConfig({
+      themeMode,
+      palette: getGlobalPalette(),
+      ...cfg
+    });
+    updateSlotBadge();
+  };
+  applyBar5(initialBar5Cfg);
+
+  const editor5 = bootstrap.createEditor({
+    title: 'Bootstrap tooltip opt-out & slot="tooltip"',
+    initialConfig: initialBar5Cfg,
+    chartId: () => 'bar',
+    showTooltipOptOut: true,
+    usage: `const customTooltip = document.createElement('dashboard-tooltip');
+customTooltip.slot = 'tooltip';
+chart.appendChild(customTooltip);`,
+    hint: 'Uncomment tooltip: false to skip mounting the built-in <mc-tooltip> hosts and use only <dashboard-tooltip slot="tooltip">.',
+    onConfigChange: applyBar5,
+    onReset: () => {
+      applyBar5(initialBar5Cfg);
+      editor5.syncConfig(initialBar5Cfg);
+    }
+  });
+  ex5.querySelector('#guide-tooltip-code-5')!.appendChild(editor5.element);
+
+  bootstrap.onFeaturesChanged(() => {
+    builtinToggle.checked = bar5.isFeatureEnabled('tooltip');
+    updateSlotBadge();
+  });
+  builtinToggle.addEventListener('change', () => {
+    void bootstrap
+      .updateFeatures({ tooltip: builtinToggle.checked })
+      .then(() => updateSlotBadge());
+  });
+
+  // Section 6: TooltipConfig & TooltipPayload Reference Table
   const apiRef = document.createElement('section');
   apiRef.className = 'panel-card guide-section';
   apiRef.innerHTML = `
@@ -520,6 +705,9 @@ mc-bar-chart::part(tooltip-badge) {
           </tr>
         </thead>
         <tbody>
+          <tr><td><code>features.tooltip</code></td><td><code>boolean</code></td><td><code>true</code></td><td>Bootstrap flag on <code>registerModernCharts()</code> / <code>register*Chart()</code>. Set <code>false</code> to skip downloading and mounting the built-in <code>&lt;mc-tooltip&gt;</code> implementation.</td></tr>
+          <tr><td><code>slot="tooltip"</code></td><td><code>HTML slot</code></td><td>—</td><td>Public named slot inside every chart container for caller-owned tooltip markup or a custom element receiving <code>show(payload, ...)</code> / <code>hide(target)</code> and tooltip events.</td></tr>
+          <tr><td><code>payload.target</code></td><td><code>'item' | 'legend'</code></td><td>—</td><td>Distinguishes chart item tooltip requests (<code>'item'</code>) from legend tooltip requests (<code>'legend'</code>). Also passed to custom <code>hide(target)</code> and <code>mc-*-tooltip-hide</code> event <code>detail.target</code>.</td></tr>
           <tr><td><code>tooltip.enabled</code></td><td><code>boolean</code></td><td><code>true</code></td><td>Show or hide the unified chart tooltip singleton.</td></tr>
           <tr><td><code>tooltip.position</code></td><td><code>'item' | 'follow'</code></td><td>Per-chart default</td><td>Anchor cleanly above/below active items (<code>'item'</code>) or follow the pointer (<code>'follow'</code>). Keyboard focus always uses <code>'item'</code>.</td></tr>
           <tr><td><code>tooltip.anchorGap</code></td><td><code>number</code></td><td><code>10</code></td><td>Pixel gap between the anchored item and tooltip surface in <code>'item'</code> mode.</td></tr>
@@ -527,7 +715,7 @@ mc-bar-chart::part(tooltip-badge) {
           <tr><td><code>tooltip.className</code></td><td><code>string</code></td><td>—</td><td>Extra CSS class name(s) applied to the internal <code>&lt;mc-tooltip&gt;</code> host.</td></tr>
           <tr><td><code>tooltip.formatter</code></td><td><code>(payload) =&gt; string | null</code></td><td>—</td><td>Returns custom HTML/text string (or <code>null</code> to suppress).</td></tr>
           <tr><td><code>tooltip.renderer</code></td><td><code>(payload, defaultRender) =&gt; Node | string | null</code></td><td>—</td><td>Full DOM renderer; call <code>defaultRender()</code> to extend default structured markup.</td></tr>
-          <tr><td><code>TooltipPayload</code></td><td><code>object</code></td><td>—</td><td>Provides <code>chartType</code>, <code>title</code>, <code>label</code>, <code>seriesId</code>, <code>category</code>, <code>value</code>, <code>formattedValue</code>, <code>color</code>, <code>percentage</code>, <code>badge</code>, <code>items[]</code>, <code>threshold</code>, <code>datum</code>, <code>data</code>, <code>positionMode</code>, <code>source</code>, <code>clientX</code>, <code>clientY</code>, and <code>anchor</code>.</td></tr>
+          <tr><td><code>TooltipPayload</code></td><td><code>object</code></td><td>—</td><td>Provides <code>chartType</code>, <code>target</code> (<code>'item' | 'legend'</code>), <code>title</code>, <code>label</code>, <code>seriesId</code>, <code>category</code>, <code>value</code>, <code>formattedValue</code>, <code>color</code>, <code>percentage</code>, <code>badge</code>, <code>items[]</code>, <code>threshold</code>, <code>datum</code>, <code>data</code>, <code>positionMode</code>, <code>source</code>, <code>clientX</code>, <code>clientY</code>, and <code>anchor</code>.</td></tr>
         </tbody>
       </table>
     </div>

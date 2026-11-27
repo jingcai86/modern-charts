@@ -20,7 +20,7 @@ import type {
   TooltipConfig,
   TooltipPayload
 } from '../core/types';
-import { MCTooltipElement } from './mc-tooltip';
+import type { MCTooltipElement } from './mc-tooltip';
 
 const getTruncateTemplate = lazyTemplate(`
   <span class="mc-truncate-host" part="container">
