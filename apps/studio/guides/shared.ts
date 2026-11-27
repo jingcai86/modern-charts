@@ -748,7 +748,7 @@ export function renderGuideHeader(activeId: GuideId): HTMLElement {
   header.className = 'guide-hero';
   const featureDefault = meta.featureDefault === undefined
     ? ''
-    : ` <span class="guide-hero-feature-default">Default is <code>${meta.featureDefault}</code></span>`;
+    : ` <a href="#/guide/bootstrapping" class="guide-hero-feature-default guide-hero-feature-default--${meta.featureDefault ? 'on' : 'off'}" title="Open Feature Bootstrapping & Lazy Loading guide">Default: <code>${meta.featureDefault}</code> ↗</a>`;
 
   header.innerHTML = `
     <div class="guide-hero-copy">

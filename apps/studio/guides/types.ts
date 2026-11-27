@@ -180,13 +180,42 @@ export const GUIDES_CATALOG: GuideMeta[] = [
 ];
 
 export const DEFAULT_OPEN_GUIDE_GROUP_COUNT = 4;
+export const GUIDE_GROUPS_STORAGE_KEY = 'modern-charts-studio-guide-groups';
+
+export function readStoredGuideGroups(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(GUIDE_GROUPS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+export function isGuideGroupOpen(groupId: string, defaultOpen: boolean): boolean {
+  const stored = readStoredGuideGroups();
+  return typeof stored[groupId] === 'boolean' ? stored[groupId] : defaultOpen;
+}
+
+export function writeStoredGuideGroupOpen(groupId: string, open: boolean): void {
+  try {
+    const stored = readStoredGuideGroups();
+    stored[groupId] = open;
+    localStorage.setItem(GUIDE_GROUPS_STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // Ignore storage failures in restricted contexts
+  }
+}
 
 const GUIDE_GROUP_ORDER = [
   ['integrations', 'Integrations & Extensions', ['ssr', 'd3', 'custom-layers']],
   ['colors-patterns-and-gradients', 'Colors, Patterns & Gradients', ['themes', 'patterns']],
   ['labels-and-layout', 'Labels & Layout', ['auto-size', 'custom-labels', 'truncation']],
-  ['data-and-interaction', 'Data & Interaction', ['dynamic-updates', 'tooltips', 'events']],
-  ['optional-features', 'Optional Features', ['bootstrapping', 'view-zoom', 'csv-export', 'selection', 'chart-state']],
+  ['data-and-interaction', 'Data & Interaction', ['dynamic-updates', 'chart-state', 'tooltips', 'events']],
+  ['optional-features', 'Optional Features', ['bootstrapping', 'view-zoom', 'csv-export', 'selection']],
   ['accessibility-and-localization', 'Accessibility & Localization', ['accessibility', 'i18n']]
 ] satisfies Array<[id: string, title: string, guides: GuideId[]]>;
 

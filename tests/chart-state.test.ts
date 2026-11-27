@@ -443,6 +443,8 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     expect(cssText).toContain('--mc-state-font');
     expect(cssText).toContain('--mc-state-spinner-color');
     expect(cssText).toContain('--mc-state-spinner-size');
+    expect(cssText).toContain('transition-behavior: allow-discrete');
+    expect(cssText).toContain('mc-state-enter');
     expect(cssText).toContain('prefers-reduced-motion');
     expect(cssText).toContain('animation: none');
   });

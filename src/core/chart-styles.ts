@@ -40,6 +40,12 @@ export const baseChartStyles = `
           height: 100%;
           user-select: none;
           overflow: hidden;
+          transition: opacity 220ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        :host(:state(loading)) .mc-chart-svg,
+        :host([aria-busy="true"]) .mc-chart-svg {
+          opacity: 0.38;
         }
 
         .mc-aria-item {

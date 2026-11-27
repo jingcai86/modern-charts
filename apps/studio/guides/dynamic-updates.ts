@@ -1,13 +1,52 @@
 import { getGlobalPalette } from '../state/theme';
 import type {
   BarDatum,
+  GaugeDatum,
+  HeatmapRow,
+  HierarchyNode,
   LegendPosition,
+  LineSeries,
   MCBaseChart,
   PieDatum,
+  RadarDatum,
+  SankeyData,
+  ScatterSeries,
   ThemeModePreference,
   TooltipPositionMode
 } from '../../../src/index';
-import { createCodeBlock, createLiveConfigEditor } from './shared';
+import { createCodeBlock, createLiveConfigEditor, escapeHtml } from './shared';
+
+const DYNAMIC_CHART_TAB_STORAGE_KEY = 'modern-charts-studio-dynamic-chart-tab';
+
+type DynamicChartTabId =
+  | 'bar'
+  | 'pie'
+  | 'line'
+  | 'heatmap'
+  | 'radar'
+  | 'sunburst'
+  | 'sankey'
+  | 'scatter'
+  | 'treemap'
+  | 'gauge';
+
+function readStoredDynamicChartTab(validIds: readonly DynamicChartTabId[]): DynamicChartTabId {
+  try {
+    const saved = localStorage.getItem(DYNAMIC_CHART_TAB_STORAGE_KEY) as DynamicChartTabId | null;
+    if (saved && validIds.includes(saved)) return saved;
+  } catch {
+    // Use default when storage is unavailable
+  }
+  return 'bar';
+}
+
+function writeStoredDynamicChartTab(tabId: DynamicChartTabId): void {
+  try {
+    localStorage.setItem(DYNAMIC_CHART_TAB_STORAGE_KEY, tabId);
+  } catch {
+    // Ignore storage failures in restricted contexts
+  }
+}
 
 function nextItemId(prefix: string, currentIds: Array<string | number>): string {
   const ids = new Set(currentIds.map(String));
@@ -251,172 +290,795 @@ export function renderDynamicUpdatesGuide(
   });
   startStream();
 
-  // Example 2: Randomize / Add-Remove Points on Bar & Pie Charts + Live Dataset Editor
-  const ex2 = document.createElement('section');
-  ex2.className = 'panel-card guide-section';
-  ex2.innerHTML = `
-    <div class="panel-header">
-      <div>
-        <h2 class="panel-title">Example 2: Randomize, Add/Remove Points &amp; Empty State</h2>
-        <p class="guide-prose" style="margin:4px 0 0;">
-          Assign <code>chart.data</code> to update a dataset. Randomize Data animates both charts.
-          Add or remove a quarter or slice to see its neighbors move into place.
-        </p>
-      </div>
-      <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
-        <button type="button" id="btn-dyn-randomize" class="btn-primary">🎲 Randomize Data</button>
-        <button type="button" id="btn-dyn-empty">Toggle Empty (null)</button>
-      </div>
-    </div>
-    <div class="guide-example-grid">
-      <div>
-        <div class="guide-controls-row" style="margin-bottom:8px;" role="group" aria-label="Bar dataset">
-          <button type="button" id="btn-dyn-add">+ Add Quarter</button>
-          <button type="button" id="btn-dyn-remove">− Remove Last Quarter</button>
-        </div>
-        <div class="guide-chart-stage" id="guide-dyn-bar-chart"></div>
-      </div>
-      <div>
-        <div class="guide-controls-row" style="margin-bottom:8px;" role="group" aria-label="Donut dataset">
-          <button type="button" id="btn-dyn-pie-add">+ Add Slice</button>
-          <button type="button" id="btn-dyn-pie-remove">− Remove Last Slice</button>
-        </div>
-        <div class="guide-chart-stage" id="guide-dyn-pie-chart"></div>
-      </div>
-    </div>
-    <div id="guide-dyn-ex2-code" style="margin-top:14px;"></div>
-  `;
-  container.appendChild(ex2);
+  // Example 2: Tabbed Dynamic Add, Remove, Randomize & Empty State Across All 10 Charts
+  interface DynamicChartTabSpec<TData = any> {
+    id: DynamicChartTabId;
+    label: string;
+    tag: string;
+    itemSingular: string;
+    createDefaultData: () => TData;
+    createConfig: (data: TData) => Record<string, any>;
+    randomize: (data: TData) => TData;
+    addItem: (data: TData) => TData;
+    removeItem: (data: TData) => TData;
+    canRemove: (data: TData) => boolean;
+  }
 
-  const dynBar = document.createElement('mc-bar-chart') as MCBaseChart<BarDatum[]>;
-  const dynPie = document.createElement('mc-pie-chart') as MCBaseChart<PieDatum[]>;
-  ex2.querySelector('#guide-dyn-bar-chart')!.appendChild(dynBar);
-  ex2.querySelector('#guide-dyn-pie-chart')!.appendChild(dynPie);
-  mounted.push(dynBar, dynPie);
-
-  const defaultBarRows = [
+  const defaultBarRows = (): BarDatum[] => [
     { quarter: 'Q1', Cloud: 138, Edge: 84 },
     { quarter: 'Q2', Cloud: 172, Edge: 108 },
     { quarter: 'Q3', Cloud: 196, Edge: 124 },
     { quarter: 'Q4', Cloud: 234, Edge: 152 }
   ];
-  const defaultPieRows = [
+
+  const defaultPieRows = (): PieDatum[] => [
     { id: 'Compute', value: 420 },
     { id: 'Storage', value: 290 },
     { id: 'Network', value: 195 },
     { id: 'AI Ops', value: 310 }
   ];
 
-  let barRows: BarDatum[] = defaultBarRows;
-  let pieRows: PieDatum[] = defaultPieRows;
+  const defaultLineSeries = (): LineSeries[] => [
+    {
+      id: 'Cloud',
+      data: [
+        { x: 'Q1', y: 128 },
+        { x: 'Q2', y: 164 },
+        { x: 'Q3', y: 152 },
+        { x: 'Q4', y: 214 }
+      ]
+    },
+    {
+      id: 'Edge',
+      data: [
+        { x: 'Q1', y: 82 },
+        { x: 'Q2', y: 106 },
+        { x: 'Q3', y: 128 },
+        { x: 'Q4', y: 158 }
+      ]
+    }
+  ];
 
-  dynBar.setConfig({
-    data: barRows,
-    autoSize: true,
-    motionConfig: 'stiff',
-    themeMode,
-    palette: getGlobalPalette(),
-    title: 'Live Bar Dataset',
-    indexBy: 'quarter',
-    keys: ['Cloud', 'Edge'],
-    borderRadius: 6,
-    margin: { top: 44, right: 20, bottom: 70, left: 48 }
+  const defaultHeatmapRows = (): HeatmapRow[] => [
+    {
+      id: 'Mon',
+      data: [
+        { x: '00:00', y: 24 },
+        { x: '08:00', y: 68 },
+        { x: '16:00', y: 92 }
+      ]
+    },
+    {
+      id: 'Tue',
+      data: [
+        { x: '00:00', y: 31 },
+        { x: '08:00', y: 74 },
+        { x: '16:00', y: 88 }
+      ]
+    },
+    {
+      id: 'Wed',
+      data: [
+        { x: '00:00', y: 19 },
+        { x: '08:00', y: 62 },
+        { x: '16:00', y: 95 }
+      ]
+    }
+  ];
+
+  const defaultRadarRows = (): RadarDatum[] => [
+    { metric: 'Speed', Modern: 92, Legacy: 58 },
+    { metric: 'Safety', Modern: 88, Legacy: 64 },
+    { metric: 'DX', Modern: 95, Legacy: 52 },
+    { metric: 'Bundle', Modern: 90, Legacy: 61 }
+  ];
+
+  const defaultSunburstTree = (): HierarchyNode => ({
+    name: 'Platform',
+    children: [
+      {
+        name: 'Compute',
+        children: [
+          { name: 'GPU', value: 240 },
+          { name: 'CPU', value: 180 }
+        ]
+      },
+      {
+        name: 'Storage',
+        children: [
+          { name: 'NVMe', value: 165 },
+          { name: 'Object', value: 130 }
+        ]
+      }
+    ]
   });
-  dynPie.setConfig({
-    data: pieRows,
-    autoSize: true,
-    motionConfig: 'stiff',
-    themeMode,
-    palette: 'material',
-    title: 'Live Donut Dataset',
-    innerRadius: 0.5
+
+  const defaultSankeyData = (): SankeyData => ({
+    nodes: [
+      { id: 'Ingest', name: 'Ingest' },
+      { id: 'Engine', name: 'Engine' },
+      { id: 'SVG', name: 'SVG' },
+      { id: 'Canvas', name: 'Canvas' }
+    ],
+    links: [
+      { source: 'Ingest', target: 'Engine', value: 360 },
+      { source: 'Engine', target: 'SVG', value: 220 },
+      { source: 'Engine', target: 'Canvas', value: 140 }
+    ]
   });
 
-  type Datasets = { barData: BarDatum[] | null; pieData: PieDatum[] | null };
-  const readDatasets = (): Datasets => ({ barData: dynBar.data, pieData: dynPie.data });
+  const defaultScatterSeries = (): ScatterSeries[] => [
+    {
+      id: 'Cluster A',
+      data: [
+        { id: 'A1', x: 14, y: 78, size: 20, label: 'A1' },
+        { id: 'A2', x: 28, y: 86, size: 26, label: 'A2' },
+        { id: 'A3', x: 42, y: 92, size: 22, label: 'A3' }
+      ]
+    },
+    {
+      id: 'Cluster B',
+      data: [
+        { id: 'B1', x: 18, y: 54, size: 18, label: 'B1' },
+        { id: 'B2', x: 34, y: 66, size: 24, label: 'B2' },
+        { id: 'B3', x: 48, y: 72, size: 20, label: 'B3' }
+      ]
+    }
+  ];
 
-  const updateDataset = <T>(chart: MCBaseChart<T[]>, next: T[] | null | undefined, savedRows: T[]): T[] => {
-    const previous = chart.data;
-    if (next === undefined || next === previous) return savedRows;
-    // Editing the combined snippet parses both arrays again, even when one is unchanged.
-    if (next?.length === previous?.length && JSON.stringify(next) === JSON.stringify(previous)) return savedRows;
-    chart.data = next;
-    return next ?? savedRows;
-  };
+  const defaultTreemapTree = (): HierarchyNode => ({
+    name: 'Clusters',
+    children: [
+      { name: 'US-East', value: 320 },
+      { name: 'EU-West', value: 240 },
+      { name: 'AP-South', value: 190 },
+      { name: 'US-West', value: 260 }
+    ]
+  });
 
-  const applyDatasets = ({ barData, pieData }: Partial<Datasets>) => {
-    barRows = updateDataset(dynBar, barData, barRows);
-    pieRows = updateDataset(dynPie, pieData, pieRows);
+  const defaultGaugeSeries = (): GaugeDatum[] => [
+    { label: 'Primary', value: 84, min: 0, max: 100, unit: '%' },
+    { label: 'Replica', value: 62, min: 0, max: 100, unit: '%' }
+  ];
+
+  const CHART_TAB_SPECS: readonly DynamicChartTabSpec[] = [
+    {
+      id: 'bar',
+      label: 'Bar',
+      tag: 'mc-bar-chart',
+      itemSingular: 'Quarter',
+      createDefaultData: defaultBarRows,
+      createConfig: (data) => ({
+        data,
+        autoSize: true,
+        motionConfig: 'stiff',
+        themeMode,
+        palette: getGlobalPalette(),
+        title: 'Live Bar Dataset',
+        indexBy: 'quarter',
+        keys: ['Cloud', 'Edge'],
+        borderRadius: 6,
+        margin: { top: 44, right: 20, bottom: 70, left: 48 }
+      }),
+      randomize: (rows: BarDatum[]) =>
+        rows.map((row) => ({
+          ...row,
+          Cloud: Math.round(70 + Math.random() * 210),
+          Edge: Math.round(45 + Math.random() * 145)
+        })),
+      addItem: (rows: BarDatum[]) => [
+        ...rows,
+        {
+          quarter: nextItemId('Q', rows.map((row) => row.quarter)),
+          Cloud: Math.round(90 + Math.random() * 190),
+          Edge: Math.round(55 + Math.random() * 130)
+        }
+      ],
+      removeItem: (rows: BarDatum[]) => (rows.length > 2 ? rows.slice(0, -1) : rows),
+      canRemove: (rows: BarDatum[]) => rows.length > 2
+    },
+    {
+      id: 'pie',
+      label: 'Pie',
+      tag: 'mc-pie-chart',
+      itemSingular: 'Slice',
+      createDefaultData: defaultPieRows,
+      createConfig: (data) => ({
+        data,
+        autoSize: true,
+        motionConfig: 'stiff',
+        themeMode,
+        palette: 'material',
+        title: 'Live Donut Dataset',
+        innerRadius: 0.5
+      }),
+      randomize: (rows: PieDatum[]) =>
+        rows.map((row) => ({ ...row, value: Math.round(90 + Math.random() * 420) })),
+      addItem: (rows: PieDatum[]) => [
+        ...rows,
+        {
+          id: nextItemId('Region ', rows.map((row) => row.id)),
+          value: Math.round(100 + Math.random() * 260)
+        }
+      ],
+      removeItem: (rows: PieDatum[]) => (rows.length > 2 ? rows.slice(0, -1) : rows),
+      canRemove: (rows: PieDatum[]) => rows.length > 2
+    },
+    {
+      id: 'line',
+      label: 'Line',
+      tag: 'mc-line-chart',
+      itemSingular: 'Point',
+      createDefaultData: defaultLineSeries,
+      createConfig: (data) => ({
+        data,
+        autoSize: true,
+        motionConfig: 'stiff',
+        themeMode,
+        palette: getGlobalPalette(),
+        title: 'Live Line Series',
+        enableArea: true,
+        areaOpacity: 0.14,
+        curve: 'monotoneX',
+        margin: { top: 44, right: 24, bottom: 70, left: 48 }
+      }),
+      randomize: (series: LineSeries[]) =>
+        series.map((s) => ({
+          ...s,
+          data: s.data.map((pt) => ({
+            ...pt,
+            y: Math.round(65 + Math.random() * 185)
+          }))
+        })),
+      addItem: (series: LineSeries[]) => {
+        const nextX = nextItemId(
+          'Q',
+          (series[0]?.data ?? []).map((pt) => String(pt.x))
+        );
+        return series.map((s) => ({
+          ...s,
+          data: [
+            ...s.data,
+            { x: nextX, y: Math.round(75 + Math.random() * 175) }
+          ]
+        }));
+      },
+      removeItem: (series: LineSeries[]) =>
+        (series[0]?.data.length ?? 0) > 2
+          ? series.map((s) => ({ ...s, data: s.data.slice(0, -1) }))
+          : series,
+      canRemove: (series: LineSeries[]) => (series[0]?.data.length ?? 0) > 2
+    },
+    {
+      id: 'heatmap',
+      label: 'Heatmap',
+      tag: 'mc-heatmap-chart',
+      itemSingular: 'Row',
+      createDefaultData: defaultHeatmapRows,
+      createConfig: (data) => ({
+        data,
+        autoSize: true,
+        motionConfig: 'stiff',
+        themeMode,
+        palette: getGlobalPalette(),
+        title: 'Live Heatmap Matrix',
+        margin: { top: 44, right: 24, bottom: 70, left: 54 }
+      }),
+      randomize: (rows: HeatmapRow[]) =>
+        rows.map((row) => ({
+          ...row,
+          data: row.data.map((cell) => ({
+            ...cell,
+            y: Math.round(15 + Math.random() * 85)
+          }))
+        })),
+      addItem: (rows: HeatmapRow[]) => {
+        const cols = (rows[0]?.data ?? []).map((cell) => cell.x);
+        const nextRowId = nextItemId('Day ', rows.map((row) => row.id));
+        return [
+          ...rows,
+          {
+            id: nextRowId,
+            data: cols.map((x) => ({ x, y: Math.round(15 + Math.random() * 85) }))
+          }
+        ];
+      },
+      removeItem: (rows: HeatmapRow[]) => (rows.length > 2 ? rows.slice(0, -1) : rows),
+      canRemove: (rows: HeatmapRow[]) => rows.length > 2
+    },
+    {
+      id: 'radar',
+      label: 'Radar',
+      tag: 'mc-radar-chart',
+      itemSingular: 'Metric',
+      createDefaultData: defaultRadarRows,
+      createConfig: (data) => ({
+        data,
+        autoSize: true,
+        motionConfig: 'stiff',
+        themeMode,
+        palette: getGlobalPalette(),
+        title: 'Live Radar Metrics',
+        indexBy: 'metric',
+        keys: ['Modern', 'Legacy'],
+        maxValue: 100
+      }),
+      randomize: (rows: RadarDatum[]) =>
+        rows.map((row) => ({
+          ...row,
+          Modern: Math.round(55 + Math.random() * 45),
+          Legacy: Math.round(35 + Math.random() * 55)
+        })),
+      addItem: (rows: RadarDatum[]) => [
+        ...rows,
+        {
+          metric: nextItemId('Axis ', rows.map((row) => row.metric)),
+          Modern: Math.round(60 + Math.random() * 40),
+          Legacy: Math.round(40 + Math.random() * 50)
+        }
+      ],
+      removeItem: (rows: RadarDatum[]) => (rows.length > 3 ? rows.slice(0, -1) : rows),
+      canRemove: (rows: RadarDatum[]) => rows.length > 3
+    },
+    {
+      id: 'sunburst',
+      label: 'Sunburst',
+      tag: 'mc-sunburst-chart',
+      itemSingular: 'Node',
+      createDefaultData: defaultSunburstTree,
+      createConfig: (data) => ({
+        data,
+        autoSize: true,
+        motionConfig: 'stiff',
+        themeMode,
+        palette: getGlobalPalette(),
+        title: 'Live Sunburst Hierarchy'
+      }),
+      randomize: (tree: HierarchyNode) => ({
+        ...tree,
+        children: (tree.children ?? []).map((branch) =>
+          branch.children?.length
+            ? {
+                ...branch,
+                children: branch.children.map((leaf) => ({
+                  ...leaf,
+                  value: Math.round(85 + Math.random() * 240)
+                }))
+              }
+            : { ...branch, value: Math.round(85 + Math.random() * 240) }
+        )
+      }),
+      addItem: (tree: HierarchyNode) => {
+        const branches = [...(tree.children ?? [])];
+        const first = branches[0];
+        if (!first) return tree;
+        const leaves = [...(first.children ?? [])];
+        const nextName = nextItemId('Node ', leaves.map((l) => l.name));
+        branches[0] = {
+          ...first,
+          children: [...leaves, { name: nextName, value: Math.round(95 + Math.random() * 210) }]
+        };
+        return { ...tree, children: branches };
+      },
+      removeItem: (tree: HierarchyNode) => {
+        const branches = [...(tree.children ?? [])];
+        const first = branches[0];
+        if (!first || (first.children?.length ?? 0) <= 1) return tree;
+        branches[0] = {
+          ...first,
+          children: first.children!.slice(0, -1)
+        };
+        return { ...tree, children: branches };
+      },
+      canRemove: (tree: HierarchyNode) => ((tree.children?.[0]?.children?.length ?? 0) > 1)
+    },
+    {
+      id: 'sankey',
+      label: 'Sankey',
+      tag: 'mc-sankey-chart',
+      itemSingular: 'Node',
+      createDefaultData: defaultSankeyData,
+      createConfig: (data) => ({
+        data,
+        autoSize: true,
+        motionConfig: 'stiff',
+        themeMode,
+        palette: getGlobalPalette(),
+        title: 'Live Sankey Flow',
+        margin: { top: 44, right: 32, bottom: 32, left: 32 }
+      }),
+      randomize: (sankey: SankeyData) => {
+        const links = sankey.links.map((link) =>
+          link.source === 'Engine'
+            ? { ...link, value: Math.round(90 + Math.random() * 220) }
+            : link
+        );
+        const totalOut = links
+          .filter((link) => link.source === 'Engine')
+          .reduce((sum, link) => sum + link.value, 0);
+        return {
+          nodes: sankey.nodes.map((node) => ({ ...node })),
+          links: links.map((link) =>
+            link.source === 'Ingest' && link.target === 'Engine'
+              ? { ...link, value: totalOut }
+              : link
+          )
+        };
+      },
+      addItem: (sankey: SankeyData) => {
+        const id = nextItemId('Out ', sankey.nodes.map((n) => n.id));
+        const val = Math.round(90 + Math.random() * 180);
+        const nextLinks = [
+          ...sankey.links,
+          { source: 'Engine', target: id, value: val }
+        ];
+        const totalOut = nextLinks
+          .filter((l) => l.source === 'Engine')
+          .reduce((sum, l) => sum + l.value, 0);
+        return {
+          nodes: [...sankey.nodes, { id, name: id }],
+          links: nextLinks.map((l) =>
+            l.source === 'Ingest' && l.target === 'Engine'
+              ? { ...l, value: totalOut }
+              : l
+          )
+        };
+      },
+      removeItem: (sankey: SankeyData) => {
+        if (sankey.nodes.length <= 3) return sankey;
+        const removedNode = sankey.nodes[sankey.nodes.length - 1];
+        const remainingNodes = sankey.nodes.slice(0, -1);
+        const remainingLinks = sankey.links.filter(
+          (l) => l.target !== removedNode.id && l.source !== removedNode.id
+        );
+        const totalOut = remainingLinks
+          .filter((l) => l.source === 'Engine')
+          .reduce((sum, l) => sum + l.value, 0);
+        return {
+          nodes: remainingNodes,
+          links: remainingLinks.map((l) =>
+            l.source === 'Ingest' && l.target === 'Engine'
+              ? { ...l, value: totalOut }
+              : l
+          )
+        };
+      },
+      canRemove: (sankey: SankeyData) => sankey.nodes.length > 3
+    },
+    {
+      id: 'scatter',
+      label: 'Scatter',
+      tag: 'mc-scatter-chart',
+      itemSingular: 'Point',
+      createDefaultData: defaultScatterSeries,
+      createConfig: (data) => ({
+        data,
+        autoSize: true,
+        motionConfig: 'stiff',
+        themeMode,
+        palette: getGlobalPalette(),
+        title: 'Live Scatter Clusters',
+        margin: { top: 44, right: 24, bottom: 70, left: 48 }
+      }),
+      randomize: (series: ScatterSeries[]) =>
+        series.map((s) => ({
+          ...s,
+          data: s.data.map((pt) => ({
+            ...pt,
+            x: Math.round(10 + Math.random() * 48),
+            y: Math.round(45 + Math.random() * 52),
+            size: Math.round(16 + Math.random() * 18)
+          }))
+        })),
+      addItem: (series: ScatterSeries[]) =>
+        series.map((s, idx) => {
+          const prefix = idx === 0 ? 'A' : 'B';
+          const id = nextItemId(
+            prefix,
+            s.data.map((pt) => pt.id ?? pt.label ?? '')
+          );
+          return {
+            ...s,
+            data: [
+              ...s.data,
+              {
+                id,
+                label: id,
+                x: Math.round(12 + Math.random() * 46),
+                y: Math.round(48 + Math.random() * 48),
+                size: Math.round(16 + Math.random() * 18)
+              }
+            ]
+          };
+        }),
+      removeItem: (series: ScatterSeries[]) =>
+        (series[0]?.data.length ?? 0) > 2
+          ? series.map((s) => ({ ...s, data: s.data.slice(0, -1) }))
+          : series,
+      canRemove: (series: ScatterSeries[]) => (series[0]?.data.length ?? 0) > 2
+    },
+    {
+      id: 'treemap',
+      label: 'Treemap',
+      tag: 'mc-treemap-chart',
+      itemSingular: 'Tile',
+      createDefaultData: defaultTreemapTree,
+      createConfig: (data) => ({
+        data,
+        autoSize: true,
+        motionConfig: 'stiff',
+        themeMode,
+        palette: getGlobalPalette(),
+        title: 'Live Treemap Tiles'
+      }),
+      randomize: (tree: HierarchyNode) => ({
+        ...tree,
+        children: (tree.children ?? []).map((child) => ({
+          ...child,
+          value: Math.round(90 + Math.random() * 280)
+        }))
+      }),
+      addItem: (tree: HierarchyNode) => {
+        const children = [...(tree.children ?? [])];
+        const nextName = nextItemId('Tile ', children.map((c) => c.name));
+        return {
+          ...tree,
+          children: [
+            ...children,
+            { name: nextName, value: Math.round(100 + Math.random() * 230) }
+          ]
+        };
+      },
+      removeItem: (tree: HierarchyNode) =>
+        (tree.children?.length ?? 0) > 2
+          ? { ...tree, children: tree.children!.slice(0, -1) }
+          : tree,
+      canRemove: (tree: HierarchyNode) => (tree.children?.length ?? 0) > 2
+    },
+    {
+      id: 'gauge',
+      label: 'Gauge',
+      tag: 'mc-gauge-chart',
+      itemSingular: 'Arc',
+      createDefaultData: defaultGaugeSeries,
+      createConfig: (data) => ({
+        data,
+        autoSize: true,
+        motionConfig: 'stiff',
+        themeMode,
+        palette: getGlobalPalette(),
+        title: 'Live Multi-Arc Gauge'
+      }),
+      randomize: (series: GaugeDatum[]) =>
+        series.map((item) => ({
+          ...item,
+          value: Math.round(20 + Math.random() * 78)
+        })),
+      addItem: (series: GaugeDatum[]) => {
+        const nextLabel = nextItemId(
+          'Node ',
+          series.map((s) => s.label ?? '')
+        );
+        return [
+          ...series,
+          {
+            label: nextLabel,
+            value: Math.round(25 + Math.random() * 72),
+            min: 0,
+            max: 100,
+            unit: '%'
+          }
+        ];
+      },
+      removeItem: (series: GaugeDatum[]) =>
+        series.length > 1 ? series.slice(0, -1) : series,
+      canRemove: (series: GaugeDatum[]) => series.length > 1
+    }
+  ];
+
+  const validTabIds = CHART_TAB_SPECS.map((s) => s.id);
+  let activeTabId: DynamicChartTabId = readStoredDynamicChartTab(validTabIds);
+
+  const ex2 = document.createElement('section');
+  ex2.className = 'panel-card guide-section';
+  ex2.innerHTML = `
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">Example 2: Dynamic Add, Remove, Randomize &amp; Empty State Across All 10 Charts</h2>
+        <p class="guide-prose" style="margin:4px 0 0;">
+          Pick any chart type tab below and use the action buttons or live config editor to add items, remove items, randomize values, or toggle the empty state.
+        </p>
+      </div>
+      <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
+        <button type="button" id="btn-dyn-add">+ Add Quarter</button>
+        <button type="button" id="btn-dyn-remove">− Remove Last Quarter</button>
+        <button type="button" id="btn-dyn-randomize" class="btn-primary">🎲 Randomize Data</button>
+        <button type="button" id="btn-dyn-empty">Toggle Empty (null)</button>
+      </div>
+    </div>
+    <div class="overview-tablist" id="guide-dyn-tablist" role="tablist" focusgroup="tablist nomemory" aria-label="Dynamic dataset chart types"></div>
+    <div class="guide-example-grid">
+      <div class="overview-tabpanels" id="guide-dyn-tabpanels"></div>
+      <div id="guide-dyn-ex2-code"></div>
+    </div>
+  `;
+  container.appendChild(ex2);
+
+  const tablistEl = ex2.querySelector<HTMLElement>('#guide-dyn-tablist')!;
+  const tabpanelsEl = ex2.querySelector<HTMLElement>('#guide-dyn-tabpanels')!;
+  const btnAdd = ex2.querySelector<HTMLButtonElement>('#btn-dyn-add')!;
+  const btnRemove = ex2.querySelector<HTMLButtonElement>('#btn-dyn-remove')!;
+  const btnRandomize = ex2.querySelector<HTMLButtonElement>('#btn-dyn-randomize')!;
+  const btnEmpty = ex2.querySelector<HTMLButtonElement>('#btn-dyn-empty')!;
+
+  interface MountedTabState {
+    spec: DynamicChartTabSpec;
+    btn: HTMLButtonElement;
+    panel: HTMLElement;
+    chart: MCBaseChart<any>;
+    savedData: any;
+  }
+
+  const tabStates = new Map<DynamicChartTabId, MountedTabState>();
+
+  for (const spec of CHART_TAB_SPECS) {
+    const isSelected = spec.id === activeTabId;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = `dyn-tab-${spec.id}`;
+    btn.className = 'overview-tab';
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', String(isSelected));
+    btn.tabIndex = isSelected ? 0 : -1;
+    btn.toggleAttribute('focusgroupstart', isSelected);
+    btn.dataset.chartTab = spec.id;
+    btn.textContent = spec.label;
+    tablistEl.appendChild(btn);
+
+    const panel = document.createElement('div');
+    panel.className = 'overview-tabpanel';
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', btn.id);
+    if (!isSelected) {
+      (panel as any).hidden = 'until-found';
+    }
+
+    const stage = document.createElement('div');
+    stage.className = 'guide-chart-stage';
+    stage.id = `guide-dyn-${spec.id}-chart`;
+    panel.appendChild(stage);
+    tabpanelsEl.appendChild(panel);
+
+    const chart = document.createElement(spec.tag) as MCBaseChart<any>;
+    const savedData = spec.createDefaultData();
+    chart.setConfig(spec.createConfig(savedData));
+    stage.appendChild(chart);
+    mounted.push(chart);
+
+    tabStates.set(spec.id, { spec, btn, panel, chart, savedData });
+  }
+
+  const getActiveState = (): MountedTabState => tabStates.get(activeTabId)!;
+
+  const syncActionButtons = () => {
+    const state = getActiveState();
+    btnAdd.textContent = `+ Add ${state.spec.itemSingular}`;
+    btnRemove.textContent = `− Remove Last ${state.spec.itemSingular}`;
+    btnRemove.disabled = state.chart.data === null || !state.spec.canRemove(state.savedData);
   };
 
   const editor2 = createLiveConfigEditor({
-    title: 'Bar & Pie Live Datasets (Live)',
-    assignPrefix: 'const datasets =',
-    initialConfig: readDatasets(),
-    hint: 'Add/remove items or set barData / pieData to null or [] to trigger empty states live.',
-    onConfigChange: ({ barData, pieData }) => {
-      for (const [name, dataset] of Object.entries({ barData, pieData })) {
-        if (dataset != null && !Array.isArray(dataset)) throw new Error(`Set ${name} to an array or null.`);
+    title: `${getActiveState().spec.label} Live Dataset (Live)`,
+    assignPrefix: 'chart.config =',
+    initialConfig: { data: getActiveState().chart.data },
+    hint: 'Edit data items or set data: null / [] to preview empty state transitions on the active chart tab.',
+    onConfigChange: ({ data }) => {
+      const state = getActiveState();
+      state.chart.data = data;
+      if (data !== null && data !== undefined) {
+        state.savedData = data;
       }
-      applyDatasets({ barData, pieData });
+      syncActionButtons();
     },
     onReset: () => {
-      updatePreview({ barData: defaultBarRows, pieData: defaultPieRows });
+      const state = getActiveState();
+      state.savedData = state.spec.createDefaultData();
+      state.chart.data = state.savedData;
+      syncActionButtons();
+      editor2.syncConfig({ data: state.chart.data });
     }
   });
   ex2.querySelector('#guide-dyn-ex2-code')!.appendChild(editor2.element);
+  syncActionButtons();
 
-  const updatePreview = (datasets: Partial<Datasets>) => {
-    applyDatasets(datasets);
-    editor2.syncConfig(readDatasets());
+  const updateActiveChartData = (nextData: any) => {
+    const state = getActiveState();
+    if (nextData !== null && nextData !== undefined) {
+      state.savedData = nextData;
+    }
+    state.chart.data = nextData;
+    syncActionButtons();
+    editor2.syncConfig(
+      { data: state.chart.data },
+      { title: `${state.spec.label} Live Dataset (Live)` }
+    );
   };
 
-  const barAdd = ex2.querySelector<HTMLButtonElement>('#btn-dyn-add')!;
-  const barRemove = ex2.querySelector<HTMLButtonElement>('#btn-dyn-remove')!;
-  const pieAdd = ex2.querySelector<HTMLButtonElement>('#btn-dyn-pie-add')!;
-  const pieRemove = ex2.querySelector<HTMLButtonElement>('#btn-dyn-pie-remove')!;
+  const selectDynamicTab = (nextId: DynamicChartTabId) => {
+    if (!tabStates.has(nextId)) return;
+    activeTabId = nextId;
+    writeStoredDynamicChartTab(nextId);
+    for (const [id, item] of tabStates.entries()) {
+      const isSelected = id === nextId;
+      item.btn.setAttribute('aria-selected', String(isSelected));
+      item.btn.tabIndex = isSelected ? 0 : -1;
+      item.btn.toggleAttribute('focusgroupstart', isSelected);
+      if (isSelected) {
+        item.panel.hidden = false;
+      } else {
+        (item.panel as any).hidden = 'until-found';
+      }
+    }
+    const state = getActiveState();
+    state.btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    if (typeof state.chart.render === 'function') {
+      state.chart.render();
+    }
+    syncActionButtons();
+    editor2.syncConfig(
+      { data: state.chart.data },
+      { title: `${state.spec.label} Live Dataset (Live)` }
+    );
+  };
 
-  ex2.querySelector('#btn-dyn-randomize')!.addEventListener('click', () => {
-    updatePreview({
-      barData: barRows.map((row) => ({
-        ...row,
-        Cloud: Math.round(70 + Math.random() * 210),
-        Edge: Math.round(45 + Math.random() * 145)
-      })),
-      pieData: pieRows.map((row) => ({ ...row, value: Math.round(90 + Math.random() * 420) }))
+  const tabListArray = Array.from(tabStates.values());
+  tabListArray.forEach((item, idx) => {
+    item.btn.addEventListener('click', () => {
+      selectDynamicTab(item.spec.id);
+    });
+    item.btn.addEventListener('keydown', (e) => {
+      let targetIdx: number | null = null;
+      if (e.key === 'ArrowRight') {
+        targetIdx = (idx + 1) % tabListArray.length;
+      } else if (e.key === 'ArrowLeft') {
+        targetIdx = (idx - 1 + tabListArray.length) % tabListArray.length;
+      } else if (e.key === 'Home') {
+        targetIdx = 0;
+      } else if (e.key === 'End') {
+        targetIdx = tabListArray.length - 1;
+      }
+      if (targetIdx !== null) {
+        e.preventDefault();
+        const target = tabListArray[targetIdx];
+        target.btn.focus();
+        selectDynamicTab(target.spec.id);
+      }
+    });
+    item.panel.addEventListener('beforematch', () => {
+      selectDynamicTab(item.spec.id);
     });
   });
 
-  barAdd.addEventListener('click', () => {
-    const nextQuarter = {
-      quarter: nextItemId('Q', barRows.map(row => row.quarter)),
-      Cloud: Math.round(90 + Math.random() * 190),
-      Edge: Math.round(55 + Math.random() * 130)
-    };
-    updatePreview({ barData: [...barRows, nextQuarter] });
+  btnRandomize.addEventListener('click', () => {
+    const state = getActiveState();
+    updateActiveChartData(state.spec.randomize(state.savedData));
   });
 
-  barRemove.addEventListener('click', () => {
-    if (barRows.length > 2) updatePreview({ barData: barRows.slice(0, -1) });
+  btnAdd.addEventListener('click', () => {
+    const state = getActiveState();
+    updateActiveChartData(state.spec.addItem(state.savedData));
   });
 
-  pieAdd.addEventListener('click', () => {
-    const nextSlice = {
-      id: nextItemId('Region ', pieRows.map(row => row.id)),
-      value: Math.round(100 + Math.random() * 260)
-    };
-    updatePreview({ pieData: [...pieRows, nextSlice] });
+  btnRemove.addEventListener('click', () => {
+    const state = getActiveState();
+    if (state.spec.canRemove(state.savedData)) {
+      updateActiveChartData(state.spec.removeItem(state.savedData));
+    }
   });
 
-  pieRemove.addEventListener('click', () => {
-    if (pieRows.length > 2) updatePreview({ pieData: pieRows.slice(0, -1) });
-  });
-
-  ex2.querySelector('#btn-dyn-empty')!.addEventListener('click', () => {
-    const bothEmpty = dynBar.data === null && dynPie.data === null;
-    updatePreview(bothEmpty
-      ? { barData: barRows, pieData: pieRows }
-      : { barData: null, pieData: null });
+  btnEmpty.addEventListener('click', () => {
+    const state = getActiveState();
+    updateActiveChartData(state.chart.data === null ? state.savedData : null);
   });
 
   // Example 3: Batched Runtime Config Updates

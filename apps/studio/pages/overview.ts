@@ -1,7 +1,14 @@
 import type { MCBaseChart } from '../../../src/index';
 import { CHART_CATALOG, type ChartCatalogEntry } from '../catalog';
 import { loadChart } from '../chart-loader';
-import { DEFAULT_OPEN_GUIDE_GROUP_COUNT, GUIDE_GROUPS, GUIDES_CATALOG, type GuideId } from '../guides/types';
+import {
+  DEFAULT_OPEN_GUIDE_GROUP_COUNT,
+  GUIDE_GROUPS,
+  GUIDES_CATALOG,
+  isGuideGroupOpen,
+  writeStoredGuideGroupOpen,
+  type GuideId
+} from '../guides/types';
 import { escapeHtml } from '../utils/html';
 import { getOrInitChartConfig } from '../state/config-store';
 import { getGlobalThemeMode } from '../state/theme';
@@ -219,10 +226,11 @@ interface GuideCard {
   summary: string;
 }
 
-function createGuideGroup(id: string, title: string, cards: GuideCard[], open = false): HTMLDetailsElement {
+function createGuideGroup(id: string, title: string, cards: GuideCard[], defaultOpen = false): HTMLDetailsElement {
   const group = document.createElement('details');
   group.className = 'overview-guide-group';
-  group.open = open;
+  group.dataset.guideGroupId = id;
+  group.open = isGuideGroupOpen(id, defaultOpen);
   const summary = document.createElement('summary');
   summary.className = 'overview-guide-group-summary';
   const heading = document.createElement('h2');
@@ -231,6 +239,11 @@ function createGuideGroup(id: string, title: string, cards: GuideCard[], open = 
   heading.textContent = title;
   group.setAttribute('aria-labelledby', heading.id);
   summary.appendChild(heading);
+  summary.addEventListener('click', () => {
+    queueMicrotask(() => {
+      writeStoredGuideGroupOpen(id, group.open);
+    });
+  });
 
   const guidesGrid = document.createElement('div');
   guidesGrid.className = 'overview-guides-grid';

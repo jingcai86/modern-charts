@@ -1,4 +1,9 @@
-import { DEFAULT_OPEN_GUIDE_GROUP_COUNT, GUIDE_GROUPS } from './types';
+import {
+  DEFAULT_OPEN_GUIDE_GROUP_COUNT,
+  GUIDE_GROUPS,
+  isGuideGroupOpen,
+  writeStoredGuideGroupOpen
+} from './types';
 
 export function createGuideNavigationGroups(): DocumentFragment {
   const groups = document.createDocumentFragment();
@@ -7,11 +12,20 @@ export function createGuideNavigationGroups(): DocumentFragment {
     const section = document.createElement('li');
     const disclosure = document.createElement('details');
     disclosure.className = 'nav-dropdown-group';
-    disclosure.open = index < DEFAULT_OPEN_GUIDE_GROUP_COUNT;
+    disclosure.dataset.guideGroupId = group.id;
+    disclosure.open = isGuideGroupOpen(
+      group.id,
+      index < DEFAULT_OPEN_GUIDE_GROUP_COUNT
+    );
     const label = document.createElement('summary');
     label.id = `nav-guide-group-${group.id}`;
     label.className = 'nav-dropdown-group-label';
     label.textContent = group.title;
+    label.addEventListener('click', () => {
+      queueMicrotask(() => {
+        writeStoredGuideGroupOpen(group.id, disclosure.open);
+      });
+    });
 
     const links = document.createElement('ul');
     links.className = 'nav-dropdown-group-links';

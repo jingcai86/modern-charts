@@ -81,7 +81,9 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     const badge = root.querySelector('#cs-event-badge')!;
     const editor = root.querySelector<HTMLTextAreaElement>('#cs-code-1 textarea')!;
     const commentedOptOut = /^([ \t]*)\/\/[ \t]*(chartState: false)/m;
-    expect(root.querySelector('h1')?.textContent).toContain('Default is true');
+    const badgeLink = root.querySelector<HTMLAnchorElement>('h1 a.guide-hero-feature-default');
+    expect(badgeLink?.getAttribute('href')).toBe('#/guide/bootstrapping');
+    expect(badgeLink?.textContent).toContain('Default: true');
     expect(overlay.checked).toBe(true);
     expect(editor.value).toContain("import { registerBarChart } from 'modern-charts/bar';");
     expect(editor.value).toMatch(commentedOptOut);
@@ -114,7 +116,9 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     const customTooltip = bar5.querySelector<HTMLElement>('dashboard-tooltip[slot="tooltip"]')!;
     const commentedOptOut = /^([ \t]*)\/\/[ \t]*(tooltip: false)/m;
 
-    expect(root.querySelector('h1')?.textContent).toContain('Default is true');
+    const badgeLink = root.querySelector<HTMLAnchorElement>('h1 a.guide-hero-feature-default');
+    expect(badgeLink?.getAttribute('href')).toBe('#/guide/bootstrapping');
+    expect(badgeLink?.textContent).toContain('Default: true');
     expect(builtinToggle.checked).toBe(true);
     expect(customTooltip).not.toBeNull();
     expect(editor.value).toContain("import { registerBarChart } from 'modern-charts/bar';");
