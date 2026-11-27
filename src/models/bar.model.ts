@@ -57,6 +57,8 @@ export interface ComputedBarItemModel {
   height: number;
   rx: number;
   isHorizontal: boolean;
+  /** Value-axis pixel position where this bar or stack segment begins. */
+  valueBaseline?: number;
   originalColor: string;
   color: string;
   threshold: ThresholdEvaluationResult;
@@ -245,6 +247,12 @@ export function computeBarChartModel(
     input.barMinHeight !== undefined && Number.isFinite(input.barMinHeight)
       ? Math.max(1, Number(input.barMinHeight))
       : 1;
+  const seriesGap = (activeKeys.length - 1) * innerPad;
+  const bandSize = Math.min(maxBarThickness, isStacked
+    ? bandwidth
+    : Math.max(4, (bandwidth - seriesGap) / activeKeys.length));
+  const occupiedBand = isStacked ? bandSize : activeKeys.length * bandSize + seriesGap;
+  const bandOffset = (bandwidth - occupiedBand) / 2;
   const valueAxis: 'x' | 'y' = isHorizontal ? 'x' : 'y';
 
   const rowSummaries: {
@@ -271,72 +279,25 @@ export function computeBarChartModel(
       const val = Number(row[key] ?? 0);
       const originalColor = ctx.colorScale(key);
 
-      let x = 0;
-      let y = 0;
-      let width = 0;
-      let height = 0;
-
-      if (isHorizontal) {
-        if (isStacked) {
-          const base = val >= 0 ? runningPos : runningNeg;
-          const next = base + val;
-          if (val >= 0) runningPos = next;
-          else runningNeg = next;
-          const x0 = Number(valScale(base));
-          const x1 = Number(valScale(next));
-          const rawW = Math.abs(x1 - x0);
-          width = val !== 0 ? Math.max(minBarSpan, rawW) : Math.max(1, rawW);
-          x = x1 >= x0 ? x0 : x0 - width;
-          height = Math.min(bandwidth, maxBarThickness);
-          y = bandPos + (bandwidth - height) / 2;
-        } else {
-          const rawSubH = Math.max(
-            4,
-            (bandwidth - (activeKeys.length - 1) * innerPad) / activeKeys.length
-          );
-          const subH = Math.min(rawSubH, maxBarThickness);
-          const groupSpan =
-            activeKeys.length * subH + (activeKeys.length - 1) * innerPad;
-          const groupStart = bandPos + (bandwidth - groupSpan) / 2;
-          const x0 = Number(valScale(0));
-          const x1 = Number(valScale(val));
-          const rawW = Math.abs(x1 - x0);
-          width = val !== 0 ? Math.max(minBarSpan, rawW) : Math.max(1, rawW);
-          x = x1 >= x0 ? x0 : x0 - width;
-          y = groupStart + kIdx * (subH + innerPad);
-          height = subH;
-        }
-      } else {
-        if (isStacked) {
-          const base = val >= 0 ? runningPos : runningNeg;
-          const next = base + val;
-          if (val >= 0) runningPos = next;
-          else runningNeg = next;
-          const y0 = Number(valScale(base));
-          const y1 = Number(valScale(next));
-          const rawH = Math.abs(y0 - y1);
-          height = val !== 0 ? Math.max(minBarSpan, rawH) : Math.max(1, rawH);
-          y = y1 <= y0 ? y0 - height : y0;
-          width = Math.min(bandwidth, maxBarThickness);
-          x = bandPos + (bandwidth - width) / 2;
-        } else {
-          const rawSubW = Math.max(
-            4,
-            (bandwidth - (activeKeys.length - 1) * innerPad) / activeKeys.length
-          );
-          const subW = Math.min(rawSubW, maxBarThickness);
-          const groupSpan =
-            activeKeys.length * subW + (activeKeys.length - 1) * innerPad;
-          const groupStart = bandPos + (bandwidth - groupSpan) / 2;
-          const y0 = Number(valScale(0));
-          const y1 = Number(valScale(val));
-          const rawH = Math.abs(y0 - y1);
-          height = val !== 0 ? Math.max(minBarSpan, rawH) : Math.max(1, rawH);
-          x = groupStart + kIdx * (subW + innerPad);
-          y = y1 <= y0 ? y0 - height : y0;
-          width = subW;
-        }
+      let base = 0;
+      let end = val;
+      if (isStacked) {
+        base = val >= 0 ? runningPos : runningNeg;
+        end = base + val;
+        if (val >= 0) runningPos = end;
+        else runningNeg = end;
       }
+
+      const valueBaseline = Number(valScale(base));
+      const valueTip = Number(valScale(end));
+      const valueSize = Math.max(val !== 0 ? minBarSpan : 1, Math.abs(valueTip - valueBaseline));
+      const extendsBeforeBaseline = isHorizontal ? !(valueTip >= valueBaseline) : valueTip <= valueBaseline;
+      const valueStart = extendsBeforeBaseline ? valueBaseline - valueSize : valueBaseline;
+      const bandStart = bandPos + bandOffset + (isStacked ? 0 : kIdx * (bandSize + innerPad));
+      const x = isHorizontal ? valueStart : bandStart;
+      const y = isHorizontal ? bandStart : valueStart;
+      const width = isHorizontal ? valueSize : bandSize;
+      const height = isHorizontal ? bandSize : valueSize;
 
       const evalResult = ctx.evaluateThresholds(
         val,
@@ -374,6 +335,7 @@ export function computeBarChartModel(
         height,
         rx: Math.min(borderRadius, width / 2, height / 2),
         isHorizontal,
+        valueBaseline,
         originalColor,
         color,
         threshold: evalResult,

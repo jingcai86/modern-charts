@@ -259,8 +259,8 @@ export function renderDynamicUpdatesGuide(
       <div>
         <h2 class="panel-title">Example 2: Randomize, Add/Remove Points &amp; Empty State</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Assign <code>chart.data</code> to update a dataset. Randomize Data animates value changes in both charts.
-          The add and remove controls update their own chart.
+          Assign <code>chart.data</code> to update a dataset. Randomize Data animates both charts.
+          Add or remove a quarter or slice to see its neighbors move into place.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">

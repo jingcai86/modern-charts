@@ -3,23 +3,27 @@ import { AnimationEngine } from './animation-engine';
 import { captureItemDefinitions, retainItemDefinitions } from './item-paint-defs';
 import type { AnimationConfig } from './types';
 
-type ItemMotion = (tick: (progress: number) => void, finish?: () => void) => void;
+export type ItemMotion = (tick: (progress: number) => void, finish?: () => void) => void;
 
 interface ItemUpdate {
   initial: boolean;
   entered: boolean;
-  structureChanged: boolean;
   motion?: ItemMotion;
 }
 
 interface ItemLayer {
   groups: Map<string, SVGGElement>;
-  exits: SVGGElement[];
+  exits: Map<string, SVGGElement>;
   timer?: Timer;
+  motion?: ItemMotion;
 }
 
 const layers = new WeakMap<SVGGElement, ItemLayer>();
 const easing = new AnimationEngine();
+
+export function getChartItemMotion(layer: SVGGElement): ItemMotion | undefined {
+  return layers.get(layer)?.motion;
+}
 
 /** Keep one visual group per item while replacing its current event and ARIA targets. */
 export function joinChartItems<T>(
@@ -27,11 +31,13 @@ export function joinChartItems<T>(
   items: readonly T[],
   key: (item: T) => string,
   config: AnimationConfig,
-  render: (group: SVGGElement, item: T, update: ItemUpdate) => void
+  render: (group: SVGGElement, item: T, update: ItemUpdate) => void,
+  renderExit: (group: SVGGElement, motion: ItemMotion) => void
 ): void {
   const previous = layers.get(layer);
   previous?.timer?.stop();
-  previous?.exits.forEach(group => group.remove());
+  const previousGroups = new Map(previous?.groups);
+  previous?.exits.forEach((group, id) => previousGroups.set(id, group));
 
   const counts = new Map<string, number>();
   const keys = items.map(item => {
@@ -40,9 +46,8 @@ export function joinChartItems<T>(
     counts.set(id, count + 1);
     return `${id}\0${count}`;
   });
-  const state: ItemLayer = { groups: new Map(), exits: [] };
+  const state: ItemLayer = { groups: new Map(), exits: new Map() };
   const initial = previous === undefined;
-  const structureChanged = keys.length !== previous?.groups.size || keys.some(id => !previous?.groups.has(id));
   const frames: Array<{ tick: (progress: number) => void; finish?: () => void }> = [];
   const reducedMotion = layer.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const motion: ItemMotion | undefined = !initial && config.enabled && config.duration > 0 && !reducedMotion
@@ -54,16 +59,21 @@ export function joinChartItems<T>(
 
   items.forEach((item, index) => {
     const id = keys[index];
-    const existing = previous?.groups.get(id);
+    const existing = previousGroups.get(id);
     const group = existing ?? layer.ownerDocument.createElementNS(layer.namespaceURI, 'g') as SVGGElement;
     const atIndex = layer.children[index] ?? null;
     if (atIndex !== group) layer.insertBefore(group, atIndex);
+    if (previous?.exits.has(id)) {
+      group.removeAttribute('data-item-transition');
+      group.removeAttribute('aria-hidden');
+      group.style.removeProperty('pointer-events');
+    }
     state.groups.set(id, group);
-    render(group, item, { initial, entered: !existing, structureChanged, motion });
+    render(group, item, { initial, entered: !existing, motion });
     captureItemDefinitions(group);
   });
 
-  for (const [id, group] of previous?.groups ?? []) {
+  for (const [id, group] of previousGroups) {
     if (state.groups.has(id)) continue;
     if (!motion) {
       group.remove();
@@ -79,16 +89,25 @@ export function joinChartItems<T>(
       mark.removeAttribute('data-item-component');
       mark.removeAttribute('data-aria-id');
     }
-    state.exits.push(group);
-    motion(progress => { group.style.opacity = String(1 - progress); }, () => group.remove());
+    state.exits.set(id, group);
+    renderExit(group, motion);
   }
 
   layers.set(layer, state);
-  if (frames.length === 0) return;
+  const removeExits = () => {
+    state.exits.forEach(group => group.remove());
+    state.exits.clear();
+  };
+  if (frames.length === 0) {
+    removeExits();
+    return;
+  }
   const ease = easing.getD3Easing(config.easing);
+  state.motion = motion;
   state.timer = timer(elapsed => {
     const done = elapsed >= config.duration || !layer.isConnected;
-    const progress = done ? 1 : ease(elapsed / config.duration);
+    // Shared boundaries must stay between their starting and target positions.
+    const progress = done ? 1 : Math.max(0, Math.min(1, ease(elapsed / config.duration)));
     for (const frame of frames) {
       frame.tick(progress);
       if (done) frame.finish?.();
@@ -96,7 +115,8 @@ export function joinChartItems<T>(
     if (done) {
       state.timer?.stop();
       state.timer = undefined;
-      state.exits = [];
+      state.motion = undefined;
+      removeExits();
     }
   });
 }

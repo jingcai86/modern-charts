@@ -245,7 +245,8 @@ export function renderCartesianGrid(
  */
 export function renderCartesianAxes(
   ctx: ChartRenderContext<any>,
-  options: CartesianAxisOptions = {}
+  options: CartesianAxisOptions = {},
+  onTick?: (axis: 'x' | 'y', value: unknown, coordinate: number, line: SVGLineElement, label: SVGElement | null) => void
 ): void {
   const rawXPos =
     options.xPosition ?? ctx.scaleConfig?.x?.position ?? 'bottom';
@@ -378,6 +379,7 @@ export function renderCartesianAxes(
             data: tickData
           });
         }
+        onTick?.('x', tick, x, tickLine, xTickLabel);
 
         const rotDeg = Number(
           xTickLabel?.getAttribute('data-applied-rotation') || 0
@@ -535,6 +537,7 @@ export function renderCartesianAxes(
             data: tickData
           });
         }
+        onTick?.('y', tick, y, tickLine, yTickLabel);
       });
 
       if (yTitle) {

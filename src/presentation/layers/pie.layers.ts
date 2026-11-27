@@ -1,55 +1,138 @@
-import { joinChartItems } from '../../core/chart-item-join';
+import { joinChartItems, type ItemMotion } from '../../core/chart-item-join';
 import { physicalTextAnchor } from '../../core/i18n';
 import { formatGroupedNumber } from '../../core/format';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, PieDatum } from '../../core/types';
-import { pieArcPath, type PieArcGeometry, type PieChartModel } from '../../models/pie.model';
+import {
+  pieArcCentroid,
+  pieArcLinkPoints,
+  pieArcPath,
+  type ComputedPieArcModel,
+  type PieArcGeometry,
+  type PieChartModel
+} from '../../models/pie.model';
 import { renderPieArcItem } from '../items/arc.item';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const drawnArcs = new WeakMap<SVGGElement, PieArcGeometry>();
+interface DrawnArc {
+  key: string;
+  geometry: PieArcGeometry;
+}
+
+const drawnArcs = new WeakMap<SVGGElement, DrawnArc>();
+const movingArcs = new WeakMap<ComputedPieArcModel, { current: DrawnArc; motion: ItemMotion }>();
+
+function formatLinkPoints(points: ComputedPieArcModel['linkPoints']): string {
+  return points.map(point => point.join(',')).join(' ');
+}
+
+function inAngularOrder(arcs: ReadonlyMap<string, PieArcGeometry>) {
+  const ordered = [...arcs];
+  const sweep = ordered.reduce((sum, [, arc]) => sum + arc.endAngle - arc.startAngle, 0);
+  const direction = sweep < 0 ? -1 : 1;
+  return ordered.sort(([, a], [, b]) => direction * (a.startAngle - b.startAngle || a.endAngle - b.endAngle));
+}
+
+function collapseBoundaries(
+  ordered: Array<[string, PieArcGeometry]>,
+  other: ReadonlyMap<string, PieArcGeometry>,
+  edge: 'startAngle' | 'endAngle',
+  boundary?: number
+) {
+  const result = new Map<string, number>();
+  for (const [key, arc] of ordered) {
+    const neighbor = other.get(key);
+    if (neighbor) boundary = neighbor[edge];
+    else result.set(key, boundary ?? arc.startAngle);
+  }
+  return result;
+}
+
+function collapseArc(arc: PieArcGeometry, angle: number): PieArcGeometry {
+  return { ...arc, startAngle: angle, endAngle: angle, padAngle: 0 };
+}
+
+function tweenArc(
+  path: SVGPathElement,
+  current: DrawnArc,
+  target: PieArcGeometry,
+  motion: ItemMotion,
+  onFinish?: () => void
+): void {
+  const from = current.geometry;
+  const frame = { ...from };
+  const fields = Object.keys(target) as Array<keyof PieArcGeometry>;
+  const transition = path.style.transition;
+  path.style.transition = '';
+  current.geometry = frame;
+  motion((t) => {
+    for (const field of fields) frame[field] = from[field] + (target[field] - from[field]) * t;
+    path.setAttribute('d', pieArcPath(frame));
+  }, () => {
+    current.geometry = target;
+    path.style.transition = transition;
+    onFinish?.();
+  });
+}
 
 export function renderPieArcsLayer(
   model: PieChartModel,
   ctx: ChartRenderContext<PieDatum[]>
 ): void {
   const center = `translate(${model.cx}, ${model.cy})`;
+  const occurrences = new Map<string, number>();
+  const slices = model.arcs.map((slice) => {
+    const id = slice.data.id;
+    const occurrence = occurrences.get(id) ?? 0;
+    occurrences.set(id, occurrence + 1);
+    return { key: `${id}\0${occurrence}`, slice };
+  });
+  const targets = new Map(slices.map(({ key, slice }) => [key, slice.geometry]));
+  const previous = new Map<string, PieArcGeometry>();
+  for (const group of ctx.layerGroup.children) {
+    const arc = drawnArcs.get(group as SVGGElement);
+    if (arc) previous.set(arc.key, arc.geometry);
+  }
+  const oldOrder = inAngularOrder(previous);
+  const newOrder = inAngularOrder(targets);
+  // Keep outgoing slices ahead of incoming slices in angular order so their edges meet.
+  const exiting = collapseBoundaries(oldOrder, targets, 'endAngle', newOrder[0]?.[1].startAngle);
+  const entering = collapseBoundaries(newOrder.reverse(), previous, 'startAngle', oldOrder.at(-1)?.[1].endAngle);
+
   joinChartItems(
     ctx.layerGroup,
-    model.arcs,
-    (slice) => slice.data.id,
+    slices,
+    ({ key }) => key,
     ctx.animationConfig,
-    (group, slice, { initial, entered, structureChanged, motion }) => {
+    (group, { key, slice }, { initial, entered, motion }) => {
       group.setAttribute('transform', center);
       const path = renderPieArcItem(slice, ctx, initial);
       group.replaceChildren(path);
 
       const target = slice.geometry;
-      const from = entered
-        ? { ...target, endAngle: target.startAngle, padAngle: 0 }
-        : drawnArcs.get(group);
-      if (initial || !motion || !from || (!entered && structureChanged) || pieArcPath(from) === slice.pathD) {
-        drawnArcs.set(group, target);
+      const from = drawnArcs.get(group)?.geometry ?? collapseArc(target, entering.get(key) ?? target.startAngle);
+      const current = { key, geometry: target };
+      drawnArcs.set(group, current);
+      if (!motion || pieArcPath(from) === slice.pathD) {
         return;
       }
 
-      const geometry = { ...from };
-      const fields = Object.keys(target) as Array<keyof PieArcGeometry>;
-      const transition = path.style.transition;
-      path.style.transition = '';
       path.setAttribute('data-animated', 'true');
       path.setAttribute('data-item-transition', entered ? 'enter' : 'update');
-      drawnArcs.set(group, geometry);
-      motion((progress) => {
-        for (const field of fields) geometry[field] = from[field] + (target[field] - from[field]) * progress;
-        path.setAttribute('d', pieArcPath(geometry));
-      }, () => {
-        drawnArcs.set(group, target);
-        path.style.transition = transition;
+      current.geometry = from;
+      movingArcs.set(slice, { current, motion });
+      tweenArc(path, current, target, motion, () => {
         path.removeAttribute('data-item-transition');
         const hovered = ctx.isInteractive !== false && path.matches(':hover');
         path.setAttribute('d', hovered ? slice.hoverPathD : slice.pathD);
       });
+    },
+    (group, motion) => {
+      const state = drawnArcs.get(group);
+      const path = group.querySelector<SVGPathElement>('.mc-pie-arc');
+      if (!state || !path) return;
+      const target = collapseArc(state.geometry, exiting.get(state.key) ?? state.geometry.startAngle);
+      tweenArc(path, state, target, motion);
     }
   );
 }
@@ -63,8 +146,8 @@ export function renderPieArcLabelsLayer(
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
   model.arcs.forEach((arc, idx) => {
-    if (arc.endAngle - arc.startAngle < 0.25) return;
-    ctx.renderLabel(g, {
+    if (Math.abs(arc.endAngle - arc.startAngle) < 0.25) return;
+    const label = ctx.renderLabel(g, {
       id: `arc-label-${idx}`,
       text: ctx.i18n.formatPercent(Math.round(arc.percentage) / 100, { maximumFractionDigits: 0 }),
       x: arc.centroid[0],
@@ -81,6 +164,18 @@ export function renderPieArcLabelsLayer(
         value: arc.value,
         percentage: Math.round(arc.percentage)
       }
+    });
+    const moving = movingArcs.get(arc);
+    if (!label || !moving) return;
+    const transform = label.getAttribute('transform') ?? '';
+    moving.motion(() => {
+      const geometry = moving.current.geometry;
+      const [x, y] = pieArcCentroid(geometry);
+      label.setAttribute('transform', `translate(${x - arc.centroid[0]}, ${y - arc.centroid[1]}) ${transform}`);
+      label.style.visibility = Math.abs(geometry.endAngle - geometry.startAngle) < 0.25 ? 'hidden' : '';
+    }, () => {
+      label.setAttribute('transform', transform);
+      label.style.visibility = '';
     });
   });
 
@@ -99,13 +194,10 @@ export function renderPieArcLinkLabelsLayer(
 
   model.arcs.forEach((arc, idx) => {
     if (Math.abs(arc.endAngle - arc.startAngle) < skipAngleRad) return;
-    const [p0, p1, p2] = arc.linkPoints;
+    const p2 = arc.linkPoints[2];
     const polyline = document.createElementNS(SVG_NS, 'polyline');
     polyline.setAttribute('class', 'mc-pie-link-line');
-    polyline.setAttribute(
-      'points',
-      `${p0[0]},${p0[1]} ${p1[0]},${p1[1]} ${p2[0]},${p2[1]}`
-    );
+    polyline.setAttribute('points', formatLinkPoints(arc.linkPoints));
     polyline.setAttribute('fill', 'none');
     polyline.setAttribute('stroke', arc.color);
     polyline.setAttribute('stroke-width', '1.5');
@@ -142,6 +234,25 @@ export function renderPieArcLinkLabelsLayer(
           index: idx,
           count: model.arcs.length
         }
+      });
+    }
+    const moving = movingArcs.get(arc);
+    if (moving) {
+      const transform = linkLabelG?.getAttribute('transform') ?? '';
+      moving.motion(() => {
+        const geometry = moving.current.geometry;
+        const rightSide = Math.sin((geometry.startAngle + geometry.endAngle) / 2) >= -1e-6;
+        const visible = Math.abs(geometry.endAngle - geometry.startAngle) >= skipAngleRad && rightSide === arc.isRightSide;
+        const points = pieArcLinkPoints(geometry, model.arcLinkLabelsDiagonalLength, model.arcLinkLabelsStraightLength, rightSide);
+        const tail = points[2];
+        polyline.setAttribute('points', formatLinkPoints(points));
+        polyline.style.visibility = visible ? '' : 'hidden';
+        if (linkLabelG) {
+          linkLabelG.setAttribute('transform', `translate(${tail[0] - p2[0]}, ${tail[1] - p2[1]}) ${transform}`);
+          linkLabelG.style.visibility = polyline.style.visibility;
+        }
+      }, () => {
+        linkLabelG?.setAttribute('transform', transform);
       });
     }
   });

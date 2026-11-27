@@ -1,4 +1,5 @@
 import { MCBaseChart } from '../core/base-chart';
+import { getChartItemMotion } from '../core/chart-item-join';
 import {
   createDefaultScaleConfig,
   renderCartesianAxes,
@@ -26,6 +27,13 @@ import {
   renderBarOuterLabelsLayer,
   renderBarsLayer
 } from '../presentation/layers/bar.layers';
+
+interface CategoryTick {
+  axis: 'x' | 'y';
+  value: unknown;
+  coordinate: number;
+  nodes: SVGElement[];
+}
 
 /**
  * `<mc-bar-chart>` Orchestrator Web Component.
@@ -59,6 +67,9 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
   ];
 
   #keys: string[] | null = null;
+  #categoryTicks: CategoryTick[] = [];
+  #displayedTicks = new Map<string, number>();
+  #barsLayer?: SVGGElement;
 
   get chartType(): string {
     return 'bar';
@@ -234,6 +245,8 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
   }
 
   protected prepareContext(ctx: ChartRenderContext<BarDatum[]>): void {
+    this.#categoryTicks = [];
+    this.#barsLayer = undefined;
     const outerLabels = this.resolveOuterLabelsConfig();
     const model = computeBarChartModel(ctx, {
       indexBy: this.indexBy,
@@ -264,6 +277,38 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
     ctx.state.activeKeys = model.activeKeys;
   }
 
+  protected override afterRender(): void {
+    const motion = this.#barsLayer && getChartItemMotion(this.#barsLayer);
+    const previous = this.#displayedTicks;
+    const displayed = new Map<string, number>();
+    this.#displayedTicks = displayed;
+    for (const { axis, value, coordinate, nodes } of this.#categoryTicks) {
+      const key = `${axis}:${String(value)}`;
+      const from = previous.get(key);
+      displayed.set(key, coordinate);
+      if (!motion || from === coordinate) continue;
+
+      const transforms = nodes.map(node => node.getAttribute('transform'));
+      motion(progress => {
+        if (from === undefined) {
+          nodes.forEach(node => { node.style.opacity = String(progress); });
+          return;
+        }
+        const offset = (from - coordinate) * (1 - progress);
+        const transform = axis === 'x' ? `translate(${offset},0)` : `translate(0,${offset})`;
+        displayed.set(key, coordinate + offset);
+        nodes.forEach((node, index) => node.setAttribute('transform', `${transform} ${transforms[index] ?? ''}`));
+      }, () => {
+        nodes.forEach((node, index) => {
+          const transform = transforms[index];
+          if (transform === null) node.removeAttribute('transform');
+          else node.setAttribute('transform', transform);
+          node.style.removeProperty('opacity');
+        });
+      });
+    }
+  }
+
   protected getLayerRenderers(): Record<
     string,
     (ctx: ChartRenderContext<BarDatum[]>) => void
@@ -280,9 +325,15 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
         renderCartesianAxes(ctx, {
           xTitle: model.xTitle,
           yTitle: model.yTitle
+        }, (axis, value, coordinate, line, label) => {
+          if (axis !== (model.layout === 'horizontal' ? 'y' : 'x')) return;
+          this.#categoryTicks.push({ axis, value, coordinate, nodes: label ? [line, label] : [line] });
         });
       },
-      bars: (ctx) => renderBarsLayer(ctx.state.model as BarChartModel, ctx),
+      bars: (ctx) => {
+        this.#barsLayer = ctx.layerGroup;
+        renderBarsLayer(ctx.state.model as BarChartModel, ctx);
+      },
       labels: (ctx) =>
         renderBarLabelsLayer(ctx.state.model as BarChartModel, ctx, {
           includeOuterLabels: !hasExplicitOuterLayer

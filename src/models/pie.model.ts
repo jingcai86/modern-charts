@@ -1,4 +1,4 @@
-import { arc, pie, type DefaultArcObject, type PieArcDatum } from 'd3';
+import { arc, pie, type DefaultArcObject } from 'd3';
 import { createOrdinalColorScale } from '../core/theme';
 import type {
   ChartRenderContext,
@@ -16,6 +16,23 @@ const sliceShape = arc<PieArcGeometry>().cornerRadius((geometry) => geometry.cor
 
 export function pieArcPath(geometry: PieArcGeometry): string {
   return sliceShape(geometry) ?? '';
+}
+
+export function pieArcCentroid(geometry: PieArcGeometry): [number, number] {
+  return sliceShape.centroid(geometry);
+}
+
+export function pieArcLinkPoints(
+  geometry: PieArcGeometry,
+  diagonal: number,
+  straight: number,
+  isRightSide: boolean
+): ComputedPieArcModel['linkPoints'] {
+  const [x, y] = sliceShape.centroid({ ...geometry, innerRadius: 1, outerRadius: 1 });
+  const radius = geometry.outerRadius;
+  const midRadius = radius + diagonal;
+  const [midX, midY] = [x * midRadius, y * midRadius];
+  return [[x * radius, y * radius], [midX, midY], [midX + (isRightSide ? straight : -straight), midY]];
 }
 
 export interface ComputedPieArcModel {
@@ -214,25 +231,8 @@ export function computePieChartModel(
       cornerRadius: input.cornerRadius
     };
 
-    const linkStartArc = arc<PieArcDatum<PieDatum>>()
-      .innerRadius(sliceOuterRadius)
-      .outerRadius(sliceOuterRadius);
-
-    const linkMidArc = arc<PieArcDatum<PieDatum>>()
-      .innerRadius(sliceOuterRadius + arcLinkLabelsDiagonalLength)
-      .outerRadius(sliceOuterRadius + arcLinkLabelsDiagonalLength);
-
     const midAngle = (a.startAngle + a.endAngle) / 2;
     const isRightSide = Math.sin(midAngle) >= -1e-6;
-    const p0 = linkStartArc.centroid(a);
-    const p1 = linkMidArc.centroid(a);
-    const p2: [number, number] = [
-      p1[0] +
-        (isRightSide
-          ? arcLinkLabelsStraightLength
-          : -arcLinkLabelsStraightLength),
-      p1[1]
-    ];
 
     return {
       index,
@@ -248,8 +248,8 @@ export function computePieChartModel(
       color: a.data.color || ctx.colorScale(a.data.id),
       pathD: pieArcPath(geometry),
       hoverPathD: pieArcPath({ ...geometry, outerRadius: sliceOuterRadius + activeOuterRadiusOffset }),
-      centroid: sliceShape.centroid(geometry),
-      linkPoints: [p0, p1, p2],
+      centroid: pieArcCentroid(geometry),
+      linkPoints: pieArcLinkPoints(geometry, arcLinkLabelsDiagonalLength, arcLinkLabelsStraightLength, isRightSide),
       isRightSide
     };
   });
