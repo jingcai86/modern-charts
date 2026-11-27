@@ -155,6 +155,60 @@ describe('Chart view controls', () => {
     expect(onZoom.mock.lastCall?.[0].detail).toEqual({ k: 1, x: 0, y: 0 });
   });
 
+  it('activates preset zoom buttons once per Enter or Space press', () => {
+    const { chart, viewport } = mountZoomChart({ minZoom: 1, maxZoom: 2 });
+    const onZoom = vi.fn();
+    chart.addEventListener('mc-zoom', onZoom);
+    const zoomIn = chart.shadowRoot!.querySelector<HTMLButtonElement>('[data-zoom="in"]')!;
+    const reset = chart.shadowRoot!.querySelector<HTMLButtonElement>('[data-zoom="reset"]')!;
+    const press = (button: HTMLButtonElement, type: 'keydown' | 'keyup', key: string) =>
+      button.dispatchEvent(new KeyboardEvent(type, { key, bubbles: true, cancelable: true }));
+
+    expect(press(zoomIn, 'keydown', 'Enter')).toBe(false);
+    expect(press(zoomIn, 'keyup', 'Enter')).toBe(true);
+    expect(viewport.getAttribute('transform')).toContain('scale(1.25)');
+    expect(onZoom).toHaveBeenCalledTimes(1);
+
+    expect(press(zoomIn, 'keydown', ' ')).toBe(false);
+    expect(press(zoomIn, 'keyup', ' ')).toBe(false);
+    expect(viewport.getAttribute('transform')).toContain('scale(1.5625)');
+    expect(onZoom).toHaveBeenCalledTimes(2);
+
+    expect(press(reset, 'keydown', 'Spacebar')).toBe(false);
+    expect(press(reset, 'keyup', 'Spacebar')).toBe(false);
+    expect(viewport.getAttribute('transform')).toBe('translate(0, 0) scale(1)');
+    expect(onZoom).toHaveBeenCalledTimes(3);
+  });
+
+  it('leaves unrelated and composing keys alone and ignores disabled zoom buttons', () => {
+    const { chart, viewport } = mountZoomChart({ zoomable: true });
+    const onZoom = vi.fn();
+    chart.addEventListener('mc-zoom', onZoom);
+    const controls = chart.shadowRoot!.querySelector<HTMLElement>('.mc-view-controls')!;
+    const zoomIn = controls.querySelector<HTMLButtonElement>('[data-zoom="in"]')!;
+    const keydown = (key: string, isComposing = false) =>
+      new KeyboardEvent('keydown', { key, isComposing, bubbles: true, cancelable: true });
+
+    expect(controls.dispatchEvent(keydown('Enter'))).toBe(true);
+    expect(zoomIn.dispatchEvent(keydown('ArrowRight'))).toBe(true);
+    expect(zoomIn.dispatchEvent(keydown('Enter', true))).toBe(true);
+    const legacyComposition = keydown('Enter');
+    Object.defineProperty(legacyComposition, 'keyCode', { value: 229 });
+    expect(zoomIn.dispatchEvent(legacyComposition)).toBe(true);
+    expect(onZoom).not.toHaveBeenCalled();
+
+    zoomIn.click();
+    const lockedTransform = viewport.getAttribute('transform');
+    expect(lockedTransform).toContain('scale(1.25)');
+    onZoom.mockClear();
+    chart.setZoomEnabled(false);
+    expect(zoomIn.disabled).toBe(true);
+    expect(zoomIn.dispatchEvent(keydown('Enter'))).toBe(true);
+    zoomIn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onZoom).not.toHaveBeenCalled();
+    expect(viewport.getAttribute('transform')).toBe(lockedTransform);
+  });
+
   it('anchors wheel zoom in a scaled SVG and releases scrolling when zoom is disabled', () => {
     const { chart, svg, viewport } = mountZoomChart({ direction: 'y', pannable: false });
     Object.defineProperty(svg, 'clientWidth', { value: 250 });
