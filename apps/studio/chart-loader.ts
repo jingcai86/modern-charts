@@ -3,7 +3,13 @@ import { configureChartFeatures } from '../../src/core/features';
 import type { ChartBootstrapOptions } from '../../src/core/types';
 
 export const STUDIO_BOOTSTRAP_OPTIONS = {
-  features: { zoom: true, csvExport: true, selection: true, chartState: true }
+  features: {
+    zoom: true,
+    csvExport: true,
+    selection: true,
+    chartState: true,
+    tooltip: true
+  }
 } satisfies ChartBootstrapOptions;
 
 const chartModules = new Map<string, () => Promise<unknown>>([

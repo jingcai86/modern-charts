@@ -85,8 +85,8 @@ import { MCLabelElement } from '../components/mc-label';
 import { MCTruncateElement } from '../components/mc-truncate';
 import { MCLegendElement } from '../components/mc-legend';
 import {
-  MCTooltipElement,
-  normalizeTooltipPosition
+  normalizeTooltipPosition,
+  type MCTooltipElement
 } from '../components/mc-tooltip';
 import { MCDefElement } from '../components/mc-def';
 import type { MCChartStateElement } from '../components/mc-chart-state';
@@ -138,6 +138,7 @@ const getBaseChartTemplate = lazyTemplate(`
       <slot name="loading" slot="loading"></slot>
       <slot name="empty" slot="empty"></slot>
     </mc-chart-state>
+    <slot name="tooltip" class="mc-tooltip-slot"></slot>
     <div class="mc-aria-live visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="mc-aria-table-container visually-hidden"></div>
     <div class="mc-internal-subcomponents" hidden>
@@ -213,6 +214,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   #unsubscribeFeatures?: () => void;
   #lastI18n?: ChartI18n;
   #tooltipMoveHandler: ((e: MouseEvent) => void) | null = null;
+  #itemTooltipVisible = false;
+  #legendTooltipVisible = false;
+  #activeItemTooltipPayload: TooltipPayload | null = null;
 
   protected labelEngine = new LabelEngine();
   protected animationEngine = new AnimationEngine();
@@ -2448,7 +2452,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
   #handleAriaItemBlur(): void {
     const tooltip = this.getTooltipElement();
-    if (tooltip && tooltip.activeSource === 'keyboard') {
+    if (
+      this.#activeItemTooltipPayload?.source === 'keyboard' ||
+      (tooltip && tooltip.activeSource === 'keyboard')
+    ) {
       this.hideTooltip();
     }
   }
@@ -2557,10 +2564,13 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
   /**
    * Returns the dedicated singleton legend `<mc-tooltip>` instance owned by this
-   * chart (separate from the chart data item tooltip), or `null` when static (`isInteractive = false`).
+   * chart (separate from the chart data item tooltip), or `null` when static
+   * (`isInteractive = false`) or when `features.tooltip` is `false`.
    */
   public getLegendTooltipElement(): MCTooltipElement | null {
-    if (!this.resolveIsInteractive()) return null;
+    if (!this.resolveIsInteractive() || !isChartFeatureEnabled('tooltip')) {
+      return null;
+    }
     this.#syncInteractiveTooltips(true);
     return (
       (this.shadowRoot?.querySelector(
@@ -2576,11 +2586,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     theme?: ChartTheme
   ): void {
     if (!this.resolveIsInteractive()) return;
-    const tooltip = this.getLegendTooltipElement();
     const container = this.shadowRoot?.querySelector(
       '.mc-chart-container'
     ) as HTMLDivElement | null;
-    if (!tooltip || !container) return;
+    if (!container) return;
 
     const legendConfig = this.resolveLegendConfig();
     if (!legendConfig.enableTooltip || legendConfig.tooltip.enabled === false) {
@@ -2592,6 +2601,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       typeof content === 'string'
         ? {
             chartType: this.chartType,
+            target: 'legend',
             defaultHtml: content,
             data: this._data,
             clientX,
@@ -2600,49 +2610,108 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
         : {
             ...content,
             chartType: this.chartType,
+            target: content.target ?? 'legend',
             data: this._data,
             clientX,
             clientY
           };
 
+    const legendTooltipConfig: TooltipConfig<LegendItem> = {
+      offsetX: 10,
+      offsetY: -36,
+      ...legendConfig.tooltip
+    };
+    const source = payload.source ?? 'pointer';
+    const requestedMode =
+      source === 'keyboard'
+        ? 'item'
+        : normalizeTooltipPosition(legendTooltipConfig.position) ??
+          payload.positionMode ??
+          'follow';
+    const resolvedMode: TooltipPositionMode =
+      requestedMode === 'item' && payload.anchor ? 'item' : 'follow';
+    payload.positionMode = resolvedMode;
+    payload.source = source;
+
     const activeTheme = theme ?? this.resolveTheme();
     const rect = container.getBoundingClientRect();
+    const i18n = this.resolveI18n();
+    const tooltip = this.getLegendTooltipElement();
 
-    if (typeof tooltip.show === 'function') {
-      const shown = tooltip.show(payload, activeTheme, rect, {
-        offsetX: 10,
-        offsetY: -36,
-        ...legendConfig.tooltip
-      }, this.resolveI18n());
-      if (shown) {
-        this.dispatchEvent(
-          new CustomEvent('mc-legend-tooltip-show', {
-            bubbles: true,
-            composed: true,
-            detail: payload
-          })
-        );
+    if (tooltip && typeof tooltip.show === 'function') {
+      const shown = tooltip.show(
+        payload,
+        activeTheme,
+        rect,
+        legendTooltipConfig,
+        i18n
+      );
+      if (!shown) {
+        this.#legendTooltipVisible = false;
+        return;
+      }
+    } else if (typeof legendTooltipConfig.formatter === 'function') {
+      const formatted = legendTooltipConfig.formatter(payload);
+      if (formatted === null) {
+        this.hideLegendTooltip();
+        return;
+      }
+      if (typeof formatted === 'string') {
+        payload.defaultHtml = formatted;
       }
     }
+
+    for (const slotted of this.#getSlottedTooltips()) {
+      if (typeof (slotted as any).show === 'function') {
+        const res = (slotted as any).show(
+          payload,
+          activeTheme,
+          rect,
+          legendTooltipConfig,
+          i18n
+        );
+        if (res === false) {
+          this.#legendTooltipVisible = false;
+          return;
+        }
+      }
+    }
+
+    this.#legendTooltipVisible = true;
+    this.dispatchEvent(
+      new CustomEvent('mc-legend-tooltip-show', {
+        bubbles: true,
+        composed: true,
+        detail: payload
+      })
+    );
   }
 
   public hideLegendTooltip(): void {
     const tooltip = this.getLegendTooltipElement();
+    let wasVisible = this.#legendTooltipVisible;
     if (tooltip) {
-      const wasVisible = !tooltip.hidden;
+      wasVisible = wasVisible || !tooltip.hidden;
       if (typeof tooltip.hide === 'function') {
         tooltip.hide();
       } else {
         tooltip.hidden = true;
       }
-      if (wasVisible) {
-        this.dispatchEvent(
-          new CustomEvent('mc-legend-tooltip-hide', {
-            bubbles: true,
-            composed: true
-          })
-        );
+    }
+    for (const slotted of this.#getSlottedTooltips()) {
+      if (typeof (slotted as any).hide === 'function') {
+        (slotted as any).hide('legend');
       }
+    }
+    this.#legendTooltipVisible = false;
+    if (wasVisible) {
+      this.dispatchEvent(
+        new CustomEvent('mc-legend-tooltip-hide', {
+          bubbles: true,
+          composed: true,
+          detail: { target: 'legend', chartType: this.chartType }
+        })
+      );
     }
   }
 
@@ -2689,10 +2758,13 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
   /**
    * Returns the single internal `<mc-tooltip>` Web Component instance owned by
-   * this chart (one per chart for performance), or `null` when static (`isInteractive = false`).
+   * this chart (one per chart for performance), or `null` when static
+   * (`isInteractive = false`) or when `features.tooltip` is `false`.
    */
   public getTooltipElement(): MCTooltipElement | null {
-    if (!this.resolveIsInteractive()) return null;
+    if (!this.resolveIsInteractive() || !isChartFeatureEnabled('tooltip')) {
+      return null;
+    }
     this.#syncInteractiveTooltips(true);
     return (
       (this.shadowRoot?.querySelector('.mc-tooltip') as MCTooltipElement | null) ??
@@ -2708,11 +2780,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     overrideConfig?: TooltipConfig<any>
   ): void {
     if (!this.resolveIsInteractive()) return;
-    const tooltip = this.getTooltipElement();
     const container = this.shadowRoot?.querySelector(
       '.mc-chart-container'
     ) as HTMLDivElement | null;
-    if (!tooltip || !container) return;
+    if (!container) return;
 
     const baseConfig = this.resolveTooltipConfig();
     const tooltipConfig: TooltipConfig<any> = overrideConfig
@@ -2727,6 +2798,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       typeof content === 'string'
         ? {
             chartType: this.chartType,
+            target: 'item',
             defaultHtml: content,
             data: this._data,
             clientX,
@@ -2735,46 +2807,119 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
         : {
             ...content,
             chartType: this.chartType,
+            target: content.target ?? 'item',
             data: this._data,
             clientX,
             clientY
           };
 
+    const source = payload.source ?? 'pointer';
+    const requestedMode =
+      source === 'keyboard'
+        ? 'item'
+        : normalizeTooltipPosition(tooltipConfig.position) ??
+          payload.positionMode ??
+          'follow';
+    const resolvedMode: TooltipPositionMode =
+      requestedMode === 'item' && payload.anchor ? 'item' : 'follow';
+    payload.positionMode = resolvedMode;
+    payload.source = source;
+
     const activeTheme = theme ?? this.resolveTheme();
     const rect = container.getBoundingClientRect();
+    const i18n = this.resolveI18n();
+    const tooltip = this.getTooltipElement();
 
-    if (typeof tooltip.show === 'function') {
-      const shown = tooltip.show(payload, activeTheme, rect, tooltipConfig, this.resolveI18n());
-      if (shown) {
-        this.dispatchEvent(
-          new CustomEvent('mc-tooltip-show', {
-            bubbles: true,
-            composed: true,
-            detail: payload
-          })
-        );
+    if (tooltip && typeof tooltip.show === 'function') {
+      const shown = tooltip.show(
+        payload,
+        activeTheme,
+        rect,
+        tooltipConfig,
+        i18n
+      );
+      if (!shown) {
+        this.#itemTooltipVisible = false;
+        this.#activeItemTooltipPayload = null;
+        return;
+      }
+    } else if (typeof tooltipConfig.formatter === 'function') {
+      const formatted = tooltipConfig.formatter(payload);
+      if (formatted === null) {
+        this.hideTooltip();
+        return;
+      }
+      if (typeof formatted === 'string') {
+        payload.defaultHtml = formatted;
       }
     }
+
+    for (const slotted of this.#getSlottedTooltips()) {
+      if (typeof (slotted as any).show === 'function') {
+        const res = (slotted as any).show(
+          payload,
+          activeTheme,
+          rect,
+          tooltipConfig,
+          i18n
+        );
+        if (res === false) {
+          this.#itemTooltipVisible = false;
+          this.#activeItemTooltipPayload = null;
+          return;
+        }
+      }
+    }
+
+    this.#itemTooltipVisible = true;
+    this.#activeItemTooltipPayload = payload;
+    this.dispatchEvent(
+      new CustomEvent('mc-tooltip-show', {
+        bubbles: true,
+        composed: true,
+        detail: payload
+      })
+    );
   }
 
   public hideTooltip(): void {
     const tooltip = this.getTooltipElement();
+    let wasVisible = this.#itemTooltipVisible;
     if (tooltip) {
-      const wasVisible = !tooltip.hidden;
+      wasVisible = wasVisible || !tooltip.hidden;
       if (typeof tooltip.hide === 'function') {
         tooltip.hide();
       } else {
         tooltip.hidden = true;
       }
-      if (wasVisible) {
-        this.dispatchEvent(
-          new CustomEvent('mc-tooltip-hide', {
-            bubbles: true,
-            composed: true
-          })
-        );
+    }
+    for (const slotted of this.#getSlottedTooltips()) {
+      if (typeof (slotted as any).hide === 'function') {
+        (slotted as any).hide('item');
       }
     }
+    this.#itemTooltipVisible = false;
+    this.#activeItemTooltipPayload = null;
+    if (wasVisible) {
+      this.dispatchEvent(
+        new CustomEvent('mc-tooltip-hide', {
+          bubbles: true,
+          composed: true,
+          detail: { target: 'item', chartType: this.chartType }
+        })
+      );
+    }
+  }
+
+  #getSlottedTooltips(): HTMLElement[] {
+    const slot = this.shadowRoot?.querySelector<HTMLSlotElement>(
+      'slot[name="tooltip"]'
+    );
+    const assigned =
+      slot && typeof slot.assignedElements === 'function'
+        ? slot.assignedElements({ flatten: true })
+        : Array.from(this.querySelectorAll(':scope > [slot="tooltip"]'));
+    return assigned.filter((el): el is HTMLElement => el instanceof HTMLElement);
   }
 
   #syncInteractiveTooltips(isInteractive: boolean): void {
@@ -2783,22 +2928,31 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     ) as HTMLDivElement | null;
     if (!container) return;
 
-    const existingTip = container.querySelector(
+    const existingTip = container.querySelector<MCTooltipElement>(
       ':scope > mc-tooltip.mc-tooltip'
     );
-    const existingLegendTip = container.querySelector(
+    const existingLegendTip = container.querySelector<MCTooltipElement>(
       ':scope > mc-tooltip.mc-legend-tooltip'
     );
 
     if (!isInteractive) {
+      this.#itemTooltipVisible = false;
+      this.#legendTooltipVisible = false;
+      this.#activeItemTooltipPayload = null;
       existingTip?.remove();
       existingLegendTip?.remove();
       return;
     }
 
-    const insertBefore = container.querySelector('.mc-aria-live');
+    if (!isChartFeatureEnabled('tooltip')) {
+      existingTip?.remove();
+      existingLegendTip?.remove();
+      return;
+    }
+
+    const insertBefore = container.querySelector('.mc-tooltip-slot, .mc-aria-live');
     if (!existingTip) {
-      const tip = document.createElement('mc-tooltip');
+      const tip = document.createElement('mc-tooltip') as MCTooltipElement;
       tip.className = 'mc-tooltip';
       tip.setAttribute('part', 'tooltip-host');
       tip.setAttribute(
@@ -2807,10 +2961,12 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       );
       tip.hidden = true;
       container.insertBefore(tip, insertBefore);
+    } else if (typeof existingTip.sync === 'function') {
+      existingTip.sync();
     }
 
     if (!existingLegendTip) {
-      const legendTip = document.createElement('mc-tooltip');
+      const legendTip = document.createElement('mc-tooltip') as MCTooltipElement;
       legendTip.className = 'mc-legend-tooltip';
       legendTip.setAttribute('part', 'legend-tooltip-host');
       legendTip.setAttribute(
@@ -2819,6 +2975,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       );
       legendTip.hidden = true;
       container.insertBefore(legendTip, insertBefore);
+    } else if (typeof existingLegendTip.sync === 'function') {
+      existingLegendTip.sync();
     }
   }
 
@@ -2838,30 +2996,64 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
     if (this.#tooltipMoveHandler) return;
     this.#tooltipMoveHandler = (e: MouseEvent) => {
-      const tooltip = this.getTooltipElement();
-      if (!tooltip || tooltip.hidden) return;
-      if (
-        tooltip.activePositionMode !== 'follow' ||
-        tooltip.activeSource === 'keyboard'
-      ) {
-        return;
-      }
       const container = this.shadowRoot?.querySelector(
         '.mc-chart-container'
       ) as HTMLDivElement | null;
-      if (!container || typeof tooltip.moveToPointer !== 'function') return;
-      tooltip.moveToPointer(
-        e.clientX,
-        e.clientY,
-        container.getBoundingClientRect()
-      );
+      if (!container) return;
+
+      const tooltip = this.getTooltipElement();
+      if (
+        tooltip &&
+        !tooltip.hidden &&
+        tooltip.activePositionMode === 'follow' &&
+        tooltip.activeSource !== 'keyboard' &&
+        typeof tooltip.moveToPointer === 'function'
+      ) {
+        tooltip.moveToPointer(
+          e.clientX,
+          e.clientY,
+          container.getBoundingClientRect()
+        );
+      }
+
+      if (
+        this.#itemTooltipVisible &&
+        this.#activeItemTooltipPayload &&
+        this.#activeItemTooltipPayload.positionMode === 'follow' &&
+        this.#activeItemTooltipPayload.source !== 'keyboard'
+      ) {
+        this.#activeItemTooltipPayload.clientX = e.clientX;
+        this.#activeItemTooltipPayload.clientY = e.clientY;
+        const slottedList = this.#getSlottedTooltips();
+        if (slottedList.length > 0) {
+          const rect = container.getBoundingClientRect();
+          for (const slotted of slottedList) {
+            if (typeof (slotted as any).moveToPointer === 'function') {
+              (slotted as any).moveToPointer(e.clientX, e.clientY, rect);
+            }
+          }
+        }
+      }
     };
     svg.addEventListener('mousemove', this.#tooltipMoveHandler);
   }
 
+  #isInsideTooltipSlot(node: Node | null): boolean {
+    const el =
+      node instanceof Element ? node : node?.parentElement ?? null;
+    const slotted = el?.closest?.('[slot="tooltip"]');
+    return Boolean(slotted && slotted.parentElement === this);
+  }
+
   #setupChildObservers(): void {
     if (!this.#mutationObserver) {
-      this.#mutationObserver = new MutationObserver(() => {
+      this.#mutationObserver = new MutationObserver((records) => {
+        if (
+          records.length > 0 &&
+          records.every((record) => this.#isInsideTooltipSlot(record.target))
+        ) {
+          return;
+        }
         if (this._isConnected) {
           this.render();
         }

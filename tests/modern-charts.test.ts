@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import pkg from '../package.json';
 import {
   VERSION,
@@ -60,6 +60,10 @@ import {
   SAMPLE_SCATTER_DATA,
   SAMPLE_SUNBURST_DATA
 } from '../apps/studio/sample-data';
+
+beforeAll(async () => {
+  await registerModernCharts();
+});
 
 describe('modern-charts architecture & dependencies', () => {
   it('exports package version matching package.json and relies only on d3 and @chenglou/pretext', () => {

@@ -14,9 +14,14 @@
         "type": "boolean",
         "default": true,
         "description": "Enables loading and empty overlays. Explicit registration loads the renderer chunk. Side-effect imports defer it until the first loading or empty overlay. Setting false skips that chunk and preserves chart state, mc-state-change events, and aria-busy."
+      },
+      "tooltip": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enables the built-in chart and legend <mc-tooltip> overlay. Explicit registration loads the renderer chunk. Side-effect imports defer it until a tooltip is shown. Setting false skips downloading and mounting the chart-owned <mc-tooltip> elements while preserving chart interactions, slot=\"tooltip\" custom elements, and tooltip events (distinguished via payload.target: 'item' | 'legend')."
       }
     },
-    "shorthand": ["zoom", "csvExport", "selection", "chartState"]
+    "shorthand": ["zoom", "csvExport", "selection", "chartState", "tooltip"]
   },
   "sharedAttributes": [
     "width",

@@ -340,14 +340,14 @@ describe('Studio Theme and Appearance controls', () => {
   }, 45_000);
 
   it.each([
-    ['bootstrapping', '#bs-bootstrap-code textarea', { zoom: false, csvExport: false, selection: false, chartState: true }],
-    ['csv-export', '#ce-editor-1 textarea', { zoom: false, csvExport: true, selection: false, chartState: true }],
-    ['view-zoom', '#vz-editor-1 textarea', { zoom: true, csvExport: false, selection: false, chartState: true }],
-    ['selection', '#sel-editor-1 textarea', { zoom: false, csvExport: false, selection: true, chartState: true }]
+    ['bootstrapping', '#bs-bootstrap-code textarea', { zoom: false, csvExport: false, selection: false, chartState: true, tooltip: true }],
+    ['csv-export', '#ce-editor-1 textarea', { zoom: false, csvExport: true, selection: false, chartState: true, tooltip: true }],
+    ['view-zoom', '#vz-editor-1 textarea', { zoom: true, csvExport: false, selection: false, chartState: true, tooltip: true }],
+    ['selection', '#sel-editor-1 textarea', { zoom: false, csvExport: false, selection: true, chartState: true, tooltip: true }]
   ] as const)('restores Studio features when returning home from the %s guide', async (guideId, editorSelector, features) => {
     route('#/chart/bar');
     await vi.waitFor(() => expect(detailChart()).not.toBeNull(), { timeout: 15_000 });
-    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true, selection: true, chartState: true });
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true, selection: true, chartState: true, tooltip: true });
 
     route(`#/guide/${guideId}`);
     await vi.waitFor(() => expect(document.querySelector(editorSelector)).not.toBeNull(), { timeout: 15_000 });
@@ -355,7 +355,7 @@ describe('Studio Theme and Appearance controls', () => {
 
     route('#/');
     expect((await revealPreview('bar')).localName).toBe('mc-bar-chart');
-    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true, selection: true, chartState: true });
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true, selection: true, chartState: true, tooltip: true });
   }, 45_000);
 
   it('applies the overlay opt-out in the bootstrapping guide and restores it on the chart page', async () => {

@@ -63,10 +63,11 @@ export const GUIDES_CATALOG: GuideMeta[] = [
   {
     id: 'tooltips',
     title: 'Unified Tooltips (<mc-tooltip>)',
+    featureDefault: true,
     shortLabel: 'Tooltips',
     icon: '💬',
     summary:
-      'One reusable <mc-tooltip> per chart with item vs. follow positioning, custom formatter/renderer callbacks, declarative <mc-tooltip>, ::part() styling, and lifecycle events.'
+      'Lazy-loaded built-in <mc-tooltip> (enabled by default) with item vs. follow positioning, custom formatter/renderer callbacks, declarative <mc-tooltip>, ::part() styling, features.tooltip: false opt-out, and custom slot="tooltip" UI.'
   },
   {
     id: 'truncation',
@@ -174,7 +175,7 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     shortLabel: 'Bootstrapping',
     icon: '🚀',
     summary:
-      'Choose which feature chunks to load at registration. Zoom and CSV export are opt-in, and the loading and empty state overlay is enabled by default.'
+      'Choose which feature chunks to load at registration. Zoom, CSV export, and item selection are opt-in; the loading/empty overlay and built-in tooltips are enabled by default.'
   }
 ];
 

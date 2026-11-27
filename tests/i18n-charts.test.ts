@@ -1,12 +1,17 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   configureI18n,
+  registerModernCharts,
   type MCBarChart,
   type MCLineChart,
   type MCPieChart,
   type ChartI18n,
   type TooltipPayload
 } from '../src/index';
+
+beforeAll(async () => {
+  await registerModernCharts();
+});
 
 afterEach(() => {
   document.body.replaceChildren();

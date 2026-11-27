@@ -15,6 +15,7 @@ import type {
 } from './types';
 import type { ChartI18n } from './i18n';
 import { loadChartStateView } from '../components/chart-state-loader';
+import { loadTooltipView } from '../components/tooltip-loader';
 
 export interface ZoomViewControllerLike {
   readonly hasInteraction: boolean;
@@ -104,13 +105,15 @@ const activeFeatures: Required<ChartFeaturesConfig> = {
   zoom: false,
   csvExport: false,
   selection: false,
-  chartState: true
+  chartState: true,
+  tooltip: true
 };
 
 let zoomControllerFactory: ZoomControllerFactory | null = null;
 let csvExporterImpl: CsvExporterImplementation | null = null;
 let selectionEngineImpl: SelectionEngineImplementation | null = null;
 let chartStateLoad: Promise<void> | undefined;
+let tooltipLoad: Promise<void> | undefined;
 const featureListeners = new Set<() => void>();
 
 function notifyFeatureListeners(): void {
@@ -183,11 +186,13 @@ function extractFeatureFlags(
   const selection =
     nested.selection ?? (options as ChartFeaturesConfig).selection;
   const chartState = nested.chartState ?? asBootstrap.chartState;
+  const tooltip = nested.tooltip ?? asBootstrap.tooltip;
   return {
     ...(zoom !== undefined ? { zoom: Boolean(zoom) } : {}),
     ...(csvExport !== undefined ? { csvExport: Boolean(csvExport) } : {}),
     ...(selection !== undefined ? { selection: Boolean(selection) } : {}),
-    ...(chartState !== undefined ? { chartState: Boolean(chartState) } : {})
+    ...(chartState !== undefined ? { chartState: Boolean(chartState) } : {}),
+    ...(tooltip !== undefined ? { tooltip: Boolean(tooltip) } : {})
   };
 }
 
@@ -197,7 +202,13 @@ export function configureChartFeatures(
   const flags = extractFeatureFlags(options);
 
   let changed = false;
-  for (const key of ['zoom', 'csvExport', 'selection', 'chartState'] as const) {
+  for (const key of [
+    'zoom',
+    'csvExport',
+    'selection',
+    'chartState',
+    'tooltip'
+  ] as const) {
     if (flags[key] !== undefined && activeFeatures[key] !== flags[key]) {
       activeFeatures[key] = flags[key]!;
       changed = true;
@@ -227,6 +238,16 @@ export function configureChartFeatures(
         chartStateLoad = undefined;
       });
     if (chartStateLoad) pendingLoads.push(chartStateLoad);
+  }
+  if (activeFeatures.tooltip && typeof document !== 'undefined') {
+    tooltipLoad ??= loadTooltipView()
+      ?.then(() => {
+        if (activeFeatures.tooltip) notifyFeatureListeners();
+      })
+      .finally(() => {
+        tooltipLoad = undefined;
+      });
+    if (tooltipLoad) pendingLoads.push(tooltipLoad);
   }
 
   if (changed) notifyFeatureListeners();

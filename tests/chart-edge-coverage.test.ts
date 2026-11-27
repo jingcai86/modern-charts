@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   registerModernCharts,
   patternLines,
@@ -15,7 +15,9 @@ import {
   type PieDatum
 } from '../src/index';
 
-registerModernCharts();
+beforeAll(async () => {
+  await registerModernCharts();
+});
 
 function mountChart<T extends MCBaseChart>(tag: string, config: T['config']): T {
   const chart = document.createElement(tag) as T;

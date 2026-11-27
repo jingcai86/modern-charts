@@ -1,16 +1,63 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  configureChartFeatures,
   createChartI18n,
   createDefaultTheme,
+  defineCustomElement,
+  isChartFeatureEnabled,
   registerModernCharts,
   type MCBarChart,
   type MCLabelElement,
+  type MCLineChart,
   type MCTooltipElement,
   type MCTruncateElement,
-  type TooltipPayload
+  type TooltipHideDetail,
+  type TooltipPayload,
+  type TooltipTarget
 } from '../src/index';
+import { registerBarChart } from '../src/entries/bar';
 
-registerModernCharts();
+const viewImport = vi.hoisted(() => ({
+  started: vi.fn(),
+  pending: undefined as Promise<void> | undefined
+}));
+
+vi.mock('../src/components/tooltip-view', async (importOriginal) => {
+  viewImport.started();
+  await viewImport.pending;
+  return importOriginal();
+});
+
+class TestSlotTooltipElement extends HTMLElement {
+  public received: TooltipPayload[] = [];
+  public hides: Array<TooltipTarget | undefined> = [];
+  public moves: Array<{ x: number; y: number }> = [];
+
+  public show(payload: TooltipPayload): boolean {
+    if (payload.badge === 'suppress') {
+      this.hidden = true;
+      return false;
+    }
+    this.received.push(payload);
+    this.dataset.target = payload.target ?? 'item';
+    this.textContent = `${payload.target}:${payload.title ?? payload.label}:${payload.formattedValue ?? payload.value ?? ''}`;
+    this.hidden = false;
+    return true;
+  }
+
+  public moveToPointer(clientX: number, clientY: number): void {
+    this.moves.push({ x: clientX, y: clientY });
+  }
+
+  public hide(target?: TooltipTarget): void {
+    this.hides.push(target);
+    if (!target || this.dataset.target === target) {
+      this.hidden = true;
+    }
+  }
+}
+
+defineCustomElement('test-slot-tooltip', TestSlotTooltipElement);
 
 const theme = createDefaultTheme('light');
 const container = new DOMRect(0, 0, 320, 240);
@@ -26,10 +73,282 @@ function tooltipBody(tooltip: MCTooltipElement) {
 }
 
 function tooltipPayload(): TooltipPayload {
-  return { chartType: 'bar', title: 'Monthly sales', label: 'Sales', value: 12, clientX: 40, clientY: 50 };
+  return {
+    chartType: 'bar',
+    title: 'Monthly sales',
+    label: 'Sales',
+    value: 12,
+    clientX: 40,
+    clientY: 50
+  };
 }
 
-afterEach(() => document.body.replaceChildren());
+afterEach(async () => {
+  document.body.replaceChildren();
+  await configureChartFeatures({
+    features: {
+      zoom: false,
+      csvExport: false,
+      selection: false,
+      chartState: true,
+      tooltip: true
+    }
+  });
+});
+
+describe('tooltip lazy bootstrapping and custom slot="tooltip" lifecycle (Issue #138)', () => {
+  it('skips downloading and mounting built-in tooltips when features.tooltip is false, loads asynchronously when enabled, and discards stale requests', async () => {
+    expect(isChartFeatureEnabled('tooltip')).toBe(true);
+
+    // Pre-existing chart before bootstrap opt-out
+    const preChart = document.createElement('mc-bar-chart') as MCBarChart;
+    preChart.config = {
+      width: 480,
+      height: 280,
+      animate: false,
+      indexBy: 'quarter',
+      keys: ['Cloud'],
+      data: [{ quarter: 'Q1', Cloud: 142 }]
+    };
+    document.body.appendChild(preChart);
+    const initialTip = preChart.getTooltipElement()!;
+    expect(initialTip.hidden).toBe(true);
+    expect(initialTip.shadowRoot!.children).toHaveLength(0);
+
+    // Trigger show before registerBarChart({ features: { tooltip: false } }) in same turn
+    preChart.showTooltip({ title: 'Q1', label: 'Cloud', value: 142 }, 80, 100);
+    await registerBarChart({ features: { tooltip: false } });
+    expect(isChartFeatureEnabled('tooltip')).toBe(false);
+    expect(preChart.isFeatureEnabled('tooltip')).toBe(false);
+    expect(preChart.getTooltipElement()).toBeNull();
+    expect(preChart.getLegendTooltipElement()).toBeNull();
+    expect(preChart.shadowRoot!.querySelectorAll('mc-tooltip')).toHaveLength(0);
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await vi.dynamicImportSettled();
+    expect(viewImport.started).not.toHaveBeenCalled();
+
+    // New chart mounted while features.tooltip is false never mounts <mc-tooltip> hosts
+    const optOutChart = document.createElement('mc-bar-chart') as MCBarChart;
+    optOutChart.config = {
+      width: 480,
+      height: 280,
+      animate: false,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      data: [{ quarter: 'Q1', Cloud: 142, Edge: 88 }]
+    };
+    document.body.appendChild(optOutChart);
+    expect(optOutChart.getTooltipElement()).toBeNull();
+    expect(optOutChart.getLegendTooltipElement()).toBeNull();
+    expect(optOutChart.shadowRoot!.querySelectorAll('mc-tooltip')).toHaveLength(0);
+
+    // Enable tooltip with a controlled pending dynamic import to verify stale request disposal
+    let releaseView!: () => void;
+    viewImport.pending = new Promise<void>((resolve) => {
+      releaseView = resolve;
+    });
+    const enabled = registerModernCharts({ features: { tooltip: true } });
+
+    const detached = document.createElement('mc-tooltip') as MCTooltipElement;
+    try {
+      await vi.waitFor(() => expect(viewImport.started).toHaveBeenCalledOnce());
+      document.body.appendChild(detached);
+      detached.show(tooltipPayload(), theme, container);
+      expect(detached.shadowRoot!.children).toHaveLength(0);
+
+      const pendingHost = preChart.getTooltipElement()!;
+      preChart.showTooltip({ title: 'Q1', label: 'Cloud', value: 142 }, 80, 100);
+      expect(pendingHost.shadowRoot!.children).toHaveLength(0);
+
+      // Hide detached and disable feature before dynamic import resolves
+      detached.hide();
+      await configureChartFeatures({ features: { tooltip: false } });
+    } finally {
+      viewImport.pending = undefined;
+      releaseView();
+      await enabled;
+    }
+
+    expect(detached.shadowRoot!.children).toHaveLength(0);
+    expect(preChart.getTooltipElement()).toBeNull();
+
+    // Re-enabling tooltip mounts hosts and renders immediately using the cached view factory
+    await registerModernCharts({ features: { tooltip: true } });
+    expect(isChartFeatureEnabled('tooltip')).toBe(true);
+    const activeHost = preChart.getTooltipElement()!;
+    expect(activeHost).not.toBeNull();
+    preChart.showTooltip({ title: 'Q1', label: 'Cloud', value: 142 }, 80, 100);
+    expect(activeHost.hidden).toBe(false);
+    expect(
+      activeHost.shadowRoot!.querySelector('[part="header"]')?.textContent
+    ).toBe('Q1');
+    expect(viewImport.started).toHaveBeenCalledOnce();
+  });
+
+  it('projects a custom tooltip in slot="tooltip", delivers item and legend lifecycle with built-in tooltip disabled, and distinguishes target="item" vs "legend"', async () => {
+    await registerBarChart({ features: { tooltip: false } });
+    expect(isChartFeatureEnabled('tooltip')).toBe(false);
+
+    const chart = document.createElement('mc-bar-chart') as MCBarChart;
+    const customTip = document.createElement(
+      'test-slot-tooltip'
+    ) as TestSlotTooltipElement;
+    customTip.slot = 'tooltip';
+    chart.appendChild(customTip);
+    chart.config = {
+      width: 520,
+      height: 320,
+      animate: false,
+      indexBy: 'quarter',
+      keys: ['Cloud', 'Edge'],
+      tooltip: { position: 'follow' },
+      data: [
+        { quarter: 'Q1', Cloud: 142, Edge: 88 },
+        { quarter: 'Q2', Cloud: 176, Edge: 112 }
+      ]
+    };
+    document.body.appendChild(chart);
+
+    // Built-in tooltip hosts are NOT mounted
+    expect(chart.getTooltipElement()).toBeNull();
+    expect(chart.getLegendTooltipElement()).toBeNull();
+    expect(chart.shadowRoot!.querySelectorAll('mc-tooltip')).toHaveLength(0);
+
+    // Public slot="tooltip" projects the custom element inside .mc-chart-container
+    const slot = chart.shadowRoot!.querySelector<HTMLSlotElement>(
+      'slot[name="tooltip"]'
+    )!;
+    expect(slot).not.toBeNull();
+    expect(slot.assignedElements()).toEqual([customTip]);
+
+    const itemShows: TooltipPayload[] = [];
+    const itemHides: TooltipHideDetail[] = [];
+    const legendShows: TooltipPayload[] = [];
+    const legendHides: TooltipHideDetail[] = [];
+
+    chart.addEventListener('mc-tooltip-show', (e) => {
+      itemShows.push((e as CustomEvent<TooltipPayload>).detail);
+    });
+    chart.addEventListener('mc-tooltip-hide', (e) => {
+      itemHides.push((e as CustomEvent<TooltipHideDetail>).detail);
+    });
+    chart.addEventListener('mc-legend-tooltip-show', (e) => {
+      legendShows.push((e as CustomEvent<TooltipPayload>).detail);
+    });
+    chart.addEventListener('mc-legend-tooltip-hide', (e) => {
+      legendHides.push((e as CustomEvent<TooltipHideDetail>).detail);
+    });
+
+    const firstBar = chart.shadowRoot!.querySelector<SVGRectElement>('.mc-bar-rect')!;
+    const svg = chart.shadowRoot!.querySelector<SVGSVGElement>('.mc-chart-svg')!;
+    const legendItem = chart.shadowRoot!.querySelector<SVGGElement>('.mc-legend-item')!;
+
+    // 1. Hover bar item -> target is 'item', custom tooltip updates without re-rendering SVG bars
+    firstBar.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 120, clientY: 140 })
+    );
+    expect(customTip.hidden).toBe(false);
+    expect(customTip.dataset.target).toBe('item');
+    expect(customTip.textContent).toBe('item:Q1:142');
+    expect(itemShows).toHaveLength(1);
+    expect(itemShows[0]).toMatchObject({
+      chartType: 'bar',
+      target: 'item',
+      category: 'Q1',
+      seriesId: 'Cloud',
+      value: 142,
+      positionMode: 'follow',
+      source: 'pointer'
+    });
+    // Mutating customTip DOM inside slot="tooltip" must NOT destroy/replace the hovered SVG bar
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(chart.shadowRoot!.querySelector('.mc-bar-rect')).toBe(firstBar);
+
+    // Pointer move in follow mode forwards moveToPointer to slotted custom tooltip
+    svg.dispatchEvent(
+      new MouseEvent('mousemove', { bubbles: true, clientX: 160, clientY: 180 })
+    );
+    expect(customTip.moves).toEqual([{ x: 160, y: 180 }]);
+
+    // Leave bar item -> hide('item') and mc-tooltip-hide with target: 'item'
+    firstBar.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    expect(customTip.hidden).toBe(true);
+    expect(customTip.hides.at(-1)).toBe('item');
+    expect(itemHides).toEqual([{ target: 'item', chartType: 'bar' }]);
+
+    // 2. Keyboard focus on bar item -> positionMode resolves to 'item', source is 'keyboard', blur hides it
+    firstBar.dispatchEvent(new FocusEvent('focus'));
+    expect(customTip.hidden).toBe(false);
+    expect(customTip.received.at(-1)).toMatchObject({
+      target: 'item',
+      source: 'keyboard',
+      positionMode: 'item'
+    });
+    firstBar.dispatchEvent(new FocusEvent('blur'));
+    expect(customTip.hidden).toBe(true);
+    expect(itemHides).toHaveLength(2);
+
+    // 3. Hover legend item -> target is 'legend', mc-legend-tooltip-show fires
+    legendItem.dispatchEvent(
+      new MouseEvent('mouseenter', { bubbles: true, clientX: 200, clientY: 290 })
+    );
+    expect(customTip.hidden).toBe(false);
+    expect(customTip.dataset.target).toBe('legend');
+    expect(customTip.textContent).toContain('legend:Cloud:');
+    expect(legendShows).toHaveLength(1);
+    expect(legendShows[0]).toMatchObject({
+      chartType: 'bar',
+      target: 'legend',
+      title: 'Cloud',
+      source: 'pointer'
+    });
+
+    // Leave legend item -> hide('legend') and mc-legend-tooltip-hide with target: 'legend'
+    legendItem.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    expect(customTip.hidden).toBe(true);
+    expect(customTip.hides.at(-1)).toBe('legend');
+    expect(legendHides).toEqual([{ target: 'legend', chartType: 'bar' }]);
+
+    // 4. Returning false from custom show() suppresses mc-tooltip-show
+    const beforeCount = itemShows.length;
+    chart.showTooltip({ title: 'Hidden', badge: 'suppress', value: 0 }, 50, 50);
+    expect(customTip.hidden).toBe(true);
+    expect(itemShows).toHaveLength(beforeCount);
+
+    // 5. Plain HTML markup in slot="tooltip" works via mc-tooltip-show / mc-legend-tooltip-show events
+    const line = document.createElement('mc-line-chart') as MCLineChart;
+    const htmlTip = document.createElement('div');
+    htmlTip.slot = 'tooltip';
+    htmlTip.hidden = true;
+    line.appendChild(htmlTip);
+    line.addEventListener('mc-tooltip-show', (e) => {
+      const p = (e as CustomEvent<TooltipPayload>).detail;
+      htmlTip.dataset.target = p.target;
+      htmlTip.textContent = `${p.seriesId}: ${p.formattedValue}`;
+      htmlTip.hidden = false;
+    });
+    line.addEventListener('mc-tooltip-hide', () => {
+      htmlTip.hidden = true;
+    });
+    line.config = {
+      width: 480,
+      height: 280,
+      animate: false,
+      enableSlices: false,
+      data: [{ id: 'Latency', data: [{ x: 'Mon', y: 42 }] }]
+    };
+    document.body.appendChild(line);
+
+    const point = line.shadowRoot!.querySelector<SVGElement>('.mc-line-point')!;
+    point.dispatchEvent(new MouseEvent('mouseenter', { clientX: 90, clientY: 90 }));
+    expect(htmlTip.hidden).toBe(false);
+    expect(htmlTip.dataset.target).toBe('item');
+    expect(htmlTip.textContent).toBe('Latency: 42');
+    point.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(htmlTip.hidden).toBe(true);
+  });
+});
 
 describe('tooltip customization', () => {
   it('shows full-text tooltips on overflow-rotated chart labels while leaving short labels alone', () => {
