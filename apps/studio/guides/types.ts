@@ -12,7 +12,8 @@ export type GuideId =
   | 'i18n'
   | 'dynamic-updates'
   | 'chart-state'
-  | 'patterns';
+  | 'patterns'
+  | 'export-zoom';
 
 export interface GuideMeta {
   id: GuideId;
@@ -134,5 +135,13 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     icon: '✨',
     summary:
       'Reusable chart-scoped SVG patterns (dots, lines, squares, crosshatch, custom) and gradients across all 10 charts with color-blind friendly presets and declarative <mc-def>.'
+  },
+  {
+    id: 'export-zoom',
+    title: 'CSV Data Export & Zoom Controls',
+    shortLabel: 'CSV Export & Zoom',
+    icon: '📥',
+    summary:
+      'Export chart data to CSV with built-in serialization across all 10 chart types, custom columns, headers, value formatting, serializers, and export handlers, plus keyboard-accessible zoom toggle controls.'
   }
 ];

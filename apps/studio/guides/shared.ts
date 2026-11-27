@@ -528,6 +528,7 @@ const SAFE_HTML_TAGS = new Set([
   'mc-def',
   'mc-label',
   'mc-truncate',
+  'mc-view-layer',
   'template'
 ]);
 
@@ -599,6 +600,20 @@ const SAFE_ATTR_NAMES = new Set([
   'bg-color',
   'border-color',
   'border-radius',
+  // <mc-view-layer>
+  'zoomable',
+  'pannable',
+  'brush',
+  'slider',
+  'start',
+  'end',
+  'min-zoom',
+  'max-zoom',
+  'direction',
+  'show-controls',
+  'initial-zoom',
+  'initial-pan-x',
+  'initial-pan-y',
   // SVG geometry attributes
   'd',
   'x',

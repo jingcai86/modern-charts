@@ -37,6 +37,19 @@
       },
       "maxLines": "Maximum line count in truncating modes. The wrap strategy preserves all lines.",
       "enableTooltip": "Shows full text on hover and keyboard focus when the label is truncated or automatically rotated. Enabled by default."
+    },
+    "csvExport": {
+      "columns": "Array<string | CsvColumnConfig>; ordered column keys or column descriptors",
+      "headers": "string[] | Record<string, string>; custom CSV column headers",
+      "formatValue": "(value, context, row) => unknown; custom cell formatter",
+      "filename": "string | ((context) => string); download filename (.csv appended automatically)",
+      "serializer": "(context, defaultSerialize) => string | Array<Record<string, unknown>>; custom data serializer",
+      "handler": "(payload: CsvExportPayload) => boolean | void; custom export handler"
+    },
+    "view": {
+      "zoomable": "boolean; enables wheel, brush, slider, and button zoom (toggled via chart.toggleZoom() or [data-zoom=\"toggle\"])",
+      "pannable": "boolean; enables click-and-drag panning across the chart viewport",
+      "showControls": "boolean; displays on-chart [Zoom: On/Off], [+], [−], and [Reset] controls"
     }
   },
   "palettes": ["shadcn", "material", "bootstrap", "antd"],
@@ -225,7 +238,7 @@
       "defaultLayers": ["arcs", "arcLabels", "arcLinkLabels", "center", "legends"],
       "supportsMarkers": false,
       "supportsCartesianScales": false,
-      "supportsViewZoom": false,
+      "supportsViewZoom": true,
       "dataType": "PieDatum[]",
       "dataShape": "Array<{ id: string, label?: string, value: number, color?: string }>",
       "attributes": [
@@ -262,7 +275,7 @@
       "defaultLayers": ["axes", "cells", "labels", "legends"],
       "supportsMarkers": false,
       "supportsCartesianScales": true,
-      "supportsViewZoom": false,
+      "supportsViewZoom": true,
       "dataType": "HeatmapRow[]",
       "dataShape": "Array<{ id: string, data: Array<{ x: string, y: number }> }>",
       "attributes": ["cell-shape", "color-scheme", "cell-padding", "border-radius", "enable-labels"],
@@ -321,7 +334,7 @@
       "defaultLayers": ["grid", "axes", "layers", "dots", "labels", "legends"],
       "supportsMarkers": false,
       "supportsCartesianScales": false,
-      "supportsViewZoom": false,
+      "supportsViewZoom": true,
       "dataType": "RadarDatum[]",
       "dataShape": "Array<{ [indexBy]: string, [seriesKey]: number }>",
       "attributes": [
@@ -365,7 +378,7 @@
       "defaultLayers": ["arcs", "labels", "center", "legends"],
       "supportsMarkers": false,
       "supportsCartesianScales": false,
-      "supportsViewZoom": false,
+      "supportsViewZoom": true,
       "dataType": "HierarchyNode",
       "dataShape": "{ name: string, value?: number, color?: string, children?: HierarchyNode[] }",
       "attributes": ["corner-radius", "enable-labels", "interactive-drilldown"],
@@ -395,7 +408,7 @@
       "defaultLayers": ["links", "nodes", "labels", "legends"],
       "supportsMarkers": false,
       "supportsCartesianScales": false,
-      "supportsViewZoom": false,
+      "supportsViewZoom": true,
       "dataType": "SankeyData",
       "dataShape": "{ nodes: Array<{ id: string, name?: string, color?: string }>, links: Array<{ source: string, target: string, value: number, color?: string }> }",
       "attributes": ["node-width", "node-padding", "link-opacity", "enable-labels"],
@@ -476,7 +489,7 @@
       "defaultLayers": ["tiles", "labels", "legends"],
       "supportsMarkers": false,
       "supportsCartesianScales": false,
-      "supportsViewZoom": false,
+      "supportsViewZoom": true,
       "dataType": "HierarchyNode",
       "dataShape": "{ name: string, value?: number, color?: string, children?: HierarchyNode[] }",
       "attributes": ["tile-padding", "border-radius", "enable-labels"],
@@ -506,7 +519,7 @@
       "defaultLayers": ["track", "bands", "valueArc", "ticks", "needle", "center", "legends"],
       "supportsMarkers": false,
       "supportsCartesianScales": false,
-      "supportsViewZoom": false,
+      "supportsViewZoom": true,
       "dataType": "GaugeDatum",
       "dataShape": "{ value: number, min?: number, max?: number, label?: string, unit?: string, target?: number, bands?: Array<{ from: number, to: number, color: string, label?: string }> }",
       "attributes": ["min", "max", "unit"],
