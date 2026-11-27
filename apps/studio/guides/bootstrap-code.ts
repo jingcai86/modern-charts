@@ -56,14 +56,29 @@ export function parseBootstrap(source: string) {
   return { chartId, ...BOOTSTRAP_DEFAULTS, ...features };
 }
 
-export function formatBootstrap(chartId: string | undefined, features: BootstrapFeatures): string {
+export function formatBootstrap(
+  chartId: string | undefined,
+  features: BootstrapFeatures,
+  showChartStateOptOut = false
+): string {
   const registrar = chartId ? REGISTER_FN_BY_ID[chartId] : 'registerModernCharts';
   const modulePath = chartId ? `modern-charts/${chartId}` : 'modern-charts';
+  const featureLines = showChartStateOptOut
+    ? [
+        '  features: {',
+        `    zoom: ${features.zoom},`,
+        `    csvExport: ${features.csvExport},`,
+        features.chartState
+          ? '    // chartState: false // Uncomment to disable the loading and empty overlay.'
+          : '    chartState: false',
+        '  }'
+      ]
+    : [`  features: { zoom: ${features.zoom}, csvExport: ${features.csvExport}, chartState: ${features.chartState} }`];
   return [
     `import { ${registrar} } from '${modulePath}';`,
     '',
     `await ${registrar}({`,
-    `  features: { zoom: ${features.zoom}, csvExport: ${features.csvExport}, chartState: ${features.chartState} }`,
+    ...featureLines,
     '});'
   ].join('\n');
 }
@@ -73,6 +88,7 @@ interface FeatureGuideEditorOptions {
   initialConfig: DemoConfig;
   chartId: () => string;
   usage: string;
+  showChartStateOptOut?: boolean;
   onUsageChange?: (usage: string) => void;
   hint?: string;
   knownCallbacks?: Record<string, (...args: any[]) => unknown>;
@@ -80,7 +96,7 @@ interface FeatureGuideEditorOptions {
   onReset: () => void;
 }
 
-/** Keep the two examples consistent with the library's shared bootstrap feature flags. */
+/** Keep guide examples consistent with the library's shared bootstrap feature flags. */
 export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig) {
   const defaultFeatures = { ...BOOTSTRAP_DEFAULTS, ...initialFeatures };
   let features = defaultFeatures;
@@ -88,18 +104,22 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
   const featureListeners = new Set<() => void>();
   void configureChartFeatures({ features });
 
-  const setFeatures = (next: BootstrapFeatures, source: () => void) => {
+  const setFeatures = (next: BootstrapFeatures, source?: () => void): Promise<void> => {
     if (next.zoom === features.zoom && next.csvExport === features.csvExport &&
-        next.chartState === features.chartState) return;
+        next.chartState === features.chartState) return Promise.resolve();
     features = next;
-    void configureChartFeatures({ features });
+    const ready = configureChartFeatures({ features });
     for (const refresh of refreshEditors) {
       if (refresh !== source) refresh();
     }
     for (const listener of featureListeners) listener();
+    return ready;
   };
 
   return {
+    updateFeatures(next: ChartFeaturesConfig): Promise<void> {
+      return setFeatures({ ...features, ...next });
+    },
     onFeaturesChanged(listener: () => void): void {
       featureListeners.add(listener);
       listener();
@@ -126,7 +146,7 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
           assignment = assignment.replace(`'${placeholder}'`, () => expression);
         }
         return [
-          formatBootstrap(standalone ? chartId : undefined, features),
+          formatBootstrap(standalone ? chartId : undefined, features, options.showChartStateOptOut),
           `const chart = document.createElement('mc-${chartId}-chart');\nchart.style.height = '380px';\ndocument.body.appendChild(chart);`,
           assignment,
           usage
@@ -169,7 +189,7 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
           }
           standalone = registeredChart !== undefined;
           config = parsed;
-          setFeatures(nextFeatures, refresh);
+          void setFeatures(nextFeatures, refresh);
           options.onConfigChange(config);
         },
         onReset: () => {
@@ -178,7 +198,7 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
             usage = options.usage;
           }
           standalone = true;
-          setFeatures(defaultFeatures, refresh);
+          void setFeatures(defaultFeatures, refresh);
           options.onReset();
         }
       });

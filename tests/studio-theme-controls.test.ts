@@ -368,7 +368,7 @@ describe('Studio Theme and Appearance controls', () => {
     const overlay = document.querySelector<HTMLInputElement>('#bs-chart-state')!;
     const loading = document.querySelector<HTMLInputElement>('#bs-example-loading')!;
     expect(overlay.checked).toBe(true);
-    expect(editor.value).toContain('chartState: true');
+    expect(editor.value).toContain('// chartState: false');
 
     overlay.click();
     loading.click();

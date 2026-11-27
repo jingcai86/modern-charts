@@ -169,7 +169,8 @@ function createBootstrapPlayground(
 
   const bootstrapCode = () => formatBootstrap(
     entrypoint.value === 'standalone' ? selectedChart().id : undefined,
-    selectedFeatures()
+    selectedFeatures(),
+    true
   );
 
   const syncFeatureExample = () => {
@@ -228,7 +229,7 @@ function createBootstrapPlayground(
     title: 'Bootstrap and use chart features',
     initialValue: bootstrapCode(),
     language: 'js',
-    hint: 'Edit the Modern Charts import and registration options to update the preview.',
+    hint: 'Edit the Modern Charts import and registration options. Uncomment chartState: false to disable the overlay in the preview.',
     onApply: (source) => {
       const parsed = parseBootstrap(source);
       entrypoint.value = parsed.chartId ? 'standalone' : 'library';

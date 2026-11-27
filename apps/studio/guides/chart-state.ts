@@ -1,12 +1,11 @@
 import { getGlobalPalette } from '../state/theme';
-import { configureChartFeatures } from '../../../src/core/features';
 import type {
   ChartStateChangeDetail,
   MCBaseChart,
   ThemeModePreference
 } from '../../../src/index';
+import { createFeatureGuideBootstrap } from './bootstrapping';
 import {
-  createLiveConfigEditor,
   createLiveCssEditor,
   createLiveHtmlEditor
 } from './shared';
@@ -16,6 +15,7 @@ export function renderChartStateGuide(
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
   const mounted: MCBaseChart<any>[] = [];
+  const bootstrap = createFeatureGuideBootstrap({ chartState: true });
 
   // Base animation helpers for custom loading dots in Example 2
   const demoStyle = document.createElement('style');
@@ -96,7 +96,7 @@ export function renderChartStateGuide(
       <div>
         <h2 class="panel-title">Example 1: State Transitions &amp; <code>mc-state-change</code></h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Toggle presets or edit the chart config to try each state. Turn off the overlay to see state events continue.
+          Toggle presets or edit the chart config to try each state. Uncomment <code>chartState: false</code> to hide the overlay and see state events continue.
         </p>
       </div>
       <div class="guide-controls-row">
@@ -118,11 +118,6 @@ export function renderChartStateGuide(
   const bar1 = document.createElement('mc-bar-chart') as MCBaseChart<any>;
   const badge1 = ex1.querySelector('#cs-event-badge') as HTMLElement;
   const overlayEnabled = ex1.querySelector<HTMLInputElement>('#cs-overlay-enabled')!;
-  overlayEnabled.addEventListener('change', () => {
-    void configureChartFeatures({ features: { chartState: overlayEnabled.checked } }).catch(() => {
-      badge1.textContent = 'The overlay could not load. Toggle it to retry.';
-    });
-  });
   bar1.addEventListener('mc-state-change', (e: Event) => {
     const detail = (e as CustomEvent<ChartStateChangeDetail>).detail;
     const busy = bar1.getAttribute('aria-busy') === 'true';
@@ -140,6 +135,9 @@ export function renderChartStateGuide(
 
   const buildEx1Config = (mode: 'ready' | 'loading' | 'empty' | 'custom-text') => ({
     title: 'Quarterly Revenue ($M)',
+    indexBy: 'quarter',
+    keys: ['Cloud', 'Edge'],
+    borderRadius: 6,
     loading: mode === 'loading' || mode === 'custom-text',
     loadingText: mode === 'custom-text' ? 'Fetching Q4 metrics…' : 'Loading…',
     emptyText: mode === 'custom-text' ? 'No metrics for selected range' : 'No data',
@@ -151,9 +149,6 @@ export function renderChartStateGuide(
       autoSize: true,
       themeMode,
       palette: getGlobalPalette(),
-      indexBy: 'quarter',
-      keys: ['Cloud', 'Edge'],
-      borderRadius: 6,
       ...cfg
     });
   };
@@ -167,10 +162,15 @@ export function renderChartStateGuide(
   const initialEx1Cfg = buildEx1Config('ready');
   applyEx1Config(initialEx1Cfg);
 
-  const editor1 = createLiveConfigEditor({
-    title: 'Loading, Empty & mc-state-change Config (Live)',
+  const editor1 = bootstrap.createEditor({
+    title: 'Bootstrap loading and empty states',
     initialConfig: initialEx1Cfg,
-    hint: 'Set loading: true, change loadingText / emptyText, or clear data: [] to test state transitions live.',
+    chartId: () => 'bar',
+    showChartStateOptOut: true,
+    usage: `chart.addEventListener('mc-state-change', ({ detail }) => {
+  console.log(detail.state, chart.getAttribute('aria-busy'));
+});`,
+    hint: 'Uncomment chartState: false to hide the overlay. Set loading: true or clear data: [] to test the state transitions.',
     onConfigChange: (nextCfg) => {
       const inferredMode = nextCfg.loading
         ? nextCfg.loadingText && nextCfg.loadingText !== 'Loading…'
@@ -190,6 +190,14 @@ export function renderChartStateGuide(
     }
   });
   ex1.querySelector('#cs-code-1')!.appendChild(editor1.element);
+  bootstrap.onFeaturesChanged(() => {
+    overlayEnabled.checked = bar1.isFeatureEnabled('chartState');
+  });
+  overlayEnabled.addEventListener('change', () => {
+    void bootstrap.updateFeatures({ chartState: overlayEnabled.checked }).catch(() => {
+      badge1.textContent = 'The overlay could not load. Toggle it to retry.';
+    });
+  });
 
   ex1.querySelectorAll<HTMLButtonElement>('[data-cs-mode]').forEach((btn) => {
     btn.addEventListener('click', () => {

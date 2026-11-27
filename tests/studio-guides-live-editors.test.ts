@@ -62,18 +62,27 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     15_000
   );
 
-  it('demonstrates the default-enabled overlay and preserves state events when it is disabled', async () => {
+  it('applies the commented overlay opt-out and keeps it in sync with the chart presets', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const [chart] = renderGuidePage(root, 'chart-state', 'dark');
     const overlay = root.querySelector<HTMLInputElement>('#cs-overlay-enabled')!;
     const loading = root.querySelector<HTMLButtonElement>('[data-cs-mode="loading"]')!;
     const badge = root.querySelector('#cs-event-badge')!;
+    const editor = root.querySelector<HTMLTextAreaElement>('#cs-code-1 textarea')!;
+    const commentedOptOut = /^([ \t]*)\/\/[ \t]*(chartState: false)/m;
     expect(root.querySelector('h1')?.textContent).toContain('Default is true');
     expect(overlay.checked).toBe(true);
+    expect(editor.value).toContain("import { registerBarChart } from 'modern-charts/bar';");
+    expect(editor.value).toMatch(commentedOptOut);
+    expect(parseConfigObjectLiteral(extractChartConfigBlock(editor.value)!).keys).toEqual(['Cloud', 'Edge']);
 
-    overlay.click();
+    editor.value = editor.value.replace(commentedOptOut, '$1$2');
+    editor.dispatchEvent(new Event('input'));
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    expect(overlay.checked).toBe(false);
     loading.click();
+    expect(editor.value).toMatch(/^[ \t]*chartState: false/m);
     expect(getChartFeatures().chartState).toBe(false);
     expect(chart.getStateElement()?.hidden).toBe(true);
     expect(badge.textContent).toContain('loading · aria-busy: true');
@@ -81,6 +90,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     overlay.click();
     await vi.waitFor(() => expect(chart.getStateElement()?.hidden).toBe(false));
     expect(getChartFeatures().chartState).toBe(true);
+    expect(editor.value).toMatch(commentedOptOut);
   });
 
   it('shows and applies the active overflow settings in the Custom Labels guide', () => {
