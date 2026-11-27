@@ -245,17 +245,20 @@ describe('Studio Theme and Appearance controls', () => {
     const swatches = () => chart.shadowRoot!.querySelectorAll('.mc-legend-discrete-block');
     const steps = document.querySelector<HTMLInputElement>('[data-config-path="legend.steps"] input')!;
     const position = document.querySelector<HTMLSelectElement>('[data-config-path="legend.position"] select')!;
+    const alignment = document.querySelector<HTMLSelectElement>('[data-config-path="legend.align"] select')!;
     const labelPlacement = document.querySelector<HTMLSelectElement>('[data-config-path="legend.labelPlacement"] select')!;
     const numberStyle = document.querySelector<HTMLSelectElement>('[data-config-path="legend.tickFormat.style"] select')!;
     const precision = document.querySelector<HTMLInputElement>('[data-config-path="legend.tickFormat.maximumFractionDigits"] input')!;
 
     expect(steps.closest<HTMLElement>('.attr-row')?.hidden).toBe(true);
+    expect(alignment.value).toBe('middle');
     select(mode(), 'discrete');
     expect(steps.closest<HTMLElement>('.attr-row')?.hidden).toBe(false);
     expect(swatches()).toHaveLength(10);
     steps.value = '5';
     steps.dispatchEvent(new Event('input', { bubbles: true }));
     select(position, 'bottom');
+    select(alignment, 'end');
     select(labelPlacement, 'ticks');
     expect(swatches()).toHaveLength(5);
     const legend = chart.shadowRoot!.querySelector('.mc-legend--discrete[data-legend-position="bottom"]')!;
@@ -267,7 +270,7 @@ describe('Studio Theme and Appearance controls', () => {
     const editor = document.querySelector<HTMLTextAreaElement>('#detail-html-preview')!;
     const generatedLegend = () => parseConfigObjectLiteral(extractChartConfigBlock(editor.value)!).legend;
     expect(generatedLegend()).toMatchObject({
-      type: 'discrete', steps: 5, position: 'bottom', labelPlacement: 'ticks',
+      type: 'discrete', steps: 5, position: 'bottom', align: 'end', labelPlacement: 'ticks',
       tickFormat: { style: 'percent', maximumFractionDigits: 0 }
     });
     select(numberStyle, '');
@@ -278,6 +281,7 @@ describe('Studio Theme and Appearance controls', () => {
 
     document.querySelector<HTMLButtonElement>('#btn-reset-default-attrs')!.click();
     expect(mode().value).toBe('continuous');
+    expect(alignment.value).toBe('middle');
     expect(detailChart().shadowRoot!.querySelector('.mc-legend--continuous')).not.toBeNull();
   });
 

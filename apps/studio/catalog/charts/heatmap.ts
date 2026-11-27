@@ -42,6 +42,12 @@ const colorLegendAttributes = ([
     'top',
     'Choose the side of the chart where the legend appears.'
   ),
+  colorLegendSelect(
+    'align', 'align',
+    [['start', 'Start'], ['middle', 'Middle'], ['end', 'End']],
+    'middle',
+    'Align along the chosen side. Start is left for a horizontal legend and top for a vertical legend.'
+  ),
   {
     configPath: 'legend.min',
     attrName: 'mc-legend[min]',
