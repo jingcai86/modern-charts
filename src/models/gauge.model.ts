@@ -8,6 +8,36 @@ import type {
   GaugePointerType
 } from '../core/types';
 
+export interface GaugeArcGeometry {
+  startAngle: number;
+  endAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  cornerRadius: number;
+}
+
+const gaugeArc = arc<GaugeArcGeometry>().cornerRadius((geometry) => geometry.cornerRadius);
+
+export function gaugeArcPath(geometry: GaugeArcGeometry): string {
+  return gaugeArc(geometry) ?? '';
+}
+
+export function gaugeTrianglePoints(cos: number, sin: number, length: number, width: number): string {
+  const perpX = -sin * width;
+  const perpY = cos * width;
+  const tail = Math.min(12, width * 2.4);
+  return [
+    `${(cos * length).toFixed(2)},${(sin * length).toFixed(2)}`,
+    `${perpX.toFixed(2)},${perpY.toFixed(2)}`,
+    `${(-cos * tail).toFixed(2)},${(-sin * tail).toFixed(2)}`,
+    `${(-perpX).toFixed(2)},${(-perpY).toFixed(2)}`
+  ].join(' ');
+}
+
+function finiteOption(value: number | undefined, fallback: number): number {
+  return Number.isFinite(value) ? value! : fallback;
+}
+
 export interface ComputedGaugeBandModel {
   band: GaugeBand;
   pathD: string;
@@ -112,12 +142,9 @@ export function computeGaugeChartModel(
   ctx: ChartRenderContext<GaugeDataInput>,
   input: GaugeModelInput
 ): GaugeChartModel {
-  const rawData = ctx.data;
-  const items: GaugeDatum[] = Array.isArray(rawData)
-    ? rawData.length > 0
-      ? rawData
-      : [{ value: 0, min: 0, max: 100 }]
-    : [rawData ?? { value: 0, min: 0, max: 100 }];
+  const fallback: GaugeDatum = { value: 0, min: 0, max: 100 };
+  const data = Array.isArray(ctx.data) ? ctx.data : [ctx.data ?? fallback];
+  const items = data.length ? data : [fallback];
 
   const primaryDatum: GaugeDatum = items[0];
   const min = Number(input.min ?? primaryDatum.min ?? 0);
@@ -128,12 +155,8 @@ export function computeGaugeChartModel(
     input.centerLabel !== undefined ? input.centerLabel : primaryDatum.label;
   const enableLabels = input.enableLabels !== false;
 
-  const startAngleDeg = Number.isFinite(input.startAngle)
-    ? Number(input.startAngle)
-    : -135;
-  const endAngleDeg = Number.isFinite(input.endAngle)
-    ? Number(input.endAngle)
-    : 135;
+  const startAngleDeg = finiteOption(input.startAngle, -135);
+  const endAngleDeg = finiteOption(input.endAngle, 135);
   const startAngle = (startAngleDeg * Math.PI) / 180;
   const endAngle = (endAngleDeg * Math.PI) / 180;
 
@@ -176,42 +199,17 @@ export function computeGaugeChartModel(
     Math.min(maxOuterByWidth, maxOuterByHeight)
   );
 
-  let innerRadius = outerRadius * 0.76;
-  if (input.innerRadius !== undefined && Number.isFinite(input.innerRadius)) {
-    const ir = Number(input.innerRadius);
-    if (ir > 0 && ir < 1) {
-      innerRadius = outerRadius * Math.max(0.2, Math.min(0.95, ir));
-    } else if (ir >= 1) {
-      innerRadius = Math.max(12, Math.min(outerRadius - 6, ir));
-    }
-  }
+  const ir = finiteOption(input.innerRadius, 0.76);
+  const innerRadius = ir >= 1
+    ? Math.max(12, Math.min(outerRadius - 6, ir))
+    : outerRadius * (ir > 0 ? Math.max(0.2, Math.min(0.95, ir)) : 0.76);
 
-  const cornerRadius = Math.max(
-    0,
-    Number.isFinite(input.cornerRadius) ? Number(input.cornerRadius) : 8
-  );
-  const splitNumber = Math.max(
-    0,
-    Math.round(Number.isFinite(input.splitNumber) ? Number(input.splitNumber) : 5)
-  );
-  const minorSplitNumber = Math.max(
-    0,
-    Math.round(
-      Number.isFinite(input.minorSplitNumber) ? Number(input.minorSplitNumber) : 4
-    )
-  );
+  const cornerRadius = Math.max(0, finiteOption(input.cornerRadius, 8));
+  const splitNumber = Math.max(0, Math.round(finiteOption(input.splitNumber, 5)));
+  const minorSplitNumber = Math.max(0, Math.round(finiteOption(input.minorSplitNumber, 4)));
   const pointerType: GaugePointerType = input.pointerType ?? 'needle';
-  const pointerLength = Math.max(
-    0.1,
-    Math.min(
-      1.2,
-      Number.isFinite(input.pointerLength) ? Number(input.pointerLength) : 0.88
-    )
-  );
-  const pointerWidth = Math.max(
-    1,
-    Number.isFinite(input.pointerWidth) ? Number(input.pointerWidth) : 2.5
-  );
+  const pointerLength = Math.max(0.1, Math.min(1.2, finiteOption(input.pointerLength, 0.88)));
+  const pointerWidth = Math.max(1, finiteOption(input.pointerWidth, 2.5));
 
   const bandOuterRadius = outerRadius + bandPad;
   const arcBottomY = bandOuterRadius * maxBottomRatio;
@@ -256,48 +254,17 @@ export function computeGaugeChartModel(
     const itemScale =
       itemMin === min && itemSafeMax === safeMax
         ? angleScale
-        : scaleLinear()
-            .domain([itemMin, itemSafeMax])
-            .range([startAngle, endAngle])
-            .clamp(true);
+        : angleScale.copy().domain([itemMin, itemSafeMax]);
 
-    const itemTrackGen = arc()
-      .innerRadius(ringInnerRadius)
-      .outerRadius(ringOuterRadius)
-      .startAngle(startAngle)
-      .endAngle(endAngle)
-      .cornerRadius(cornerRadius);
-
-    const itemValueGen = arc()
-      .innerRadius(ringInnerRadius)
-      .outerRadius(ringOuterRadius)
-      .startAngle(startAngle)
-      .endAngle(itemScale(itemVal))
-      .cornerRadius(cornerRadius);
-
-    const angleRad = itemScale(itemVal) - Math.PI / 2;
+    const geometry = { startAngle, endAngle, innerRadius: ringInnerRadius, outerRadius: ringOuterRadius, cornerRadius };
+    const valueAngle = itemScale(itemVal);
+    const angleRad = valueAngle - Math.PI / 2;
     const needleLen = innerRadius * pointerLength;
-    const needleX2 = Math.cos(angleRad) * needleLen;
-    const needleY2 = Math.sin(angleRad) * needleLen;
-
-    // Tapered triangle pointer vertices
-    const halfW = pointerWidth;
-    const perpX = -Math.sin(angleRad) * halfW;
-    const perpY = Math.cos(angleRad) * halfW;
-    const tailLen = Math.min(12, halfW * 2.4);
-    const tailX = -Math.cos(angleRad) * tailLen;
-    const tailY = -Math.sin(angleRad) * tailLen;
-    const trianglePoints = [
-      `${needleX2.toFixed(2)},${needleY2.toFixed(2)}`,
-      `${perpX.toFixed(2)},${perpY.toFixed(2)}`,
-      `${tailX.toFixed(2)},${tailY.toFixed(2)}`,
-      `${(-perpX).toFixed(2)},${(-perpY).toFixed(2)}`
-    ].join(' ');
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
 
     // Rim pin coordinates centered on the series ring
     const midR = (ringInnerRadius + ringOuterRadius) / 2;
-    const pinCx = Math.cos(angleRad) * midR;
-    const pinCy = Math.sin(angleRad) * midR;
     const pinRadius = Math.max(4, singleRingThickness * 0.52);
 
     return {
@@ -312,34 +279,30 @@ export function computeGaugeChartModel(
       color: itemColor,
       ringInnerRadius,
       ringOuterRadius,
-      trackPathD: itemTrackGen({} as any) || '',
-      valueArcPathD: itemValueGen({} as any) || '',
+      trackPathD: gaugeArcPath(geometry),
+      valueArcPathD: gaugeArcPath({ ...geometry, endAngle: valueAngle }),
       angleRad,
-      needleX2,
-      needleY2,
-      trianglePoints,
-      pinCx,
-      pinCy,
+      needleX2: cos * needleLen,
+      needleY2: sin * needleLen,
+      trianglePoints: gaugeTrianglePoints(cos, sin, needleLen, pointerWidth),
+      pinCx: cos * midR,
+      pinCy: sin * midR,
       pinRadius
     };
   });
 
   const primarySeries = series[0];
 
-  const bands: ComputedGaugeBandModel[] = (primaryDatum.bands ?? []).map(
-    (band) => {
-      const bandArcGen = arc()
-        .innerRadius(outerRadius + 3)
-        .outerRadius(outerRadius + 8)
-        .startAngle(angleScale(band.from))
-        .endAngle(angleScale(band.to))
-        .cornerRadius(3);
-      return {
-        band,
-        pathD: bandArcGen({} as any) || ''
-      };
-    }
-  );
+  const bands: ComputedGaugeBandModel[] = (primaryDatum.bands ?? []).map((band) => ({
+    band,
+    pathD: gaugeArcPath({
+      innerRadius: outerRadius + 3,
+      outerRadius: outerRadius + 8,
+      startAngle: angleScale(band.from),
+      endAngle: angleScale(band.to),
+      cornerRadius: 3
+    })
+  }));
 
   const innermostRadius = series[series.length - 1].ringInnerRadius;
   const tickOuterR = innermostRadius - 2;

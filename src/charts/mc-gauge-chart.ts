@@ -50,6 +50,10 @@ export class MCGaugeChart extends MCBaseChart<GaugeDataInput> {
     return ['track', 'bands', 'valueArc', 'ticks', 'needle', 'center', 'legends'];
   }
 
+  protected override get retainedItemLayers(): readonly string[] {
+    return ['valueArc', 'needle'];
+  }
+
   protected getDefaultMargin(): ChartMargin {
     return { top: 32, right: 32, bottom: 32, left: 32 };
   }
@@ -61,16 +65,9 @@ export class MCGaugeChart extends MCBaseChart<GaugeDataInput> {
   protected override hasPlottableData(data: GaugeDataInput | null): boolean {
     if (!data) return false;
     const items = Array.isArray(data) ? data : [data];
-    if (items.length === 0) return false;
-    return items.some((d) => {
-      if (!d || typeof d !== 'object') return false;
-      const v = d.value;
-      return (
-        v !== null &&
-        v !== undefined &&
-        (v as unknown) !== '' &&
-        Number.isFinite(Number(v))
-      );
+    return items.some((item) => {
+      const value: unknown = item?.value;
+      return typeof item === 'object' && value != null && value !== '' && Number.isFinite(Number(value));
     });
   }
 
@@ -80,25 +77,17 @@ export class MCGaugeChart extends MCBaseChart<GaugeDataInput> {
       max: this.getOption('max', 'max'),
       unit: this.getOption('unit', 'unit'),
       centerLabel: this.getOption('centerLabel', 'center-label'),
-      enableLabels:
-        this.getOption('enableLabels', 'enable-labels', true) !== false,
-      startAngle: this.getOption('startAngle', 'start-angle', -135) ?? -135,
-      endAngle: this.getOption('endAngle', 'end-angle', 135) ?? 135,
-      innerRadius: this.getOption('innerRadius', 'inner-radius', 0.76) ?? 0.76,
-      cornerRadius: this.getOption('cornerRadius', 'corner-radius', 8) ?? 8,
-      splitNumber: this.getOption('splitNumber', 'split-number', 5) ?? 5,
-      minorSplitNumber:
-        this.getOption('minorSplitNumber', 'minor-split-number', 4) ?? 4,
-      pointerType:
-        (this.getOption(
-          'pointerType',
-          'pointer-type',
-          'needle'
-        ) as GaugePointerType) ?? 'needle',
-      pointerLength:
-        this.getOption('pointerLength', 'pointer-length', 0.88) ?? 0.88,
-      pointerWidth:
-        this.getOption('pointerWidth', 'pointer-width', 2.5) ?? 2.5
+      enableLabels: this.getOption('enableLabels', 'enable-labels', true),
+      // Use the numeric attribute parser and let the model resolve defaults.
+      startAngle: this.getOption('startAngle', 'start-angle', Number.NaN),
+      endAngle: this.getOption('endAngle', 'end-angle', Number.NaN),
+      innerRadius: this.getOption('innerRadius', 'inner-radius', Number.NaN),
+      cornerRadius: this.getOption('cornerRadius', 'corner-radius', Number.NaN),
+      splitNumber: this.getOption('splitNumber', 'split-number', Number.NaN),
+      minorSplitNumber: this.getOption('minorSplitNumber', 'minor-split-number', Number.NaN),
+      pointerType: this.getOption('pointerType', 'pointer-type') as GaugePointerType | undefined,
+      pointerLength: this.getOption('pointerLength', 'pointer-length', Number.NaN),
+      pointerWidth: this.getOption('pointerWidth', 'pointer-width', Number.NaN)
     });
     ctx.state.model = model;
   }
@@ -107,21 +96,16 @@ export class MCGaugeChart extends MCBaseChart<GaugeDataInput> {
     string,
     (ctx: ChartRenderContext<GaugeDataInput>) => void
   > {
+    const bindModel = (render: typeof renderGaugeTrackLayer) => (ctx: ChartRenderContext<GaugeDataInput>) =>
+      render(ctx.state.model as GaugeChartModel, ctx);
     return {
-      track: (ctx) =>
-        renderGaugeTrackLayer(ctx.state.model as GaugeChartModel, ctx),
-      bands: (ctx) =>
-        renderGaugeBandsLayer(ctx.state.model as GaugeChartModel, ctx),
-      valueArc: (ctx) =>
-        renderGaugeValueArcLayer(ctx.state.model as GaugeChartModel, ctx),
-      ticks: (ctx) =>
-        renderGaugeTicksLayer(ctx.state.model as GaugeChartModel, ctx),
-      needle: (ctx) =>
-        renderGaugeNeedleLayer(ctx.state.model as GaugeChartModel, ctx),
-      center: (ctx) =>
-        renderGaugeCenterLayer(ctx.state.model as GaugeChartModel, ctx),
-      legends: (ctx) =>
-        renderGaugeLegendsLayer(ctx.state.model as GaugeChartModel, ctx)
+      track: bindModel(renderGaugeTrackLayer),
+      bands: bindModel(renderGaugeBandsLayer),
+      valueArc: bindModel(renderGaugeValueArcLayer),
+      ticks: bindModel(renderGaugeTicksLayer),
+      needle: bindModel(renderGaugeNeedleLayer),
+      center: bindModel(renderGaugeCenterLayer),
+      legends: bindModel(renderGaugeLegendsLayer)
     };
   }
 }
