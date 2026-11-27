@@ -57,6 +57,7 @@ export interface TreemapChartModel {
   colorBy: TreemapColorBy;
   nodeOpacity: number;
   interactiveDrilldown: boolean;
+  focusPath: string[];
   isDrilledDown: boolean;
   activeRootName: string;
   breadcrumbText: string;
@@ -90,14 +91,16 @@ const TILE_METHODS: Record<TreemapTileMethod, any> = {
   resquarify: treemapResquarify
 };
 
-function findFocusNode(root: HierarchyNode, path: string[]): HierarchyNode {
+function resolveFocus(root: HierarchyNode, path: string[]) {
   let curr = root;
+  const focusPath: string[] = [];
   for (const seg of path) {
     const child = curr.children?.find((c) => c.name === seg);
     if (!child) break;
     curr = child;
+    focusPath.push(seg);
   }
-  return curr;
+  return { activeRootData: curr, focusPath };
 }
 
 /**
@@ -111,9 +114,7 @@ export function computeTreemapChartModel(
   input: TreemapModelInput
 ): TreemapChartModel {
   const rawRoot = ctx.data ?? { name: 'Root', children: [] };
-  const focusPath = input.focusPath ?? [];
-  const activeRootData =
-    focusPath.length > 0 ? findFocusNode(rawRoot, focusPath) : rawRoot;
+  const { activeRootData, focusPath } = resolveFocus(rawRoot, input.focusPath ?? []);
   const isDrilledDown = focusPath.length > 0;
   const breadcrumbText = [rawRoot.name || ctx.i18n.messages.root, ...focusPath].join(' › ');
   const breadcrumbHeight = isDrilledDown ? 28 : 0;
@@ -264,6 +265,7 @@ export function computeTreemapChartModel(
     colorBy,
     nodeOpacity,
     interactiveDrilldown,
+    focusPath,
     isDrilledDown,
     activeRootName: activeRootData.name,
     breadcrumbText,
