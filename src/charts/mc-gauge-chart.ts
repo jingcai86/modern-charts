@@ -79,15 +79,15 @@ export class MCGaugeChart extends MCBaseChart<GaugeDataInput> {
       centerLabel: this.getOption('centerLabel', 'center-label'),
       enableLabels: this.getOption('enableLabels', 'enable-labels', true),
       // Use the numeric attribute parser and let the model resolve defaults.
-      startAngle: this.getOption('startAngle', 'start-angle', NaN),
-      endAngle: this.getOption('endAngle', 'end-angle', NaN),
-      innerRadius: this.getOption('innerRadius', 'inner-radius', NaN),
-      cornerRadius: this.getOption('cornerRadius', 'corner-radius', NaN),
-      splitNumber: this.getOption('splitNumber', 'split-number', NaN),
-      minorSplitNumber: this.getOption('minorSplitNumber', 'minor-split-number', NaN),
+      startAngle: this.getOption('startAngle', 'start-angle', Number.NaN),
+      endAngle: this.getOption('endAngle', 'end-angle', Number.NaN),
+      innerRadius: this.getOption('innerRadius', 'inner-radius', Number.NaN),
+      cornerRadius: this.getOption('cornerRadius', 'corner-radius', Number.NaN),
+      splitNumber: this.getOption('splitNumber', 'split-number', Number.NaN),
+      minorSplitNumber: this.getOption('minorSplitNumber', 'minor-split-number', Number.NaN),
       pointerType: this.getOption('pointerType', 'pointer-type') as GaugePointerType | undefined,
-      pointerLength: this.getOption('pointerLength', 'pointer-length', NaN),
-      pointerWidth: this.getOption('pointerWidth', 'pointer-width', NaN)
+      pointerLength: this.getOption('pointerLength', 'pointer-length', Number.NaN),
+      pointerWidth: this.getOption('pointerWidth', 'pointer-width', Number.NaN)
     });
     ctx.state.model = model;
   }
