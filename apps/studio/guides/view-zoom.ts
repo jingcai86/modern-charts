@@ -11,13 +11,14 @@ import {
   SAMPLE_SUNBURST_DATA
 } from '../sample-data';
 import type { MCBaseChart, ThemeModePreference } from '../../../src/index';
-import { createCodeBlock, createLiveConfigEditor } from './shared';
+import { createFeatureGuideBootstrap } from './bootstrapping';
 
 export function renderViewZoomGuide(
   container: HTMLElement,
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
   const mounted: MCBaseChart<any>[] = [];
+  const bootstrap = createFeatureGuideBootstrap({ zoom: true, csvExport: false });
 
   // Intro & API Reference Table
   const intro = document.createElement('section');
@@ -31,7 +32,8 @@ export function renderViewZoomGuide(
       <code>registerModernCharts({ features: { zoom: true } })</code> or per-chart
       <code>registerBarChart({ features: { zoom: true } })</code> (see the
       <a href="#/guide/bootstrapping">🚀 Feature Bootstrapping &amp; Lazy Loading guide</a>).
-      Studio enables <code>zoom: true</code> automatically across all examples.
+      The examples start with zoom enabled. Edit <code>features.zoom</code> in either example to
+      change its availability for both charts.
     </p>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
       <table class="guide-table">
@@ -135,21 +137,19 @@ export function renderViewZoomGuide(
   };
 
   const syncEx1Readout = () => {
-    const viewCfg = radar1.resolveViewConfig();
+    const zoomable = radar1.zoomable;
     const viewport = radar1.shadowRoot?.querySelector('.mc-chart-viewport');
     const transform =
       viewport?.getAttribute('transform') || 'translate(0, 0) scale(1)';
-    zoomToggleBtn1.setAttribute('aria-pressed', String(viewCfg.zoomable));
-    zoomToggleBtn1.setAttribute(
-      'data-zoom-state',
-      viewCfg.zoomable ? 'on' : 'off'
-    );
-    zoomToggleBtn1.textContent = viewCfg.zoomable ? 'Zoom: On' : 'Zoom: Off';
-    zoomToggleBtn1.classList.toggle('btn-primary', viewCfg.zoomable);
-    zoomInBtn1.disabled = !viewCfg.zoomable;
-    zoomOutBtn1.disabled = !viewCfg.zoomable;
-    zoomResetBtn1.disabled = !viewCfg.zoomable;
-    readoutEl1.textContent = `zoomable: ${viewCfg.zoomable} | transform: ${transform}`;
+    zoomToggleBtn1.disabled = !radar1.isFeatureEnabled('zoom');
+    zoomToggleBtn1.setAttribute('aria-pressed', String(zoomable));
+    zoomToggleBtn1.setAttribute('data-zoom-state', zoomable ? 'on' : 'off');
+    zoomToggleBtn1.textContent = zoomable ? 'Zoom: On' : 'Zoom: Off';
+    zoomToggleBtn1.classList.toggle('btn-primary', zoomable);
+    zoomInBtn1.disabled = !zoomable;
+    zoomOutBtn1.disabled = !zoomable;
+    zoomResetBtn1.disabled = !zoomable;
+    readoutEl1.textContent = `zoomable: ${zoomable} | transform: ${transform}`;
   };
 
   const applyEx1Config = (cfg: Record<string, any>) => {
@@ -165,10 +165,14 @@ export function renderViewZoomGuide(
 
   applyEx1Config(initialCfg1);
 
-  const editor1 = createLiveConfigEditor({
+  const editor1 = bootstrap.createEditor({
     title: 'View & Zoom Toggle Config (Live)',
     initialConfig: initialCfg1,
-    hint: 'Toggle view.zoomable between true and false or adjust view.maxZoom.',
+    chartId: () => 'radar',
+    usage: `chart.addEventListener('mc-zoom-toggle', (event) => {
+  console.log('Zoom enabled:', event.detail.zoomable);
+});`,
+    hint: 'Edit features.zoom for both examples or view.zoomable for this chart. The Zoom button logs to the browser console.',
     onConfigChange: (nextCfg) => {
       applyEx1Config(nextCfg);
     },
@@ -180,33 +184,17 @@ export function renderViewZoomGuide(
   });
   ex1.querySelector('#vz-editor-1')!.appendChild(editor1.element);
 
-  let isUpdatingEx1 = false;
-  zoomToggleBtn1.addEventListener('click', () => {
-    isUpdatingEx1 = true;
-    try {
-      const nextZoomable = radar1.toggleZoom();
-      const nextCfg = {
-        ...radar1.config,
-        view: {
-          ...(radar1.config.view ?? {}),
-          zoomable: nextZoomable
-        }
-      };
-      syncEx1Readout();
-      editor1.syncConfig(nextCfg);
-    } finally {
-      isUpdatingEx1 = false;
-    }
-  });
+  zoomToggleBtn1.addEventListener('click', () => radar1.toggleZoom());
 
-  radar1.addEventListener('mc-zoom-toggle', () => {
-    if (isUpdatingEx1) return;
+  radar1.addEventListener('mc-zoom-toggle', (event) => {
+    const { zoomable } = (event as CustomEvent<{ zoomable: boolean }>).detail;
+    console.log('Zoom enabled:', zoomable);
     syncEx1Readout();
     editor1.syncConfig({
       ...radar1.config,
       view: {
         ...(radar1.config.view ?? {}),
-        zoomable: radar1.zoomable
+        zoomable
       }
     });
   });
@@ -382,9 +370,10 @@ export function renderViewZoomGuide(
 
   const syncEx2Readout = () => {
     const viewCfg = activeChart2.resolveViewConfig();
+    const pannable = activeChart2.isFeatureEnabled('zoom') && viewCfg.enabled && viewCfg.pannable;
     const vp = activeChart2.shadowRoot?.querySelector('.mc-chart-viewport');
     const transform = vp?.getAttribute('transform') || 'translate(0, 0) scale(1)';
-    readoutEl2.textContent = `<${activeSpec2.tag}> | zoomable: ${viewCfg.zoomable} | pannable: ${viewCfg.pannable} | transform: ${transform}`;
+    readoutEl2.textContent = `<${activeSpec2.tag}> | zoomable: ${activeChart2.zoomable} | pannable: ${pannable} | transform: ${transform}`;
   };
 
   const wireEx2ChartListeners = (chart: MCBaseChart<any>) => {
@@ -398,7 +387,8 @@ export function renderViewZoomGuide(
         }
       });
     });
-    chart.addEventListener('mc-zoom', () => {
+    chart.addEventListener('mc-zoom', (event) => {
+      console.log('Viewport:', (event as CustomEvent<unknown>).detail);
       syncEx2Readout();
     });
   };
@@ -423,10 +413,14 @@ export function renderViewZoomGuide(
     syncEx2Readout();
   };
 
-  const editor2 = createLiveConfigEditor({
+  const editor2 = bootstrap.createEditor({
     title: 'Multi-Chart View Config (Live)',
     initialConfig: structuredClone(activeSpec2.config),
-    hint: 'Edit view.zoomable, view.pannable, or view.maxZoom for the active chart.',
+    chartId: () => activeSpec2.id,
+    usage: `chart.addEventListener('mc-zoom', (event) => {
+  console.log('Viewport:', event.detail);
+});`,
+    hint: 'Edit features.zoom for both examples or the active chart’s view settings. Viewport changes log to the browser console.',
     onConfigChange: (nextCfg) => {
       updateEx2Chart(activeSpec2, nextCfg);
     },
@@ -466,53 +460,10 @@ export function renderViewZoomGuide(
 
   updateEx2Chart(activeSpec2, structuredClone(activeSpec2.config));
 
-  // Reference Code Snippet
-  const reference = document.createElement('section');
-  reference.className = 'panel-card guide-section';
-  reference.innerHTML = `
-    <h2 class="panel-title">Programmatic &amp; Declarative Zoom Toggle API</h2>
-    <p class="guide-prose">
-      Configure zoom via <code>chart.config.view</code> or a child <code>&lt;mc-view-layer&gt;</code> element,
-      and toggle zoom at runtime with <code>chart.toggleZoom()</code> or the on-chart <code>[data-zoom="toggle"]</code> button.
-    </p>
-  `;
-  reference.appendChild(
-    createCodeBlock(
-      `import 'modern-charts/pie';
-
-const chart = document.querySelector('mc-pie-chart');
-chart.config = {
-  title: 'Runtime Footprint',
-  innerRadius: 0.52,
-  data: [
-    { id: 'D3 Scales', value: 420 },
-    { id: 'Pretext Labels', value: 310 },
-    { id: 'Core Layers', value: 260 }
-  ],
-  view: {
-    zoomable: true,
-    pannable: true,
-    showControls: true,
-    minZoom: 0.5,
-    maxZoom: 6
-  }
-};
-
-// Listen for on-chart or programmatic zoom toggle events
-chart.addEventListener('mc-zoom-toggle', (event) => {
-  console.log('Zoomable:', event.detail.zoomable, 'on', event.detail.chartType);
-});
-
-// Toggle zoom off (locks wheel, brush, slider, and + / − / Reset while preserving transform)
-chart.toggleZoom(false);
-
-// Re-enable zoom and scale in
-chart.toggleZoom(true);
-chart.zoomIn(1.25);`,
-      'Zoom Toggle & Viewport Controls Usage'
-    )
-  );
-  container.appendChild(reference);
+  bootstrap.onFeaturesChanged(() => {
+    syncEx1Readout();
+    syncEx2Readout();
+  });
 
   return mounted;
 }

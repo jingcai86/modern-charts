@@ -39,6 +39,7 @@ import { renderChartDetailPage } from '../apps/studio/pages/chart-detail';
 import { resetChartConfig } from '../apps/studio/state/config-store';
 import { GUIDES_CATALOG, renderGuidePage } from '../apps/studio/guides';
 import {
+  extractChartConfigBlock,
   formatConfigAssignment,
   parseConfigObjectLiteral
 } from '../apps/studio/utils/code-sync';
@@ -461,7 +462,7 @@ describe('Customizable CSV export across all 10 chart types (Issue #125)', () =>
   }, 20000);
 });
 
-describe('Customizable CSV Data Export & Bootstrapping Studio guides', () => {
+describe('Customizable CSV Data Export Studio guide', () => {
   it('renders interactive CSV export presets and all 10 chart switchers in csv-export guide', () => {
     expect(
       GUIDES_CATALOG.find((g) => g.id === 'csv-export')?.title
@@ -477,6 +478,11 @@ describe('Customizable CSV Data Export & Bootstrapping Studio guides', () => {
     const readout1 = ex1.querySelector<HTMLElement>('#ce-readout-1')!;
     const editor1 = ex1.querySelector<HTMLTextAreaElement>('textarea')!;
     expect(readout1.textContent).toContain('quarter,Cloud,Edge,OnPrem');
+    expect(editor1.value).toContain("import { registerBarChart } from 'modern-charts/bar';");
+    expect(editor1.value).toContain('await registerBarChart(');
+    expect(editor1.value).toContain("document.createElement('mc-bar-chart')");
+    expect(editor1.value).toContain('chart.toCsv()');
+    expect(editor1.value).toContain("addEventListener('click', () => chart.exportCsv())");
 
     ex1
       .querySelector<HTMLButtonElement>('[data-csv-preset="columns"]')!
@@ -489,21 +495,30 @@ describe('Customizable CSV Data Export & Bootstrapping Studio guides', () => {
       .querySelector<HTMLButtonElement>('[data-csv-preset="formatted"]')!
       .click();
     expect(readout1.textContent).toContain('$142.0K');
+    expect(editor1.value).not.toContain('[Function]');
+    editor1.value = editor1.value.replace("'formatted-quarterly-spend'", "'reviewed-spend'");
+    editor1.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(ex1.querySelector('#ce-filename-1')!.textContent).toBe('reviewed-spend.csv');
+    expect(readout1.textContent).toContain('$142.0K');
 
     ex1
       .querySelector<HTMLButtonElement>('[data-csv-preset="serializer"]')!
       .click();
     expect(readout1.textContent).toContain('Quarter,Cloud,Edge,Total');
 
+    const createUrlSpy = vi.spyOn(URL, 'createObjectURL');
     ex1.querySelector<HTMLButtonElement>('#ce-btn-export-1')!.click();
+    expect(createUrlSpy).toHaveBeenCalledTimes(1);
     expect(ex1.querySelector('#ce-filename-1')!.textContent).toContain(
       'exported 4 rows'
     );
 
     // Edit and reset live config editor 1
-    const cfg1 = parseConfigObjectLiteral(editor1.value);
+    ex1.querySelector<HTMLButtonElement>('[data-csv-preset="default"]')!.click();
+    const configBlock1 = extractChartConfigBlock(editor1.value)!;
+    const cfg1 = parseConfigObjectLiteral(configBlock1);
     cfg1.csvExport = { filename: 'edited-spend.csv' };
-    editor1.value = formatConfigAssignment(cfg1);
+    editor1.value = editor1.value.replace(configBlock1, formatConfigAssignment(cfg1, ''));
     editor1.dispatchEvent(new Event('input', { bubbles: true }));
     expect(ex1.querySelector('#ce-filename-1')!.textContent).toBe(
       'edited-spend.csv'
@@ -525,88 +540,80 @@ describe('Customizable CSV Data Export & Bootstrapping Studio guides', () => {
     for (const btn of typeBtns) {
       btn.click();
       expect(btn.getAttribute('aria-pressed')).toBe('true');
+      expect(editor2.value).toContain(`from 'modern-charts/${btn.dataset.ceChartType}'`);
       expect(readout2.textContent!.split('\n').length).toBeGreaterThanOrEqual(
         2
       );
     }
 
     ex2.querySelector<HTMLButtonElement>('#ce-btn-handler-2')!.click();
+    expect(createUrlSpy).toHaveBeenCalledTimes(1);
     expect(ex2.querySelector('#ce-handler-status-2')!.textContent).toContain(
       'Custom handler invoked'
     );
 
     // Edit and reset live config editor 2
-    const cfg2 = parseConfigObjectLiteral(editor2.value);
+    expect(editor2.value).toContain("addEventListener('click', () => chart.exportCsv({");
+    const configBlock2 = extractChartConfigBlock(editor2.value)!;
+    const cfg2 = parseConfigObjectLiteral(configBlock2);
     cfg2.title = 'Updated Efficiency';
-    editor2.value = formatConfigAssignment(cfg2);
+    editor2.value = editor2.value.replace(configBlock2, formatConfigAssignment(cfg2, ''));
     editor2.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(charts[1].config.title).toBe('Updated Efficiency');
     ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+    expect(charts[1].config.title).toBe('Layout Efficiency');
   }, 20000);
 
-  it('renders the Feature Bootstrapping & Lazy Loading guide with links to csv-export and view-zoom and interactive true vs false examples', () => {
-    expect(
-      GUIDES_CATALOG.find((g) => g.id === 'bootstrapping')?.title
-    ).toContain('Feature Bootstrapping & Lazy Loading');
-
+  it('shares bootstrap flags across the two CSV examples and preserves their independent configs', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const charts = renderGuidePage(root, 'bootstrapping', 'dark');
+    const charts = renderGuidePage(root, 'csv-export', 'dark');
+    const editor1 = root.querySelector<HTMLTextAreaElement>('#ce-editor-1 textarea')!;
+    const editor2 = root.querySelector<HTMLTextAreaElement>('#ce-editor-2 textarea')!;
+    const preview1 = root.querySelector<HTMLElement>('#ce-readout-1')!;
+    const preview2 = root.querySelector<HTMLElement>('#ce-readout-2')!;
+    const exportButton = root.querySelector<HTMLButtonElement>('#ce-btn-export-1')!;
+    const handlerButton = root.querySelector<HTMLButtonElement>('#ce-btn-handler-2')!;
+    const [bar, pie] = charts;
+
     expect(charts).toHaveLength(2);
-
-    // Verify links to the current bootstrap feature guides
-    expect(
-      root.querySelector('a[href="#/guide/csv-export"]')
-    ).not.toBeNull();
-    expect(
-      root.querySelector('a[href="#/guide/view-zoom"]')
-    ).not.toBeNull();
-
-    // Example 1: Toggle between Explicit Enable (csvExport: true) and Default Bootstrap (csvExport: false)
-    const ex1 = root.querySelector<HTMLElement>('#bs-default-vs-enabled')!;
-    const btnEnabled = ex1.querySelector<HTMLButtonElement>('#bs-mode-enabled')!;
-    const btnDefault = ex1.querySelector<HTMLButtonElement>('#bs-mode-default')!;
-    const readout1 = ex1.querySelector<HTMLElement>('#bs-readout-1')!;
-    const editor1 = ex1.querySelector<HTMLTextAreaElement>('textarea')!;
-
-    expect(readout1.textContent).toContain('features.csvExport: true');
-    expect(editor1.value).not.toContain('registerModernCharts');
-
-    btnDefault.click();
-    expect(isChartFeatureEnabled('csvExport')).toBe(false);
-    expect(readout1.textContent).toContain('features.csvExport: false');
-
-    btnEnabled.click();
-    expect(isChartFeatureEnabled('csvExport')).toBe(true);
-    expect(readout1.textContent).toContain('features.csvExport: true');
-
-    // Edit & reset live config editor 1
-    const cfg1 = parseConfigObjectLiteral(editor1.value);
-    cfg1.title = 'Updated Spend';
-    editor1.value = formatConfigAssignment(cfg1);
-    editor1.dispatchEvent(new Event('input', { bubbles: true }));
-    ex1.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
-
-    // Example 2: Switch across all 10 per-chart subpath bootstrap examples
-    const ex2 = root.querySelector<HTMLElement>('#bs-per-chart')!;
-    const readout2 = ex2.querySelector<HTMLElement>('#bs-readout-2')!;
-    const editor2 = ex2.querySelector<HTMLTextAreaElement>('textarea')!;
-    const typeBtns = Array.from(
-      ex2.querySelectorAll<HTMLButtonElement>('button[data-bs-chart-type]')
+    expect(root.querySelector('#bs-chart')).toBeNull();
+    const originalBarConfig = extractChartConfigBlock(editor1.value)!;
+    const originalPieConfig = extractChartConfigBlock(editor2.value);
+    const customBarConfig = originalBarConfig.replace(
+      'Quarterly Spend ($K)',
+      'Revised Quarterly Spend'
     );
-    expect(typeBtns).toHaveLength(10);
+    editor1.value = editor1.value.replace(originalBarConfig, customBarConfig);
+    editor1.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(bar.config.title).toBe('Revised Quarterly Spend');
+    expect(extractChartConfigBlock(editor2.value)).toBe(originalPieConfig);
 
-    for (const btn of typeBtns) {
-      btn.click();
-      expect(btn.getAttribute('aria-pressed')).toBe('true');
-      expect(readout2.textContent).toContain(
-        `from 'modern-charts/${btn.dataset.bsChartType}'`
-      );
-    }
-
-    const cfg2 = parseConfigObjectLiteral(editor2.value);
-    cfg2.title = 'Updated Gauge';
-    editor2.value = formatConfigAssignment(cfg2);
+    editor2.value = editor2.value.replace('csvExport: true', 'csvExport: false');
     editor2.dispatchEvent(new Event('input', { bubbles: true }));
-    ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
-  }, 20000);
+    await vi.waitFor(() => {
+      expect(editor2.getAttribute('aria-invalid')).toBe('false');
+      expect(editor1.value).toContain('csvExport: false');
+      expect(preview1.textContent).toBe('');
+      expect(preview2.textContent).toBe('');
+      expect(bar.toCsv()).toBe('');
+      expect(pie.toCsv()).toBe('');
+      expect(exportButton.disabled).toBe(true);
+      expect(handlerButton.disabled).toBe(true);
+    });
+
+    editor1.value = editor1.value.replace('csvExport: false', 'csvExport: true');
+    editor1.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(editor2.value).toContain('csvExport: true');
+      expect(extractChartConfigBlock(editor1.value)).toContain('Revised Quarterly Spend');
+      expect(extractChartConfigBlock(editor2.value)).toBe(originalPieConfig);
+      expect(exportButton.disabled).toBe(false);
+      expect(handlerButton.disabled).toBe(false);
+      expect(bar.toCsv()).toContain('quarter,Cloud,Edge,OnPrem');
+      expect(pie.toCsv()).toContain('id,value,percentage');
+      expect(preview1.textContent).toBe(bar.toCsv());
+      expect(preview2.textContent).toBe(pie.toCsv());
+    });
+  });
 });

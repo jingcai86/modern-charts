@@ -47,7 +47,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
         expect(wrap).not.toBeNull();
 
         const badgeText = wrap!.querySelector('.guide-code-live-badge')?.textContent;
-        expect(['LIVE CONFIG', 'LIVE CSS', 'LIVE HTML']).toContain(badgeText);
+        expect(['LIVE CONFIG', 'LIVE CSS', 'LIVE HTML', 'LIVE JS']).toContain(badgeText);
         expect(badgeText).not.toBe('LIVE JSON');
 
         const resetBtn = wrap!.querySelector('button.guide-reset-btn');

@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   configureChartFeatures,
   configureI18n,
@@ -26,6 +26,7 @@ import { renderChartDetailPage } from '../apps/studio/pages/chart-detail';
 import { resetChartConfig } from '../apps/studio/state/config-store';
 import { GUIDES_CATALOG, renderGuidePage } from '../apps/studio/guides';
 import {
+  extractChartConfigBlock,
   formatConfigAssignment,
   parseConfigObjectLiteral
 } from '../apps/studio/utils/code-sync';
@@ -35,6 +36,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   document.body.replaceChildren();
   configureI18n({});
   await configureChartFeatures({ features: { zoom: false, csvExport: false } });
@@ -335,6 +337,17 @@ describe('Dedicated Zoom on/off button and zoom support across all 10 chart type
 });
 
 describe('Zoom Controls & Bootstrapping Studio guides', () => {
+  function editExampleConfig(
+    editor: HTMLTextAreaElement,
+    update: (config: Record<string, any>) => void
+  ) {
+    const block = extractChartConfigBlock(editor.value)!;
+    const config = parseConfigObjectLiteral(block);
+    update(config);
+    editor.value = editor.value.replace(block, () => formatConfigAssignment(config, ''));
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   it('renders interactive zoom toggle controls and all 10 chart switchers in view-zoom guide', () => {
     expect(
       GUIDES_CATALOG.find((g) => g.id === 'view-zoom')?.title
@@ -344,6 +357,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     document.body.appendChild(root);
     const charts = renderGuidePage(root, 'view-zoom', 'dark');
     expect(charts).toHaveLength(2);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     // Example 1: Zoom toggle, zoom in/out/reset, and live config editor synchronization
     const ex1 = root.querySelector<HTMLElement>('#vz-zoom-toggle')!;
@@ -368,9 +382,11 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     );
 
     toggleBtn1.click();
+    expect(log.mock.calls).toEqual([['Zoom enabled:', false]]);
     expect(toggleBtn1.getAttribute('aria-pressed')).toBe('false');
     expect(zoomInBtn1.disabled).toBe(true);
-    expect(parseConfigObjectLiteral(editor1.value).view.zoomable).toBe(false);
+    expect(parseConfigObjectLiteral(extractChartConfigBlock(editor1.value)!).view.zoomable)
+      .toBe(false);
 
     // Re-enable via on-chart toggle button in Example 1
     charts[0]
@@ -378,6 +394,10 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
         'button[data-zoom="toggle"]'
       )!
       .click();
+    expect(log.mock.calls).toEqual([
+      ['Zoom enabled:', false],
+      ['Zoom enabled:', true]
+    ]);
     expect(toggleBtn1.getAttribute('aria-pressed')).toBe('true');
 
     // Reset button on live config editor 1
@@ -385,10 +405,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(toggleBtn1.getAttribute('aria-pressed')).toBe('true');
 
     // Update from live config editor 1
-    const cfg = parseConfigObjectLiteral(editor1.value);
-    cfg.view.zoomable = false;
-    editor1.value = formatConfigAssignment(cfg);
-    editor1.dispatchEvent(new Event('input', { bubbles: true }));
+    editExampleConfig(editor1, (config) => { config.view.zoomable = false; });
     expect(toggleBtn1.getAttribute('aria-pressed')).toBe('false');
 
     // Example 2: Switching across all 10 chart types updates active chart zoom readout
@@ -409,83 +426,270 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     // Trigger on-chart zoom and toggle on Example 2 active chart + editor2 input & reset
     const activeChart2 = ex2.querySelector('mc-gauge-chart') as MCBaseChart<any>;
     activeChart2.zoomIn();
+    expect(log).toHaveBeenLastCalledWith('Viewport:', {
+      k: 1.25,
+      x: expect.any(Number),
+      y: expect.any(Number)
+    });
     activeChart2.toggleZoom(false);
     expect(readout2.textContent).toContain('zoomable: false');
 
-    const cfg2 = parseConfigObjectLiteral(editor2.value);
-    cfg2.view.zoomable = true;
-    editor2.value = formatConfigAssignment(cfg2);
-    editor2.dispatchEvent(new Event('input', { bubbles: true }));
+    editExampleConfig(editor2, (config) => { config.view.zoomable = true; });
     expect(readout2.textContent).toContain('zoomable: true');
 
     ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
     expect(readout2.textContent).toContain('zoomable: true');
   }, 20000);
 
-  it('renders the Feature Bootstrapping & Lazy Loading guide with links to zoom and csv-export and interactive true vs false examples', () => {
-    expect(
-      GUIDES_CATALOG.find((g) => g.id === 'bootstrapping')?.title
-    ).toContain('Feature Bootstrapping & Lazy Loading');
+  it('bootstraps both Zoom examples and syncs shared flags without replacing chart settings', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const charts = renderGuidePage(root, 'view-zoom', 'dark');
+    const editor1 = root.querySelector<HTMLTextAreaElement>('#vz-editor-1 textarea')!;
+    const editor2 = root.querySelector<HTMLTextAreaElement>('#vz-editor-2 textarea')!;
+    const zoomActions = Array.from(root.querySelectorAll<HTMLButtonElement>(
+      '#vz-zoom-toggle-btn, #vz-zoom-in-btn, #vz-zoom-out-btn, #vz-zoom-reset-btn'
+    ));
+    const readout1 = root.querySelector('#vz-readout-1')!;
+    const readout2 = root.querySelector('#vz-readout-2')!;
+    const onChartControls = () => charts.map((chart) => chart.shadowRoot!
+      .querySelector<HTMLElement>('.mc-view-controls')!.hidden);
+
+    expect(charts).toHaveLength(2);
+    expect(root.querySelectorAll('textarea')).toHaveLength(2);
+    expect(editor1.value).toContain("import { registerRadarChart } from 'modern-charts/radar';");
+    expect(editor1.value).toContain('await registerRadarChart(');
+    expect(editor1.value).toContain("document.createElement('mc-radar-chart')");
+    expect(editor1.value).toContain("chart.addEventListener('mc-zoom-toggle'");
+    expect(editor2.value).toContain("import { registerPieChart } from 'modern-charts/pie';");
+    expect(editor2.value).toContain('await registerPieChart(');
+    expect(editor2.value).toContain("document.createElement('mc-pie-chart')");
+    expect(editor2.value).toContain("chart.addEventListener('mc-zoom'");
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: false });
+    expect(onChartControls()).toEqual([false, false]);
+    expect(zoomActions.every((button) => !button.disabled)).toBe(true);
+
+    editor1.value = editor1.value.replace('zoom: true', 'zoom: false');
+    editor1.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(editor2.value).toContain('zoom: false');
+    expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false });
+    expect(onChartControls()).toEqual([true, true]);
+    expect(zoomActions.every((button) => button.disabled)).toBe(true);
+    expect(readout1.textContent).toContain('zoomable: false');
+    expect(readout2.textContent).toContain('zoomable: false | pannable: false');
+    expect(charts[0].config.view?.zoomable).toBe(true);
+
+    editExampleConfig(editor1, (config) => { config.view.maxZoom = 4; });
+    expect(charts[0].config.view?.maxZoom).toBe(4);
+    expect(charts[1].config.view?.maxZoom).toBe(6);
+
+    root.querySelector<HTMLButtonElement>('[data-vz-chart-type="line"]')!.click();
+    expect(editor2.value).toContain("import { registerLineChart } from 'modern-charts/line';");
+    expect(editor2.value).toContain('await registerLineChart(');
+    expect(editor2.value).toContain('zoom: false');
+    expect(charts[1]).toBe(root.querySelector('#vz-chart-2 mc-line-chart'));
+    expect(onChartControls()).toEqual([true, true]);
+
+    editor2.value = editor2.value.replace('zoom: false', 'zoom: true');
+    editor2.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(editor1.value).toContain('zoom: true');
+    expect(onChartControls()).toEqual([false, false]);
+    expect(charts[0].config.view?.maxZoom).toBe(4);
+    expect(zoomActions.every((button) => !button.disabled)).toBe(true);
+    expect(readout1.textContent).toContain('zoomable: true');
+    expect(readout2.textContent).toContain('zoomable: true | pannable: true');
+  });
+
+  it('bootstraps a live preview with the selected entry point, chart, and features', async () => {
+    expect(GUIDES_CATALOG.find(({ id }) => id === 'bootstrapping')?.title).toContain(
+      'Feature Bootstrapping & Lazy Loading'
+    );
 
     const root = document.createElement('div');
     document.body.appendChild(root);
     const charts = renderGuidePage(root, 'bootstrapping', 'dark');
-    expect(charts).toHaveLength(2);
+    const entrypoint = root.querySelector<HTMLSelectElement>('#bs-entrypoint')!;
+    const chartType = root.querySelector<HTMLSelectElement>('#bs-chart-type')!;
+    const zoom = root.querySelector<HTMLInputElement>('#bs-zoom')!;
+    const csvExport = root.querySelector<HTMLInputElement>('#bs-csv-export')!;
+    const download = root.querySelector<HTMLButtonElement>('#bs-download-csv')!;
+    const csvOutput = root.querySelector<HTMLElement>('#bs-csv-output')!;
+    const editor = root.querySelector<HTMLTextAreaElement>('#bs-bootstrap-code textarea')!;
+    const featureCode = root.querySelector<HTMLElement>('#bs-feature-code')!;
+    const featureSnippet = () => featureCode.querySelector('code')?.textContent;
 
-    // Verify links to the current bootstrap feature guides
-    expect(
-      root.querySelector('a[href="#/guide/view-zoom"]')
-    ).not.toBeNull();
-    expect(
-      root.querySelector('a[href="#/guide/csv-export"]')
-    ).not.toBeNull();
-
-    // Example 1: Toggle between Explicit Enable (zoom: true) and Default Bootstrap (zoom: false)
-    const ex1 = root.querySelector<HTMLElement>('#bs-default-vs-enabled')!;
-    const btnEnabled = ex1.querySelector<HTMLButtonElement>('#bs-mode-enabled')!;
-    const btnDefault = ex1.querySelector<HTMLButtonElement>('#bs-mode-default')!;
-    const readout1 = ex1.querySelector<HTMLElement>('#bs-readout-1')!;
-    const editor1 = ex1.querySelector<HTMLTextAreaElement>('textarea')!;
-
-    expect(readout1.textContent).toContain('features.zoom: true');
-    expect(editor1.value).not.toContain('registerModernCharts');
-
-    btnDefault.click();
-    expect(isChartFeatureEnabled('zoom')).toBe(false);
-    expect(readout1.textContent).toContain('features.zoom: false');
-
-    btnEnabled.click();
-    expect(isChartFeatureEnabled('zoom')).toBe(true);
-    expect(readout1.textContent).toContain('features.zoom: true');
-
-    // Edit & reset live config editor 1
-    const cfg1 = parseConfigObjectLiteral(editor1.value);
-    cfg1.title = 'Updated Spend';
-    editor1.value = formatConfigAssignment(cfg1);
-    editor1.dispatchEvent(new Event('input', { bubbles: true }));
-    ex1.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
-
-    // Example 2: Switch across all 10 per-chart subpath bootstrap examples
-    const ex2 = root.querySelector<HTMLElement>('#bs-per-chart')!;
-    const readout2 = ex2.querySelector<HTMLElement>('#bs-readout-2')!;
-    const editor2 = ex2.querySelector<HTMLTextAreaElement>('textarea')!;
-    const typeBtns = Array.from(
-      ex2.querySelectorAll<HTMLButtonElement>('button[data-bs-chart-type]')
+    expect(root.querySelector('a[href="#/guide/view-zoom"]')).not.toBeNull();
+    expect(root.querySelector('a[href="#/guide/csv-export"]')).not.toBeNull();
+    expect(editor.closest('.guide-code-wrap')?.querySelector('.guide-code-live-badge')?.textContent)
+      .toBe('LIVE JS');
+    expect(entrypoint.value).toBe('library');
+    expect(chartType.value).toBe('bar');
+    expect(Array.from(chartType.options, ({ value }) => value).sort()).toEqual(
+      CHART_CATALOG.map(({ id }) => id).sort()
     );
-    expect(typeBtns).toHaveLength(10);
+    expect(zoom.checked).toBe(false);
+    expect(csvExport.checked).toBe(false);
+    expect(download.disabled).toBe(true);
+    expect(editor.value).toMatch(/^import \{ registerModernCharts \} from 'modern-charts';\s+await registerModernCharts\([\s\S]*\);$/);
+    expect(editor.value).not.toMatch(/(?:zoom|csvExport):\s*true/);
+    expect(featureCode.hidden).toBe(true);
+    const copy = root.querySelector<HTMLButtonElement>('#bs-bootstrap-code button.guide-copy-btn')!;
+    expect(copy.getAttribute('commandfor')).toBe(editor.id);
 
-    for (const btn of typeBtns) {
-      btn.click();
-      expect(btn.getAttribute('aria-pressed')).toBe('true');
-      expect(readout2.textContent).toContain(
-        `from 'modern-charts/${btn.dataset.bsChartType}'`
-      );
+    await vi.waitFor(() => {
+      expect(charts).toHaveLength(1);
+      const bar = root.querySelector('#bs-chart mc-bar-chart') as MCBaseChart<any>;
+      expect(bar).toBe(charts[0]);
+      expect(bar.isFeatureEnabled('zoom')).toBe(false);
+      expect(bar.toCsv()).toBe('');
+    });
+
+    zoom.checked = true;
+    zoom.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(charts[0].zoomable).toBe(true);
+      expect(editor.value).toMatch(/zoom:\s*true/);
+      expect(editor.value).not.toContain('chart.toggleZoom');
+      expect(featureCode.hidden).toBe(false);
+      expect(featureSnippet()).toMatch(/chart\.(?:zoomIn|toggleZoom)\(/);
+    });
+    const zoomIn = charts[0].shadowRoot!.querySelector<HTMLButtonElement>(
+      'button[data-zoom="in"]'
+    )!;
+    zoomIn.click();
+    expect(charts[0].shadowRoot!.querySelector('.mc-chart-viewport')!.getAttribute('transform'))
+      .toContain('scale(1.25)');
+    expect(download.disabled).toBe(true);
+
+    csvExport.checked = true;
+    csvExport.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(download.disabled).toBe(true);
+    await vi.waitFor(() => {
+      expect(charts[0].isFeatureEnabled('csvExport')).toBe(true);
+      expect(charts[0].toCsv()).toContain('quarter,Cloud,Edge,OnPrem');
+      expect(csvOutput.textContent).toContain(charts[0].toCsv());
+      expect(download.disabled).toBe(false);
+      expect(editor.value).toMatch(/csvExport:\s*true/);
+      expect(editor.value).not.toContain('chart.toCsv');
+      expect(featureSnippet()).toContain('chart.toCsv()');
+    });
+
+    zoom.checked = false;
+    zoom.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(charts[0].zoomable).toBe(false);
+      expect(charts[0].isFeatureEnabled('csvExport')).toBe(true);
+      expect(editor.value).not.toMatch(/zoom:\s*true/);
+      expect(editor.value).toMatch(/csvExport:\s*true/);
+      expect(featureSnippet()).not.toMatch(/chart\.(?:zoomIn|toggleZoom)\(/);
+    });
+
+    entrypoint.value = 'standalone';
+    entrypoint.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.value).toContain("import { registerBarChart } from 'modern-charts/bar';");
+    for (const { id, tagName } of CHART_CATALOG) {
+      chartType.value = id;
+      chartType.dispatchEvent(new Event('change', { bubbles: true }));
+      const register = `register${id.charAt(0).toUpperCase()}${id.slice(1)}Chart`;
+      await vi.waitFor(() => {
+        expect(charts).toHaveLength(1);
+        expect(root.querySelector(`#bs-chart ${tagName}`)).toBe(charts[0]);
+        expect(root.querySelector('#bs-chart')?.childElementCount).toBe(1);
+        expect(editor.value).toContain(`import { ${register} } from 'modern-charts/${id}';`);
+        expect(editor.value).toContain(`await ${register}(`);
+        expect(charts[0].toCsv().split('\n').length).toBeGreaterThan(1);
+      });
     }
 
-    const cfg2 = parseConfigObjectLiteral(editor2.value);
-    cfg2.title = 'Updated Gauge';
-    editor2.value = formatConfigAssignment(cfg2);
-    editor2.dispatchEvent(new Event('input', { bubbles: true }));
-    ex2.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+    csvExport.checked = false;
+    csvExport.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => {
+      expect(charts[0].toCsv()).toBe('');
+      expect(download.disabled).toBe(true);
+      expect(editor.value).not.toMatch(/csvExport:\s*true/);
+      expect(featureCode.hidden).toBe(true);
+    });
+  }, 20000);
+
+  it('applies valid bootstrap editor changes and resets the single preview', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const charts = renderGuidePage(root, 'bootstrapping', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#bs-bootstrap-code textarea')!;
+    const entrypoint = root.querySelector<HTMLSelectElement>('#bs-entrypoint')!;
+    const chartType = root.querySelector<HTMLSelectElement>('#bs-chart-type')!;
+    const zoom = root.querySelector<HTMLInputElement>('#bs-zoom')!;
+    const csvExport = root.querySelector<HTMLInputElement>('#bs-csv-export')!;
+    const download = root.querySelector<HTMLButtonElement>('#bs-download-csv')!;
+    const defaultBootstrap = editor.value;
+    const editBootstrap = (source: string) => {
+      editor.value = source;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    editBootstrap(`import { registerModernCharts } from 'modern-charts';
+await registerModernCharts({ features: { zoom: true, csvExport: false } });`);
+    await vi.waitFor(() => {
+      expect(editor.getAttribute('aria-invalid')).toBe('false');
+      expect(entrypoint.value).toBe('library');
+      expect(chartType.value).toBe('bar');
+      expect(zoom.checked).toBe(true);
+      expect(csvExport.checked).toBe(false);
+      expect(charts[0].zoomable).toBe(true);
+      expect(charts[0].toCsv()).toBe('');
+    });
+
+    editBootstrap(`import { registerHeatmapChart } from 'modern-charts/heatmap';
+await registerHeatmapChart({ features: { zoom: false, csvExport: true } });`);
+    await vi.waitFor(() => {
+      expect(editor.getAttribute('aria-invalid')).toBe('false');
+      expect(entrypoint.value).toBe('standalone');
+      expect(chartType.value).toBe('heatmap');
+      expect(zoom.checked).toBe(false);
+      expect(csvExport.checked).toBe(true);
+      expect(root.querySelector('#bs-chart mc-heatmap-chart')).toBe(charts[0]);
+      expect(charts[0].zoomable).toBe(false);
+      expect(charts[0].toCsv()).toContain('row,x,y');
+      expect(download.disabled).toBe(false);
+    });
+
+    const heatmap = charts[0];
+    const gaugeImport = "import { registerGaugeChart } from 'modern-charts/gauge';";
+    for (const source of [
+      'await registerGaugeChart();',
+      `${gaugeImport}\nawait registerBarChart();`,
+      `${gaugeImport}\nawait registerGaugeChart(null);`,
+      `${gaugeImport}\nawait registerGaugeChart({ features: null });`,
+      `${gaugeImport}\nawait registerGaugeChart({ features: { zoom: true, csvExport: 'false' } });`
+    ]) {
+      editBootstrap(source);
+      expect(editor.getAttribute('aria-invalid')).toBe('true');
+      expect(entrypoint.value).toBe('standalone');
+      expect(chartType.value).toBe('heatmap');
+      expect(zoom.checked).toBe(false);
+      expect(csvExport.checked).toBe(true);
+      expect(charts[0]).toBe(heatmap);
+      expect(heatmap.toCsv()).toContain('row,x,y');
+    }
+
+    editBootstrap(`${gaugeImport}\nawait registerGaugeChart()`);
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    expect(chartType.value).toBe('gauge');
+    expect(charts[0].isFeatureEnabled('zoom')).toBe(false);
+    expect(charts[0].isFeatureEnabled('csvExport')).toBe(false);
+
+    root.querySelector<HTMLButtonElement>('#bs-bootstrap-code .guide-reset-btn')!.click();
+    await vi.waitFor(() => {
+      expect(editor.getAttribute('aria-invalid')).toBe('false');
+      expect(editor.value).toBe(defaultBootstrap);
+      expect(entrypoint.value).toBe('library');
+      expect(chartType.value).toBe('bar');
+      expect(zoom.checked).toBe(false);
+      expect(csvExport.checked).toBe(false);
+      expect(root.querySelector('#bs-chart mc-bar-chart')).toBe(charts[0]);
+      expect(charts[0].zoomable).toBe(false);
+      expect(charts[0].toCsv()).toBe('');
+      expect(download.disabled).toBe(true);
+    });
   }, 20000);
 });

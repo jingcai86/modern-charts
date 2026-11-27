@@ -30,7 +30,9 @@ export function renderGuidePage(
   guideId: GuideId,
   themeMode: ThemeModePreference
 ): MCBaseChart<any>[] {
-  void registerModernCharts({ features: { zoom: true, csvExport: true } });
+  void registerModernCharts(
+    guideId === 'bootstrapping' ? undefined : { features: { zoom: true, csvExport: true } }
+  );
   const body = document.createElement('div');
   body.className = 'guide-body-stack';
   root.replaceChildren(renderGuideHeader(guideId), body);
