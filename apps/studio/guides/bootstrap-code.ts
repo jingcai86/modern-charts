@@ -138,7 +138,7 @@ export function createFeatureGuideBootstrap(defaultFeatures: BootstrapFeatures) 
         initialValue: formatExample(),
         hint: options.hint ?? 'Edit the bootstrap flags or chart.config. The flags apply to both examples.',
         onApply: (source) => {
-          const chart = /^\s*const\s+chart\s*=\s*document\.createElement\(\s*(['"])(mc-[a-z]+-chart)\1\s*\)/m.exec(source);
+          const chart = /^[ \t]*const\s+chart\s*=\s*document\.createElement\(\s*(['"])(mc-[a-z]+-chart)\1\s*\)/m.exec(source);
           const chartId = options.chartId();
           if (!chart || chart[2] !== `mc-${chartId}-chart`) {
             return 'Create the chart type shown in this example.';
