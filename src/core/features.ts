@@ -1,10 +1,16 @@
 import type {
+  AriaItemDescriptor,
   ChartBootstrapOptions,
   ChartConfig,
   ChartDimensions,
+  ChartEventTargetRegistration,
   ChartFeaturesConfig,
+  ChartMargin,
   CsvExportOptions,
   CsvExportPayload,
+  ResolvedSelectionConfig,
+  SelectedChartItem,
+  SelectionMode,
   ViewConfig
 } from './types';
 import type { ChartI18n } from './i18n';
@@ -47,14 +53,63 @@ export interface CsvExporterImplementation {
   download: (csv: string, filename: string, mimeType?: string) => boolean;
 }
 
+export interface SelectableItemEntry {
+  id: string;
+  element: SVGElement;
+  ariaItem?: AriaItemDescriptor;
+  eventReg?: ChartEventTargetRegistration;
+}
+
+export interface SelectionHostAdapter {
+  readonly host: HTMLElement;
+  readonly chartType: string;
+  readonly shadowRoot: ShadowRoot | null;
+  readonly records: Map<string, SelectableItemEntry>;
+  readonly margin: ChartMargin;
+  selectedIds: string[];
+  resolveConfig: () => ResolvedSelectionConfig;
+  onSyncIds: (ids: string[]) => void;
+}
+
+export interface SelectionEngineImplementation {
+  getSelectedItems: (adapter: SelectionHostAdapter) => SelectedChartItem[];
+  finalizeRender: (adapter: SelectionHostAdapter) => boolean;
+  mutate: (
+    adapter: SelectionHostAdapter,
+    kind: 'select' | 'deselect' | 'toggle' | 'set' | 'clear',
+    ids?: string | string[],
+    options?: {
+      mode?: SelectionMode;
+      silent?: boolean;
+      source?: 'pointer' | 'keyboard' | 'api';
+    }
+  ) => SelectedChartItem[];
+  handleClick: (
+    adapter: SelectionHostAdapter,
+    ev: {
+      target: string;
+      category: string;
+      targetId?: string;
+      element: Element;
+      nativeEvent: Event;
+      chartX: number;
+      chartY: number;
+      data?: Record<string, any>;
+    },
+    isKeyboard: boolean
+  ) => void;
+}
+
 const activeFeatures: Required<ChartFeaturesConfig> = {
   zoom: false,
   csvExport: false,
+  selection: false,
   chartState: true
 };
 
 let zoomControllerFactory: ZoomControllerFactory | null = null;
 let csvExporterImpl: CsvExporterImplementation | null = null;
+let selectionEngineImpl: SelectionEngineImplementation | null = null;
 let chartStateLoad: Promise<void> | undefined;
 const featureListeners = new Set<() => void>();
 
@@ -64,14 +119,12 @@ function notifyFeatureListeners(): void {
   }
 }
 
-/** Registers the lazy-loaded zoom controller factory without changing the active `zoom` feature flag. */
 export function registerZoomControllerFactory(
   factory: ZoomControllerFactory
 ): void {
   zoomControllerFactory = factory;
 }
 
-/** Creates a zoom controller instance when the zoom feature is enabled and loaded. */
 export function createZoomController(
   host: HTMLElement,
   onZoomChange: (zoomed: boolean) => void,
@@ -81,30 +134,36 @@ export function createZoomController(
   return zoomControllerFactory(host, onZoomChange, onToggleZoom);
 }
 
-/** Registers the lazy-loaded CSV exporter implementation without changing the active `csvExport` feature flag. */
 export function registerCsvExporter(impl: CsvExporterImplementation): void {
   csvExporterImpl = impl;
 }
 
-/** Returns the active CSV exporter implementation when `features.csvExport` is enabled, or `null` when disabled. */
 export function getCsvExporter(): CsvExporterImplementation | null {
   if (!activeFeatures.csvExport || !csvExporterImpl) return null;
   return csvExporterImpl;
 }
 
-/** Returns whether an optional chart feature is currently enabled. */
+export function registerSelectionEngine(
+  impl: SelectionEngineImplementation
+): void {
+  selectionEngineImpl = impl;
+}
+
+export function getSelectionEngine(): SelectionEngineImplementation | null {
+  if (!activeFeatures.selection || !selectionEngineImpl) return null;
+  return selectionEngineImpl;
+}
+
 export function isChartFeatureEnabled(
   feature: keyof ChartFeaturesConfig
 ): boolean {
   return Boolean(activeFeatures[feature]);
 }
 
-/** Returns a snapshot of the active feature flags. */
 export function getChartFeatures(): Readonly<Required<ChartFeaturesConfig>> {
   return Object.freeze({ ...activeFeatures });
 }
 
-/** Subscribes to changes in optional chart features. */
 export function subscribeChartFeatures(listener: () => void): () => void {
   featureListeners.add(listener);
   return () => {
@@ -118,75 +177,59 @@ function extractFeatureFlags(
   if (!options || typeof options !== 'object') return {};
   const asBootstrap = options as ChartBootstrapOptions;
   const nested = asBootstrap.features ?? {};
-  const zoom =
-    nested.zoom !== undefined
-      ? nested.zoom
-      : (options as ChartFeaturesConfig).zoom;
+  const zoom = nested.zoom ?? (options as ChartFeaturesConfig).zoom;
   const csvExport =
-    nested.csvExport !== undefined
-      ? nested.csvExport
-      : (options as ChartFeaturesConfig).csvExport;
+    nested.csvExport ?? (options as ChartFeaturesConfig).csvExport;
+  const selection =
+    nested.selection ?? (options as ChartFeaturesConfig).selection;
   const chartState = nested.chartState ?? asBootstrap.chartState;
   return {
     ...(zoom !== undefined ? { zoom: Boolean(zoom) } : {}),
     ...(csvExport !== undefined ? { csvExport: Boolean(csvExport) } : {}),
+    ...(selection !== undefined ? { selection: Boolean(selection) } : {}),
     ...(chartState !== undefined ? { chartState: Boolean(chartState) } : {})
   };
 }
 
-/**
- * Configures optional chart features and loads their enabled implementations.
- * Chart state defaults to enabled. Zoom and CSV export default to disabled.
- */
 export function configureChartFeatures(
   options?: ChartBootstrapOptions | ChartFeaturesConfig
 ): Promise<void> {
   const flags = extractFeatureFlags(options);
 
   let changed = false;
-  if (flags.zoom !== undefined && activeFeatures.zoom !== flags.zoom) {
-    activeFeatures.zoom = flags.zoom;
-    changed = true;
-  }
-  if (
-    flags.csvExport !== undefined &&
-    activeFeatures.csvExport !== flags.csvExport
-  ) {
-    activeFeatures.csvExport = flags.csvExport;
-    changed = true;
-  }
-  if (flags.chartState !== undefined && activeFeatures.chartState !== flags.chartState) {
-    activeFeatures.chartState = flags.chartState;
-    changed = true;
+  for (const key of ['zoom', 'csvExport', 'selection', 'chartState'] as const) {
+    if (flags[key] !== undefined && activeFeatures[key] !== flags[key]) {
+      activeFeatures[key] = flags[key]!;
+      changed = true;
+    }
   }
 
   const pendingLoads: Promise<unknown>[] = [];
   if (activeFeatures.zoom && !zoomControllerFactory) {
     pendingLoads.push(
-      import('./chart-view-controller').then(() => {
-        notifyFeatureListeners();
-      })
+      import('./chart-view-controller').then(notifyFeatureListeners)
     );
   }
   if (activeFeatures.csvExport && !csvExporterImpl) {
+    pendingLoads.push(import('./csv-export').then(notifyFeatureListeners));
+  }
+  if (activeFeatures.selection && !selectionEngineImpl) {
     pendingLoads.push(
-      import('./csv-export').then(() => {
-        notifyFeatureListeners();
-      })
+      import('./selection-engine').then(notifyFeatureListeners)
     );
   }
   if (activeFeatures.chartState && typeof document !== 'undefined') {
-    chartStateLoad ??= loadChartStateView()?.then(() => {
-      if (activeFeatures.chartState) notifyFeatureListeners();
-    }).finally(() => {
-      chartStateLoad = undefined;
-    });
+    chartStateLoad ??= loadChartStateView()
+      ?.then(() => {
+        if (activeFeatures.chartState) notifyFeatureListeners();
+      })
+      .finally(() => {
+        chartStateLoad = undefined;
+      });
     if (chartStateLoad) pendingLoads.push(chartStateLoad);
   }
 
-  if (changed) {
-    notifyFeatureListeners();
-  }
+  if (changed) notifyFeatureListeners();
 
   return pendingLoads.length > 0
     ? Promise.all(pendingLoads).then(() => undefined)

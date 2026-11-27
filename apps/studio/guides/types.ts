@@ -15,6 +15,7 @@ export type GuideId =
   | 'patterns'
   | 'view-zoom'
   | 'csv-export'
+  | 'selection'
   | 'bootstrapping';
 
 export interface GuideMeta {
@@ -159,6 +160,15 @@ export const GUIDES_CATALOG: GuideMeta[] = [
       'Export chart data to RFC 4180 CSV with built-in serialization across all 10 chart types, custom columns, headers, value formatting, filenames, custom serializers, and export handlers.'
   },
   {
+    id: 'selection',
+    title: 'Interactive Item Selection',
+    featureDefault: false,
+    shortLabel: 'Item Selection',
+    icon: '🎯',
+    summary:
+      'Opt-in single-select and multi-select item selection across all 10 chart types with pointer and keyboard support, visual highlighting, and mc-selection-change events.'
+  },
+  {
     id: 'bootstrapping',
     title: 'Feature Bootstrapping & Lazy Loading',
     shortLabel: 'Bootstrapping',
@@ -175,7 +185,7 @@ const GUIDE_GROUP_ORDER = [
   ['colors-patterns-and-gradients', 'Colors, Patterns & Gradients', ['themes', 'patterns']],
   ['labels-and-layout', 'Labels & Layout', ['auto-size', 'custom-labels', 'truncation']],
   ['data-and-interaction', 'Data & Interaction', ['dynamic-updates', 'tooltips', 'events']],
-  ['optional-features', 'Optional Features', ['bootstrapping', 'view-zoom', 'csv-export', 'chart-state']],
+  ['optional-features', 'Optional Features', ['bootstrapping', 'view-zoom', 'csv-export', 'selection', 'chart-state']],
   ['accessibility-and-localization', 'Accessibility & Localization', ['accessibility', 'i18n']]
 ] satisfies Array<[id: string, title: string, guides: GuideId[]]>;
 

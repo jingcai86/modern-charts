@@ -12,7 +12,12 @@ import { createLiveCodeEditor, type LiveConfigEditorHandle } from './shared';
 type BootstrapFeatures = Required<ChartFeaturesConfig>;
 type DemoConfig = Record<string, any>;
 
-const BOOTSTRAP_DEFAULTS: BootstrapFeatures = { zoom: false, csvExport: false, chartState: true };
+const BOOTSTRAP_DEFAULTS: BootstrapFeatures = {
+  zoom: false,
+  csvExport: false,
+  selection: false,
+  chartState: true
+};
 
 const REGISTER_FN_BY_ID: Record<string, string> = {
   bar: 'registerBarChart',
@@ -51,7 +56,7 @@ export function parseBootstrap(source: string) {
   if (!features || typeof features !== 'object' || Array.isArray(features) ||
       Object.entries(features).some(([key, value]) =>
         !Object.hasOwn(BOOTSTRAP_DEFAULTS, key) || typeof value !== 'boolean')) {
-    throw new SyntaxError('Set zoom, csvExport, and chartState to true or false.');
+    throw new SyntaxError('Set zoom, csvExport, selection, and chartState to true or false.');
   }
   return { chartId, ...BOOTSTRAP_DEFAULTS, ...features };
 }
@@ -68,12 +73,13 @@ export function formatBootstrap(
         '  features: {',
         `    zoom: ${features.zoom},`,
         `    csvExport: ${features.csvExport},`,
+        `    selection: ${features.selection},`,
         features.chartState
           ? '    // chartState: false // Uncomment to disable the loading and empty overlay.'
           : '    chartState: false',
         '  }'
       ]
-    : [`  features: { zoom: ${features.zoom}, csvExport: ${features.csvExport}, chartState: ${features.chartState} }`];
+    : [`  features: { zoom: ${features.zoom}, csvExport: ${features.csvExport}, selection: ${features.selection}, chartState: ${features.chartState} }`];
   return [
     `import { ${registrar} } from '${modulePath}';`,
     '',
@@ -105,8 +111,14 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
   void configureChartFeatures({ features });
 
   const setFeatures = (next: BootstrapFeatures, source?: () => void): Promise<void> => {
-    if (next.zoom === features.zoom && next.csvExport === features.csvExport &&
-        next.chartState === features.chartState) return Promise.resolve();
+    if (
+      next.zoom === features.zoom &&
+      next.csvExport === features.csvExport &&
+      next.selection === features.selection &&
+      next.chartState === features.chartState
+    ) {
+      return Promise.resolve();
+    }
     features = next;
     const ready = configureChartFeatures({ features });
     for (const refresh of refreshEditors) {

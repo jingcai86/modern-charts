@@ -76,6 +76,7 @@ export function renderTreemapTilesLayer(
     ) {
       rect.style.cursor = 'pointer';
       rect.addEventListener('click', () => {
+        if (ctx.isSelectionEnabled) return;
         ctx.hideTooltip();
         onDrilldown(parent.pathNames);
       });

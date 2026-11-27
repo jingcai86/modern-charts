@@ -698,7 +698,9 @@ const STANDARD_HTML_ATTR_TO_CONFIG: Record<
   'label-mode': { path: 'labelMode', type: 'string' },
   'aria-label': { path: 'ariaLabel', type: 'string' },
   'is-interactive': { path: 'isInteractive', type: 'boolean' },
-  'is-focusable': { path: 'isFocusable', type: 'boolean' }
+  'is-focusable': { path: 'isFocusable', type: 'boolean' },
+  selectable: { path: 'selection.enabled', type: 'boolean' },
+  'selection-mode': { path: 'selection.mode', type: 'string' }
 };
 
 export function applyHtmlAttributeToConfig(

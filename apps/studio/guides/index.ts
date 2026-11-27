@@ -21,6 +21,7 @@ import { renderChartStateGuide } from './chart-state';
 import { renderPatternsGuide } from './patterns';
 import { renderViewZoomGuide } from './view-zoom';
 import { renderCsvExportGuide } from './csv-export';
+import { renderSelectionGuide } from './selection';
 import { renderBootstrappingGuide } from './bootstrapping';
 import type { GuideId } from './types';
 
@@ -71,6 +72,8 @@ export function renderGuidePage(
       return renderViewZoomGuide(body, themeMode);
     case 'csv-export':
       return renderCsvExportGuide(body, themeMode);
+    case 'selection':
+      return renderSelectionGuide(body, themeMode);
     case 'bootstrapping':
       return renderBootstrappingGuide(body, themeMode);
   }

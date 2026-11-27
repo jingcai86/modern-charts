@@ -9,13 +9,14 @@
     "features": {
       "zoom": { "type": "boolean", "default": false },
       "csvExport": { "type": "boolean", "default": false },
+      "selection": { "type": "boolean", "default": false },
       "chartState": {
         "type": "boolean",
         "default": true,
         "description": "Enables loading and empty overlays. Explicit registration loads the renderer chunk. Side-effect imports defer it until the first loading or empty overlay. Setting false skips that chunk and preserves chart state, mc-state-change events, and aria-busy."
       }
     },
-    "shorthand": ["zoom", "csvExport", "chartState"]
+    "shorthand": ["zoom", "csvExport", "selection", "chartState"]
   },
   "sharedAttributes": [
     "width",
@@ -34,6 +35,8 @@
     "aria-label",
     "is-interactive",
     "is-focusable",
+    "selectable",
+    "selection-mode",
     "loading",
     "loading-text",
     "empty-text"
@@ -68,6 +71,11 @@
       "zoomable": "boolean. Enables wheel, pinch, and button zoom. Change it programmatically with chart.toggleZoom().",
       "pannable": "boolean. Enables click-and-drag panning across the chart viewport.",
       "showControls": "boolean. Shows Zoom In, Zoom Out, Reset, and any controls added through the zoom-controls-extra slot."
+    },
+    "selection": {
+      "enabled": "boolean; enables interactive item selection via pointer or keyboard (default false)",
+      "mode": "enum ['single', 'multiple']; single-select replaces current selection, multi-select adds/removes items",
+      "selectedIds": "string[]; initial or controlled list of selected item IDs"
     }
   },
   "palettes": ["shadcn", "material", "bootstrap", "antd"],

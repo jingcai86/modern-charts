@@ -39,7 +39,9 @@ afterEach(async () => {
   vi.restoreAllMocks();
   document.body.replaceChildren();
   configureI18n({});
-  await configureChartFeatures({ features: { zoom: false, csvExport: false, chartState: true } });
+  await configureChartFeatures({
+    features: { zoom: false, csvExport: false, selection: false, chartState: true }
+  });
   for (const entry of CHART_CATALOG) {
     resetChartConfig(entry);
   }
@@ -402,14 +404,14 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(editor2.value).toContain('await registerPieChart(');
     expect(editor2.value).toContain("document.createElement('mc-pie-chart')");
     expect(editor2.value).toContain("chart.addEventListener('mc-zoom'");
-    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: false, chartState: true });
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: false, selection: false, chartState: true });
     expect(onChartControls()).toEqual([false, false]);
     expect(zoomDouble.disabled).toBe(false);
 
     editor1.value = editor1.value.replace('zoom: true', 'zoom: false');
     editor1.dispatchEvent(new Event('input', { bubbles: true }));
     expect(editor2.value).toContain('zoom: false');
-    expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false, chartState: true });
+    expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false, selection: false, chartState: true });
     expect(onChartControls()).toEqual([true, true]);
     expect(zoomDouble.disabled).toBe(true);
     expect(readout1.textContent).toContain('zoomable: false');

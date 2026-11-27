@@ -105,6 +105,27 @@ export const baseChartStyles = `
           outline-offset: 2px;
         }
 
+        .mc-chart-svg[data-has-selection="true"] [data-selectable="true"]:not([data-selected="true"]) {
+          opacity: 0.36;
+          transition: opacity 150ms ease, filter 150ms ease, stroke-width 150ms ease;
+        }
+
+        [data-selectable="true"][data-selected="true"],
+        .mc-item--selected {
+          opacity: 1 !important;
+          filter: brightness(1.08) drop-shadow(0 0 6px var(--_mc-focus-ring));
+        }
+
+        path[data-selectable="true"][data-selected="true"],
+        rect[data-selectable="true"][data-selected="true"],
+        circle[data-selectable="true"][data-selected="true"],
+        polygon[data-selectable="true"][data-selected="true"],
+        g[data-selectable="true"][data-selected="true"] > rect,
+        g[data-selectable="true"][data-selected="true"] > path {
+          stroke: var(--mc-selected-stroke, var(--_mc-text));
+          stroke-width: var(--mc-selected-stroke-width, 2.5px);
+        }
+
         .mc-chart-container--static,
         .mc-chart-container--static * {
           cursor: default !important;

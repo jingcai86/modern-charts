@@ -181,6 +181,15 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="142" y="24" width="54" height="48" rx="8" fill="#10b981" fill-opacity="0.16" stroke="#34d399" stroke-width="1.6"/>
       <path d="M169 36V56M161 48L169 56L177 48" stroke="#34d399" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`,
+  selection: `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="28" y="42" width="32" height="36" rx="6" fill="#6366f1" fill-opacity="0.28"/>
+      <rect x="74" y="20" width="32" height="58" rx="6" fill="#10b981" stroke="#34d399" stroke-width="2.2"/>
+      <circle cx="90" cy="34" r="5" fill="#ffffff"/>
+      <rect x="120" y="30" width="32" height="48" rx="6" fill="#0ea5e9" stroke="#38bdf8" stroke-width="2.2"/>
+      <circle cx="136" cy="44" r="5" fill="#ffffff"/>
+      <rect x="166" y="48" width="28" height="30" rx="6" fill="#6366f1" fill-opacity="0.28"/>
+    </svg>`,
   bootstrapping: `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
       <rect x="22" y="20" width="76" height="56" rx="8" fill="#6366f1" fill-opacity="0.14" stroke="#818cf8" stroke-width="1.5"/>
