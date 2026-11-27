@@ -36,6 +36,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   document.body.replaceChildren();
   configureI18n({});
   await configureChartFeatures({ features: { zoom: false, csvExport: false } });
@@ -356,6 +357,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     document.body.appendChild(root);
     const charts = renderGuidePage(root, 'view-zoom', 'dark');
     expect(charts).toHaveLength(2);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     // Example 1: Zoom toggle, zoom in/out/reset, and live config editor synchronization
     const ex1 = root.querySelector<HTMLElement>('#vz-zoom-toggle')!;
@@ -380,6 +382,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     );
 
     toggleBtn1.click();
+    expect(log.mock.calls).toEqual([['Zoom enabled:', false]]);
     expect(toggleBtn1.getAttribute('aria-pressed')).toBe('false');
     expect(zoomInBtn1.disabled).toBe(true);
     expect(parseConfigObjectLiteral(extractChartConfigBlock(editor1.value)!).view.zoomable)
@@ -391,6 +394,10 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
         'button[data-zoom="toggle"]'
       )!
       .click();
+    expect(log.mock.calls).toEqual([
+      ['Zoom enabled:', false],
+      ['Zoom enabled:', true]
+    ]);
     expect(toggleBtn1.getAttribute('aria-pressed')).toBe('true');
 
     // Reset button on live config editor 1
@@ -419,6 +426,11 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     // Trigger on-chart zoom and toggle on Example 2 active chart + editor2 input & reset
     const activeChart2 = ex2.querySelector('mc-gauge-chart') as MCBaseChart<any>;
     activeChart2.zoomIn();
+    expect(log).toHaveBeenLastCalledWith('Viewport:', {
+      k: 1.25,
+      x: expect.any(Number),
+      y: expect.any(Number)
+    });
     activeChart2.toggleZoom(false);
     expect(readout2.textContent).toContain('zoomable: false');
 

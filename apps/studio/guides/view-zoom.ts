@@ -172,7 +172,7 @@ export function renderViewZoomGuide(
     usage: `chart.addEventListener('mc-zoom-toggle', (event) => {
   console.log('Zoom enabled:', event.detail.zoomable);
 });`,
-    hint: 'Edit features.zoom for both examples or view.zoomable for this chart.',
+    hint: 'Edit features.zoom for both examples or view.zoomable for this chart. The Zoom button logs to the browser console.',
     onConfigChange: (nextCfg) => {
       applyEx1Config(nextCfg);
     },
@@ -184,33 +184,17 @@ export function renderViewZoomGuide(
   });
   ex1.querySelector('#vz-editor-1')!.appendChild(editor1.element);
 
-  let isUpdatingEx1 = false;
-  zoomToggleBtn1.addEventListener('click', () => {
-    isUpdatingEx1 = true;
-    try {
-      const nextZoomable = radar1.toggleZoom();
-      const nextCfg = {
-        ...radar1.config,
-        view: {
-          ...(radar1.config.view ?? {}),
-          zoomable: nextZoomable
-        }
-      };
-      syncEx1Readout();
-      editor1.syncConfig(nextCfg);
-    } finally {
-      isUpdatingEx1 = false;
-    }
-  });
+  zoomToggleBtn1.addEventListener('click', () => radar1.toggleZoom());
 
-  radar1.addEventListener('mc-zoom-toggle', () => {
-    if (isUpdatingEx1) return;
+  radar1.addEventListener('mc-zoom-toggle', (event) => {
+    const { zoomable } = (event as CustomEvent<{ zoomable: boolean }>).detail;
+    console.log('Zoom enabled:', zoomable);
     syncEx1Readout();
     editor1.syncConfig({
       ...radar1.config,
       view: {
         ...(radar1.config.view ?? {}),
-        zoomable: radar1.zoomable
+        zoomable
       }
     });
   });
@@ -403,7 +387,8 @@ export function renderViewZoomGuide(
         }
       });
     });
-    chart.addEventListener('mc-zoom', () => {
+    chart.addEventListener('mc-zoom', (event) => {
+      console.log('Viewport:', (event as CustomEvent<unknown>).detail);
       syncEx2Readout();
     });
   };
@@ -435,7 +420,7 @@ export function renderViewZoomGuide(
     usage: `chart.addEventListener('mc-zoom', (event) => {
   console.log('Viewport:', event.detail);
 });`,
-    hint: 'Edit features.zoom for both examples or the view settings for the active chart.',
+    hint: 'Edit features.zoom for both examples or the active chart’s view settings. Viewport changes log to the browser console.',
     onConfigChange: (nextCfg) => {
       updateEx2Chart(activeSpec2, nextCfg);
     },
