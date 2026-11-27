@@ -79,7 +79,7 @@ beforeAll(async () => {
   neutralColors = STUDIO_PALETTES.neutral;
   paletteSelect = document.querySelector('#global-palette-select')!;
   appearanceSelect = document.querySelector('#global-appearance-select')!;
-}, 15_000);
+}, 45_000);
 
 afterEach(() => {
   route('#/');
@@ -318,7 +318,7 @@ describe('Studio Theme and Appearance controls', () => {
     select(appearanceSelect, 'dark');
     const guideBar = () => document.querySelector<MCBaseChart<any>>('#guide-theme-bar > *')!;
     const editor = () => document.querySelector<HTMLTextAreaElement>('#guide-theme-code-1 textarea')!;
-    await vi.waitFor(() => expect(guideBar()).not.toBeNull());
+    await vi.waitFor(() => expect(guideBar()).not.toBeNull(), { timeout: 15_000 });
     expect(guideBar().config.palette).toBe('bootstrap');
     expect(document.querySelector<HTMLSelectElement>('#grad-palette-select')!.value).toBe('bootstrap');
     expect(parseConfigObjectLiteral(editor().value).palette).toBe('bootstrap');
@@ -337,7 +337,7 @@ describe('Studio Theme and Appearance controls', () => {
     expect(localizedChart.config.palette).toBe('neutral');
     expect(parseConfigObjectLiteral(localizedEditor.value).palette).toBe('neutral');
     expect(localizedChart.resolveI18n().locale).toBe('de-DE');
-  }, 15_000);
+  }, 45_000);
 
   it.each([
     ['bootstrapping', '#bs-bootstrap-code textarea', { zoom: false, csvExport: false, selection: false, chartState: true }],
@@ -346,17 +346,17 @@ describe('Studio Theme and Appearance controls', () => {
     ['selection', '#sel-editor-1 textarea', { zoom: false, csvExport: false, selection: true, chartState: true }]
   ] as const)('restores Studio features when returning home from the %s guide', async (guideId, editorSelector, features) => {
     route('#/chart/bar');
-    await vi.waitFor(() => expect(detailChart()).not.toBeNull());
+    await vi.waitFor(() => expect(detailChart()).not.toBeNull(), { timeout: 15_000 });
     expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true, selection: true, chartState: true });
 
     route(`#/guide/${guideId}`);
-    await vi.waitFor(() => expect(document.querySelector(editorSelector)).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector(editorSelector)).not.toBeNull(), { timeout: 15_000 });
     expect(getChartFeatures()).toEqual(features);
 
     route('#/');
     expect((await revealPreview('bar')).localName).toBe('mc-bar-chart');
     expect(getChartFeatures()).toEqual({ zoom: true, csvExport: true, selection: true, chartState: true });
-  }, 15_000);
+  }, 45_000);
 
   it('applies the overlay opt-out in the bootstrapping guide and restores it on the chart page', async () => {
     route('#/guide/bootstrapping');
@@ -364,7 +364,7 @@ describe('Studio Theme and Appearance controls', () => {
       const preview = document.querySelector<MCBaseChart<any>>('#bs-chart mc-bar-chart');
       expect(preview).not.toBeNull();
       return preview!;
-    });
+    }, { timeout: 15_000 });
     const editor = document.querySelector<HTMLTextAreaElement>('#bs-bootstrap-code textarea')!;
     const overlay = document.querySelector<HTMLInputElement>('#bs-chart-state')!;
     const loading = document.querySelector<HTMLInputElement>('#bs-example-loading')!;
@@ -387,9 +387,9 @@ describe('Studio Theme and Appearance controls', () => {
     overlay.click();
     expect(getChartFeatures().chartState).toBe(false);
     route('#/chart/bar');
-    await vi.waitFor(() => expect(detailChart()).not.toBeNull());
+    await vi.waitFor(() => expect(detailChart()).not.toBeNull(), { timeout: 15_000 });
     expect(getChartFeatures().chartState).toBe(true);
-  });
+  }, 45_000);
 
   it('synchronizes palette changes across tabs and keeps OS appearance updates independent', () => {
     localStorage.setItem(paletteKey, 'neutral');

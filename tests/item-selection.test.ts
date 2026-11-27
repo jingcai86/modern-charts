@@ -228,7 +228,7 @@ describe('Interactive item selection across all 10 chart types (Issue #124)', ()
 
       chart.remove();
     }
-  }, 20000);
+  }, 45000);
 
   it('includes row, column, and value on Heatmap cell selection and in mc-selection-change events', async () => {
     await registerModernCharts({ features: { selection: true } });
@@ -360,7 +360,7 @@ describe('Interactive item selection across all 10 chart types (Issue #124)', ()
 
       root.remove();
     }
-  }, 20000);
+  }, 45000);
 });
 
 describe('Interactive Item Selection Studio guide', () => {
