@@ -62,6 +62,7 @@ export function createDefaultLegendConfig(
     return {
       enabled: input,
       position: fallbackPosition,
+      align: 'middle',
       labelPlacement: 'ends',
       padding: { ...DEFAULT_LEGEND_PADDING },
       wrap: true,
@@ -92,6 +93,7 @@ export function createDefaultLegendConfig(
     enabled: input?.enabled !== false,
     type: input?.type,
     position: input?.position ?? fallbackPosition,
+    align: input?.align ?? 'middle',
     min: input?.min,
     max: input?.max,
     colorScheme: input?.colorScheme,
