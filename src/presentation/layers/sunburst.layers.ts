@@ -1,26 +1,86 @@
+import { joinChartItems, type ItemMotion } from '../../core/chart-item-join';
 import { formatGroupedNumber } from '../../core/format';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, HierarchyNode } from '../../core/types';
-import type { SunburstChartModel } from '../../models/sunburst.model';
+import {
+  sunburstArcCentroid,
+  sunburstArcPath,
+  type ComputedSunburstArcModel,
+  type SunburstArcGeometry,
+  type SunburstChartModel
+} from '../../models/sunburst.model';
 import { renderSunburstArcItem } from '../items/arc.item';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const displayed = new WeakMap<SVGGElement, SunburstArcGeometry>();
+const moving = new WeakMap<ComputedSunburstArcModel, { frame: SunburstArcGeometry; motion: ItemMotion }>();
+
+function collapseSlice(geometry: SunburstArcGeometry): SunburstArcGeometry {
+  const angle = (geometry.startAngle + geometry.endAngle) / 2;
+  return { ...geometry, startAngle: angle, endAngle: angle, padAngle: 0 };
+}
+
+function morphSlice(
+  group: SVGGElement,
+  path: SVGPathElement,
+  from: SunburstArcGeometry,
+  to: SunburstArcGeometry,
+  motion: ItemMotion,
+  opacity: number
+): SunburstArcGeometry {
+  const frame = { ...from };
+  const fields = Object.keys(to) as Array<keyof SunburstArcGeometry>;
+  const fromOpacity = Number(group.style.opacity || 1);
+  displayed.set(group, frame);
+  motion((t) => {
+    for (const field of fields) frame[field] = from[field] + (to[field] - from[field]) * t;
+    path.setAttribute('d', sunburstArcPath(frame));
+    group.style.opacity = String(fromOpacity + (opacity - fromOpacity) * t);
+  }, () => {
+    displayed.set(group, to);
+    path.removeAttribute('data-item-transition');
+    group.style.removeProperty('opacity');
+  });
+  return frame;
+}
 
 export function renderSunburstArcsLayer(
   model: SunburstChartModel,
   ctx: ChartRenderContext<HierarchyNode>,
   onDrilldown?: (pathNames: string[]) => void
 ): void {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
-
-  model.arcs.forEach((arc) => {
-    g.appendChild(
-      renderSunburstArcItem(arc, ctx, model.interactiveDrilldown, onDrilldown)
-    );
-  });
-
-  ctx.layerGroup.appendChild(g);
+  const center = `translate(${model.cx}, ${model.cy})`;
+  const withoutEntrance = {
+    ...ctx,
+    animateItem: (element: SVGElement) => element.setAttribute('data-animated', 'false')
+  };
+  joinChartItems(
+    ctx.layerGroup,
+    model.arcs,
+    (slice) => JSON.stringify(slice.pathNames),
+    ctx.animationConfig,
+    (group, slice, { initial, entered, motion }) => {
+      group.setAttribute('transform', center);
+      const path = renderSunburstArcItem(slice, initial ? ctx : withoutEntrance, model.interactiveDrilldown, onDrilldown);
+      group.replaceChildren(path);
+      const from = displayed.get(group) ?? collapseSlice(slice.geometry);
+      if (!motion || (sunburstArcPath(from) === slice.pathD && !group.style.opacity)) {
+        displayed.set(group, slice.geometry);
+        group.style.removeProperty('opacity');
+        return;
+      }
+      if (entered) group.style.opacity = '0';
+      path.setAttribute('data-animated', 'true');
+      path.setAttribute('data-item-transition', entered ? 'enter' : 'update');
+      const frame = morphSlice(group, path, from, slice.geometry, motion, 1);
+      moving.set(slice, { frame, motion });
+    },
+    (group, motion) => {
+      const from = displayed.get(group);
+      const path = group.querySelector<SVGPathElement>('.mc-sunburst-arc');
+      if (from && path) morphSlice(group, path, from, collapseSlice(from), motion, 0);
+    }
+  );
 }
 
 export function renderSunburstLabelsLayer(
@@ -41,7 +101,7 @@ export function renderSunburstLabelsLayer(
     ) {
       return;
     }
-    ctx.renderLabel(g, {
+    const label = ctx.renderLabel(g, {
       id: `sunburst-label-${idx}`,
       text: arc.name,
       x: arc.centroid[0],
@@ -66,6 +126,18 @@ export function renderSunburstLabelsLayer(
         depth: arc.depth,
         percentage: Math.round(arc.percentage)
       }
+    });
+    const transition = moving.get(arc);
+    if (!label || !transition) return;
+    const transform = label.getAttribute('transform') ?? '';
+    transition.motion(() => {
+      const [x, y] = sunburstArcCentroid(transition.frame);
+      label.setAttribute('transform', `translate(${x - arc.centroid[0]}, ${y - arc.centroid[1]}) ${transform}`);
+      const sweep = Math.abs(transition.frame.endAngle - transition.frame.startAngle) * 180 / Math.PI;
+      label.style.visibility = sweep < minAngle ? 'hidden' : '';
+    }, () => {
+      label.setAttribute('transform', transform);
+      label.style.visibility = '';
     });
   });
 
