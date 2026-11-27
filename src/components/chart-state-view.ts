@@ -278,15 +278,44 @@ export function createChartStateView(
   const indicator = shadow.querySelector<HTMLSpanElement>('.mc-state-indicator')!;
   const message = shadow.querySelector<HTMLSpanElement>('.mc-state-message')!;
   let renderedMode: ChartDisplayState | null = null;
+  let lastVisibleKey: string | null = null;
+
+  const animateStateEntrance = (target: HTMLElement, fromHidden: boolean) => {
+    if (typeof target.animate !== 'function') return;
+    const reduced =
+      host.ownerDocument.defaultView?.matchMedia?.(
+        '(prefers-reduced-motion: reduce)'
+      ).matches ?? false;
+    if (reduced) return;
+    if (fromHidden && typeof overlay.animate === 'function') {
+      overlay.animate(
+        [
+          { opacity: 0, transform: 'translateY(6px)' },
+          { opacity: 1, transform: 'translateY(0)' }
+        ],
+        { duration: 220, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+      );
+    }
+    target.animate(
+      [
+        { opacity: 0, transform: 'translateY(4px)' },
+        { opacity: 1, transform: 'translateY(0)' }
+      ],
+      { duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+    );
+  };
 
   const sync = () => {
     const mode = host.state;
-    if (!mode) {
-      delete overlay.dataset.state;
-      delete defaultContent.dataset.state;
-      loadingSlot.hidden = true;
-      emptySlot.hidden = true;
-      defaultContent.hidden = true;
+    if (!mode || host.hidden) {
+      lastVisibleKey = null;
+      if (!mode) {
+        delete overlay.dataset.state;
+        delete defaultContent.dataset.state;
+        loadingSlot.hidden = true;
+        emptySlot.hidden = true;
+        defaultContent.hidden = true;
+      }
       return;
     }
 
@@ -310,6 +339,13 @@ export function createChartStateView(
       if (message.textContent !== nextText) {
         message.textContent = nextText;
       }
+    }
+
+    const nextVisibleKey = `${mode}:${hasCustom ? 'slot' : 'default'}`;
+    if (lastVisibleKey !== nextVisibleKey) {
+      const fromHidden = lastVisibleKey === null;
+      lastVisibleKey = nextVisibleKey;
+      animateStateEntrance(hasCustom ? activeSlot : defaultContent, fromHidden);
     }
   };
 

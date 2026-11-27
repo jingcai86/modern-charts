@@ -48,6 +48,44 @@ export const baseChartStyles = `
           opacity: 0.38;
         }
 
+        .mc-chart-state {
+          opacity: 1;
+          translate: 0 0;
+          transition:
+            display 220ms,
+            opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+            translate 220ms cubic-bezier(0.22, 1, 0.36, 1);
+          transition-behavior: allow-discrete;
+        }
+
+        @starting-style {
+          .mc-chart-state {
+            opacity: 0;
+            translate: 0 6px;
+          }
+        }
+
+        .mc-chart-state[hidden] {
+          display: none;
+          opacity: 0;
+          translate: 0 6px;
+          pointer-events: none;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .mc-chart-state,
+          .mc-chart-state[hidden] {
+            translate: none;
+            transition-duration: 0.1s;
+          }
+
+          @starting-style {
+            .mc-chart-state {
+              translate: none;
+            }
+          }
+        }
+
         .mc-aria-item {
           outline: none;
         }

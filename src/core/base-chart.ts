@@ -2306,7 +2306,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       const isNewLayer = !this._renderedLayerSet.has(layerDef.name);
       const retain = layerDef.builtIn && retainedLayers.includes(layerDef.name)
         && !this.#retainedItemGroups?.has(layerDef.name);
-      const retainedGroup = retain && !isNewLayer ? previousItemGroups?.get(layerDef.name) : undefined;
+      const retainedGroup =
+        retain && !isNewLayer && !isRecoveringFromState
+          ? previousItemGroups?.get(layerDef.name)
+          : undefined;
       const layerG = retainedGroup ?? document.createElementNS(SVG_NS, 'g');
       if (retain) (this.#retainedItemGroups ??= new Map()).set(layerDef.name, layerG);
       layerG.setAttribute(
