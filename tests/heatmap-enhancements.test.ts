@@ -32,6 +32,11 @@ function mountHeatmap(config: MCHeatmapChart['config']): MCHeatmapChart {
   return heatmap;
 }
 
+function legendOrigin(heatmap: MCHeatmapChart): number[] {
+  const legend = heatmap.shadowRoot!.querySelector('.mc-legend')!;
+  return legend.getAttribute('transform')!.slice('translate('.length, -1).split(',').map(Number);
+}
+
 describe('Heatmap Chart Enhancements (Issue #73)', () => {
   beforeAll(() => {
     registerModernCharts();
@@ -140,6 +145,37 @@ describe('Heatmap Chart Enhancements (Issue #73)', () => {
     expect(legend.querySelector('[data-label-id="legend-continuous-max"]')?.textContent).toBe('Full');
   });
 
+  it.each([
+    ['top', 'continuous'],
+    ['bottom', 'continuous'],
+    ['left', 'discrete'],
+    ['right', 'discrete']
+  ] as const)('aligns the %s legend from physical start to end on its side', (position, type) => {
+    const horizontal = position === 'top' || position === 'bottom';
+    const along = horizontal ? 0 : 1;
+    const length = 120;
+    const padding = { left: 20, right: 36, top: 10, bottom: 26 };
+    const legend = {
+      type, position, padding, labelPlacement: 'none',
+      width: horizontal ? length : 16,
+      height: horizontal ? 16 : length
+    } as const;
+    const heatmap = mountHeatmap({ legend, i18n: { direction: 'rtl' } });
+    const { innerWidth, innerHeight } = heatmap.resolveDimensions();
+    const start = horizontal ? padding.left : padding.top;
+    const end = horizontal ? innerWidth - padding.right - length : innerHeight - padding.bottom - length;
+    const middle = (start + end) / 2;
+    const defaultOrigin = legendOrigin(heatmap);
+    expect(defaultOrigin[along]).toBeCloseTo(middle);
+
+    for (const [align, expected] of [['start', start], ['middle', middle], ['end', end]] as const) {
+      heatmap.setConfig({ ...heatmap.config, legend: { ...legend, align } });
+      const origin = legendOrigin(heatmap);
+      expect(origin[along]).toBeCloseTo(expected);
+      expect(origin[1 - along]).toBeCloseTo(defaultOrigin[1 - along]);
+    }
+  });
+
   it('renders formatted boundary ticks and exposes discrete ranges to the dedicated legend tooltip', () => {
     const legendItems: LegendItem[] = [];
     const heatmap = mountHeatmap({
@@ -186,7 +222,7 @@ describe('Heatmap Chart Enhancements (Issue #73)', () => {
 
   it('supports declarative discrete sizing, end labels, block spacing, and live mode changes', async () => {
     const heatmap = mountHeatmap({});
-    heatmap.innerHTML = `<mc-legend type="discrete" position="right" steps="3" width="18" height="150"
+    heatmap.innerHTML = `<mc-legend type="discrete" position="right" align="start" steps="3" width="18" height="150"
       border-radius="2" block-gap="3" label-placement="ends" min-label="Low" max-label="High"
       tick-format='{"minimumFractionDigits":1}'></mc-legend>`;
     const root = heatmap.shadowRoot!;
@@ -205,6 +241,15 @@ describe('Heatmap Chart Enhancements (Issue #73)', () => {
     expect(legend.querySelector('.mc-legend-tick')).toBeNull();
 
     const declarativeLegend = heatmap.querySelector('mc-legend')!;
+    expect(heatmap.resolveLegendConfig().align).toBe('start');
+    const start = legendOrigin(heatmap)[1];
+    declarativeLegend.setAttribute('align', 'end');
+    const end = legendOrigin(heatmap)[1];
+    expect(end).toBeGreaterThan(start);
+    declarativeLegend.setAttribute('align', 'middle');
+    expect(legendOrigin(heatmap)[1]).toBeCloseTo((start + end) / 2);
+    declarativeLegend.removeAttribute('align');
+    expect(legendOrigin(heatmap)[1]).toBeCloseTo((start + end) / 2);
     declarativeLegend.removeAttribute('min-label');
     expect(root.querySelector('[data-label-id="legend-discrete-min"]')?.textContent).toBe('20.0');
     declarativeLegend.setAttribute('type', 'continuous');

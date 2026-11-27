@@ -6,7 +6,7 @@ import {
 } from '../../core/heatmap-legend-layout';
 import { physicalTextAnchor } from '../../core/i18n';
 import { allocateUniqueSvgId } from '../../core/threshold-clip';
-import type { ChartRenderContext, HeatmapRow, LegendItem } from '../../core/types';
+import type { ChartRenderContext, HeatmapRow, LegendAlignment, LegendItem } from '../../core/types';
 import type { HeatmapChartModel, HeatmapColorBin } from '../../models/heatmap.model';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -37,6 +37,12 @@ function getValueFormatter(ctx: HeatmapContext): (value: number) => string {
     }
   }
   return (value) => ctx.i18n.formatNumber(value, { useGrouping: false, maximumSignificantDigits: 12 });
+}
+
+function getAlignmentOffset(spareSpace: number, align: LegendAlignment | undefined): number {
+  if (align === 'start') return 0;
+  if (align === 'end') return spareSpace;
+  return spareSpace / 2;
 }
 
 function getHorizontalGeometry(
@@ -70,7 +76,7 @@ function getHorizontalGeometry(
   const maxSpace = sideSpace(maxText);
   const width = Math.min(cfg.width ?? defaultWidth, Math.max(1, availableWidth - minSpace - maxSpace));
   const spareWidth = Math.max(0, availableWidth - width - minSpace - maxSpace);
-  const x = padding.left + minSpace + (top ? spareWidth : spareWidth / 2);
+  const x = padding.left + minSpace + getAlignmentOffset(spareWidth, cfg.align);
   const y = top
     ? -clearance - padding.bottom - height - tickDepth
     : ctx.innerHeight + clearance + padding.top;
@@ -102,7 +108,7 @@ function getVerticalGeometry(ctx: HeatmapContext, minText: string, maxText: stri
     ? Math.min(220, Math.max(60, ctx.innerHeight * 0.84))
     : Math.min(130, Math.max(60, ctx.innerHeight * 0.45));
   const height = Math.min(cfg.height ?? defaultHeight, availableHeight);
-  const y = padding.top + endSpace + (availableHeight - height) / 2;
+  const y = padding.top + endSpace + getAlignmentOffset(availableHeight - height, cfg.align);
   return { ...metrics, x, y, width, height, labelWidth, minSpace: labelWidth, maxSpace: labelWidth };
 }
 

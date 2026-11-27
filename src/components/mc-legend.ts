@@ -40,6 +40,7 @@ export class MCLegendElement extends HTMLElementBase {
     'enabled',
     'type',
     'position',
+    'align',
     'min',
     'max',
     'color-scheme',
@@ -135,6 +136,7 @@ export class MCLegendElement extends HTMLElementBase {
     const enabledAttr = this.getAttribute('enabled');
     const typeAttr = this.getAttribute('type') as LegendType | null;
     const posAttr = this.getAttribute('position') as LegendPosition | null;
+    const align = this.getAttribute('align');
     const min = parseOptionalFiniteNumber(this.getAttribute('min'));
     const max = parseOptionalFiniteNumber(this.getAttribute('max'));
     const schemeAttr = this.getAttribute('color-scheme');
@@ -185,6 +187,7 @@ export class MCLegendElement extends HTMLElementBase {
       posAttr === 'right'
         ? { position: posAttr }
         : {}),
+      ...(align === 'start' || align === 'middle' || align === 'end' ? { align } : {}),
       ...(min !== undefined ? { min } : {}),
       ...(max !== undefined ? { max } : {}),
       ...(schemeAttr ? { colorScheme: schemeAttr } : {}),
