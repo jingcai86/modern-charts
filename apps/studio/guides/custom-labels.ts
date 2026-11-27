@@ -1,3 +1,4 @@
+import { layoutWithLines, prepareWithSegments } from '@chenglou/pretext';
 import { getGlobalPalette } from '../state/theme';
 import type {
   LabelDescriptor,
@@ -7,6 +8,7 @@ import type {
   MeasuredLabel,
   ThemeModePreference
 } from '../../../src/index';
+import { guideCallback } from './callback-source';
 import { getLabelOverflowCapabilities, LABEL_OVERFLOW_MODES } from './label-overflow-controls';
 import { createLiveConfigEditor } from './shared';
 
@@ -85,48 +87,62 @@ export function renderCustomLabelsGuide(
   let activeLabelDemo: DemoLabelMode = 'svg';
   let latestSalesData = defaultSalesData;
 
-  const customPillRenderer = (
+  const customPillRenderer = guideCallback((
     descriptor: LabelDescriptor,
-    measured: MeasuredLabel,
-    defaultRender: () => SVGGElement
+    measured: MeasuredLabel
   ) => {
-    if (descriptor.type !== 'data') return defaultRender();
+    if (descriptor.type !== 'data') return;
 
     const total = Math.max(
       1,
       latestSalesData.reduce((s, d) => s + Number(d.Revenue ?? 0), 0)
     );
-    const val = Number(descriptor.text);
+    const datum = descriptor.datum as { value?: number } | undefined;
+    const val = Number(datum?.value ?? descriptor.text);
     const share = Math.round((val / total) * 100);
     const isTop = val >= 200;
+    const label = `${isTop ? '★ ' : ''}$${val}K (${share}%)`;
+    const maxPillWidth = descriptor.maxWidth ?? Infinity;
+    const paddingX = maxPillWidth < 80 ? 7 : 10;
+    const { lines, height } = layoutWithLines(
+      prepareWithSegments(label, measured.font),
+      Math.max(24, maxPillWidth - 2 * paddingX),
+      measured.lineHeight
+    );
+    const pillW = Math.ceil(Math.max(...lines.map(line => line.width))) + 2 * paddingX;
+    const pillH = Math.max(24, height + 8);
 
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    const pillW = Math.max(measured.boxWidth + 32, 74);
-    const pillH = 24;
 
+    // Draw around local (0, 0). The label engine translates the group to the label anchor.
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', String(descriptor.x - pillW / 2));
-    rect.setAttribute('y', String(descriptor.y - pillH / 2));
+    rect.setAttribute('x', String(-pillW / 2));
+    rect.setAttribute('y', String(-pillH / 2));
     rect.setAttribute('width', String(pillW));
     rect.setAttribute('height', String(pillH));
-    rect.setAttribute('rx', '12');
+    rect.setAttribute('rx', String(pillH / 2));
     rect.setAttribute('fill', isTop ? '#f59e0b' : '#1e293b');
     rect.setAttribute('stroke', isTop ? '#fef3c7' : '#6366f1');
     rect.setAttribute('stroke-width', '1.4');
     g.appendChild(rect);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', String(descriptor.x));
-    text.setAttribute('y', String(descriptor.y + 4));
     text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('font-size', '11');
-    text.setAttribute('font-weight', '700');
+    text.setAttribute('dominant-baseline', 'central');
+    text.setAttribute('aria-label', label);
+    text.style.font = measured.font;
     text.setAttribute('fill', isTop ? '#0f172a' : '#f8fafc');
-    text.textContent = `${isTop ? '★ ' : ''}$${val}K (${share}%)`;
+    lines.forEach((line, index) => {
+      const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      tspan.setAttribute('x', '0');
+      tspan.setAttribute('y', String((index - (lines.length - 1) / 2) * measured.lineHeight));
+      tspan.textContent = line.text;
+      text.appendChild(tspan);
+    });
     g.appendChild(text);
 
     return g;
-  };
+  }, () => ({ latestSalesData, layoutWithLines, prepareWithSegments }));
 
   const buildLabelDemo1Config = (mode: DemoLabelMode): { title: string; cfg: Record<string, any> } => {
     if (mode === 'svg') {
@@ -149,7 +165,7 @@ export function renderCustomLabelsGuide(
             },
             {
               target: 'axis-tick',
-              formatter: (text: string) => (/^\d+$/.test(text) ? `$${text}K` : text)
+              formatter: guideCallback((text: string) => (/^\d+$/.test(text) ? `$${text}K` : text))
             }
           ]
         }
@@ -196,6 +212,9 @@ export function renderCustomLabelsGuide(
   const applyLabelChart1 = (cfg: Record<string, any>) => {
     if (Array.isArray(cfg.data)) {
       latestSalesData = cfg.data;
+    }
+    if (cfg.labelRenderer === undefined && labelChart1.labelRenderer !== undefined) {
+      labelChart1.labelRenderer = undefined;
     }
     labelChart1.setConfig({
       autoSize: true,
@@ -254,16 +273,16 @@ export function renderCustomLabelsGuide(
   btnFo.addEventListener('click', () => selectDemo1Mode('foreignObject'));
   btnCustom.addEventListener('click', () => selectDemo1Mode('custom'));
 
-  // Example 2: Interactive Pretext Truncation, Rotation & Tooltip Playground (<mc-truncate>)
+  // Example 2: Shared overflow controls for axis and bar labels
   const ex2 = document.createElement('section');
   ex2.className = 'panel-card guide-section';
   ex2.innerHTML = `
     <div class="panel-header">
       <div>
-        <h2 class="panel-title">Example 2: Pretext Label Truncation, Rotation &amp; Tooltips (<code>&lt;mc-truncate&gt;</code>)</h2>
+        <h2 class="panel-title">Example 2: Overflow on Axis and Bar Labels</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Every <code>&lt;mc-label&gt;</code> uses the shared <code>@chenglou/pretext</code> truncation engine.
-          Use the controls or edit <code>label.overflow</code> &amp; <code>data</code> directly in the live config editor below.
+          The same <code>label.overflow</code> settings apply to the axis labels and the text centered inside each bar.
+          Edit a row’s <code>dept</code> or <code>centerLabel</code> to change its text.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
@@ -294,71 +313,84 @@ export function renderCustomLabelsGuide(
         <code>enableTooltip</code>
       </label>
     </div>
-    <div class="guide-example-grid">
-      <div class="guide-chart-stage" id="guide-label-chart-2"></div>
-      <div id="guide-label-code-2"></div>
+    <div style="overflow-x:auto;">
+      <div class="guide-chart-stage" id="guide-label-chart-2" style="min-width:490px;"></div>
     </div>
+    <div id="guide-label-code-2" style="margin-top:16px;"></div>
   `;
   container.appendChild(ex2);
 
-  const wrapChart = document.createElement('mc-bar-chart') as MCBaseChart<any>;
-  ex2.querySelector('#guide-label-chart-2')!.appendChild(wrapChart);
-  mounted.push(wrapChart);
+  const overflowChart = document.createElement('mc-bar-chart') as MCBaseChart<any>;
+  ex2.querySelector('#guide-label-chart-2')!.appendChild(overflowChart);
+  mounted.push(overflowChart);
 
   const code2Host = ex2.querySelector('#guide-label-code-2') as HTMLElement;
 
-  let ovStrategy: LabelOverflowStrategy = 'truncate';
-  let tickMaxWidth = 82;
-  let tickMaxChars = 0;
-  let tickMaxLines = 2;
-  let tickMaxRotation = -45;
-  let tickEnableTooltip = true;
+  let overflowStrategy: LabelOverflowStrategy = 'truncate';
+  let labelMaxWidth = 82;
+  let labelMaxChars = 0;
+  let labelMaxLines = 2;
+  let labelMaxRotation = -45;
+  let labelEnableTooltip = true;
 
-  const deptData = [
-    { dept: 'Cloud Platform Engineering', Spend: 214 },
-    { dept: 'Applied Machine Learning', Spend: 186 },
-    { dept: 'Security & Compliance Ops', Spend: 129 },
-    { dept: 'Developer Experience Tools', Spend: 158 }
-  ];
+  const defaultPreview = {
+    title: 'Technology spending',
+    data: [
+      { dept: 'Cloud Platform Engineering', Spend: 214, centerLabel: 'Global Cloud Infrastructure Spending' },
+      { dept: 'Applied Machine Learning', Spend: 186, centerLabel: 'Machine Learning Model Training' },
+      { dept: 'Security & Compliance Ops', Spend: 129, centerLabel: 'Application Security Operations' },
+      { dept: 'Developer Experience Tools', Spend: 158, centerLabel: 'Developer Tools and Build Systems' }
+    ],
+    label: { fontSize: 11 }
+  };
+  let activePreview: Record<string, any> = defaultPreview;
 
   const buildOverflowConfig = () => {
-    const capabilities = getLabelOverflowCapabilities(ovStrategy);
-    const overflowCfg: LabelOverflowConfig = { strategy: ovStrategy };
-    if (capabilities.maxWidth) overflowCfg.maxWidth = tickMaxWidth;
-    if (capabilities.maxChars && tickMaxChars > 0) overflowCfg.maxChars = tickMaxChars;
-    if (capabilities.maxLines && tickMaxLines > 0) overflowCfg.maxLines = tickMaxLines;
-    if (capabilities.maxRotation) overflowCfg.maxRotation = tickMaxRotation;
-    if (capabilities.enableTooltip) overflowCfg.enableTooltip = tickEnableTooltip;
+    const capabilities = getLabelOverflowCapabilities(overflowStrategy);
+    const overflowCfg: LabelOverflowConfig = { strategy: overflowStrategy };
+    if (capabilities.maxWidth) overflowCfg.maxWidth = labelMaxWidth;
+    if (capabilities.maxChars && labelMaxChars > 0) overflowCfg.maxChars = labelMaxChars;
+    if (capabilities.maxLines && labelMaxLines > 0) overflowCfg.maxLines = labelMaxLines;
+    if (capabilities.maxRotation) overflowCfg.maxRotation = labelMaxRotation;
+    if (capabilities.enableTooltip) overflowCfg.enableTooltip = labelEnableTooltip;
 
     return {
-      title: `Pretext Overflow — strategy="${ovStrategy}"`,
-      data: deptData,
+      ...activePreview,
       label: {
-        target: 'axis-tick',
-        overflow: overflowCfg,
-        fontSize: 11
+        ...activePreview.label,
+        overflow: overflowCfg
       }
     };
   };
 
   const applyOverflowConfig = (cfg: Record<string, any>) => {
-    const strat = cfg.label?.overflow?.strategy ?? ovStrategy;
-    const { maxRotation: rotates } = getLabelOverflowCapabilities(strat);
-    wrapChart.setConfig({
+    activePreview = cfg;
+    const { data, label, ...chartOptions } = cfg;
+    overflowChart.setConfig({
       autoSize: true,
+      animate: false,
       themeMode,
       palette: 'material',
       indexBy: 'dept',
       keys: ['Spend'],
+      enableLabels: true,
       borderRadius: 6,
-      margin: {
-        top: 44,
-        right: 24,
-        bottom: rotates || strat === 'wrap' ? 116 : 84,
-        left: 50
-      },
+      margin: { top: 44, right: 26, bottom: 160, left: 66 },
       layers: ['grid', 'axes', 'bars', 'labels'],
-      ...cfg
+      ...chartOptions,
+      data: Array.isArray(data) ? data : [],
+      label: [
+        { ...label, target: 'axis-tick' },
+        {
+          formatter: '{{centerLabel}}',
+          background: 'rgba(15, 23, 42, 0.8)',
+          color: '#fff',
+          borderRadius: 5,
+          padding: { top: 3, right: 3, bottom: 3, left: 3 },
+          ...label,
+          target: 'data'
+        }
+      ]
     });
   };
 
@@ -383,24 +415,24 @@ export function renderCustomLabelsGuide(
   };
 
   const syncOverflowControls = () => {
-    const capabilities = getLabelOverflowCapabilities(ovStrategy);
+    const capabilities = getLabelOverflowCapabilities(overflowStrategy);
     for (const [key, input] of Object.entries(overflowControls)) {
       input.closest('label')!.hidden = !capabilities[key as keyof typeof overflowControls];
     }
     for (const button of stratButtons) {
-      const selected = button.dataset.ovStrat === ovStrategy;
+      const selected = button.dataset.ovStrat === overflowStrategy;
       button.classList.toggle('btn-primary', selected);
       button.setAttribute('aria-pressed', String(selected));
     }
-    mwSlider.value = String(tickMaxWidth);
-    mwVal.textContent = `${tickMaxWidth}px`;
-    mcSlider.value = String(tickMaxChars);
-    mcVal.textContent = tickMaxChars > 0 ? String(tickMaxChars) : 'off';
-    linesSlider.value = String(tickMaxLines);
-    linesVal.textContent = tickMaxLines > 0 ? String(tickMaxLines) : 'off';
-    rotSlider.value = String(tickMaxRotation);
-    rotVal.textContent = `${tickMaxRotation}°`;
-    tipToggle.checked = tickEnableTooltip;
+    mwSlider.value = String(labelMaxWidth);
+    mwVal.textContent = `${labelMaxWidth}px`;
+    mcSlider.value = String(labelMaxChars);
+    mcVal.textContent = labelMaxChars > 0 ? String(labelMaxChars) : 'off';
+    linesSlider.value = String(labelMaxLines);
+    linesVal.textContent = labelMaxLines > 0 ? String(labelMaxLines) : 'off';
+    rotSlider.value = String(labelMaxRotation);
+    rotVal.textContent = `${labelMaxRotation}°`;
+    tipToggle.checked = labelEnableTooltip;
   };
 
   syncOverflowControls();
@@ -408,29 +440,31 @@ export function renderCustomLabelsGuide(
   applyOverflowConfig(initialOvCfg);
 
   const editor2 = createLiveConfigEditor({
-    title: 'Pretext Truncation, Rotation & Tooltip Config (Live)',
+    title: 'Shared Label Overflow Config (Live)',
     initialConfig: initialOvCfg,
-    hint: 'Edit the overflow strategy, its settings, or the category text.',
+    assignPrefix: 'const config =',
+    hint: 'Edit label.overflow to update both sets of labels.',
     onConfigChange: (nextCfg) => {
       const ov = nextCfg.label?.overflow;
       if (ov) {
-        if (ov.strategy) ovStrategy = ov.strategy;
-        if (typeof ov.maxWidth === 'number') tickMaxWidth = ov.maxWidth;
-        if (typeof ov.maxChars === 'number') tickMaxChars = ov.maxChars;
-        if (typeof ov.maxLines === 'number') tickMaxLines = ov.maxLines;
-        if (typeof ov.maxRotation === 'number') tickMaxRotation = ov.maxRotation;
-        if (typeof ov.enableTooltip === 'boolean') tickEnableTooltip = ov.enableTooltip;
+        if (ov.strategy) overflowStrategy = ov.strategy;
+        if (typeof ov.maxWidth === 'number') labelMaxWidth = ov.maxWidth;
+        if (typeof ov.maxChars === 'number') labelMaxChars = ov.maxChars;
+        if (typeof ov.maxLines === 'number') labelMaxLines = ov.maxLines;
+        if (typeof ov.maxRotation === 'number') labelMaxRotation = ov.maxRotation;
+        if (typeof ov.enableTooltip === 'boolean') labelEnableTooltip = ov.enableTooltip;
         syncOverflowControls();
       }
       applyOverflowConfig(nextCfg);
     },
     onReset: () => {
-      ovStrategy = 'truncate';
-      tickMaxWidth = 82;
-      tickMaxChars = 0;
-      tickMaxLines = 2;
-      tickMaxRotation = -45;
-      tickEnableTooltip = true;
+      overflowStrategy = 'truncate';
+      labelMaxWidth = 82;
+      labelMaxChars = 0;
+      labelMaxLines = 2;
+      labelMaxRotation = -45;
+      labelEnableTooltip = true;
+      activePreview = defaultPreview;
       syncOverflowControls();
       const resetCfg = buildOverflowConfig();
       applyOverflowConfig(resetCfg);
@@ -448,33 +482,33 @@ export function renderCustomLabelsGuide(
 
   stratButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      ovStrategy = btn.dataset.ovStrat as LabelOverflowStrategy;
+      overflowStrategy = btn.dataset.ovStrat as LabelOverflowStrategy;
       updateFromControls();
     });
   });
 
   mwSlider.addEventListener('input', () => {
-    tickMaxWidth = Number(mwSlider.value);
+    labelMaxWidth = Number(mwSlider.value);
     updateFromControls();
   });
 
   mcSlider.addEventListener('input', () => {
-    tickMaxChars = Number(mcSlider.value);
+    labelMaxChars = Number(mcSlider.value);
     updateFromControls();
   });
 
   linesSlider.addEventListener('input', () => {
-    tickMaxLines = Number(linesSlider.value);
+    labelMaxLines = Number(linesSlider.value);
     updateFromControls();
   });
 
   rotSlider.addEventListener('input', () => {
-    tickMaxRotation = Number(rotSlider.value);
+    labelMaxRotation = Number(rotSlider.value);
     updateFromControls();
   });
 
   tipToggle.addEventListener('change', () => {
-    tickEnableTooltip = tipToggle.checked;
+    labelEnableTooltip = tipToggle.checked;
     updateFromControls();
   });
 

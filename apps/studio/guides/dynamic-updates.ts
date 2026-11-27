@@ -123,8 +123,10 @@ export function renderDynamicUpdatesGuide(
     curve: 'monotoneX',
     data: streamSeries
   });
+  let streamConfig: Record<string, any> = buildStreamConfig();
 
   const applyStreamConfig = (cfg: Record<string, any>) => {
+    streamConfig = cfg;
     if (Array.isArray(cfg.data)) {
       streamSeries = cfg.data;
     }
@@ -139,21 +141,25 @@ export function renderDynamicUpdatesGuide(
     });
   };
 
+  const streamObserver = new MutationObserver(() => {
+    if (!streamChart.isConnected) stopStream();
+  });
+
   const stopStream = () => {
     if (streamTimer !== null) {
       clearInterval(streamTimer);
       streamTimer = null;
     }
+    streamObserver.disconnect();
     btnStreamToggle.textContent = '▶ Start 1s Stream';
     btnStreamToggle.classList.add('btn-primary');
   };
 
-  const initialStreamCfg = buildStreamConfig();
-  applyStreamConfig(initialStreamCfg);
+  applyStreamConfig(streamConfig);
 
   const editor1 = createLiveConfigEditor({
     title: 'Sliding-Window Stream Config (Live)',
-    initialConfig: initialStreamCfg,
+    initialConfig: streamConfig,
     hint: 'Edit data points, animate, curve, or palette — stream updates sync back automatically when editor is unfocused.',
     onConfigChange: (nextCfg) => {
       if (typeof nextCfg.animate === 'boolean') {
@@ -190,20 +196,19 @@ export function renderDynamicUpdatesGuide(
     ];
     updateStreamBadge();
     streamChart.data = streamSeries;
-    editor1.syncConfig(buildStreamConfig(), {
+    streamConfig = { ...streamConfig, data: streamSeries };
+    editor1.syncConfig(streamConfig, {
       preserveFocus: true,
       resetBaseline: false
     });
   };
 
-  btnStreamToggle.addEventListener('click', () => {
-    if (streamTimer !== null) {
-      stopStream();
-      return;
-    }
+  const startStream = () => {
     btnStreamToggle.textContent = '⏸ Pause Stream';
     btnStreamToggle.classList.remove('btn-primary');
-    pushNextPoint();
+    // Replacing the guide or its contents clears the timer during navigation.
+    streamObserver.observe(container, { childList: true });
+    if (container.parentNode) streamObserver.observe(container.parentNode, { childList: true });
     streamTimer = setInterval(() => {
       if (!streamChart.isConnected) {
         stopStream();
@@ -211,6 +216,15 @@ export function renderDynamicUpdatesGuide(
       }
       pushNextPoint();
     }, 1000);
+  };
+
+  btnStreamToggle.addEventListener('click', () => {
+    if (streamTimer !== null) {
+      stopStream();
+      return;
+    }
+    pushNextPoint();
+    startStream();
   });
 
   btnStreamStep.addEventListener('click', pushNextPoint);
@@ -222,10 +236,11 @@ export function renderDynamicUpdatesGuide(
     editor1.syncConfig(resetCfg);
   });
   chkStreamAnim.addEventListener('change', () => {
-    const nextCfg = buildStreamConfig();
+    const nextCfg = { ...streamConfig, animate: chkStreamAnim.checked };
     applyStreamConfig(nextCfg);
     editor1.syncConfig(nextCfg);
   });
+  startStream();
 
   // Example 2: Randomize / Add-Remove Points on Bar & Pie Charts + Live Dataset Editor
   const ex2 = document.createElement('section');

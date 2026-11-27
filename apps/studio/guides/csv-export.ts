@@ -18,6 +18,7 @@ import {
   type ThemeModePreference
 } from '../../../src/index';
 import { createFeatureGuideBootstrap } from './bootstrapping';
+import { guideCallback } from './callback-source';
 
 function csvActionSnippet(label: string, onClick: string): string {
   return `const exportButton = document.createElement('button');
@@ -130,18 +131,20 @@ export function renderCsvExportGuide(
   const filenameEl1 = ex1.querySelector<HTMLElement>('#ce-filename-1')!;
   const readoutEl1 = ex1.querySelector<HTMLElement>('#ce-readout-1')!;
 
-  const currencyFormatter = (value: unknown, ctx: { key: string }) =>
+  const currencyFormatter = guideCallback((value: unknown, ctx: { key: string }) =>
     ctx.key !== 'quarter' && typeof value === 'number'
       ? `$${value.toFixed(1)}K`
-      : value;
+      : value
+  );
 
-  const summarySerializer = ({ rows }: { rows: Record<string, any>[] }) =>
+  const summarySerializer = guideCallback(({ rows }: { rows: Record<string, any>[] }) =>
     rows.map((r) => ({
       Quarter: r.quarter,
       Cloud: r.Cloud,
       Edge: r.Edge,
       Total: Number(r.Cloud ?? 0) + Number(r.Edge ?? 0) + Number(r.OnPrem ?? 0)
-    }));
+    }))
+  );
 
   type CsvPresetKey = 'default' | 'columns' | 'formatted' | 'serializer';
   let activePreset1: CsvPresetKey = 'default';
@@ -229,10 +232,6 @@ export function renderCsvExportGuide(
     initialConfig: initialCfg1,
     chartId: () => 'bar',
     usage: `const csv = chart.toCsv();\n\n${csvActionSnippet('Export CSV', '() => chart.exportCsv()')}`,
-    knownCallbacks: {
-      'csvExport.formatValue': currencyFormatter,
-      'csvExport.serializer': summarySerializer
-    },
     hint: 'Edit the registration flags or chart.config to update the CSV output.',
     onConfigChange: (nextCfg) => {
       syncEx1Preview(nextCfg);

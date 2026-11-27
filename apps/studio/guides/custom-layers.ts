@@ -4,6 +4,7 @@ import type {
   MCBaseChart,
   ThemeModePreference
 } from '../../../src/index';
+import { guideCallback } from './callback-source';
 import { createLiveConfigEditor } from './shared';
 
 export function renderCustomLayersGuide(
@@ -84,7 +85,7 @@ export function renderCustomLayersGuide(
 
   const peakAndMeanLayer = {
     name: 'peak-and-mean',
-    render(ctx: ChartRenderContext<typeof lineData>) {
+    render: guideCallback(function renderPeakAndMean(ctx: ChartRenderContext<typeof lineData>) {
       const points = ctx.data?.[0]?.data ?? [];
       if (!points.length || !ctx.xScale || !ctx.yScale) return;
 
@@ -162,7 +163,7 @@ export function renderCustomLayersGuide(
       });
 
       return g;
-    }
+    })
   };
 
   const chart1 = document.createElement('mc-line-chart') as MCBaseChart<any>;
@@ -170,27 +171,27 @@ export function renderCustomLayersGuide(
   mounted.push(chart1);
 
   let customLayerPlacement: 'front' | 'back' | 'hidden' = 'front';
-  const buildChart1Config = () => {
-    const layers =
-      customLayerPlacement === 'front'
-        ? ['grid', 'axes', 'areas', 'lines', 'points', peakAndMeanLayer, 'legends']
-        : customLayerPlacement === 'back'
-        ? ['grid', peakAndMeanLayer, 'axes', 'areas', 'lines', 'points', 'legends']
-        : ['grid', 'axes', 'areas', 'lines', 'points', 'legends'];
-
-    return {
-      data: lineData,
-      title: 'Weekly API Traffic with Custom Layer',
-      palette: getGlobalPalette(),
-      enableArea: true,
-      areaOpacity: 0.14,
-      curve: 'monotoneX',
-      yScale: { type: 'linear', min: 0, max: 115 },
-      layers
-    };
-  };
+  const buildChart1Config = () => ({
+    data: lineData,
+    title: 'Weekly API Traffic with Custom Layer',
+    palette: getGlobalPalette(),
+    enableArea: true,
+    areaOpacity: 0.14,
+    curve: 'monotoneX',
+    yScale: { type: 'linear', min: 0, max: 115 },
+    layers: ['grid', 'axes', 'areas', 'lines', 'points', peakAndMeanLayer, 'legends']
+  });
+  let activeConfig: Record<string, any> = buildChart1Config();
+  let activeCustomLayer = peakAndMeanLayer;
+  const isPeakAndMeanLayer = (layer: unknown): boolean =>
+    !!layer && typeof layer === 'object' && 'name' in layer && layer.name === peakAndMeanLayer.name;
 
   const applyChart1Config = (cfg: Record<string, any>) => {
+    activeConfig = cfg;
+    if (Array.isArray(cfg.layers)) {
+      const editedLayer = cfg.layers.find(isPeakAndMeanLayer);
+      if (typeof editedLayer?.render === 'function') activeCustomLayer = editedLayer;
+    }
     chart1.setConfig({
       autoSize: true,
       themeMode,
@@ -199,8 +200,7 @@ export function renderCustomLayersGuide(
     });
   };
 
-  const initialCfg1 = buildChart1Config();
-  applyChart1Config(initialCfg1);
+  applyChart1Config(activeConfig);
 
   const btnFront = ex1.querySelector('#btn-layer-pos-front') as HTMLButtonElement;
   const btnBack = ex1.querySelector('#btn-layer-pos-back') as HTMLButtonElement;
@@ -215,7 +215,7 @@ export function renderCustomLayersGuide(
 
   const editor1 = createLiveConfigEditor({
     title: 'Named Custom Layer Config (Live)',
-    initialConfig: initialCfg1,
+    initialConfig: activeConfig,
     layerRegistry: { 'peak-and-mean': peakAndMeanLayer },
     hint: 'Edit data values, yScale, or reorder { "name": "peak-and-mean" } inside layers[].',
     onConfigChange: (nextCfg) => {
@@ -231,26 +231,27 @@ export function renderCustomLayersGuide(
   });
   ex1.querySelector('#guide-custom-layer-code-1')!.appendChild(editor1.element);
 
-  btnFront.addEventListener('click', () => {
-    customLayerPlacement = 'front';
+  const placeCustomLayer = (placement: typeof customLayerPlacement) => {
+    const currentLayers = Array.isArray(activeConfig.layers)
+      ? activeConfig.layers
+      : buildChart1Config().layers;
+    const layers = currentLayers.filter((layer) => !isPeakAndMeanLayer(layer));
+    if (placement === 'back') {
+      layers.splice(layers.indexOf('grid') + 1, 0, activeCustomLayer);
+    } else if (placement === 'front') {
+      const legendIndex = layers.indexOf('legends');
+      layers.splice(legendIndex < 0 ? layers.length : legendIndex, 0, activeCustomLayer);
+    }
+    customLayerPlacement = placement;
     syncButtons();
-    const nextCfg = buildChart1Config();
+    const nextCfg = { ...activeConfig, layers };
     applyChart1Config(nextCfg);
     editor1.syncConfig(nextCfg);
-  });
-  btnBack.addEventListener('click', () => {
-    customLayerPlacement = 'back';
-    syncButtons();
-    const nextCfg = buildChart1Config();
-    applyChart1Config(nextCfg);
-    editor1.syncConfig(nextCfg);
-  });
+  };
+  btnFront.addEventListener('click', () => placeCustomLayer('front'));
+  btnBack.addEventListener('click', () => placeCustomLayer('back'));
   btnToggle.addEventListener('click', () => {
-    customLayerPlacement = customLayerPlacement === 'hidden' ? 'front' : 'hidden';
-    syncButtons();
-    const nextCfg = buildChart1Config();
-    applyChart1Config(nextCfg);
-    editor1.syncConfig(nextCfg);
+    placeCustomLayer(customLayerPlacement === 'hidden' ? 'front' : 'hidden');
   });
 
   // Live Example 2: Threshold-Aware Custom Layer
@@ -284,7 +285,7 @@ export function renderCustomLayersGuide(
 
   const slaAlertLayer = {
     name: 'sla-alerts',
-    render(ctx: ChartRenderContext<any>) {
+    render: guideCallback(function renderSlaAlerts(ctx: ChartRenderContext<any>) {
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       for (const item of ctx.thresholds.matchedItems) {
         if (item.px == null || item.py == null) continue;
@@ -304,7 +305,7 @@ export function renderCustomLayersGuide(
         });
       }
       return g;
-    }
+    })
   };
 
   const chart2 = document.createElement('mc-bar-chart') as MCBaseChart<any>;
