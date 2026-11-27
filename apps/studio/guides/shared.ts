@@ -1,6 +1,6 @@
 import { escapeHtml } from '../utils/html';
 import { isUnsafePathKey } from '../utils/object-path';
-import { formatGuideConfigAssignment, parseGuideConfig } from './callback-config';
+import { formatGuideConfigAssignment, parseGuideConfig, type GuideCallbackCompiler } from './callback-config';
 import { GUIDES_CATALOG, type GuideId } from './types';
 
 export { escapeHtml } from '../utils/html';
@@ -158,7 +158,11 @@ export interface LiveCodeEditorOptions {
   initialValue: string;
   language?: 'config' | 'css' | 'html' | 'js';
   hint?: string;
-  onApply: (rawValue: string, runCallbacks: boolean) => void | string | { pendingCallbacks: true };
+  onApply: (
+    rawValue: string,
+    compileCallback: GuideCallbackCompiler | undefined,
+    onCallbackError: (error: unknown) => void
+  ) => void | string | { pendingCallbacks: true };
   onReset?: () => void;
 }
 
@@ -259,11 +263,21 @@ export function createLiveCodeEditor(
   runButton.className = 'guide-reset-btn';
   runButton.textContent = 'Run callback edits';
 
-  const applyCurrent = (runCallbacks = false) => {
+  let editVersion = 0;
+  let callbackError: string | null = null;
+  const reportCallbackError = (error: unknown) => {
+    if (!wrap.isConnected) return;
+    callbackError = error instanceof Error ? error.message : 'Could not run callback edits';
+    setErrorState(callbackError);
+  };
+
+  const applyCurrent = (compileCallback?: GuideCallbackCompiler) => {
+    editVersion++;
+    callbackError = null;
     runButton.remove();
     try {
-      const result = options.onApply(textarea.value, runCallbacks);
-      setErrorState(typeof result === 'string' ? result : null);
+      const result = options.onApply(textarea.value, compileCallback, reportCallbackError);
+      setErrorState(callbackError ?? (typeof result === 'string' ? result : null));
       if (typeof result === 'object' && result.pendingCallbacks) {
         statusEl.textContent = 'Run your JavaScript callback edits to update the preview.';
         actions.prepend(runButton);
@@ -274,12 +288,24 @@ export function createLiveCodeEditor(
   };
 
   textarea.addEventListener('input', () => applyCurrent());
-  runButton.addEventListener('click', () => {
-    applyCurrent(true);
+  runButton.addEventListener('click', async () => {
+    const version = editVersion;
+    runButton.disabled = true;
+    statusEl.textContent = 'Loading the callback preview…';
     textarea.focus();
+    try {
+      const { loadGuideCallbackCompiler } = await import('./callback-runtime');
+      const compiler = await loadGuideCallbackCompiler();
+      if (version === editVersion && wrap.isConnected) applyCurrent(compiler);
+    } catch (error) {
+      if (version === editVersion) reportCallbackError(error);
+    } finally {
+      runButton.disabled = false;
+    }
   });
 
   resetBtn.addEventListener('click', () => {
+    editVersion++;
     runButton.remove();
     if (options.onReset) {
       options.onReset();
@@ -301,6 +327,7 @@ export function createLiveCodeEditor(
       if (opts.preserveFocus && document.activeElement === textarea) {
         return;
       }
+      editVersion++;
       textarea.value = trimmed;
       runButton.remove();
       setErrorState(null);
@@ -351,12 +378,13 @@ export function createLiveConfigEditor<T extends Record<string, any> = Record<st
       options.hint ??
       'Live editable chart.config — modify data, colors, labels, or options to update the chart immediately.',
     onReset: options.onReset,
-    onApply: (rawValue, runCallbacks) => {
+    onApply: (rawValue, compileCallback, onCallbackError) => {
       let parsed: ReturnType<typeof parseGuideConfig>;
       try {
         parsed = parseGuideConfig(rawValue, activeConfig, {
           layerRegistry: options.layerRegistry,
-          runCallbacks
+          compileCallback,
+          onCallbackError
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Syntax error';

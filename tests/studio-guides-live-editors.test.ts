@@ -257,7 +257,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     expect(customLayerG!.textContent).toContain('Peak: 110K (Mon)');
   });
 
-  it('applies SVG renderer edits on request and restores the original renderer on reset', () => {
+  it('applies SVG renderer edits on request and restores the original renderer on reset', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const [chart] = renderGuidePage(root, 'custom-layers', 'dark');
@@ -274,7 +274,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     editor.dispatchEvent(new Event('input'));
     expect(bandFill()).toBe('#6366f1');
     findRunCallbacksButton(editor)!.click();
-    expect(bandFill()).toBe('#abcdef');
+    await vi.waitFor(() => expect(bandFill()).toBe('#abcdef'));
     expect(findRunCallbacksButton(editor)).toBeUndefined();
 
     root.querySelector<HTMLButtonElement>('#btn-layer-pos-back')!.click();
@@ -291,7 +291,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     expect(editor.value).toContain('#6366f1');
   });
 
-  it('keeps an edited D3 renderer when updating its confidence band', () => {
+  it('keeps an edited D3 renderer when updating its confidence band', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const [chart] = renderGuidePage(root, 'd3', 'dark');
@@ -305,7 +305,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     editor.dispatchEvent(new Event('input'));
     expect(ribbon().getAttribute('fill')).toBe('#06b6d4');
     findRunCallbacksButton(editor)!.click();
-    expect(ribbon().getAttribute('fill')).toBe('#abcdef');
+    await vi.waitFor(() => expect(ribbon().getAttribute('fill')).toBe('#abcdef'));
     expect(ribbon().getAttribute('d')).toBe(initialPath);
 
     slider.value = '20';
@@ -319,7 +319,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     expect(ribbon().getAttribute('d')).toBe(initialPath);
   });
 
-  it('applies a JavaScript axis label formatter edit on request', () => {
+  it('applies a JavaScript axis label formatter edit on request', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     const [chart] = renderGuidePage(root, 'custom-labels', 'dark');
@@ -337,7 +337,14 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     editor.dispatchEvent(new Event('input'));
     expect(axisLabels()).toEqual(originalLabels);
     findRunCallbacksButton(editor)!.click();
-    expect(axisLabels()).toEqual(originalLabels.map(label => label.replace(/^\$/, '€')));
+    const editedLabels = originalLabels.map(label => label.replace(/^\$/, '€'));
+    await vi.waitFor(() => expect(axisLabels()).toEqual(editedLabels));
+
+    editor.value = editor.value.replace('€${text}K', '${window.document.title}');
+    editor.dispatchEvent(new Event('input'));
+    findRunCallbacksButton(editor)!.click();
+    await vi.waitFor(() => expect(editor.getAttribute('aria-invalid')).toBe('true'));
+    expect(axisLabels()).toEqual(editedLabels);
   });
 
   it.each([

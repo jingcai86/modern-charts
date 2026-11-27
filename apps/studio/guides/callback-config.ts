@@ -8,8 +8,16 @@ import {
 
 interface GuideCallbackOptions {
   layerRegistry?: Record<string, any>;
-  runCallbacks?: boolean;
+  compileCallback?: GuideCallbackCompiler;
+  onCallbackError?: (error: unknown) => void;
 }
+
+export type GuideCallbackCompiler = (
+  source: string,
+  bindings?: () => Record<string, unknown>,
+  path?: readonly string[],
+  onError?: (error: unknown) => void
+) => (...args: unknown[]) => unknown;
 
 class CallbackExpression {
   constructor(readonly source: string) {}
@@ -57,30 +65,12 @@ export function formatGuideConfigAssignment(config: Record<string, any>, prefix?
   return formatConfigAssignment(config, prefix, getGuideCallbackSource);
 }
 
-function compileCallback(source: string, previous?: Function): Function {
-  const bindings = previous && getGuideCallbackBindings(previous);
-  const names = Object.keys(bindings?.() ?? {});
-  // The guide editor invokes this only when the reader runs their own callback edits.
-  // Parsing restricts the input here to a function expression, so creating it runs no body code.
-  const create = new Function(...names, `"use strict"; return (${source});`);
-
-  const callback = bindings
-    ? function (this: unknown, ...args: unknown[]) {
-        const values = bindings();
-        return Reflect.apply(create(...names.map(name => values[name])), this, args);
-      }
-    : create();
-
-  rememberGuideCallbackSource(callback, source, bindings);
-  return callback;
-}
-
 export function parseGuideConfig(
   source: string,
   previousConfig: Record<string, any>,
   options: GuideCallbackOptions = {}
 ): { config: Record<string, any>; hasPendingCallbacks: boolean } {
-  const { layerRegistry, runCallbacks } = options;
+  const { layerRegistry, compileCallback, onCallbackError } = options;
   const parsed = parseConfigObjectLiteral(source, readCallbacks);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || parsed instanceof CallbackExpression) {
     throw new SyntaxError('Config must be a JavaScript object ({ ... }).');
@@ -93,12 +83,27 @@ export function parseGuideConfig(
       ? layerRegistry[name]
       : undefined;
 
-  const restore = (value: any, prior: any): any => {
+  const restore = (value: any, prior: any, path: string[]): any => {
     if (value instanceof CallbackExpression) {
-      if (typeof prior === 'function' && getGuideCallbackSource(prior) === value.source) return prior;
-      if (runCallbacks) return compileCallback(value.source, typeof prior === 'function' ? prior : undefined);
-      hasPendingCallbacks = true;
-      return prior;
+      const previous = typeof prior === 'function' ? prior : undefined;
+      if (previous && getGuideCallbackSource(previous) === value.source) return previous;
+      if (!compileCallback) {
+        hasPendingCallbacks = true;
+        return previous;
+      }
+      const bindings = previous && getGuideCallbackBindings(previous);
+      const run = compileCallback(value.source, bindings, path, onCallbackError);
+      const callback = function (this: unknown, ...args: unknown[]): unknown {
+        try {
+          return run(...args);
+        } catch (error) {
+          if (!onCallbackError) throw error;
+          onCallbackError(error);
+          return previous?.apply(this, args);
+        }
+      };
+      rememberGuideCallbackSource(callback, value.source, bindings);
+      return callback;
     }
     if (value === '[Function]' && typeof prior === 'function') return prior;
     if (Array.isArray(value)) {
@@ -108,18 +113,18 @@ export function parseGuideConfig(
         .map(item => [item.name, item]));
       return value.map((item, i) => {
         const priorItem = namedItems.get(item?.name) ?? registeredLayer(item?.name) ?? priorItems[i];
-        return registeredLayer(item) ?? restore(item, priorItem);
+        return registeredLayer(item) ?? restore(item, priorItem, [...path, String(i)]);
       });
     }
     if (value && typeof value === 'object') {
       return Object.fromEntries(Object.entries(value).map(([key, item]) => [
         key,
-        restore(item, prior && Object.hasOwn(prior, key) ? prior[key] : undefined)
+        restore(item, prior && Object.hasOwn(prior, key) ? prior[key] : undefined, [...path, key])
       ]));
     }
     return value;
   };
 
-  const config = restore(parsed, previousConfig);
+  const config = restore(parsed, previousConfig, []);
   return { config, hasPendingCallbacks };
 }

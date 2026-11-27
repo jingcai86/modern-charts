@@ -1,13 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   findGuideConfigBlock,
   formatGuideConfigAssignment,
-  parseGuideConfig
+  parseGuideConfig,
+  type GuideCallbackCompiler
 } from '../apps/studio/guides/callback-config';
+import { loadGuideCallbackCompiler } from '../apps/studio/guides/callback-runtime';
 import { guideCallback } from '../apps/studio/guides/callback-source';
 import { parseConfigObjectLiteral } from '../apps/studio/utils/code-sync';
 
 describe('Studio guide callback configuration', () => {
+  let compileCallback: GuideCallbackCompiler;
+  beforeAll(async () => {
+    compileCallback = await loadGuideCallbackCompiler();
+  });
+
   it('keeps the original callback and scope when the displayed source is unchanged', () => {
     let unit = 'ms';
     const format = guideCallback((value: number) => `${value} ${unit}`, () => ({ unit }));
@@ -22,7 +29,7 @@ describe('Studio guide callback configuration', () => {
 
     const edit = source.replace('${value}', '${value * 2}');
     expect(parseGuideConfig(edit, defaults).hasPendingCallbacks).toBe(true);
-    const applied = parseGuideConfig(edit, defaults, { runCallbacks: true });
+    const applied = parseGuideConfig(edit, defaults, { compileCallback });
     expect(applied.hasPendingCallbacks).toBe(false);
     unit = 's';
     expect(applied.config.formatter(10)).toBe('20 s');
@@ -41,7 +48,7 @@ describe('Studio guide callback configuration', () => {
     const block = findGuideConfigBlock(source)!;
     expect(findGuideConfigBlock('const chart = document.createElement("mc-bar-chart");')).toBeNull();
     expect(source.slice(block.end)).toBe(';\n\n    const rows = chart.toCsv();');
-    const { config } = parseGuideConfig(block.literal, {}, { runCallbacks: true });
+    const { config } = parseGuideConfig(block.literal, {}, { compileCallback });
 
     expect(config.formatter('a,b')).toBe('[a,b]');
     expect(config.formatter('a')).toBe('a');
@@ -53,7 +60,7 @@ describe('Studio guide callback configuration', () => {
     const initial = { formatter: (value: number) => value, enabled: true };
     expect(parseGuideConfig("{ formatter: '[Function]' }", initial).config.formatter)
       .toBe(initial.formatter);
-    expect(() => parseGuideConfig('{ value: Math.random() }', initial, { runCallbacks: true }))
+    expect(() => parseGuideConfig('{ value: Math.random() }', initial, { compileCallback }))
       .toThrow(SyntaxError);
     expect(() => parseGuideConfig('[]', initial)).toThrow('Config must be a JavaScript object');
     expect(() => parseConfigObjectLiteral('{ formatter: value => value }')).toThrow(SyntaxError);

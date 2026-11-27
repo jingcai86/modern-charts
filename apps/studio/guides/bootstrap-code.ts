@@ -155,7 +155,7 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
         language: 'js',
         initialValue: formatExample(),
         hint: options.hint ?? 'Edit the bootstrap flags or chart.config. The flags apply to both examples.',
-        onApply: (source, runCallbacks) => {
+        onApply: (source, compileCallback, onCallbackError) => {
           const chart = /^[ \t]*const\s+chart\s*=\s*document\.createElement\(\s*(['"])(mc-[a-z]+-chart)\1\s*\)/m.exec(source);
           const chartId = options.chartId();
           if (!chart || chart[2] !== `mc-${chartId}-chart`) {
@@ -168,7 +168,7 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
           const chartSource = source.slice(chart.index);
           const block = findGuideConfigBlock(chartSource);
           if (!block) return 'Complete the chart.config object to update the preview.';
-          const parsed = parseGuideConfig(block.literal, config, { runCallbacks });
+          const parsed = parseGuideConfig(block.literal, config, { compileCallback, onCallbackError });
           if (parsed.hasPendingCallbacks) return { pendingCallbacks: true };
           if (options.onUsageChange) {
             const nextUsage = chartSource.slice(block.end).trimStart().replace(/^;/, '').trim();

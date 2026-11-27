@@ -463,7 +463,7 @@ describe('Customizable CSV export across all 10 chart types (Issue #125)', () =>
 });
 
 describe('Customizable CSV Data Export Studio guide', () => {
-  it('shows the formatter and serializer source and runs edits on request', () => {
+  it('shows the formatter and serializer source and runs edits on request', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     renderGuidePage(root, 'csv-export', 'dark');
@@ -480,7 +480,7 @@ describe('Customizable CSV Data Export Studio guide', () => {
     editor.dispatchEvent(new Event('input', { bubbles: true }));
     expect(readout.textContent).toContain('$142.0K');
     runCallbacks()!.click();
-    expect(readout.textContent).toContain('$142.00K');
+    await vi.waitFor(() => expect(readout.textContent).toContain('$142.00K'));
 
     ex1.querySelector<HTMLButtonElement>('[data-csv-preset="serializer"]')!.click();
     expect(editor.value).toContain('Quarter: r.quarter');
@@ -488,7 +488,7 @@ describe('Customizable CSV Data Export Studio guide', () => {
     editor.dispatchEvent(new Event('input', { bubbles: true }));
     expect(readout.textContent).toContain('Quarter,Cloud,Edge,Total');
     runCallbacks()!.click();
-    expect(readout.textContent).toContain('Period,Cloud,Edge,Total');
+    await vi.waitFor(() => expect(readout.textContent).toContain('Period,Cloud,Edge,Total'));
   });
 
   it('renders interactive CSV export presets and all 10 chart switchers in csv-export guide', () => {

@@ -1,3 +1,5 @@
+import { parseExpressionAt } from 'acorn';
+
 type CallbackBindings = () => Record<string, unknown>;
 
 const callbacks = new WeakMap<Function, { source: string; bindings?: CallbackBindings }>();
@@ -10,16 +12,34 @@ export function rememberGuideCallbackSource(
   callbacks.set(callback, { source, bindings });
 }
 
+function readExpression(source: string) {
+  try {
+    return parseExpressionAt(source, 0, { ecmaVersion: 'latest' });
+  } catch {
+    return undefined;
+  }
+}
+
 export function getGuideCallbackSource(callback: Function): string {
   const known = callbacks.get(callback);
   if (known) return known.source;
+
   const source = Function.prototype.toString.call(callback);
-  const method = /^(async\s+)?(\*?)\s*[$_\p{ID_Start}][$_\p{ID_Continue}]*\s*\(/u.exec(source);
-  if (method && !/^(?:(?:async\s+)?function\b|async\s*\()/.test(source)) {
-    const modifier = method[1] ?? '';
-    return `${modifier}function${method[2]} ${source.slice(modifier.length + method[2].length).trimStart()}`;
+  const expression = readExpression(source);
+  if (expression?.type === 'FunctionExpression' || expression?.type === 'ArrowFunctionExpression') {
+    return source;
   }
-  return source;
+
+  // Shorthand methods need a function expression after the config property name.
+  const memberSource = `{${source}}`;
+  const object = readExpression(memberSource);
+  if (object?.type !== 'ObjectExpression') return source;
+  const [member] = object.properties;
+  if (member?.type !== 'Property' || member.value.type !== 'FunctionExpression') return source;
+
+  const method = member.value;
+  const prefix = `${method.async ? 'async ' : ''}function${method.generator ? '*' : ''}`;
+  return prefix + memberSource.slice(method.start, method.end);
 }
 
 export function getGuideCallbackBindings(callback: Function): CallbackBindings | undefined {
@@ -30,7 +50,7 @@ export function getGuideCallbackBindings(callback: Function): CallbackBindings |
 export function guideCallback<T extends (...args: never[]) => unknown>(
   callback: T,
   bindings?: CallbackBindings,
-  source = Function.prototype.toString.call(callback)
+  source = getGuideCallbackSource(callback)
 ): T {
   rememberGuideCallbackSource(callback, source, bindings);
   return callback;
