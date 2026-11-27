@@ -1,16 +1,131 @@
+import { joinChartItems, type ItemMotion } from '../../core/chart-item-join';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type {
   ChartRenderContext,
   GaugeDataInput,
   LegendItem
 } from '../../core/types';
-import type { GaugeChartModel } from '../../models/gauge.model';
+import {
+  gaugeArcPath,
+  gaugeTrianglePoints,
+  type ComputedGaugeSeriesModel,
+  type GaugeArcGeometry,
+  type GaugeChartModel
+} from '../../models/gauge.model';
 import {
   renderGaugeNeedleItem,
   renderGaugeValueArcItem
 } from '../items/arc.item';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+interface GaugeFrame extends GaugeArcGeometry {
+  needleLength: number;
+  pointerWidth: number;
+  pinRadius: number;
+}
+
+const displayed = new WeakMap<SVGGElement, GaugeFrame>();
+const needleHolders = new WeakMap<SVGGElement, SVGGElement>();
+
+function gaugeSeriesKey(item: ComputedGaugeSeriesModel): string {
+  return item.datum.label ? `label:${item.datum.label}` : `index:${item.index}`;
+}
+
+function gaugeFrame(model: GaugeChartModel, item: ComputedGaugeSeriesModel): GaugeFrame {
+  return {
+    startAngle: model.startAngleDeg * Math.PI / 180,
+    endAngle: item.angleRad + Math.PI / 2,
+    innerRadius: item.ringInnerRadius,
+    outerRadius: item.ringOuterRadius,
+    cornerRadius: model.cornerRadius,
+    needleLength: model.innerRadius * model.pointerLength,
+    pointerWidth: model.pointerWidth,
+    pinRadius: item.pinRadius
+  };
+}
+
+function withoutEntrance(ctx: ChartRenderContext<GaugeDataInput>): ChartRenderContext<GaugeDataInput> {
+  return { ...ctx, animateItem: () => {} };
+}
+
+type GaugeDraw = (mark: SVGElement, frame: GaugeFrame) => void;
+
+function drawValueArc(mark: SVGElement, frame: GaugeFrame): void {
+  mark.setAttribute('d', gaugeArcPath(frame));
+}
+
+function drawNeedle(mark: SVGElement, frame: GaugeFrame): void {
+  const angle = frame.endAngle - Math.PI / 2;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  if (mark.localName === 'polygon') {
+    mark.setAttribute('points', gaugeTrianglePoints(cos, sin, frame.needleLength, frame.pointerWidth));
+  } else if (mark.localName === 'circle') {
+    const centerRadius = (frame.innerRadius + frame.outerRadius) / 2;
+    mark.setAttribute('cx', String(cos * centerRadius));
+    mark.setAttribute('cy', String(sin * centerRadius));
+    mark.setAttribute('r', String(frame.pinRadius));
+  } else {
+    mark.setAttribute('x2', String(cos * frame.needleLength));
+    mark.setAttribute('y2', String(sin * frame.needleLength));
+    mark.setAttribute('stroke-width', String(frame.pointerWidth));
+  }
+}
+
+function collapse(frame: GaugeFrame): GaugeFrame {
+  return { ...frame, endAngle: frame.startAngle, needleLength: 0, pointerWidth: 0, pinRadius: 0 };
+}
+
+function tweenGaugeItem(
+  group: SVGGElement,
+  mark: SVGElement,
+  target: GaugeFrame,
+  draw: GaugeDraw,
+  mode: 'enter' | 'update' | 'exit',
+  motion?: ItemMotion
+): void {
+  const source = displayed.get(group) ?? collapse(target);
+  const fields = Object.keys(target) as Array<keyof GaugeFrame>;
+  if (!motion || fields.every(field => source[field] === target[field])) {
+    displayed.set(group, target);
+    return;
+  }
+
+  const frame = { ...source };
+  displayed.set(group, frame);
+  if (mode !== 'exit') {
+    mark.setAttribute('data-animated', 'true');
+    mark.setAttribute('data-item-transition', mode);
+  }
+  motion((t) => {
+    for (const field of fields) frame[field] = source[field] + (target[field] - source[field]) * t;
+    draw(mark, frame);
+  }, () => {
+    displayed.set(group, target);
+    mark.removeAttribute('data-item-transition');
+  });
+}
+
+function joinGaugeSeries(
+  layer: SVGGElement,
+  model: GaugeChartModel,
+  ctx: ChartRenderContext<GaugeDataInput>,
+  render: (group: SVGGElement, item: ComputedGaugeSeriesModel, initial: boolean) => SVGElement,
+  draw: GaugeDraw
+): void {
+  joinChartItems(layer, model.series, gaugeSeriesKey, ctx.animationConfig,
+    (group, item, { initial, entered, motion }) => {
+      const mark = render(group, item, initial);
+      group.replaceChildren(mark);
+      tweenGaugeItem(group, mark, gaugeFrame(model, item), draw, entered ? 'enter' : 'update', motion);
+    },
+    (group, motion) => {
+      const mark = group.lastElementChild as SVGElement | null;
+      const frame = displayed.get(group);
+      if (mark && frame) tweenGaugeItem(group, mark, collapse(frame), draw, 'exit', motion);
+    }
+  );
+}
 
 export function renderGaugeTrackLayer(
   model: GaugeChartModel,
@@ -19,12 +134,7 @@ export function renderGaugeTrackLayer(
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
 
-  const items =
-    model.series && model.series.length > 0
-      ? model.series
-      : [{ trackPathD: model.trackPathD }];
-
-  items.forEach((item, idx) => {
+  model.series.forEach((item, idx) => {
     const path = document.createElementNS(SVG_NS, 'path');
     path.setAttribute('class', 'mc-gauge-track');
     path.setAttribute('data-series-index', String(idx));
@@ -59,18 +169,12 @@ export function renderGaugeValueArcLayer(
   model: GaugeChartModel,
   ctx: ChartRenderContext<GaugeDataInput>
 ): void {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
-
-  if (model.series && model.series.length > 0) {
-    model.series.forEach((item) => {
-      g.appendChild(renderGaugeValueArcItem(model, ctx, item));
-    });
-  } else {
-    g.appendChild(renderGaugeValueArcItem(model, ctx));
-  }
-
-  ctx.layerGroup.appendChild(g);
+  const center = `translate(${model.cx}, ${model.cy})`;
+  const staticCtx = withoutEntrance(ctx);
+  joinGaugeSeries(ctx.layerGroup, model, ctx, (group, item, initial) => {
+    group.setAttribute('transform', center);
+    return renderGaugeValueArcItem(model, initial ? ctx : staticCtx, item);
+  }, drawValueArc);
 }
 
 export function renderGaugeTicksLayer(
@@ -151,8 +255,20 @@ export function renderGaugeNeedleLayer(
   model: GaugeChartModel,
   ctx: ChartRenderContext<GaugeDataInput>
 ): void {
-  if (model.pointerType === 'none') return;
-  ctx.layerGroup.appendChild(renderGaugeNeedleItem(model, ctx));
+  const layer = ctx.layerGroup;
+  if (model.pointerType === 'none') {
+    layer.replaceChildren();
+    needleHolders.delete(layer);
+    return;
+  }
+  const previous = needleHolders.get(layer);
+  const rendered = renderGaugeNeedleItem(model, previous ? withoutEntrance(ctx) : ctx);
+  const holder = previous ?? document.createElementNS(SVG_NS, 'g');
+  needleHolders.set(layer, holder);
+  const marks = rendered.querySelectorAll<SVGElement>('.mc-gauge-needle');
+  rendered.prepend(holder);
+  layer.replaceChildren(rendered);
+  joinGaugeSeries(holder, model, ctx, (_group, item) => marks[item.index], drawNeedle);
 }
 
 export function renderGaugeCenterLayer(
@@ -170,7 +286,7 @@ export function renderGaugeCenterLayer(
   );
 
   const valueText =
-    model.series && model.series.length > 1
+    model.series.length > 1
       ? model.series
           .map(
             (s) =>
@@ -224,7 +340,7 @@ export function renderGaugeLegendsLayer(
         ':scope > mc-legend'
       ) !== null);
   const seriesItems: LegendItem[] =
-    model.series && model.series.length > 1
+    model.series.length > 1
       ? model.series.map((s, idx) => ({
           id: s.label || `gauge-series-${idx}`,
           label: s.label || `Series ${idx + 1}`,
@@ -236,7 +352,7 @@ export function renderGaugeLegendsLayer(
           {
             id: 'gauge-value',
             label: model.label || 'Value',
-            color: model.series?.[0]?.color || ctx.theme.colors[0] || '#6366f1',
+            color: model.series[0]?.color || ctx.theme.colors[0] || '#6366f1',
             value: `${model.value}${model.unit}`
           }
         ]

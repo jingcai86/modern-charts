@@ -8,6 +8,32 @@ import type {
   GaugePointerType
 } from '../core/types';
 
+export interface GaugeArcGeometry {
+  startAngle: number;
+  endAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  cornerRadius: number;
+}
+
+const gaugeArc = arc<GaugeArcGeometry>().cornerRadius((geometry) => geometry.cornerRadius);
+
+export function gaugeArcPath(geometry: GaugeArcGeometry): string {
+  return gaugeArc(geometry) ?? '';
+}
+
+export function gaugeTrianglePoints(cos: number, sin: number, length: number, width: number): string {
+  const perpX = -sin * width;
+  const perpY = cos * width;
+  const tail = Math.min(12, width * 2.4);
+  return [
+    `${(cos * length).toFixed(2)},${(sin * length).toFixed(2)}`,
+    `${perpX.toFixed(2)},${perpY.toFixed(2)}`,
+    `${(-cos * tail).toFixed(2)},${(-sin * tail).toFixed(2)}`,
+    `${(-perpX).toFixed(2)},${(-perpY).toFixed(2)}`
+  ].join(' ');
+}
+
 export interface ComputedGaugeBandModel {
   band: GaugeBand;
   pathD: string;
@@ -261,43 +287,15 @@ export function computeGaugeChartModel(
             .range([startAngle, endAngle])
             .clamp(true);
 
-    const itemTrackGen = arc()
-      .innerRadius(ringInnerRadius)
-      .outerRadius(ringOuterRadius)
-      .startAngle(startAngle)
-      .endAngle(endAngle)
-      .cornerRadius(cornerRadius);
-
-    const itemValueGen = arc()
-      .innerRadius(ringInnerRadius)
-      .outerRadius(ringOuterRadius)
-      .startAngle(startAngle)
-      .endAngle(itemScale(itemVal))
-      .cornerRadius(cornerRadius);
-
-    const angleRad = itemScale(itemVal) - Math.PI / 2;
+    const geometry = { startAngle, endAngle, innerRadius: ringInnerRadius, outerRadius: ringOuterRadius, cornerRadius };
+    const valueAngle = itemScale(itemVal);
+    const angleRad = valueAngle - Math.PI / 2;
     const needleLen = innerRadius * pointerLength;
-    const needleX2 = Math.cos(angleRad) * needleLen;
-    const needleY2 = Math.sin(angleRad) * needleLen;
-
-    // Tapered triangle pointer vertices
-    const halfW = pointerWidth;
-    const perpX = -Math.sin(angleRad) * halfW;
-    const perpY = Math.cos(angleRad) * halfW;
-    const tailLen = Math.min(12, halfW * 2.4);
-    const tailX = -Math.cos(angleRad) * tailLen;
-    const tailY = -Math.sin(angleRad) * tailLen;
-    const trianglePoints = [
-      `${needleX2.toFixed(2)},${needleY2.toFixed(2)}`,
-      `${perpX.toFixed(2)},${perpY.toFixed(2)}`,
-      `${tailX.toFixed(2)},${tailY.toFixed(2)}`,
-      `${(-perpX).toFixed(2)},${(-perpY).toFixed(2)}`
-    ].join(' ');
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
 
     // Rim pin coordinates centered on the series ring
     const midR = (ringInnerRadius + ringOuterRadius) / 2;
-    const pinCx = Math.cos(angleRad) * midR;
-    const pinCy = Math.sin(angleRad) * midR;
     const pinRadius = Math.max(4, singleRingThickness * 0.52);
 
     return {
@@ -312,34 +310,30 @@ export function computeGaugeChartModel(
       color: itemColor,
       ringInnerRadius,
       ringOuterRadius,
-      trackPathD: itemTrackGen({} as any) || '',
-      valueArcPathD: itemValueGen({} as any) || '',
+      trackPathD: gaugeArcPath(geometry),
+      valueArcPathD: gaugeArcPath({ ...geometry, endAngle: valueAngle }),
       angleRad,
-      needleX2,
-      needleY2,
-      trianglePoints,
-      pinCx,
-      pinCy,
+      needleX2: cos * needleLen,
+      needleY2: sin * needleLen,
+      trianglePoints: gaugeTrianglePoints(cos, sin, needleLen, pointerWidth),
+      pinCx: cos * midR,
+      pinCy: sin * midR,
       pinRadius
     };
   });
 
   const primarySeries = series[0];
 
-  const bands: ComputedGaugeBandModel[] = (primaryDatum.bands ?? []).map(
-    (band) => {
-      const bandArcGen = arc()
-        .innerRadius(outerRadius + 3)
-        .outerRadius(outerRadius + 8)
-        .startAngle(angleScale(band.from))
-        .endAngle(angleScale(band.to))
-        .cornerRadius(3);
-      return {
-        band,
-        pathD: bandArcGen({} as any) || ''
-      };
-    }
-  );
+  const bands: ComputedGaugeBandModel[] = (primaryDatum.bands ?? []).map((band) => ({
+    band,
+    pathD: gaugeArcPath({
+      innerRadius: outerRadius + 3,
+      outerRadius: outerRadius + 8,
+      startAngle: angleScale(band.from),
+      endAngle: angleScale(band.to),
+      cornerRadius: 3
+    })
+  }));
 
   const innermostRadius = series[series.length - 1].ringInnerRadius;
   const tickOuterR = innermostRadius - 2;

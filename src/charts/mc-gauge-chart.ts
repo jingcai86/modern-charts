@@ -50,6 +50,10 @@ export class MCGaugeChart extends MCBaseChart<GaugeDataInput> {
     return ['track', 'bands', 'valueArc', 'ticks', 'needle', 'center', 'legends'];
   }
 
+  protected override get retainedItemLayers(): readonly string[] {
+    return ['valueArc', 'needle'];
+  }
+
   protected getDefaultMargin(): ChartMargin {
     return { top: 32, right: 32, bottom: 32, left: 32 };
   }
