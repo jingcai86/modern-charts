@@ -37,11 +37,20 @@ describe('Studio overview navigation', () => {
     document.body.append(root);
     renderOverviewPage(root);
     const panel = root.querySelector('[role="tabpanel"][aria-labelledby="overview-tab-guides"]')!;
-    const groups = Array.from(panel.querySelectorAll('section.overview-guide-group'));
-    expect(groups.length).toBeGreaterThan(1);
+    const groups = Array.from(panel.querySelectorAll<HTMLDetailsElement>('details.overview-guide-group'));
+    expect(groups.map((group) => group.querySelector('summary')?.textContent)).toEqual([
+      'Integrations & Extensions', 'Colors, Patterns & Gradients', 'Labels & Layout',
+      'Data & Interaction', 'Optional Features', 'Accessibility & Localization', 'Resources'
+    ]);
+    expect(groups.filter((group) => group.open)).toEqual(groups.slice(0, 4));
+
+    groups[4].querySelector('summary')!.click();
+    expect(groups.filter((group) => group.open)).toEqual(groups.slice(0, 5));
+    groups[0].querySelector('summary')!.click();
+    expect(groups.filter((group) => group.open)).toEqual(groups.slice(1, 5));
 
     const urls = groups.flatMap((group) => {
-      const heading = group.querySelector('h2.overview-guide-group-title')!;
+      const heading = group.querySelector('summary h2.overview-guide-group-title')!;
       expect(heading.id).toBeTruthy();
       expect(heading.textContent?.trim()).toBeTruthy();
       expect(group.getAttribute('aria-labelledby')).toBe(heading.id);

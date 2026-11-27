@@ -1,11 +1,14 @@
-import { GUIDE_GROUPS } from './types';
+import { DEFAULT_OPEN_GUIDE_GROUP_COUNT, GUIDE_GROUPS } from './types';
 
 export function createGuideNavigationGroups(): DocumentFragment {
   const groups = document.createDocumentFragment();
 
-  for (const group of GUIDE_GROUPS) {
+  for (const [index, group] of GUIDE_GROUPS.entries()) {
     const section = document.createElement('li');
-    const label = document.createElement('span');
+    const disclosure = document.createElement('details');
+    disclosure.className = 'nav-dropdown-group';
+    disclosure.open = index < DEFAULT_OPEN_GUIDE_GROUP_COUNT;
+    const label = document.createElement('summary');
     label.id = `nav-guide-group-${group.id}`;
     label.className = 'nav-dropdown-group-label';
     label.textContent = group.title;
@@ -26,7 +29,8 @@ export function createGuideNavigationGroups(): DocumentFragment {
       links.append(item);
     }
 
-    section.append(label, links);
+    disclosure.append(label, links);
+    section.append(disclosure);
     groups.append(section);
   }
 

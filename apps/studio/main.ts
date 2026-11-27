@@ -44,11 +44,17 @@ const navCurrentLabel = document.getElementById(
 ) as HTMLSpanElement | null;
 const navMenu = document.getElementById('studio-pages-menu') as HTMLElement | null;
 
+function openGuideMenuGroup(link: Element | null): void {
+  const group = link?.closest<HTMLDetailsElement>('details.nav-dropdown-group');
+  if (group) group.open = true;
+}
+
 if (navTrigger && navMenu) {
   navMenu.insertBefore(createGuideNavigationGroups(), navMenu.querySelector('#studio-pages-resources'));
   navMenu.addEventListener('toggle', (event) => {
     const isOpen = (event as ToggleEvent).newState === 'open';
     navTrigger.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) openGuideMenuGroup(navMenu.querySelector('[aria-current="page"]'));
 
     // Anchor positioning fallback for browsers without CSS `position-area`
     if (
@@ -117,6 +123,7 @@ function syncTopNavActiveState(activeKey: string, showDropdown: boolean): void {
       const isCurrent = link.dataset.navRoute === activeKey;
       if (isCurrent) {
         link.setAttribute('aria-current', 'page');
+        openGuideMenuGroup(link);
         activeLabel = link.dataset.navLabel || link.textContent?.trim() || activeLabel;
       } else {
         link.removeAttribute('aria-current');

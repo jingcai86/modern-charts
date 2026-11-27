@@ -1,7 +1,7 @@
 import type { MCBaseChart } from '../../../src/index';
 import { CHART_CATALOG, type ChartCatalogEntry } from '../catalog';
 import { loadChart } from '../chart-loader';
-import { GUIDE_GROUPS, GUIDES_CATALOG, type GuideId } from '../guides/types';
+import { DEFAULT_OPEN_GUIDE_GROUP_COUNT, GUIDE_GROUPS, GUIDES_CATALOG, type GuideId } from '../guides/types';
 import { escapeHtml } from '../utils/html';
 import { getOrInitChartConfig } from '../state/config-store';
 import { getGlobalThemeMode } from '../state/theme';
@@ -210,14 +210,18 @@ interface GuideCard {
   summary: string;
 }
 
-function createGuideGroup(id: string, title: string, cards: GuideCard[]): HTMLElement {
-  const group = document.createElement('section');
+function createGuideGroup(id: string, title: string, cards: GuideCard[], open = false): HTMLDetailsElement {
+  const group = document.createElement('details');
   group.className = 'overview-guide-group';
+  group.open = open;
+  const summary = document.createElement('summary');
+  summary.className = 'overview-guide-group-summary';
   const heading = document.createElement('h2');
   heading.id = `overview-guide-group-${id}`;
   heading.className = 'overview-guide-group-title';
   heading.textContent = title;
   group.setAttribute('aria-labelledby', heading.id);
+  summary.appendChild(heading);
 
   const guidesGrid = document.createElement('div');
   guidesGrid.className = 'overview-guides-grid';
@@ -243,16 +247,15 @@ function createGuideGroup(id: string, title: string, cards: GuideCard[]): HTMLEl
     guidesGrid.appendChild(link);
   });
 
-  group.append(heading, guidesGrid);
+  group.append(summary, guidesGrid);
   return group;
 }
 
-function createGuideGroups(): HTMLElement {
-  const groups = document.createElement('div');
-  groups.className = 'overview-guide-groups';
-  for (const { id, title, guides } of GUIDE_GROUPS) {
+function createGuideGroups(): DocumentFragment {
+  const groups = document.createDocumentFragment();
+  for (const [index, { id, title, guides }] of GUIDE_GROUPS.entries()) {
     const cards = guides.map((guide) => ({ ...guide, href: `#/guide/${guide.id}` }));
-    groups.appendChild(createGuideGroup(id, title, cards));
+    groups.appendChild(createGuideGroup(id, title, cards, index < DEFAULT_OPEN_GUIDE_GROUP_COUNT));
   }
   groups.appendChild(createGuideGroup('resources', 'Resources', [{
     id: 'ai-context',
