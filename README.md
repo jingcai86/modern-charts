@@ -66,6 +66,11 @@ For server-rendered apps, emit a sized chart host from the server and assign its
 
 See the wiki for [features](https://github.com/jingcai86/modern-charts/wiki/Features), [components](https://github.com/jingcai86/modern-charts/wiki/Component-Architecture), [Studio guides](https://github.com/jingcai86/modern-charts/wiki/Studio-and-Guides), [internationalization](https://github.com/jingcai86/modern-charts/wiki/Internationalization), and [AI context](https://github.com/jingcai86/modern-charts/wiki/AI-Context).
 
+### Why D3 and Pretext
+
+- **D3 (`d3`)**: Computes scales, SVG path/arc geometry, hierarchy and Sankey layouts, color interpolation, and zoom math while the Web Components own the DOM and layer lifecycle.
+- **Pretext (`@chenglou/pretext`)**: Measures, wraps, and truncates chart text in pure JavaScript without querying the live DOM, eliminating layout thrashing and synchronous reflows during rendering.
+
 ## Build
 
 Use Node.js 22.12+ and npm.
