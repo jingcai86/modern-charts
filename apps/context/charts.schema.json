@@ -5,6 +5,18 @@
   "package": "modern-charts",
   "version": "0.1.0-alpha.1",
   "runtimeDependencies": ["@chenglou/pretext", "d3"],
+  "bootstrapOptions": {
+    "features": {
+      "zoom": { "type": "boolean", "default": false },
+      "csvExport": { "type": "boolean", "default": false },
+      "chartState": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enables loading and empty overlays. Explicit registration loads the renderer chunk. Side-effect imports defer it until the first loading or empty overlay. Setting false skips that chunk and preserves chart state, mc-state-change events, and aria-busy."
+      }
+    },
+    "shorthand": ["zoom", "csvExport", "chartState"]
+  },
   "sharedAttributes": [
     "width",
     "height",
@@ -21,9 +33,15 @@
     "motion-config",
     "aria-label",
     "is-interactive",
-    "is-focusable"
+    "is-focusable",
+    "loading",
+    "loading-text",
+    "empty-text"
   ],
   "sharedConfigOptions": {
+    "loading": { "type": "boolean", "default": false },
+    "loadingText": "string. Defaults to the localized loading message.",
+    "emptyText": "string. Defaults to the localized empty message.",
     "i18n": {
       "locale": "BCP 47 language tag; default en-US",
       "timeZone": "Intl timezone identifier (for example UTC); default runtime local timezone",

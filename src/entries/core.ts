@@ -1,4 +1,5 @@
-import { registerCoreComponents } from '../core/registry';
+import { registerComponentDefinitions } from '../core/dom';
+import { CORE_COMPONENT_REGISTRY } from '../core/registry';
 
 // Core Engine
 export * from '../core/i18n';
@@ -32,4 +33,4 @@ export * from '../components/mc-aria';
 export * from '../components/mc-marker';
 export * from '../components/layers/mc-layers';
 
-void registerCoreComponents();
+registerComponentDefinitions(CORE_COMPONENT_REGISTRY);

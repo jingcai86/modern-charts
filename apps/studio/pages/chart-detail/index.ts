@@ -4,6 +4,7 @@ import type {
   MCBaseChart
 } from '../../../../src/index';
 import { configureChartFeatures } from '../../../../src/core/features';
+import { STUDIO_BOOTSTRAP_OPTIONS } from '../../chart-loader';
 import {
   getAllAttributesForChart,
   type ChartCatalogEntry
@@ -33,8 +34,8 @@ export function renderChartDetailPage(
   root: HTMLElement,
   entry: ChartCatalogEntry
 ): MCBaseChart<any> {
-  void configureChartFeatures({ features: { zoom: true, csvExport: true } });
   root.replaceChildren();
+  void configureChartFeatures(STUDIO_BOOTSTRAP_OPTIONS);
 
   const config = getOrInitChartConfig(entry);
   const vState = getChartVirtualState(entry.id);

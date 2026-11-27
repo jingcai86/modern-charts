@@ -39,7 +39,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   document.body.replaceChildren();
   configureI18n({});
-  await configureChartFeatures({ features: { zoom: false, csvExport: false } });
+  await configureChartFeatures({ features: { zoom: false, csvExport: false, chartState: true } });
   for (const entry of CHART_CATALOG) {
     resetChartConfig(entry);
   }
@@ -402,14 +402,14 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(editor2.value).toContain('await registerPieChart(');
     expect(editor2.value).toContain("document.createElement('mc-pie-chart')");
     expect(editor2.value).toContain("chart.addEventListener('mc-zoom'");
-    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: false });
+    expect(getChartFeatures()).toEqual({ zoom: true, csvExport: false, chartState: true });
     expect(onChartControls()).toEqual([false, false]);
     expect(zoomDouble.disabled).toBe(false);
 
     editor1.value = editor1.value.replace('zoom: true', 'zoom: false');
     editor1.dispatchEvent(new Event('input', { bubbles: true }));
     expect(editor2.value).toContain('zoom: false');
-    expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false });
+    expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false, chartState: true });
     expect(onChartControls()).toEqual([true, true]);
     expect(zoomDouble.disabled).toBe(true);
     expect(readout1.textContent).toContain('zoomable: false');
@@ -529,6 +529,8 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     const chartType = root.querySelector<HTMLSelectElement>('#bs-chart-type')!;
     const zoom = root.querySelector<HTMLInputElement>('#bs-zoom')!;
     const csvExport = root.querySelector<HTMLInputElement>('#bs-csv-export')!;
+    const chartState = root.querySelector<HTMLInputElement>('#bs-chart-state')!;
+    const loading = root.querySelector<HTMLInputElement>('#bs-example-loading')!;
     const download = root.querySelector<HTMLButtonElement>('#bs-download-csv')!;
     const csvOutput = root.querySelector<HTMLElement>('#bs-csv-output')!;
     const editor = root.querySelector<HTMLTextAreaElement>('#bs-bootstrap-code textarea')!;
@@ -546,9 +548,11 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     );
     expect(zoom.checked).toBe(false);
     expect(csvExport.checked).toBe(false);
+    expect(chartState.checked).toBe(true);
     expect(download.disabled).toBe(true);
     expect(editor.value).toMatch(/^import \{ registerModernCharts \} from 'modern-charts';\s+await registerModernCharts\([\s\S]*\);$/);
     expect(editor.value).not.toMatch(/(?:zoom|csvExport):\s*true/);
+    expect(editor.value).toContain('// chartState: false');
     expect(featureCode.hidden).toBe(true);
     const copy = root.querySelector<HTMLButtonElement>('#bs-bootstrap-code button.guide-copy-btn')!;
     expect(copy.getAttribute('commandfor')).toBe(editor.id);
@@ -560,6 +564,25 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
       expect(bar.isFeatureEnabled('zoom')).toBe(false);
       expect(bar.toCsv()).toBe('');
     });
+
+    loading.checked = true;
+    loading.dispatchEvent(new Event('change', { bubbles: true }));
+    const overlay = () => charts[0].getStateElement()!;
+    await vi.waitFor(() => expect(overlay().hidden).toBe(false));
+
+    editor.value = editor.value.replace('// chartState: false', 'chartState: false');
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    expect(chartState.checked).toBe(false);
+    expect(overlay().hidden).toBe(true);
+    expect(charts[0].chartState).toBe('loading');
+
+    editor.value = editor.value.replace('    chartState: false', '    // chartState: false');
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(chartState.checked).toBe(true);
+    expect(overlay().hidden).toBe(false);
+    loading.checked = false;
+    loading.dispatchEvent(new Event('change', { bubbles: true }));
 
     zoom.checked = true;
     zoom.dispatchEvent(new Event('change', { bubbles: true }));

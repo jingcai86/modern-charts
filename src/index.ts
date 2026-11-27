@@ -1,9 +1,9 @@
 import { registerCuratedChartD3 } from './core/d3-curated';
+import { registerComponentDefinitions } from './core/dom';
 import './core/chart-view-controller';
 import {
   CORE_COMPONENT_REGISTRY,
-  configureChartFeatures,
-  defineCustomElement
+  configureChartFeatures
 } from './core/registry';
 import type { ChartBootstrapOptions, ChartFeaturesConfig } from './core/types';
 import { MCBarItem } from './presentation/items/bar.item';
@@ -136,17 +136,13 @@ export const COMPONENT_REGISTRY: Record<string, CustomElementConstructor> = {
 };
 
 /**
- * Registers all `modern-charts` custom elements idempotently and configures
- * optional features (`features: { zoom?: boolean, csvExport?: boolean }`).
- * Optional features default to `false` unless explicitly enabled.
+ * Registers all modern-charts custom elements idempotently and loads enabled features.
  */
 export function registerModernCharts(
   options?: ChartBootstrapOptions | ChartFeaturesConfig
 ): Promise<void> {
-  for (const [tag, ctor] of Object.entries(COMPONENT_REGISTRY)) {
-    defineCustomElement(tag, ctor);
-  }
+  registerComponentDefinitions(COMPONENT_REGISTRY);
   return configureChartFeatures(options);
 }
 
-void registerModernCharts();
+registerComponentDefinitions(COMPONENT_REGISTRY);

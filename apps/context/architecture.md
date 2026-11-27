@@ -32,6 +32,20 @@ import 'modern-charts';
 
 The JavaScript entry points can be imported in Node without a DOM. Custom element registration and SVG rendering happen in the browser. In an SSR app, output a sized `<mc-*-chart>` host and assign `chart.config` after the element is defined on the client. Pass serializable chart data across the server/client boundary and create formatter or renderer functions in the client component. See the [SSR guide](https://jingcai86.github.io/modern-charts/#/guide/ssr).
 
+### Feature Bootstrapping
+
+Pass shared feature flags to `registerModernCharts()` or a per-chart registrar. `zoom` and `csvExport` default to `false`. `chartState` defaults to `true` and controls the loading and empty overlays. Explicit browser registration loads the enabled feature chunks. A side-effect import such as `import 'modern-charts/bar'` loads the state renderer the first time a chart displays a loading or empty overlay.
+
+Set `features.chartState: false` during registration to skip the overlay download. A top-level `chartState: false` is also accepted as shorthand.
+
+```js
+import { registerBarChart } from 'modern-charts/bar';
+
+await registerBarChart({ features: { chartState: false } });
+```
+
+With the overlay disabled, `chart.loading`, `chart.chartState`, the `mc-state-change` event, and `aria-busy` continue to work. Use `configureChartFeatures({ features: { chartState: true } })` to enable the overlay again. [Feature Bootstrapping guide](https://jingcai86.github.io/modern-charts/#/guide/bootstrapping) · [Loading & Empty States guide](https://jingcai86.github.io/modern-charts/#/guide/chart-state).
+
 ---
 
 ## 2. Shared `chart.config` Options (All 10 Charts)
@@ -46,6 +60,9 @@ interface SharedChartConfig<TData> {
   autoSize?: boolean; // default true (ResizeObserver); set false to use snapshot size + .resize()
   margin?: { top?: number; right?: number; bottom?: number; left?: number };
   title?: string;
+  loading?: boolean; // default false
+  loadingText?: string; // defaults to the localized loading message
+  emptyText?: string; // defaults to the localized empty message
   // Shared Intl formatters and translatable built-in messages; defaults: en-US, local timezone, ltr.
   // configureI18n(...) sets global defaults; config.i18n overrides them per chart.
   i18n?: { locale?: string; timeZone?: string; direction?: 'ltr' | 'rtl'; messages?: Partial<ChartMessages> };
@@ -212,7 +229,7 @@ interface SharedChartConfig<TData> {
 
 ### Shared HTML Attributes (All `<mc-*-chart>` Elements)
 
-`width`, `height`, `auto-size`, `margin`, `theme-mode`, `palette`, `chart-title`, `layers`, `label-mode`, `label-overflow`, `tooltip-position`, `animate`, `motion-config`, `aria-label`, `is-interactive`, `is-focusable`.
+`width`, `height`, `auto-size`, `margin`, `theme-mode`, `palette`, `chart-title`, `layers`, `label-mode`, `label-overflow`, `tooltip-position`, `animate`, `motion-config`, `aria-label`, `is-interactive`, `is-focusable`, `loading`, `loading-text`, `empty-text`.
 
 ---
 
@@ -442,6 +459,7 @@ chart.addEventListener('mc-event', (e) => console.log(e.detail));
 - `chart.streamLayers(delayMs?)` — Streams layers progressively, firing `mc-layer-stream` per layer and `mc-stream-complete` on finish.
 - `chart.getTooltipElement()` — Returns the chart's singleton item `<mc-tooltip>` instance.
 - `chart.getLegendTooltipElement()` — Returns the chart's dedicated singleton legend `<mc-tooltip>` instance.
+- `chart.chartState` — Reports `'ready'`, `'loading'`, or `'empty'` synchronously. Listen for `mc-state-change` to track transitions.
 - `chart.toggleZoom(force?)` / `chart.setZoomEnabled(enabled)` — Change whether zoom is enabled and return the new state. Listen for `mc-zoom-toggle` to track it.
 - `chart.zoomIn(factor?)` / `chart.zoomOut(factor?)` / `chart.resetZoom()` — Scale or reset the viewport when zoom is enabled.
 - Events: `mc-event`, `mc-click`, `mc-focus`, `mc-blur`, `mc-mouseover`, `mc-mouseenter`, `mc-mouseleave`, `mc-item-*`, `mc-axis-*`, `mc-legend-*`, `mc-marker-*`, `mc-title-*`, `mc-canvas-*`, `mc-zoom`, `mc-aria-focus`, `mc-item-activate`, `mc-tooltip-show`, `mc-tooltip-hide`, `mc-legend-tooltip-show`, `mc-legend-tooltip-hide`, `mc-layer-stream`, `mc-stream-complete`.

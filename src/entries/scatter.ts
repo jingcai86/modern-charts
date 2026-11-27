@@ -7,6 +7,7 @@ import {
   isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import { registerComponentDefinitions } from '../core/dom';
 import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
 export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
@@ -41,4 +42,4 @@ export function registerScatterChart(
   );
 }
 
-void registerScatterChart();
+registerComponentDefinitions(SCATTER_COMPONENT_REGISTRY);

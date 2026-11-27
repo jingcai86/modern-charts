@@ -7,6 +7,7 @@ import {
   isChartFeatureEnabled,
   registerChartComponents
 } from '../core/registry';
+import { registerComponentDefinitions } from '../core/dom';
 import type { ChartBootstrapOptions, ChartFeaturesConfig } from '../core/types';
 
 export { configureChartFeatures, getChartFeatures, isChartFeatureEnabled };
@@ -45,4 +46,4 @@ export function registerGaugeChart(
   );
 }
 
-void registerGaugeChart();
+registerComponentDefinitions(GAUGE_COMPONENT_REGISTRY);

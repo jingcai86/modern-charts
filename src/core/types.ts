@@ -136,15 +136,22 @@ export interface ChartFeaturesConfig {
    * Defaults to `false` so standalone chart bundles do not download the CSV serializer unless enabled.
    */
   csvExport?: boolean;
+  /** Enables the loading and empty-state overlay. Defaults to `true`. */
+  chartState?: boolean;
 }
 
 export interface ChartBootstrapOptions {
-  /** Optional features to lazy-load and enable at bootstrap. All features default to `false`. */
+  /**
+   * Optional features to load at bootstrap. `chartState` defaults to `true`.
+   * Zoom and CSV export default to `false`.
+   */
   features?: ChartFeaturesConfig;
   /** Shorthand for `features.zoom` (default `false`). */
   zoom?: boolean;
   /** Shorthand for `features.csvExport` (default `false`). */
   csvExport?: boolean;
+  /** Shorthand for `features.chartState` (default `true`). */
+  chartState?: boolean;
 }
 
 // ============================================================================

@@ -85,7 +85,7 @@ import {
   normalizeTooltipPosition
 } from '../components/mc-tooltip';
 import { MCDefElement } from '../components/mc-def';
-import { MCChartStateElement } from '../components/mc-chart-state';
+import type { MCChartStateElement } from '../components/mc-chart-state';
 import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
 import { resolveChartLayers, type ResolvedChartLayer } from './chart-layers';
 import { resolveChartDimensions, resolveChartMargin } from './chart-layout';
@@ -2683,6 +2683,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
     const stateEl = this.getStateElement();
     if (!stateEl) return;
+    if (nextState === 'ready' || !isChartFeatureEnabled('chartState')) {
+      stateEl.hidden = true;
+      return;
+    }
 
     const isDark = theme.mode === 'dark';
     stateEl.style.setProperty(
@@ -2697,11 +2701,6 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       '--_mc-state-spinner-color',
       theme.colors?.[0] || '#6366f1'
     );
-
-    if (nextState === 'ready') {
-      stateEl.hidden = true;
-      return;
-    }
 
     stateEl.loadingText = this.loadingText;
     stateEl.emptyText = this.emptyText;
