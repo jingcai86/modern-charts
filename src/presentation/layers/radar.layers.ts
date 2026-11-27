@@ -1,13 +1,96 @@
+import { joinChartItems, type ItemMotion } from '../../core/chart-item-join';
 import { physicalTextAnchor } from '../../core/i18n';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, RadarDatum } from '../../core/types';
-import type { RadarChartModel } from '../../models/radar.model';
+import type { ComputedRadarPointModel, RadarChartModel } from '../../models/radar.model';
 import {
   renderRadarDotItem,
   renderRadarPolygonItem
 } from '../items/radar.item';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+type Point = { x: number; y: number };
+type Dot = Point & { r: number };
+const origin: Point = { x: 0, y: 0 };
+const drawnPolygons = new WeakMap<SVGGElement, Map<string, Point>>();
+const drawnDots = new WeakMap<SVGGElement, Dot>();
+const pointMotion = new WeakMap<ComputedRadarPointModel, { from: Point; motion: ItemMotion }>();
+
+function pointKeys(points: ComputedRadarPointModel[]): string[] {
+  const counts = new Map<string, number>();
+  return points.map(({ axis }) => {
+    const count = counts.get(axis) ?? 0;
+    counts.set(axis, count + 1);
+    return `${axis}\0${count}`;
+  });
+}
+
+/** Keep removed vertices in the loop until they reach a neighboring spoke. */
+function frameOrder(previous: Map<string, Point>, target: Map<string, Point>): string[] {
+  const before = new Map<string, string[]>();
+  let trailing: string[] = [];
+  for (const key of previous.keys()) {
+    if (!target.has(key)) trailing.push(key);
+    else if (trailing.length) {
+      before.set(key, trailing);
+      trailing = [];
+    }
+  }
+  return [...target.keys()].flatMap(key => [...before.get(key) ?? [], key]).concat(trailing);
+}
+
+function placeMissingVertices(order: string[], points: Map<string, Point>): Map<string, Point> {
+  let anchor = [...points.values()].at(-1) ?? origin;
+  return new Map(order.map(key => {
+    anchor = points.get(key) ?? anchor;
+    return [key, anchor];
+  }));
+}
+
+function interpolatePoint(from: Point, to: Point, progress: number): Point {
+  return { x: from.x + (to.x - from.x) * progress, y: from.y + (to.y - from.y) * progress };
+}
+
+function tweenPolygon(
+  group: SVGGElement,
+  polygon: Element,
+  previous: Map<string, Point>,
+  target: Map<string, Point>,
+  motion: ItemMotion
+): Map<string, Point> | undefined {
+  const order = frameOrder(previous, target);
+  const starts = placeMissingVertices(order, previous);
+  const ends = placeMissingVertices(order, target);
+  const points = order.map(key => ({ key, start: starts.get(key)!, end: ends.get(key)! }));
+  if (points.every(({ start, end }) => start.x === end.x && start.y === end.y)) return;
+  const frame = new Map<string, Point>();
+  drawnPolygons.set(group, frame);
+  const finalPoints = [...target.values()].map(({ x, y }) => `${x},${y}`).join(' ');
+  motion(progress => {
+    polygon.setAttribute('points', points.map(({ key, start, end }) => {
+      const position = interpolatePoint(start, end, progress);
+      frame.set(key, position);
+      return `${position.x},${position.y}`;
+    }).join(' '));
+  }, () => {
+    drawnPolygons.set(group, target);
+    polygon.setAttribute('points', finalPoints);
+  });
+  return starts;
+}
+
+function tweenDot(group: SVGGElement, dot: Element, from: Dot, target: Dot, motion: ItemMotion): void {
+  if (from.x === target.x && from.y === target.y && from.r === target.r) return;
+  motion(progress => {
+    const position = interpolatePoint(from, target, progress);
+    const r = from.r + (target.r - from.r) * progress;
+    drawnDots.set(group, { ...position, r });
+    dot.setAttribute('cx', String(position.x));
+    dot.setAttribute('cy', String(position.y));
+    dot.setAttribute('r', String(r));
+  });
+}
 
 function getAxisAngles(model: RadarChartModel): number[] {
   if (model.axisAngles && model.axisAngles.length === model.axes.length) {
@@ -173,32 +256,55 @@ export function renderRadarPolygonsLayer(
   model: RadarChartModel,
   ctx: ChartRenderContext<RadarDatum[]>
 ): void {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+  const center = `translate(${model.cx}, ${model.cy})`;
+  joinChartItems(ctx.layerGroup, model.series, series => series.key, ctx.animationConfig,
+    (group, series, { initial, motion }) => {
+      const polygon = renderRadarPolygonItem(series, ctx, initial);
+      group.setAttribute('transform', center);
+      group.replaceChildren(polygon);
+      const keys = pointKeys(series.points);
+      const target = new Map(keys.map((key, index) => [key, series.points[index]]));
+      const previous = drawnPolygons.get(group);
+      drawnPolygons.set(group, target);
+      if (!motion) return;
 
-  model.series.forEach((s) => {
-    if (s.points.length === 0) return;
-    g.appendChild(renderRadarPolygonItem(s, ctx));
-  });
-
-  ctx.layerGroup.appendChild(g);
+      const starts = tweenPolygon(group, polygon, previous ?? new Map(), target, motion);
+      if (starts) series.points.forEach((point, index) => {
+        pointMotion.set(point, { from: starts.get(keys[index]) ?? origin, motion });
+      });
+    },
+    (group, motion) => {
+      const polygon = group.lastElementChild;
+      const previous = drawnPolygons.get(group);
+      if (polygon && previous) tweenPolygon(group, polygon, previous, new Map(), motion);
+    }
+  );
 }
 
 export function renderRadarDotsLayer(
   model: RadarChartModel,
   ctx: ChartRenderContext<RadarDatum[]>
 ): void {
-  if (!model.enableDots || (model.dotSize ?? 8.4) <= 0) return;
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
-
-  model.series.forEach((s) => {
-    s.points.forEach((pt) => {
-      g.appendChild(renderRadarDotItem(pt, ctx));
-    });
-  });
-
-  ctx.layerGroup.appendChild(g);
+  const enabled = model.enableDots && model.dotSize > 0;
+  const center = `translate(${model.cx}, ${model.cy})`;
+  const points = enabled ? model.series.flatMap(series => series.points) : [];
+  const animation = enabled ? ctx.animationConfig : { ...ctx.animationConfig, enabled: false };
+  joinChartItems(ctx.layerGroup, points, pt => JSON.stringify([pt.seriesKey, pt.axis]), animation,
+    (group, pt, { initial, motion }) => {
+      const dot = renderRadarDotItem(pt, ctx, initial);
+      group.setAttribute('transform', center);
+      group.replaceChildren(dot);
+      const target = { x: pt.x, y: pt.y, r: pt.dotRadius };
+      const previous = drawnDots.get(group) ?? { ...(pointMotion.get(pt)?.from ?? origin), r: 0 };
+      drawnDots.set(group, target);
+      if (motion) tweenDot(group, dot, previous, target, motion);
+    },
+    (group, motion) => {
+      const dot = group.lastElementChild;
+      const previous = drawnDots.get(group);
+      if (dot && previous) tweenDot(group, dot, previous, { ...origin, r: 0 }, motion);
+    }
+  );
 }
 
 export function renderRadarDotLabelsLayer(
@@ -212,7 +318,7 @@ export function renderRadarDotLabelsLayer(
 
   model.series.forEach((s) => {
     s.points.forEach((pt, idx) => {
-      ctx.renderLabel(g, {
+      const label = ctx.renderLabel(g, {
         id: `radar-pt-${s.key}-${idx}`,
         text: ctx.i18n.formatNumber(pt.value, { useGrouping: false }),
         x: pt.x,
@@ -225,6 +331,15 @@ export function renderRadarDotLabelsLayer(
         color: s.color,
         datum: { id: s.key, axis: pt.axis, value: pt.value }
       });
+      const transition = pointMotion.get(pt);
+      if (label && transition) {
+        const transform = label.getAttribute('transform') ?? '';
+        transition.motion(progress => {
+          const dx = (transition.from.x - pt.x) * (1 - progress);
+          const dy = (transition.from.y - pt.y) * (1 - progress);
+          label.setAttribute('transform', `translate(${dx},${dy}) ${transform}`);
+        }, () => label.setAttribute('transform', transform));
+      }
     });
   });
 

@@ -13,7 +13,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  */
 export function renderRadarPolygonItem(
   s: ComputedRadarSeriesModel,
-  ctx: ChartRenderContext<any>
+  ctx: ChartRenderContext<any>,
+  initial = true
 ): SVGPolygonElement {
   const poly = document.createElementNS(SVG_NS, 'polygon');
   poly.setAttribute('class', 'mc-radar-polygon');
@@ -40,12 +41,9 @@ export function renderRadarPolygonItem(
     poly.setAttribute('data-blend-mode', s.blendMode);
   }
 
-  ctx.animateItem(poly, {
-    type: 'radar-expand',
-    index: s.index,
-    originX: 0,
-    originY: 0
-  });
+  if (initial) {
+    ctx.animateItem(poly, { type: 'radar-expand', index: s.index });
+  }
 
   ctx.registerEventTarget(poly, {
     target: 'radarPolygon',
@@ -70,7 +68,8 @@ export function renderRadarPolygonItem(
  */
 export function renderRadarDotItem(
   pt: ComputedRadarPointModel,
-  ctx: ChartRenderContext<any>
+  ctx: ChartRenderContext<any>,
+  initial = true
 ): SVGCircleElement {
   const baseRadius = pt.dotRadius ?? 4.2;
   const borderWidth = pt.dotBorderWidth ?? 1.8;
@@ -119,12 +118,14 @@ export function renderRadarDotItem(
     }
   });
 
-  ctx.animateItem(dot, {
-    type: 'point-pop',
-    index: pt.globalIndex,
-    originX: pt.x,
-    originY: pt.y
-  });
+  if (initial) {
+    ctx.animateItem(dot, {
+      type: 'point-pop',
+      index: pt.globalIndex,
+      originX: pt.x,
+      originY: pt.y
+    });
+  }
 
   if (interactive) {
     dot.addEventListener('mouseenter', (e) => {
