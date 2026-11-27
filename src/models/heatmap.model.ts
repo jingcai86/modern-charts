@@ -74,6 +74,10 @@ function finiteNumber(value: number | undefined): number | undefined {
   return Number.isFinite(value) ? value : undefined;
 }
 
+function cellValue(value: unknown): number | undefined {
+  return value == null || value === '' ? undefined : finiteNumber(Number(value));
+}
+
 function createHeatmapColorBins(
   min: number,
   max: number,
@@ -125,22 +129,16 @@ export function computeHeatmapChartModel(
 ): HeatmapChartModel {
   const rows = Array.isArray(ctx.data) ? ctx.data : [];
   const rowIds = rows.map((r) => r.id);
-  const colIds: string[] = [];
+  const columns = new Set<string>();
   let dataMin = Number.POSITIVE_INFINITY;
   let dataMax = Number.NEGATIVE_INFINITY;
 
   rows.forEach((r) => {
     (r.data ?? []).forEach((c) => {
       if (!c) return;
-      const colKey = String(c.x);
-      if (!colIds.includes(colKey)) colIds.push(colKey);
-      if (
-        c.y !== null &&
-        c.y !== undefined &&
-        (c.y as unknown) !== '' &&
-        Number.isFinite(Number(c.y))
-      ) {
-        const value = Number(c.y);
+      columns.add(String(c.x));
+      const value = cellValue(c.y);
+      if (value !== undefined) {
         dataMin = Math.min(dataMin, value);
         dataMax = Math.max(dataMax, value);
       }
@@ -158,6 +156,7 @@ export function computeHeatmapChartModel(
     : 0;
   const emptyColor = input.emptyColor || 'rgba(148, 163, 184, 0.16)';
   const forceSquare = Boolean(input.forceSquare);
+  const colIds = [...columns];
 
   ctx.xScale = buildAxisScale(
     {
@@ -217,28 +216,15 @@ export function computeHeatmapChartModel(
   const rawCells: Omit<ComputedHeatmapCellModel, 'index' | 'totalCount'>[] = [];
   rows.forEach((row) => {
     const bandY = Number(ctx.yScale(row.id) ?? 0);
-    const cellMap = new Map<string, number | null>();
+    const cellMap = new Map<string, number | undefined>();
     (row.data ?? []).forEach((c) => {
-      if (!c) return;
-      const v =
-        c.y !== null &&
-        c.y !== undefined &&
-        (c.y as unknown) !== '' &&
-        Number.isFinite(Number(c.y))
-          ? Number(c.y)
-          : null;
-      cellMap.set(String(c.x), v);
+      if (c) cellMap.set(String(c.x), cellValue(c.y));
     });
 
-    const colsToVisit =
-      emptyColor && colIds.length > 0
-        ? colIds
-        : (row.data ?? []).map((c) => String(c.x));
-
-    colsToVisit.forEach((colId) => {
+    colIds.forEach((colId) => {
       const bandX = Number(ctx.xScale(colId) ?? 0);
       const val = cellMap.get(colId);
-      const isEmpty = val === null || val === undefined || !Number.isFinite(val);
+      const isEmpty = val === undefined;
 
       const norm = isEmpty
         ? 1
