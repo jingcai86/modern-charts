@@ -51,14 +51,18 @@ function isNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function copyData(value: unknown, budget = { remaining: 50_000 }, depth = 0): JsonValue | undefined {
+function copyData(value: unknown): JsonValue | undefined {
+  return copyDataWithinBudget(value, { remaining: 50_000 }, 0);
+}
+
+function copyDataWithinBudget(value: unknown, budget: { remaining: number }, depth: number): JsonValue | undefined {
   if (budget.remaining-- <= 0 || depth > 24) return undefined;
   if (value === null || typeof value === 'boolean' || isNumber(value)) return value;
   if (typeof value === 'string') return value.slice(0, maxText);
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
   if (Array.isArray(value)) {
     return value.slice(0, Math.min(maxRows, budget.remaining)).map((item) =>
-      copyData(item, budget, depth + 1) ?? null
+      copyDataWithinBudget(item, budget, depth + 1) ?? null
     );
   }
   if (!isRecord(value)) return undefined;
@@ -66,7 +70,7 @@ function copyData(value: unknown, budget = { remaining: 50_000 }, depth = 0): Js
   const data: Record<string, JsonValue> = Object.create(null);
   for (const [key, property] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
     if (unsafeKeys.has(key) || !property.enumerable || !Object.hasOwn(property, 'value')) continue;
-    const copied = copyData(property.value, budget, depth + 1);
+    const copied = copyDataWithinBudget(property.value, budget, depth + 1);
     if (copied !== undefined) data[key] = copied;
     if (budget.remaining <= 0) break;
   }
