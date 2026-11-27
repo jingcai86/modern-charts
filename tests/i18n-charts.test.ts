@@ -65,7 +65,7 @@ describe('chart internationalization', () => {
     const shadow = chart.shadowRoot!;
     expect(shadow.querySelector('#mc-svg-title')!.textContent).toBe('Diagramm bar');
     expect(shadow.querySelector('#mc-svg-desc')!.textContent).toBe('Interaktiv: bar');
-    expect(shadow.querySelector('[data-zoom="reset"]')!.textContent).toBe('Zurück');
+    expect(shadow.querySelector('[data-zoom="reset"]')!.getAttribute('title')).toBe('Zurück');
     expect(shadow.querySelector('[data-zoom="reset"]')!.getAttribute('aria-label')).toBe('Zoom zurücksetzen');
     expect(shadow.querySelector('.mc-bar-rect')!.getAttribute('aria-label')).toBe('revenue / Q1 = 1234,5');
     expect(shadow.querySelector('.mc-aria-table')!.textContent).toContain('Wert');

@@ -562,6 +562,7 @@ const SAFE_ATTR_NAMES = new Set([
   'role',
   'aria-hidden',
   'aria-label',
+  'focusable',
   // <mc-def>
   'def-id',
   'match',
@@ -632,6 +633,8 @@ const SAFE_ATTR_NAMES = new Set([
   'stroke',
   'stroke-width',
   'stroke-dasharray',
+  'stroke-linecap',
+  'stroke-linejoin',
   'stroke-opacity',
   'viewbox',
   'points',
@@ -711,6 +714,11 @@ export interface ParsedSafeChartMarkup {
   children: Node[];
 }
 
+export function sanitizeChartChildren(root: ParentNode): Node[] {
+  return Array.from(root.childNodes, (child) => cloneSanitizedNode(child))
+    .filter((node): node is Node => node !== null);
+}
+
 export interface LiveHtmlEditorOptions {
   title: string;
   chartTag: string;
@@ -738,13 +746,7 @@ export function createLiveHtmlEditor(
       chartAttrs[lower] = attr.value;
     }
 
-    const children: Node[] = [];
-    for (const child of Array.from(rootChart.childNodes)) {
-      const safe = cloneSanitizedNode(child, false);
-      if (safe) children.push(safe);
-    }
-
-    return options.onMarkupApply({ chartAttrs, children });
+    return options.onMarkupApply({ chartAttrs, children: sanitizeChartChildren(rootChart) });
   };
 
   return createLiveCodeEditor({
@@ -766,10 +768,13 @@ export function renderGuideHeader(activeId: GuideId): HTMLElement {
   const meta = GUIDES_CATALOG.find((g) => g.id === activeId)!;
   const header = document.createElement('section');
   header.className = 'guide-hero';
+  const featureDefault = meta.featureDefault === undefined
+    ? ''
+    : ` <span class="guide-hero-feature-default">Default is <code>${meta.featureDefault}</code></span>`;
 
   header.innerHTML = `
     <div class="guide-hero-copy">
-      <h1 class="guide-hero-title">${meta.icon} ${escapeHtml(meta.title)}</h1>
+      <h1 class="guide-hero-title">${meta.icon} ${escapeHtml(meta.title)}${featureDefault}</h1>
       <p class="guide-hero-summary">${escapeHtml(meta.summary)}</p>
     </div>
   `;

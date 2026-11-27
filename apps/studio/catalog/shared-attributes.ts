@@ -486,7 +486,7 @@ export const VIEW_ZOOM_ATTRIBUTES: ChartAttributeSpec[] = [
     attrName: 'mc-view-layer[zoomable]',
     category: 'View & Zoom (<mc-view-layer>)',
     control: 'boolean',
-    description: 'Enables mouse-wheel / pinch zooming via d3-zoom.',
+    description: 'Enables wheel and pinch zoom and activates the built-in zoom buttons.',
     defaultValue: true
   },
   {
@@ -502,7 +502,7 @@ export const VIEW_ZOOM_ATTRIBUTES: ChartAttributeSpec[] = [
     attrName: 'mc-view-layer[show-controls]',
     category: 'View & Zoom (<mc-view-layer>)',
     control: 'boolean',
-    description: 'Displays on-chart [+], [−], and [Reset] zoom buttons.',
+    description: 'Shows Zoom In, Zoom Out, Reset, and any buttons added through the zoom-controls-extra slot.',
     defaultValue: true
   },
   {

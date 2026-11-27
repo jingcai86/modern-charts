@@ -24,7 +24,7 @@ const BOOTSTRAP_FEATURES: readonly BootstrapFeatureRow[] = [
     optionKey: 'features.zoom',
     defaultValue: 'false',
     description:
-      'Lazy-loads the viewport zoom controller ([data-zoom="toggle"], wheel, brush, range slider, chart.toggleZoom()).',
+      'Lazy-loads Zoom In, Zoom Out, and Reset controls, wheel zoom, brush, range slider, and chart.toggleZoom().',
     guideHref: '#/guide/view-zoom',
     guideKey: 'view-zoom',
     guideTitle: '🔍 Zoom Controls & Viewport Lock'

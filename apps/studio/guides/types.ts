@@ -20,6 +20,7 @@ export type GuideId =
 export interface GuideMeta {
   id: GuideId;
   title: string;
+  featureDefault?: boolean;
   shortLabel: string;
   icon: string;
   summary: string;
@@ -140,11 +141,12 @@ export const GUIDES_CATALOG: GuideMeta[] = [
   },
   {
     id: 'view-zoom',
-    title: 'Zoom Controls & Viewport Lock (<mc-view-layer>)',
+    title: 'Zoom Controls & Viewport Lock',
+    featureDefault: false,
     shortLabel: 'Zoom Controls',
     icon: '🔍',
     summary:
-      'Universal viewport zoom and pan across all 10 chart types with a keyboard-accessible Zoom: On / Off toggle button, brush & range slider lock, and mc-zoom-toggle events.'
+      'Viewport zoom and pan across all 10 chart types, with customizable toolbar icons, extra actions, and programmatic zoom locking.'
   },
   {
     id: 'csv-export',

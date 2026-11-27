@@ -119,8 +119,8 @@ describe('Opt-in zoom feature bootstrapping (default false across all charts)', 
   });
 });
 
-describe('Dedicated Zoom on/off button and zoom support across all 10 chart types (Issue #125)', () => {
-  it('enables zoom support in Studio catalog and renders a keyboard-accessible Zoom on/off toggle button for all 10 charts', async () => {
+describe('Viewport zoom controls across all chart types', () => {
+  it('renders only Zoom In, Zoom Out, and Reset and supports programmatic locking', async () => {
     await registerModernCharts({ features: { zoom: true } });
     expect(CHART_CATALOG).toHaveLength(10);
 
@@ -137,36 +137,15 @@ describe('Dedicated Zoom on/off button and zoom support across all 10 chart type
       document.body.appendChild(root);
       const chart = renderChartDetailPage(root, entry);
 
-      // Studio toolbar has the dedicated Zoom on/off button
-      const studioZoomBtn = root.querySelector<HTMLButtonElement>(
-        '#btn-detail-zoom-toggle'
-      )!;
-      expect(studioZoomBtn, entry.id).not.toBeNull();
-      expect(studioZoomBtn.getAttribute('aria-pressed'), entry.id).toBe('true');
-      expect(studioZoomBtn.getAttribute('data-zoom-state'), entry.id).toBe(
-        'on'
-      );
-
-      // On-chart shared view controls have [data-zoom="toggle"], [data-zoom="in"], [data-zoom="out"], [data-zoom="reset"]
+      expect(root.querySelector('#btn-detail-zoom-toggle'), entry.id).toBeNull();
       const controls = chart.shadowRoot!.querySelector<HTMLElement>(
         '.mc-view-controls'
       )!;
       expect(controls.hidden, entry.id).toBe(false);
-      const onChartToggle = controls.querySelector<HTMLButtonElement>(
-        'button[data-zoom="toggle"]'
-      )!;
-      const zoomInBtn = controls.querySelector<HTMLButtonElement>(
-        'button[data-zoom="in"]'
-      )!;
-      const zoomOutBtn = controls.querySelector<HTMLButtonElement>(
-        'button[data-zoom="out"]'
-      )!;
-      const resetBtn = controls.querySelector<HTMLButtonElement>(
-        'button[data-zoom="reset"]'
-      )!;
-      expect(onChartToggle, entry.id).not.toBeNull();
-      expect(onChartToggle.getAttribute('aria-pressed'), entry.id).toBe('true');
-      expect(onChartToggle.textContent, entry.id).toBe('Zoom: On');
+      const buttons = Array.from(controls.querySelectorAll<HTMLButtonElement>('button'));
+      expect(buttons.map((button) => button.dataset.zoom), entry.id).toEqual(['in', 'out', 'reset']);
+      expect(buttons.every((button) => button.getAttribute('aria-label')), entry.id).toBe(true);
+      const [zoomInBtn, zoomOutBtn, resetBtn] = buttons;
 
       // 1. Zoom in while zoom is enabled
       const viewport = chart.shadowRoot!.querySelector<SVGGElement>(
@@ -176,21 +155,9 @@ describe('Dedicated Zoom on/off button and zoom support across all 10 chart type
       const zoomedTransform = viewport.getAttribute('transform');
       expect(zoomedTransform, entry.id).toContain('scale(1.25)');
 
-      // 2. Toggle zoom OFF via keyboard (Enter key) on the on-chart toggle button
-      onChartToggle.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
-      );
+      // Lock the view through the API without resetting the zoom level.
+      chart.setZoomEnabled(false);
       expect(chart.zoomable, entry.id).toBe(false);
-      expect(onChartToggle.getAttribute('aria-pressed'), entry.id).toBe(
-        'false'
-      );
-      expect(onChartToggle.getAttribute('data-zoom-state'), entry.id).toBe(
-        'off'
-      );
-      expect(onChartToggle.textContent, entry.id).toBe('Zoom: Off');
-      expect(studioZoomBtn.getAttribute('aria-pressed'), entry.id).toBe(
-        'false'
-      );
       expect(zoomInBtn.disabled, entry.id).toBe(true);
       expect(zoomOutBtn.disabled, entry.id).toBe(true);
       expect(resetBtn.disabled, entry.id).toBe(true);
@@ -218,16 +185,8 @@ describe('Dedicated Zoom on/off button and zoom support across all 10 chart type
         zoomedTransform
       );
 
-      // 4. Re-enable zoom via keyboard (Space key) on Studio's dedicated Zoom on/off button
-      studioZoomBtn.dispatchEvent(
-        new KeyboardEvent('keydown', { key: ' ', bubbles: true })
-      );
-      studioZoomBtn.dispatchEvent(
-        new KeyboardEvent('keyup', { key: ' ', bubbles: true })
-      );
+      chart.zoomable = true;
       expect(chart.zoomable, entry.id).toBe(true);
-      expect(studioZoomBtn.getAttribute('aria-pressed'), entry.id).toBe('true');
-      expect(onChartToggle.getAttribute('aria-pressed'), entry.id).toBe('true');
       expect(zoomInBtn.disabled, entry.id).toBe(false);
 
       // 5. Reset button works again once zoom is re-enabled
@@ -235,12 +194,6 @@ describe('Dedicated Zoom on/off button and zoom support across all 10 chart type
       expect(viewport.getAttribute('transform'), entry.id).toBe(
         'translate(0, 0) scale(1)'
       );
-
-      // 6. Programmatic zoomable setter and setZoomEnabled helper
-      chart.zoomable = false;
-      expect(chart.zoomable, entry.id).toBe(false);
-      expect(chart.setZoomEnabled(true), entry.id).toBe(true);
-      expect(chart.zoomable, entry.id).toBe(true);
 
       root.remove();
     }
@@ -322,16 +275,7 @@ describe('Dedicated Zoom on/off button and zoom support across all 10 chart type
     );
     expect(viewport.hasAttribute('transform')).toBe(false);
 
-    // Spacebar keyup activation on on-chart toggle button re-enables zoom
-    const onChartToggle = line.shadowRoot!.querySelector<HTMLButtonElement>(
-      'button[data-zoom="toggle"]'
-    )!;
-    onChartToggle.dispatchEvent(
-      new KeyboardEvent('keydown', { key: ' ', bubbles: true })
-    );
-    onChartToggle.dispatchEvent(
-      new KeyboardEvent('keyup', { key: ' ', bubbles: true })
-    );
+    line.setZoomEnabled(true);
     expect(line.zoomable).toBe(true);
   });
 });
@@ -348,7 +292,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     editor.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
-  it('renders interactive zoom toggle controls and all 10 chart switchers in view-zoom guide', () => {
+  it('shows custom zoom controls and all 10 chart switchers in the Zoom guide', () => {
     expect(
       GUIDES_CATALOG.find((g) => g.id === 'view-zoom')?.title
     ).toContain('Zoom Controls & Viewport Lock');
@@ -359,54 +303,46 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(charts).toHaveLength(2);
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    // Example 1: Zoom toggle, zoom in/out/reset, and live config editor synchronization
-    const ex1 = root.querySelector<HTMLElement>('#vz-zoom-toggle')!;
-    const toggleBtn1 = ex1.querySelector<HTMLButtonElement>(
-      '#vz-zoom-toggle-btn'
-    )!;
-    const zoomInBtn1 = ex1.querySelector<HTMLButtonElement>('#vz-zoom-in-btn')!;
-    const zoomOutBtn1 =
-      ex1.querySelector<HTMLButtonElement>('#vz-zoom-out-btn')!;
-    const zoomResetBtn1 =
-      ex1.querySelector<HTMLButtonElement>('#vz-zoom-reset-btn')!;
+    const ex1 = root.querySelector<HTMLElement>('#vz-custom-controls')!;
+    const radar = charts[0];
+    const controls = radar.shadowRoot!.querySelector('.mc-view-controls')!;
+    const zoomIn = controls.querySelector<HTMLButtonElement>('[data-zoom="in"]')!;
+    const zoomOut = controls.querySelector<HTMLButtonElement>('[data-zoom="out"]')!;
+    const reset = controls.querySelector<HTMLButtonElement>('[data-zoom="reset"]')!;
+    const zoomDouble = radar.querySelector<HTMLButtonElement>('[slot="zoom-controls-extra"]')!;
     const editor1 = ex1.querySelector<HTMLTextAreaElement>('textarea')!;
+    const readout1 = ex1.querySelector('#vz-readout-1')!;
+    expect(controls.querySelector('[data-zoom="toggle"]')).toBeNull();
+    expect(Array.from(radar.querySelectorAll('svg[slot]'), (icon) => icon.getAttribute('slot'))).toEqual([
+      'zoom-in-icon', 'zoom-out-icon', 'zoom-reset-icon'
+    ]);
+    expect(controls.querySelector('slot[name="zoom-controls-extra"]')).not.toBeNull();
+    expect(ex1.querySelector('style')?.textContent).toContain('::part(zoom-button)');
 
-    zoomInBtn1.click();
-    expect(ex1.querySelector('#vz-readout-1')!.textContent).toContain(
-      'scale(1.25)'
-    );
-    zoomOutBtn1.click();
-    zoomResetBtn1.click();
-    expect(ex1.querySelector('#vz-readout-1')!.textContent).toContain(
-      'scale(1)'
-    );
+    zoomIn.click();
+    expect(readout1.textContent).toContain('scale(1.25)');
+    zoomOut.click();
+    expect(readout1.textContent).toContain('scale(1)');
+    zoomDouble.click();
+    expect(readout1.textContent).toContain('scale(2)');
+    reset.click();
+    expect(readout1.textContent).toContain('scale(1)');
 
-    toggleBtn1.click();
-    expect(log.mock.calls).toEqual([['Zoom enabled:', false]]);
-    expect(toggleBtn1.getAttribute('aria-pressed')).toBe('false');
-    expect(zoomInBtn1.disabled).toBe(true);
+    zoomDouble.click();
+    radar.setZoomEnabled(false);
+    expect(log).toHaveBeenLastCalledWith('Zoom enabled:', false);
+    expect(readout1.textContent).toContain('scale(2)');
+    expect(zoomIn.disabled).toBe(true);
+    expect(zoomDouble.disabled).toBe(true);
     expect(parseConfigObjectLiteral(extractChartConfigBlock(editor1.value)!).view.zoomable)
       .toBe(false);
 
-    // Re-enable via on-chart toggle button in Example 1
-    charts[0]
-      .shadowRoot!.querySelector<HTMLButtonElement>(
-        'button[data-zoom="toggle"]'
-      )!
-      .click();
-    expect(log.mock.calls).toEqual([
-      ['Zoom enabled:', false],
-      ['Zoom enabled:', true]
-    ]);
-    expect(toggleBtn1.getAttribute('aria-pressed')).toBe('true');
-
-    // Reset button on live config editor 1
     ex1.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
-    expect(toggleBtn1.getAttribute('aria-pressed')).toBe('true');
+    expect(zoomDouble.disabled).toBe(false);
 
-    // Update from live config editor 1
     editExampleConfig(editor1, (config) => { config.view.zoomable = false; });
-    expect(toggleBtn1.getAttribute('aria-pressed')).toBe('false');
+    expect(readout1.textContent).toContain('zoomable: false');
+    expect(zoomDouble.disabled).toBe(true);
 
     // Example 2: Switching across all 10 chart types updates active chart zoom readout
     const ex2 = root.querySelector<HTMLElement>('#vz-chart-types')!;
@@ -447,9 +383,7 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     const charts = renderGuidePage(root, 'view-zoom', 'dark');
     const editor1 = root.querySelector<HTMLTextAreaElement>('#vz-editor-1 textarea')!;
     const editor2 = root.querySelector<HTMLTextAreaElement>('#vz-editor-2 textarea')!;
-    const zoomActions = Array.from(root.querySelectorAll<HTMLButtonElement>(
-      '#vz-zoom-toggle-btn, #vz-zoom-in-btn, #vz-zoom-out-btn, #vz-zoom-reset-btn'
-    ));
+    const zoomDouble = root.querySelector<HTMLButtonElement>('#vz-chart-1 [slot="zoom-controls-extra"]')!;
     const readout1 = root.querySelector('#vz-readout-1')!;
     const readout2 = root.querySelector('#vz-readout-2')!;
     const onChartControls = () => charts.map((chart) => chart.shadowRoot!
@@ -461,20 +395,23 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(editor1.value).toContain('await registerRadarChart(');
     expect(editor1.value).toContain("document.createElement('mc-radar-chart')");
     expect(editor1.value).toContain("chart.addEventListener('mc-zoom-toggle'");
+    expect(editor1.value).toContain('slot="zoom-controls-extra"');
+    expect(editor1.value).toContain('::part(zoom-button)');
+    expect(editor1.value).toContain('chart.zoomIn(2)');
     expect(editor2.value).toContain("import { registerPieChart } from 'modern-charts/pie';");
     expect(editor2.value).toContain('await registerPieChart(');
     expect(editor2.value).toContain("document.createElement('mc-pie-chart')");
     expect(editor2.value).toContain("chart.addEventListener('mc-zoom'");
     expect(getChartFeatures()).toEqual({ zoom: true, csvExport: false });
     expect(onChartControls()).toEqual([false, false]);
-    expect(zoomActions.every((button) => !button.disabled)).toBe(true);
+    expect(zoomDouble.disabled).toBe(false);
 
     editor1.value = editor1.value.replace('zoom: true', 'zoom: false');
     editor1.dispatchEvent(new Event('input', { bubbles: true }));
     expect(editor2.value).toContain('zoom: false');
     expect(getChartFeatures()).toEqual({ zoom: false, csvExport: false });
     expect(onChartControls()).toEqual([true, true]);
-    expect(zoomActions.every((button) => button.disabled)).toBe(true);
+    expect(zoomDouble.disabled).toBe(true);
     expect(readout1.textContent).toContain('zoomable: false');
     expect(readout2.textContent).toContain('zoomable: false | pannable: false');
     expect(charts[0].config.view?.zoomable).toBe(true);
@@ -495,9 +432,89 @@ describe('Zoom Controls & Bootstrapping Studio guides', () => {
     expect(editor1.value).toContain('zoom: true');
     expect(onChartControls()).toEqual([false, false]);
     expect(charts[0].config.view?.maxZoom).toBe(4);
-    expect(zoomActions.every((button) => !button.disabled)).toBe(true);
+    expect(zoomDouble.disabled).toBe(false);
     expect(readout1.textContent).toContain('zoomable: true');
     expect(readout2.textContent).toContain('zoomable: true | pannable: true');
+  });
+
+  it('updates custom zoom controls from the editor and restores them on Reset', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [radar] = renderGuidePage(root, 'view-zoom', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#vz-editor-1 textarea')!;
+    const peer = root.querySelector<HTMLTextAreaElement>('#vz-editor-2 textarea')!;
+    const controls = radar.shadowRoot!.querySelector<HTMLElement>('.mc-view-controls')!;
+    const readout = root.querySelector('#vz-readout-1')!;
+    const extraButton = () => radar.querySelector<HTMLButtonElement>('[slot="zoom-controls-extra"]');
+    const apply = (source: string) => {
+      editor.value = source;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const initialSource = editor.value;
+    const buttonMarkup = '<button type="button" slot="zoom-controls-extra" aria-label="Zoom in by 2×">2×</button>';
+    expect(initialSource).toContain(buttonMarkup);
+    expect(extraButton()?.textContent).toBe('2×');
+
+    apply(initialSource.replace(buttonMarkup, ''));
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    expect(extraButton()).toBeNull();
+    expect(radar.querySelectorAll('svg[slot]')).toHaveLength(3);
+
+    const config = extractChartConfigBlock(initialSource)!;
+    apply(initialSource.slice(0, initialSource.indexOf(config) + config.length) + ';');
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    expect(radar.querySelectorAll('[slot]')).toHaveLength(0);
+    expect(radar.classList.contains('vz-custom-zoom')).toBe(false);
+    expect(Array.from(controls.querySelectorAll('button'), (button) => button.dataset.zoom))
+      .toEqual(['in', 'out', 'reset']);
+    controls.querySelector<HTMLButtonElement>('[data-zoom="in"]')!.click();
+    expect(readout.textContent).toContain('scale(1.25)');
+
+    peer.value = peer.value.replace('zoom: true', 'zoom: false');
+    peer.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(controls.hidden).toBe(true);
+    peer.value = peer.value.replace('zoom: false', 'zoom: true');
+    peer.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(controls.hidden).toBe(false);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    radar.setZoomEnabled(false);
+    expect(extraButton()).toBeNull();
+    expect(editor.value).not.toContain('zoom-controls-extra');
+
+    root.querySelector<HTMLButtonElement>('#vz-editor-1 .guide-reset-btn')!.click();
+    expect(editor.value).toBe(initialSource);
+    expect(extraButton()?.textContent).toBe('2×');
+    extraButton()!.click();
+    expect(readout.textContent).toContain('scale(2)');
+  });
+
+  it('keeps the last valid custom controls while the editor markup is incomplete', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [radar] = renderGuidePage(root, 'view-zoom', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#vz-editor-1 textarea')!;
+    const initialSource = editor.value;
+    const apply = (source: string) => {
+      editor.value = source;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const validMarkupEdit = initialSource.replace('>2×</button>', '>Magnify</button>');
+    apply(validMarkupEdit.replace('\n`);', '\n);'));
+    expect(editor.getAttribute('aria-invalid')).toBe('true');
+    expect(radar.querySelector('[slot="zoom-controls-extra"]')?.textContent).toBe('2×');
+
+    apply(validMarkupEdit.replace('<button type="button"', '<button onclick="return false" type="button"')
+      .replace('>Magnify</button>', '>Magnify</button>\n<span data-preview-only="unrelated">Ignored</span>'));
+    expect(editor.getAttribute('aria-invalid')).toBe('false');
+    const editedButton = radar.querySelector('[slot="zoom-controls-extra"]');
+    expect(editedButton?.textContent).toBe('Magnify');
+    expect(editedButton?.hasAttribute('onclick')).toBe(false);
+    expect(radar.querySelector('[data-preview-only]')).toBeNull();
+
+    root.querySelector<HTMLButtonElement>('#vz-editor-1 .guide-reset-btn')!.click();
+    expect(radar.querySelector('[slot="zoom-controls-extra"]')?.textContent).toBe('2×');
   });
 
   it('bootstraps a live preview with the selected entry point, chart, and features', async () => {

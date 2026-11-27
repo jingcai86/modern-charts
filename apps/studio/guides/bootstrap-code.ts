@@ -1,7 +1,7 @@
 import { configureChartFeatures } from '../../../src/core/features';
 import type { ChartFeaturesConfig } from '../../../src/core/types';
 import {
-  extractChartConfigBlock,
+  findChartConfigBlock,
   formatConfigAssignment,
   parseConfigObjectLiteral,
   restoreSerializedFunctions
@@ -75,6 +75,7 @@ interface FeatureGuideEditorOptions {
   initialConfig: DemoConfig;
   chartId: () => string;
   usage: string;
+  onUsageChange?: (usage: string) => void;
   hint?: string;
   knownCallbacks?: Record<string, (...args: any[]) => unknown>;
   onConfigChange: (config: DemoConfig) => void;
@@ -105,6 +106,7 @@ export function createFeatureGuideBootstrap(defaultFeatures: BootstrapFeatures) 
     },
     createEditor(options: FeatureGuideEditorOptions): LiveConfigEditorHandle {
       let config = options.initialConfig;
+      let usage = options.usage;
       let standalone = true;
       const callbacks = Object.entries(options.knownCallbacks ?? {}).map(([path, callback]) => ({
         path,
@@ -127,7 +129,7 @@ export function createFeatureGuideBootstrap(defaultFeatures: BootstrapFeatures) 
           formatBootstrap(standalone ? chartId : undefined, features),
           `const chart = document.createElement('mc-${chartId}-chart');\nchart.style.height = '380px';\ndocument.body.appendChild(chart);`,
           assignment,
-          options.usage
+          usage
         ].join('\n\n');
       };
 
@@ -147,8 +149,10 @@ export function createFeatureGuideBootstrap(defaultFeatures: BootstrapFeatures) 
           if (registeredChart && registeredChart !== chartId) {
             return 'Use the selected chart’s subpath or the full library import.';
           }
-          let literal = extractChartConfigBlock(source);
-          if (!literal) return 'Complete the chart.config object to update the preview.';
+          const chartSource = source.slice(chart.index);
+          const block = findChartConfigBlock(chartSource);
+          if (!block) return 'Complete the chart.config object to update the preview.';
+          let { literal } = block;
           for (const { expression, placeholder } of callbacks) {
             literal = literal.replace(expression, () => `'${placeholder}'`);
           }
@@ -156,12 +160,23 @@ export function createFeatureGuideBootstrap(defaultFeatures: BootstrapFeatures) 
           for (const { path, callback, placeholder } of callbacks) {
             if (getByPath(parsed, path) === placeholder) setByPath(parsed, path, callback);
           }
+          if (options.onUsageChange) {
+            const nextUsage = chartSource.slice(block.end).trimStart().replace(/^;/, '').trim();
+            if (nextUsage !== usage) {
+              options.onUsageChange(nextUsage);
+              usage = nextUsage;
+            }
+          }
           standalone = registeredChart !== undefined;
           config = parsed;
           setFeatures(nextFeatures, refresh);
           options.onConfigChange(config);
         },
         onReset: () => {
+          if (usage !== options.usage) {
+            options.onUsageChange?.(options.usage);
+            usage = options.usage;
+          }
           standalone = true;
           setFeatures(defaultFeatures, refresh);
           options.onReset();

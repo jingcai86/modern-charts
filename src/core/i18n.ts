@@ -8,6 +8,7 @@ export interface ChartMessages {
   zoomIn: string;
   zoomOut: string;
   resetZoom: string;
+  /** Short tooltip label for the zoom reset icon. */
   resetZoomLabel: string;
   toggleZoom: string;
   zoomOnLabel: string;
