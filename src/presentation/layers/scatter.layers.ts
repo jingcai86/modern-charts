@@ -1,16 +1,45 @@
+import { joinChartItems, type ItemMotion } from '../../core/chart-item-join';
 import { renderLegendLayer } from '../../core/scale-manager';
 import { allocateUniqueSvgId } from '../../core/threshold-clip';
-import type { ChartRenderContext, ScatterSeries } from '../../core/types';
+import type { ChartRenderContext, ScatterSeries, ScatterSymbolType } from '../../core/types';
 import type {
   ComputedScatterNodeModel,
   ScatterChartModel
 } from '../../models/scatter.model';
 import {
+  buildScatterSymbolPath,
   renderScatterNodeItem,
   showScatterNodeTooltip
 } from '../items/scatter.item';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+type ScatterGeometry = Pick<ComputedScatterNodeModel, 'px' | 'py' | 'radius' | 'symbolRotate'>;
+const positions = new WeakMap<SVGGElement, ScatterGeometry>();
+const movingNodes = new WeakMap<ComputedScatterNodeModel, { frame: ScatterGeometry; motion: ItemMotion }>();
+
+function tweenScatterNode(
+  mark: SVGElement,
+  symbol: ScatterSymbolType,
+  frame: ScatterGeometry,
+  target: ScatterGeometry,
+  motion: ItemMotion
+): void {
+  const from = { ...frame };
+  motion((t) => {
+    frame.px = from.px + (target.px - from.px) * t;
+    frame.py = from.py + (target.py - from.py) * t;
+    frame.radius = from.radius + (target.radius - from.radius) * t;
+    frame.symbolRotate = from.symbolRotate + (target.symbolRotate - from.symbolRotate) * t;
+    const { px, py, radius, symbolRotate } = frame;
+    mark.setAttribute('cx', String(px));
+    mark.setAttribute('cy', String(py));
+    mark.setAttribute('r', String(radius));
+    if (symbol !== 'circle') mark.setAttribute('d', buildScatterSymbolPath(symbol, px, py, radius));
+    if (symbolRotate) mark.setAttribute('transform', `rotate(${symbolRotate} ${px} ${py})`);
+    else mark.removeAttribute('transform');
+  });
+}
 
 export function renderScatterTrendlineLayer(
   model: ScatterChartModel,
@@ -34,6 +63,10 @@ export function renderScatterNodesLayer(
   model: ScatterChartModel,
   ctx: ChartRenderContext<ScatterSeries[]>
 ): void {
+  const priorMesh = ctx.layerGroup.firstElementChild;
+  if (priorMesh?.classList.contains('mc-scatter-mesh')) priorMesh.remove();
+  ctx.layerGroup.removeAttribute('clip-path');
+  ctx.layerGroup.removeAttribute('data-clipped');
   if (model.clip) {
     const defs = ctx.svg.querySelector('.mc-chart-defs');
     if (defs) {
@@ -62,22 +95,50 @@ export function renderScatterNodesLayer(
     meshRect.setAttribute('height', String(Math.max(0, ctx.innerHeight)));
     meshRect.setAttribute('fill', 'transparent');
     meshRect.style.cursor = 'crosshair';
-    ctx.layerGroup.appendChild(meshRect);
   }
 
-  const nodeElements: SVGElement[] = [];
-  model.nodes.forEach((node) => {
-    const el = renderScatterNodeItem(node, ctx);
-    nodeElements.push(el);
-    ctx.layerGroup.appendChild(el);
-  });
+  const renderedNodes: Array<{ mark: SVGElement; frame: ScatterGeometry }> = [];
+  joinChartItems(
+    ctx.layerGroup,
+    model.nodes,
+    node => node.itemKey ?? JSON.stringify([node.seriesId, node.label ?? node.index]),
+    ctx.animationConfig,
+    (group, node, { initial, motion }) => {
+      const mark = renderScatterNodeItem(node, ctx, initial);
+      group.replaceChildren(mark);
+      const { px, py, radius, symbolRotate } = node;
+      const target = { px, py, radius, symbolRotate };
+      const rendered = { mark, frame: target };
+      renderedNodes.push(rendered);
+      const from = positions.get(group) ?? { ...target, radius: 0 };
+      positions.set(group, target);
+      if (!motion || (from.px === px && from.py === py && from.radius === radius && from.symbolRotate === symbolRotate)) return;
+      if (!Object.values(target).every(Number.isFinite) || !Object.values(from).every(Number.isFinite)) return;
+
+      const frame = { ...from };
+      rendered.frame = frame;
+      positions.set(group, frame);
+      movingNodes.set(node, { frame, motion });
+      mark.setAttribute('data-animated', 'true');
+      tweenScatterNode(mark, node.symbol, frame, target, motion);
+    },
+    (group, motion) => {
+      const mark = group.querySelector<SVGElement>('.mc-scatter-node');
+      const frame = positions.get(group);
+      if (!mark || !frame || !Object.values(frame).every(Number.isFinite)) return;
+      const symbol = mark.getAttribute('data-symbol') as ScatterSymbolType;
+      tweenScatterNode(mark, symbol, frame, { ...frame, radius: 0 }, motion);
+    }
+  );
 
   if (meshRect) {
+    ctx.layerGroup.prepend(meshRect);
     let activeMeshIdx = -1;
 
     const clearMeshActive = () => {
-      if (activeMeshIdx >= 0 && nodeElements[activeMeshIdx]) {
-        const prevEl = nodeElements[activeMeshIdx];
+      const previous = renderedNodes[activeMeshIdx];
+      if (previous) {
+        const prevEl = previous.mark;
         prevEl.removeAttribute('data-mesh-active');
         prevEl.setAttribute(
           'fill-opacity',
@@ -104,9 +165,9 @@ export function renderScatterNodesLayer(
     const findNearestIndex = (lx: number, ly: number): number => {
       let bestIdx = 0;
       let bestDistSq = Infinity;
-      model.nodes.forEach((n: ComputedScatterNodeModel, idx: number) => {
-        const dx = n.px - lx;
-        const dy = n.py - ly;
+      renderedNodes.forEach(({ frame }, idx) => {
+        const dx = frame.px - lx;
+        const dy = frame.py - ly;
         const dSq = dx * dx + dy * dy;
         if (dSq < bestDistSq) {
           bestDistSq = dSq;
@@ -124,7 +185,7 @@ export function renderScatterNodesLayer(
         activeMeshIdx = nearestIdx;
       }
       const targetNode = model.nodes[nearestIdx];
-      const targetEl = nodeElements[nearestIdx];
+      const targetEl = renderedNodes[nearestIdx]?.mark;
       if (targetNode && targetEl) {
         targetEl.setAttribute('data-mesh-active', 'true');
         targetEl.setAttribute('fill-opacity', '0.96');
@@ -153,7 +214,7 @@ export function renderScatterLabelsLayer(
 
   model.nodes.forEach((node, idx) => {
     if (!node.label) return;
-    ctx.renderLabel(ctx.layerGroup, {
+    const label = ctx.renderLabel(ctx.layerGroup, {
       id: `scatter-label-${idx}`,
       text: node.label,
       x: node.px,
@@ -172,6 +233,17 @@ export function renderScatterLabelsLayer(
         y: node.yValue,
         value: node.yValue
       }
+    });
+    const moving = movingNodes.get(node);
+    if (!label || !moving) return;
+    const transform = label.getAttribute('transform') ?? '';
+    moving.motion(() => {
+      const { px, py, radius } = moving.frame;
+      label.setAttribute('transform', `translate(${px - node.px}, ${py - node.py - radius + node.radius}) ${transform}`);
+      label.style.visibility = radius > 0 ? '' : 'hidden';
+    }, () => {
+      label.setAttribute('transform', transform);
+      label.style.visibility = '';
     });
   });
 }
