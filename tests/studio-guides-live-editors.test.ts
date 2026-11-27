@@ -6,6 +6,10 @@ import {
   type GuideId
 } from '../apps/studio/guides/index';
 import {
+  formatGuideConfigAssignment,
+  parseGuideConfig
+} from '../apps/studio/guides/callback-config';
+import {
   extractChartConfigBlock,
   formatConfigAsJsObject,
   formatConfigAssignment,
@@ -13,6 +17,11 @@ import {
 } from '../apps/studio/utils/code-sync';
 import { createCodeEditorPanel } from '../apps/studio/pages/chart-detail/code-editor';
 import { CHART_CATALOG } from '../apps/studio/catalog';
+
+function findRunCallbacksButton(editor: HTMLTextAreaElement): HTMLButtonElement | undefined {
+  return [...editor.closest('.guide-code-wrap')!.querySelectorAll<HTMLButtonElement>('button')]
+    .find((button) => button.textContent?.trim() === 'Run callback edits');
+}
 
 describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
   beforeAll(() => {
@@ -41,6 +50,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
       ).toBeGreaterThan(0);
 
       for (const ta of editors) {
+        expect(ta.value).not.toContain('[Function]');
         expect(ta.getAttribute('aria-invalid')).toBe('false');
         expect(ta.hasAttribute('aria-describedby')).toBe(false);
         const wrap = ta.closest('.guide-code-wrap');
@@ -127,7 +137,10 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     editor.value = formatConfigAssignment(editedConfig);
     editor.dispatchEvent(new Event('input'));
     expect(maxLines.value).toBe('4');
-    expect(chart.config.label).toMatchObject({ overflow: { maxLines: 4 } });
+    expect(chart.config.label).toMatchObject([
+      { target: 'axis-tick', overflow: { maxLines: 4 } },
+      { target: 'data', overflow: { maxLines: 4 } }
+    ]);
 
     editor.closest('.guide-code-wrap')!.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
     expect(overflow()).toEqual({ strategy: 'truncate', maxWidth: 82, enableTooltip: true });
@@ -226,20 +239,105 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     const layerEditor = root.querySelector<HTMLTextAreaElement>(
       'textarea.guide-code-editor'
     )!;
-    const cfg = parseConfigObjectLiteral(layerEditor.value);
+    const { config: cfg, hasPendingCallbacks } = parseGuideConfig(layerEditor.value, lineChart.config);
+    expect(hasPendingCallbacks).toBe(false);
     const customObj = cfg.layers.find((l: any) => l?.name === 'peak-and-mean');
     expect(customObj).toBeTruthy();
     cfg.layers = ['grid', customObj, 'axes', 'lines', 'points', 'legends'];
     cfg.data[0].data[0].y = 110;
-    layerEditor.value = formatConfigAssignment(cfg);
+    layerEditor.value = formatGuideConfigAssignment(cfg);
     layerEditor.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(layerEditor.getAttribute('aria-invalid')).toBe('false');
+    expect(findRunCallbacksButton(layerEditor)).toBeUndefined();
     const customLayerG = lineChart.shadowRoot?.querySelector(
       '[data-layer-name="peak-and-mean"]'
     );
     expect(customLayerG).not.toBeNull();
     expect(customLayerG!.textContent).toContain('Peak: 110K (Mon)');
+  });
+
+  it('applies SVG renderer edits on request and restores the original renderer on reset', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'custom-layers', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-custom-layer-code-1 textarea')!;
+    const bandFill = () => chart.shadowRoot
+      ?.querySelector('[data-layer-name="peak-and-mean"] rect')
+      ?.getAttribute('fill');
+
+    expect(editor.value).toContain('document.createElementNS');
+    expect(bandFill()).toBe('#6366f1');
+    expect(findRunCallbacksButton(editor)).toBeUndefined();
+
+    editor.value = editor.value.replace('#6366f1', '#abcdef');
+    editor.dispatchEvent(new Event('input'));
+    expect(bandFill()).toBe('#6366f1');
+    findRunCallbacksButton(editor)!.click();
+    expect(bandFill()).toBe('#abcdef');
+    expect(findRunCallbacksButton(editor)).toBeUndefined();
+
+    root.querySelector<HTMLButtonElement>('#btn-layer-pos-back')!.click();
+    expect(bandFill()).toBe('#abcdef');
+    const toggleLayer = root.querySelector<HTMLButtonElement>('#btn-layer-toggle')!;
+    toggleLayer.click();
+    expect(bandFill()).toBeUndefined();
+    toggleLayer.click();
+    expect(bandFill()).toBe('#abcdef');
+    expect(editor.value).toContain('#abcdef');
+
+    editor.closest('.guide-code-wrap')!.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+    expect(bandFill()).toBe('#6366f1');
+    expect(editor.value).toContain('#6366f1');
+  });
+
+  it('keeps an edited D3 renderer when updating its confidence band', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'd3', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-d3-code-1 textarea')!;
+    const slider = root.querySelector<HTMLInputElement>('#d3-band-slider')!;
+    const ribbon = () => chart.shadowRoot!.querySelector('[data-layer-name="d3-confidence-band"] path')!;
+    const initialPath = ribbon().getAttribute('d');
+    expect(initialPath).toBeTruthy();
+
+    editor.value = editor.value.replace('#06b6d4', '#abcdef');
+    editor.dispatchEvent(new Event('input'));
+    expect(ribbon().getAttribute('fill')).toBe('#06b6d4');
+    findRunCallbacksButton(editor)!.click();
+    expect(ribbon().getAttribute('fill')).toBe('#abcdef');
+    expect(ribbon().getAttribute('d')).toBe(initialPath);
+
+    slider.value = '20';
+    slider.dispatchEvent(new Event('input'));
+    expect(editor.value).toContain('#abcdef');
+    expect(ribbon().getAttribute('fill')).toBe('#abcdef');
+    expect(ribbon().getAttribute('d')).not.toBe(initialPath);
+
+    editor.closest('.guide-code-wrap')!.querySelector<HTMLButtonElement>('.guide-reset-btn')!.click();
+    expect(ribbon().getAttribute('fill')).toBe('#06b6d4');
+    expect(ribbon().getAttribute('d')).toBe(initialPath);
+  });
+
+  it('applies a JavaScript axis label formatter edit on request', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'custom-labels', 'dark');
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-label-code-1 textarea')!;
+    const axisLabels = () => Array.from(
+      chart.shadowRoot!.querySelectorAll('[data-label-id^="y-tick-"]'),
+      (label) => label.textContent ?? ''
+    );
+
+    expect(editor.value).toContain('$${text}K');
+    const originalLabels = axisLabels();
+    expect(originalLabels.some(label => label.startsWith('$'))).toBe(true);
+
+    editor.value = editor.value.replace('$${text}K', '€${text}K');
+    editor.dispatchEvent(new Event('input'));
+    expect(axisLabels()).toEqual(originalLabels);
+    findRunCallbacksButton(editor)!.click();
+    expect(axisLabels()).toEqual(originalLabels.map(label => label.replace(/^\$/, '€')));
   });
 
   it.each([

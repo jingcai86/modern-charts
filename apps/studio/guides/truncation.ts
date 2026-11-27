@@ -8,8 +8,9 @@ import type {
   ThemeModePreference
 } from '../../../src/index';
 import { renderSectionInfoTooltip, wireSectionInfoTooltips } from '../pages/chart-detail/section-info';
+import { guideCallback } from './callback-source';
 import { getLabelOverflowCapabilities, LABEL_OVERFLOW_MODES } from './label-overflow-controls';
-import { createLiveConfigEditor, escapeHtml } from './shared';
+import { createLiveConfigEditor } from './shared';
 
 export function renderTruncationGuide(
   container: HTMLElement,
@@ -385,8 +386,13 @@ export function renderTruncationGuide(
       overflow: {
         strategy: 'truncate' as const,
         tooltip: {
-          formatter: (p: any) =>
-            `<strong>Full Segment:</strong> ${escapeHtml(String(p.title ?? ''))}`
+          formatter: guideCallback((payload: { title?: string }) => {
+            const title = String(payload.title ?? '')
+              .replaceAll('&', '&amp;')
+              .replaceAll('<', '&lt;')
+              .replaceAll('>', '&gt;');
+            return `<strong>Full Segment:</strong> ${title}`;
+          })
         }
       }
     }

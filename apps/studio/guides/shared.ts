@@ -1,10 +1,6 @@
-import {
-  formatConfigAssignment,
-  parseConfigObjectLiteral,
-  restoreSerializedFunctions
-} from '../utils/code-sync';
 import { escapeHtml } from '../utils/html';
 import { isUnsafePathKey } from '../utils/object-path';
+import { formatGuideConfigAssignment, parseGuideConfig } from './callback-config';
 import { GUIDES_CATALOG, type GuideId } from './types';
 
 export { escapeHtml } from '../utils/html';
@@ -162,7 +158,7 @@ export interface LiveCodeEditorOptions {
   initialValue: string;
   language?: 'config' | 'css' | 'html' | 'js';
   hint?: string;
-  onApply: (rawValue: string) => void | string;
+  onApply: (rawValue: string, runCallbacks: boolean) => void | string | { pendingCallbacks: true };
   onReset?: () => void;
 }
 
@@ -236,6 +232,7 @@ export function createLiveCodeEditor(
   const statusEl = document.createElement('div');
   statusEl.id = errorId;
   statusEl.className = 'guide-code-status';
+  statusEl.setAttribute('role', 'status');
   statusEl.textContent = defaultHint;
   footer.appendChild(statusEl);
 
@@ -257,22 +254,33 @@ export function createLiveCodeEditor(
     }
   };
 
-  const applyCurrent = () => {
+  const runButton = document.createElement('button');
+  runButton.type = 'button';
+  runButton.className = 'guide-reset-btn';
+  runButton.textContent = 'Run callback edits';
+
+  const applyCurrent = (runCallbacks = false) => {
+    runButton.remove();
     try {
-      const maybeError = options.onApply(textarea.value);
-      if (typeof maybeError === 'string' && maybeError.length > 0) {
-        setErrorState(maybeError);
-      } else {
-        setErrorState(null);
+      const result = options.onApply(textarea.value, runCallbacks);
+      setErrorState(typeof result === 'string' ? result : null);
+      if (typeof result === 'object' && result.pendingCallbacks) {
+        statusEl.textContent = 'Run your JavaScript callback edits to update the preview.';
+        actions.prepend(runButton);
       }
-    } catch (err: any) {
-      setErrorState(err?.message ? String(err.message) : 'Invalid input');
+    } catch (err) {
+      setErrorState(err instanceof Error ? err.message : 'Invalid input');
     }
   };
 
-  textarea.addEventListener('input', applyCurrent);
+  textarea.addEventListener('input', () => applyCurrent());
+  runButton.addEventListener('click', () => {
+    applyCurrent(true);
+    textarea.focus();
+  });
 
   resetBtn.addEventListener('click', () => {
+    runButton.remove();
     if (options.onReset) {
       options.onReset();
       setErrorState(null);
@@ -294,6 +302,7 @@ export function createLiveCodeEditor(
         return;
       }
       textarea.value = trimmed;
+      runButton.remove();
       setErrorState(null);
     },
     setTitle: (nextTitle) => {
@@ -308,66 +317,6 @@ export function createLiveCodeEditor(
 // ============================================================================
 // Live JS Config Editor (preserves functions + named layer reordering)
 // ============================================================================
-function restoreGuideConfigFunctions(
-  parsed: any,
-  prev: any,
-  layerRegistry?: Record<string, any>
-): any {
-  if (parsed === '[Function]' && typeof prev === 'function') {
-    return prev;
-  }
-  if (Array.isArray(parsed)) {
-    // Allow reordering named layer objects ({ name, render: "[Function]" }) or matching function layers by registry
-    const prevNamedMap = new Map<string, any>();
-    if (Array.isArray(prev)) {
-      for (const entry of prev) {
-        if (entry && typeof entry === 'object' && typeof entry.name === 'string') {
-          prevNamedMap.set(entry.name, entry);
-        }
-      }
-    }
-    return parsed.map((item, idx) => {
-      if (
-        typeof item === 'string' &&
-        layerRegistry &&
-        Object.prototype.hasOwnProperty.call(layerRegistry, item)
-      ) {
-        return layerRegistry[item];
-      }
-      if (item && typeof item === 'object' && typeof item.name === 'string') {
-        const matchedPrev =
-          prevNamedMap.get(item.name) ??
-          (layerRegistry && Object.prototype.hasOwnProperty.call(layerRegistry, item.name)
-            ? layerRegistry[item.name]
-            : undefined);
-        if (matchedPrev) {
-          return restoreGuideConfigFunctions(item, matchedPrev, layerRegistry);
-        }
-      }
-      return restoreGuideConfigFunctions(
-        item,
-        Array.isArray(prev) ? prev[idx] : undefined,
-        layerRegistry
-      );
-    });
-  }
-  if (parsed && typeof parsed === 'object') {
-    const out: Record<string, any> = {};
-    for (const key of Object.keys(parsed)) {
-      if (isUnsafePathKey(key)) continue;
-      const prevVal =
-        prev &&
-        typeof prev === 'object' &&
-        Object.prototype.hasOwnProperty.call(prev, key)
-          ? prev[key]
-          : undefined;
-      out[key] = restoreGuideConfigFunctions(parsed[key], prevVal, layerRegistry);
-    }
-    return out;
-  }
-  return parsed;
-}
-
 export interface LiveConfigEditorOptions<T extends Record<string, any> = Record<string, any>> {
   title: string;
   initialConfig: T;
@@ -397,26 +346,26 @@ export function createLiveConfigEditor<T extends Record<string, any> = Record<st
   const editor = createLiveCodeEditor({
     title: options.title,
     language: 'config',
-    initialValue: formatConfigAssignment(options.initialConfig, assignPrefix),
+    initialValue: formatGuideConfigAssignment(options.initialConfig, assignPrefix),
     hint:
       options.hint ??
       'Live editable chart.config — modify data, colors, labels, or options to update the chart immediately.',
     onReset: options.onReset,
-    onApply: (rawValue) => {
-      let parsed: any;
+    onApply: (rawValue, runCallbacks) => {
+      let parsed: ReturnType<typeof parseGuideConfig>;
       try {
-        parsed = parseConfigObjectLiteral(rawValue);
-      } catch (err: any) {
-        return `Waiting for valid chart.config: ${err?.message ?? 'Syntax error'}`;
+        parsed = parseGuideConfig(rawValue, activeConfig, {
+          layerRegistry: options.layerRegistry,
+          runCallbacks
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Syntax error';
+        return `Waiting for valid chart.config: ${message}`;
       }
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return 'Config must be a JavaScript object ({ ... }).';
-      }
-      const restored = options.layerRegistry
-        ? restoreGuideConfigFunctions(parsed, activeConfig, options.layerRegistry)
-        : restoreSerializedFunctions(parsed, activeConfig);
-      activeConfig = restored as T;
-      options.onConfigChange(restored as T);
+      if (parsed.hasPendingCallbacks) return { pendingCallbacks: true };
+
+      options.onConfigChange(parsed.config as T);
+      activeConfig = parsed.config as T;
     }
   });
 
@@ -425,7 +374,7 @@ export function createLiveConfigEditor<T extends Record<string, any> = Record<st
     syncConfig: (nextConfig, opts = {}) => {
       activeConfig = nextConfig;
       if (opts.title) editor.setTitle(opts.title);
-      editor.setValue(formatConfigAssignment(nextConfig, assignPrefix), {
+      editor.setValue(formatGuideConfigAssignment(nextConfig, assignPrefix), {
         resetBaseline: opts.resetBaseline,
         preserveFocus: opts.preserveFocus
       });

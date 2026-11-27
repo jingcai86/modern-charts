@@ -1,12 +1,11 @@
 import { configureChartFeatures } from '../../../src/core/features';
 import type { ChartFeaturesConfig } from '../../../src/core/types';
+import { parseConfigObjectLiteral } from '../utils/code-sync';
 import {
-  findChartConfigBlock,
-  formatConfigAssignment,
-  parseConfigObjectLiteral,
-  restoreSerializedFunctions
-} from '../utils/code-sync';
-import { getByPath, setByPath } from '../utils/object-path';
+  findGuideConfigBlock,
+  formatGuideConfigAssignment,
+  parseGuideConfig
+} from './callback-config';
 import { createLiveCodeEditor, type LiveConfigEditorHandle } from './shared';
 
 type BootstrapFeatures = Required<ChartFeaturesConfig>;
@@ -97,7 +96,6 @@ interface FeatureGuideEditorOptions {
   showChartStateOptOut?: boolean;
   onUsageChange?: (usage: string) => void;
   hint?: string;
-  knownCallbacks?: Record<string, (...args: any[]) => unknown>;
   onConfigChange: (config: DemoConfig) => void;
   onReset: () => void;
 }
@@ -140,27 +138,13 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
       let config = options.initialConfig;
       let usage = options.usage;
       let standalone = true;
-      const callbacks = Object.entries(options.knownCallbacks ?? {}).map(([path, callback]) => ({
-        path,
-        callback,
-        expression: callback.toString(),
-        placeholder: `[Guide callback ${path}]`
-      }));
 
       const formatExample = () => {
         const chartId = options.chartId();
-        const copyableConfig = { ...config };
-        for (const { path, callback, placeholder } of callbacks) {
-          if (getByPath(config, path) === callback) setByPath(copyableConfig, path, placeholder);
-        }
-        let assignment = formatConfigAssignment(copyableConfig);
-        for (const { expression, placeholder } of callbacks) {
-          assignment = assignment.replace(`'${placeholder}'`, () => expression);
-        }
         return [
           formatBootstrap(standalone ? chartId : undefined, features, options.showChartStateOptOut),
           `const chart = document.createElement('mc-${chartId}-chart');\nchart.style.height = '380px';\ndocument.body.appendChild(chart);`,
-          assignment,
+          formatGuideConfigAssignment(config),
           usage
         ].join('\n\n');
       };
@@ -171,7 +155,7 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
         language: 'js',
         initialValue: formatExample(),
         hint: options.hint ?? 'Edit the bootstrap flags or chart.config. The flags apply to both examples.',
-        onApply: (source) => {
+        onApply: (source, runCallbacks) => {
           const chart = /^[ \t]*const\s+chart\s*=\s*document\.createElement\(\s*(['"])(mc-[a-z]+-chart)\1\s*\)/m.exec(source);
           const chartId = options.chartId();
           if (!chart || chart[2] !== `mc-${chartId}-chart`) {
@@ -182,16 +166,10 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
             return 'Use the selected chart’s subpath or the full library import.';
           }
           const chartSource = source.slice(chart.index);
-          const block = findChartConfigBlock(chartSource);
+          const block = findGuideConfigBlock(chartSource);
           if (!block) return 'Complete the chart.config object to update the preview.';
-          let { literal } = block;
-          for (const { expression, placeholder } of callbacks) {
-            literal = literal.replace(expression, () => `'${placeholder}'`);
-          }
-          const parsed = restoreSerializedFunctions(parseConfigObjectLiteral(literal), config) as DemoConfig;
-          for (const { path, callback, placeholder } of callbacks) {
-            if (getByPath(parsed, path) === placeholder) setByPath(parsed, path, callback);
-          }
+          const parsed = parseGuideConfig(block.literal, config, { runCallbacks });
+          if (parsed.hasPendingCallbacks) return { pendingCallbacks: true };
           if (options.onUsageChange) {
             const nextUsage = chartSource.slice(block.end).trimStart().replace(/^;/, '').trim();
             if (nextUsage !== usage) {
@@ -200,7 +178,7 @@ export function createFeatureGuideBootstrap(initialFeatures: ChartFeaturesConfig
             }
           }
           standalone = registeredChart !== undefined;
-          config = parsed;
+          config = parsed.config;
           void setFeatures(nextFeatures, refresh);
           options.onConfigChange(config);
         },

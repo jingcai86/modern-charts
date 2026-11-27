@@ -463,6 +463,34 @@ describe('Customizable CSV export across all 10 chart types (Issue #125)', () =>
 });
 
 describe('Customizable CSV Data Export Studio guide', () => {
+  it('shows the formatter and serializer source and runs edits on request', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    renderGuidePage(root, 'csv-export', 'dark');
+
+    const ex1 = root.querySelector<HTMLElement>('#ce-custom-csv')!;
+    const readout = ex1.querySelector<HTMLElement>('#ce-readout-1')!;
+    const editor = ex1.querySelector<HTMLTextAreaElement>('textarea')!;
+    const runCallbacks = () => [...ex1.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent?.trim() === 'Run callback edits');
+
+    ex1.querySelector<HTMLButtonElement>('[data-csv-preset="formatted"]')!.click();
+    expect(editor.value).toContain('value.toFixed(1)');
+    editor.value = editor.value.replace('value.toFixed(1)', 'value.toFixed(2)');
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(readout.textContent).toContain('$142.0K');
+    runCallbacks()!.click();
+    expect(readout.textContent).toContain('$142.00K');
+
+    ex1.querySelector<HTMLButtonElement>('[data-csv-preset="serializer"]')!.click();
+    expect(editor.value).toContain('Quarter: r.quarter');
+    editor.value = editor.value.replace('Quarter: r.quarter', 'Period: r.quarter');
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(readout.textContent).toContain('Quarter,Cloud,Edge,Total');
+    runCallbacks()!.click();
+    expect(readout.textContent).toContain('Period,Cloud,Edge,Total');
+  });
+
   it('renders interactive CSV export presets and all 10 chart switchers in csv-export guide', () => {
     expect(
       GUIDES_CATALOG.find((g) => g.id === 'csv-export')?.title

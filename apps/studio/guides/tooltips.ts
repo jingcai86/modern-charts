@@ -5,6 +5,7 @@ import type {
   ThemeModePreference,
   TooltipPayload
 } from '../../../src/index';
+import { guideCallback } from './callback-source';
 import {
   createLiveConfigEditor,
   createLiveCssEditor,
@@ -220,7 +221,7 @@ mc-bar-chart::part(tooltip-badge) {
   line2.style.height = '340px';
   ex2.querySelector('#guide-tooltip-chart-2')!.appendChild(line2);
 
-  const kpiTooltipRenderer = (
+  const kpiTooltipRenderer = guideCallback((
     payload: TooltipPayload,
     defaultRender: () => Node
   ) => {
@@ -245,7 +246,7 @@ mc-bar-chart::part(tooltip-badge) {
       card.appendChild(footer);
     }
     return card;
-  };
+  });
 
   const initialLine2Cfg = {
     title: 'Hover Across Months for Computed KPI Tooltip',
