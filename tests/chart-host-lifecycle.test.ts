@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PALETTES, registerModernCharts, type MCBarChart } from '../src/index';
 
-registerModernCharts();
+void registerModernCharts({ features: { zoom: true } });
 
 const data = [{ category: 'January', value: 12 }, { category: 'February', value: 20 }];
 const svgNamespace = 'http://www.w3.org/2000/svg';

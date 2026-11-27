@@ -1,8 +1,5 @@
-import {
-  configureChartFeatures,
-  type ChartConfig,
-  type MCBaseChart
-} from '../../../../src/index';
+import type { ChartConfig, MCBaseChart } from '../../../../src/index';
+import { configureChartFeatures } from '../../../../src/core/features';
 import {
   getAllAttributesForChart,
   type ChartCatalogEntry
