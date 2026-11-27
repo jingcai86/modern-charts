@@ -60,7 +60,7 @@ export function renderHeatmapLegendLayer(
   switch (ctx.legendConfig.type) {
     case 'categorical':
     case 'piecewise':
-      renderUnifiedLegendLayer(ctx, [], 'top');
+      renderUnifiedLegendLayer(ctx, []);
       break;
     default:
       renderHeatmapColorLegend(model, ctx, defs, axisClearance);

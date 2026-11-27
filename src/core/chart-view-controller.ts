@@ -223,7 +223,7 @@ export class ChartViewController {
       sliderEl.setAttribute('role', 'group');
       sliderEl.setAttribute('aria-label', 'Chart data zoom range slider');
       sliderEl.style.cssText =
-        'position:absolute;left:48px;right:96px;bottom:10px;height:18px;border-radius:6px;background:rgba(148,163,184,0.16);border:1px solid rgba(148,163,184,0.3);z-index:5;user-select:none;touch-action:none;';
+        'height:18px;border-radius:6px;background:rgba(148,163,184,0.16);border:1px solid rgba(148,163,184,0.3);z-index:5;user-select:none;touch-action:none;';
 
       sliderWindowEl = document.createElement('div');
       sliderWindowEl.className = 'mc-view-slider-window';
@@ -310,14 +310,24 @@ export class ChartViewController {
       applyTransform(nextK, nextX, nextY);
     };
 
+    const toSvgCoords = (event: MouseEvent, fallbackX = event.clientX, fallbackY = event.clientY) => {
+      const transform = svg.clientWidth > 0 ? svg.getScreenCTM() : null;
+      if (transform) {
+        return new DOMPoint(event.clientX, event.clientY).matrixTransform(transform.inverse());
+      }
+      const rect = svg.getBoundingClientRect();
+      return {
+        x: rect.width > 0 ? event.clientX - rect.left : fallbackX,
+        y: rect.height > 0 ? event.clientY - rect.top : fallbackY
+      };
+    };
+
     const onWheel = (e: WheelEvent): void => {
       if (!this.#zoomable) return;
       e.preventDefault();
-      const rect = svg.getBoundingClientRect();
-      const cx = rect.width > 0 ? e.clientX - rect.left : dims.width / 2;
-      const cy = rect.height > 0 ? e.clientY - rect.top : dims.height / 2;
+      const { x, y } = toSvgCoords(e, dims.width / 2, dims.height / 2);
       const deltaScale = e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : 0.002;
-      scaleBy(Math.pow(2, -e.deltaY * deltaScale), cx, cy);
+      scaleBy(Math.pow(2, -e.deltaY * deltaScale), x, y);
     };
 
     let pointerDown = false;
@@ -330,14 +340,6 @@ export class ChartViewController {
     let origX = 0;
     let origY = 0;
 
-    const toSvgCoords = (e: PointerEvent): { x: number; y: number } => {
-      const rect = svg.getBoundingClientRect();
-      return {
-        x: rect.width > 0 ? e.clientX - rect.left : e.clientX,
-        y: rect.height > 0 ? e.clientY - rect.top : e.clientY
-      };
-    };
-
     const onPointerDown = (e: PointerEvent): void => {
       if (e.button !== 0) return;
       const wantBrush =
@@ -347,9 +349,9 @@ export class ChartViewController {
       dragging = false;
       isBrushing = wantBrush;
       capturedPointerId = null;
-      const pt = toSvgCoords(e);
-      startX = isBrushing ? pt.x : e.clientX;
-      startY = isBrushing ? pt.y : e.clientY;
+      const { x, y } = toSvgCoords(e);
+      startX = x;
+      startY = y;
       origX = this.#transform.x;
       origY = this.#transform.y;
     };
@@ -400,8 +402,9 @@ export class ChartViewController {
         return;
       }
 
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
+      const { x, y } = toSvgCoords(e);
+      const dx = x - startX;
+      const dy = y - startY;
       if (!dragging) {
         if (Math.hypot(dx, dy) < 4) return;
         dragging = true;

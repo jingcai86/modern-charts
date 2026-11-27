@@ -159,7 +159,7 @@ interface SharedChartConfig<TData> {
   legend?: boolean | {
     enabled?: boolean;
     type?: 'categorical' | 'continuous' | 'piecewise' | 'discrete';
-    position?: 'top' | 'bottom' | 'left' | 'right'; // default 'top' for heatmap, 'bottom' otherwise
+    position?: 'top' | 'bottom' | 'left' | 'right'; // default 'bottom'
     min?: number;
     max?: number;
     colorScheme?: string;
@@ -389,7 +389,7 @@ Every chart owns strictly **one** `<mc-tooltip>` instance inside its Shadow DOM 
 
 ## 8. Unified SVG Legend (`<mc-legend>`) & Dedicated Legend Tooltip
 
-The unified legend serves categorical charts and heatmaps. Heatmaps default to a continuous gradient. Set `legend.type: 'discrete'` to color cells and legend blocks by the same value ranges. Set `legend.align` to place the color legend at the start, middle, or end of the selected side. See the [Heatmap color legend](./charts/heatmap.md#heatmap-color-legend) for sizing, labels, and range tooltips.
+The unified legend serves categorical charts and heatmaps. Heatmaps default to a continuous gradient centered below the plot. Set `legend.type: 'discrete'` to color cells and legend blocks by the same value ranges. Set `legend.align` to place the color legend at the start, middle, or end of the selected side. See the [Heatmap color legend](./charts/heatmap.md#heatmap-color-legend) for sizing, labels, and range tooltips.
 
 - **4 positions & 4-side padding**: `position: 'top' | 'bottom' | 'left' | 'right'` and `padding: number | { top, right, bottom, left }` (with automatic margin reservation).
 - **Categorical legend centering & wrapping**: `@chenglou/pretext` measures every legend label's exact dimensions so SVG legend rows (`top`/`bottom`) and columns (`left`/`right`) are centered accurately and wrap automatically by default (`wrap: false` disables wrapping).

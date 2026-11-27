@@ -251,17 +251,18 @@ describe('Studio Theme and Appearance controls', () => {
     const precision = document.querySelector<HTMLInputElement>('[data-config-path="legend.tickFormat.maximumFractionDigits"] input')!;
 
     expect(steps.closest<HTMLElement>('.attr-row')?.hidden).toBe(true);
+    expect(position.value).toBe('bottom');
     expect(alignment.value).toBe('middle');
     select(mode(), 'discrete');
     expect(steps.closest<HTMLElement>('.attr-row')?.hidden).toBe(false);
     expect(swatches()).toHaveLength(10);
     steps.value = '5';
     steps.dispatchEvent(new Event('input', { bubbles: true }));
-    select(position, 'bottom');
+    select(position, 'top');
     select(alignment, 'end');
     select(labelPlacement, 'ticks');
     expect(swatches()).toHaveLength(5);
-    const legend = chart.shadowRoot!.querySelector('.mc-legend--discrete[data-legend-position="bottom"]')!;
+    const legend = chart.shadowRoot!.querySelector('.mc-legend--discrete[data-legend-position="top"]')!;
     expect(legend.querySelectorAll('.mc-legend-tick')).toHaveLength(6);
 
     select(numberStyle, 'percent');
@@ -270,7 +271,7 @@ describe('Studio Theme and Appearance controls', () => {
     const editor = document.querySelector<HTMLTextAreaElement>('#detail-html-preview')!;
     const generatedLegend = () => parseConfigObjectLiteral(extractChartConfigBlock(editor.value)!).legend;
     expect(generatedLegend()).toMatchObject({
-      type: 'discrete', steps: 5, position: 'bottom', align: 'end', labelPlacement: 'ticks',
+      type: 'discrete', steps: 5, position: 'top', align: 'end', labelPlacement: 'ticks',
       tickFormat: { style: 'percent', maximumFractionDigits: 0 }
     });
     select(numberStyle, '');
@@ -281,8 +282,9 @@ describe('Studio Theme and Appearance controls', () => {
 
     document.querySelector<HTMLButtonElement>('#btn-reset-default-attrs')!.click();
     expect(mode().value).toBe('continuous');
+    expect(position.value).toBe('bottom');
     expect(alignment.value).toBe('middle');
-    expect(detailChart().shadowRoot!.querySelector('.mc-legend--continuous')).not.toBeNull();
+    expect(detailChart().shadowRoot!.querySelector('.mc-legend--continuous[data-legend-position="bottom"]')).not.toBeNull();
   });
 
   it('keeps lazy guide navigation and editors consistent with the selected theme', async () => {

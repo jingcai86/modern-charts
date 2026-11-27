@@ -46,6 +46,14 @@ describe('Heatmap Chart Enhancements (Issue #73)', () => {
     document.body.innerHTML = '';
   });
 
+  it('defaults to a centered legend below the plot', () => {
+    const heatmap = mountHeatmap({});
+
+    expect(heatmap.resolveLegendConfig()).toMatchObject({ position: 'bottom', align: 'middle' });
+    expect(heatmap.shadowRoot!.querySelector('.mc-legend--continuous[data-legend-position="bottom"]')).not.toBeNull();
+    expect(legendOrigin(heatmap)[1]).toBeGreaterThan(heatmap.resolveDimensions().innerHeight);
+  });
+
   it('supports xInnerPadding, yInnerPadding, forceSquare,sizeVariation, emptyColor, and min/max domain bounds', () => {
     const heatmap = document.createElement('mc-heatmap-chart') as MCHeatmapChart;
     document.body.appendChild(heatmap);
@@ -98,6 +106,7 @@ describe('Heatmap Chart Enhancements (Issue #73)', () => {
       legend
     });
     const root = heatmap.shadowRoot!;
+    expect(root.querySelector('.mc-legend--discrete[data-legend-position="bottom"]')).not.toBeNull();
     const swatches = () => Array.from(root.querySelectorAll('.mc-legend-discrete-block'));
     const swatchColors = () => swatches().map((block) => block.getAttribute('fill'));
     const cellColors = () => values.map((_, index) => root
@@ -255,6 +264,9 @@ describe('Heatmap Chart Enhancements (Issue #73)', () => {
     declarativeLegend.setAttribute('type', 'continuous');
     expect(root.querySelector('.mc-legend--discrete')).toBeNull();
     expect(root.querySelector('.mc-legend--continuous[data-legend-position="right"]')).not.toBeNull();
+    declarativeLegend.removeAttribute('position');
+    expect(heatmap.resolveLegendConfig()).toMatchObject({ position: 'bottom', align: 'middle' });
+    expect(root.querySelector('.mc-legend--continuous[data-legend-position="bottom"]')).not.toBeNull();
   });
 
   it('renders one well-defined discrete range for an equal-valued domain', () => {

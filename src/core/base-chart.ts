@@ -2195,13 +2195,12 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
    */
   public resolveLegendConfig(): ResolvedLegendConfig {
     const raw = this._config.legend;
-    const fallbackPosition = this.chartType === 'heatmap' ? 'top' : 'bottom';
     const declLegend = this.querySelector(
       ':scope > mc-legend'
     ) as MCLegendElement | null;
 
     if (!declLegend || typeof declLegend.toLegendConfig !== 'function') {
-      return createDefaultLegendConfig(raw, fallbackPosition);
+      return createDefaultLegendConfig(raw);
     }
 
     const declCfg = declLegend.toLegendConfig();
@@ -2221,15 +2220,12 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
         ? { ...baseObj.padding, ...declCfg.padding }
         : declCfg.padding ?? baseObj.padding;
 
-    return createDefaultLegendConfig(
-      {
-        ...baseObj,
-        ...declCfg,
-        padding: mergedPadding,
-        tooltip: mergedTooltip
-      },
-      fallbackPosition
-    );
+    return createDefaultLegendConfig({
+      ...baseObj,
+      ...declCfg,
+      padding: mergedPadding,
+      tooltip: mergedTooltip
+    });
   }
 
   /**

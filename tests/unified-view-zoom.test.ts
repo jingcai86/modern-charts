@@ -155,9 +155,10 @@ describe('Chart view controls', () => {
     expect(onZoom.mock.lastCall?.[0].detail).toEqual({ k: 1, x: 0, y: 0 });
   });
 
-  it('uses the wheel location as a zoom origin and releases wheel scrolling when zoom is disabled', () => {
+  it('anchors wheel zoom in a scaled SVG and releases scrolling when zoom is disabled', () => {
     const { chart, svg, viewport } = mountZoomChart({ direction: 'y', pannable: false });
-    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue(new DOMRect(40, 20, 500, 300));
+    Object.defineProperty(svg, 'clientWidth', { value: 250 });
+    vi.spyOn(svg, 'getScreenCTM').mockReturnValue(new DOMMatrix([0.5, 0, 0, 0.5, 40, 20]));
     // Happy DOM's WheelEvent does not inherit client coordinates from MouseEvent.
     const wheel = () => Object.assign(
       new MouseEvent('wheel', { clientX: 100, clientY: 120, cancelable: true }),
@@ -165,7 +166,7 @@ describe('Chart view controls', () => {
     );
 
     expect(svg.dispatchEvent(wheel())).toBe(false);
-    expect(viewport.getAttribute('transform')).toBe('translate(0, -100) scale(2)');
+    expect(viewport.getAttribute('transform')).toBe('translate(0, -200) scale(2)');
 
     chart.viewConfig = { enabled: true, zoomable: false };
     expect(svg.dispatchEvent(wheel())).toBe(true);
