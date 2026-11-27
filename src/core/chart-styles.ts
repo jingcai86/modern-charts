@@ -145,6 +145,31 @@ export const baseChartStyles = `
           display: none;
         }
 
+        .mc-view-slider {
+          position: absolute;
+          left: 48px;
+          right: 96px;
+          bottom: 10px;
+        }
+
+        /* Keep zoom controls clear of the heatmap color legend, even on narrow charts. */
+        .mc-chart-container:has(.mc-heatmap-color-legend[data-legend-position="bottom"]):has(> .mc-view-controls:not([hidden]), > .mc-view-slider) {
+          display: grid;
+          grid-template-rows: minmax(0, 1fr);
+
+          > .mc-view-controls {
+            position: static;
+            justify-self: end;
+            margin: 0 12px 10px;
+          }
+
+          > .mc-view-slider {
+            position: relative;
+            inset: auto;
+            margin: 0 12px 10px;
+          }
+        }
+
         .mc-view-btn {
           display: inline-flex;
           align-items: center;

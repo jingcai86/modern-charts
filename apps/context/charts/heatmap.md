@@ -30,7 +30,7 @@ interface HeatmapRow {
 
 ## Heatmap Color Legend
 
-Set `chart.config.legend` or add a direct `<mc-legend>` child. Continuous mode uses a smooth gradient. Discrete mode divides the color domain into `steps` equal ranges and gives the cells and their legend blocks the same colors.
+The heatmap color legend appears centered below the plot by default. Set `chart.config.legend` or add a direct `<mc-legend>` child to customize it. Continuous mode uses a smooth gradient. Discrete mode divides the color domain into `steps` equal ranges and gives the cells and their legend blocks the same colors.
 
 | Config key under `legend` | `<mc-legend>` attribute | Behavior |
 | :--- | :--- | :--- |
@@ -39,7 +39,7 @@ Set `chart.config.legend` or add a direct `<mc-legend>` child. Continuous mode u
 | `steps` | `steps` | Number of discrete color blocks (`1`–`100`). Defaults to `10`. |
 | `min`, `max` | `min`, `max` | Override the shared color domain. Otherwise, the chart bounds or the data bounds apply. |
 | `colorScheme` | `color-scheme` | Override the ramp for both the cells and the legend. |
-| `position` | `position` | `'top'` (default), `'bottom'`, `'left'`, or `'right'`. |
+| `position` | `position` | `'bottom'` (default), `'top'`, `'left'`, or `'right'`. |
 | `align` | `align` | `'start'`, `'middle'` (default), or `'end'` along the chosen side. Start and end are left and right on horizontal legends, and top and bottom on vertical legends, regardless of text direction. |
 | `width`, `height` | `width`, `height` | Requested SVG dimensions in pixels, bounded by available space. Omit for position-specific sizing. |
 | `borderRadius`, `blockGap` | `border-radius`, `block-gap` | Corner radius (default `4px`) and spacing between discrete blocks (default `2px`). Both accept `0`. |
