@@ -47,6 +47,10 @@ export class MCPieChart extends MCBaseChart<PieDatum[]> {
     return ['arcs', 'arcLabels', 'arcLinkLabels', 'center', 'legends'];
   }
 
+  protected override get retainedItemLayer(): string {
+    return 'arcs';
+  }
+
   protected getDefaultMargin(): ChartMargin {
     return { top: 36, right: 80, bottom: 58, left: 80 };
   }

@@ -5,6 +5,7 @@ export interface ResolvedChartLayer<TData> {
   name: string;
   input: LayerInput<TData>;
   render: (ctx: ChartRenderContext<TData>) => void;
+  builtIn?: true;
 }
 
 interface LayerChart<TData> {
@@ -46,6 +47,7 @@ export function resolveChartLayers<TData>(
           sequence.push({
             name,
             input: name,
+            builtIn: true,
             render: builtInRenderers[name]
           });
         }
@@ -75,6 +77,7 @@ export function resolveChartLayers<TData>(
         sequence.push({
           name: item,
           input: item,
+          builtIn: true,
           render: builtInRenderers[item]
         });
       } else {

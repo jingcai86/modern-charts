@@ -232,6 +232,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   protected _labelRenderer?: CustomLabelRenderer;
   protected _chartState: Record<string, any> = {};
   protected _renderedLayerSet = new Set<string>();
+  #retainedItemGroup?: SVGGElement;
   protected _decoratedAriaItems: { item: AriaItemDescriptor; label: string }[] = [];
   protected _recordMatchedThresholdItem?: (
     item: Omit<
@@ -443,6 +444,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     this.#unsubscribeFeatures?.();
     this.#unsubscribeFeatures = undefined;
     this.cancelTransitions(true);
+    this.#retainedItemGroup = undefined;
     this.eventEngine.detach();
     this.#syncTooltipPointerTracking(false);
     this.#teardownAutoSizeObserver();
@@ -580,10 +582,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
         if (this._config.loading) this.setAttribute('loading', '');
         else this.removeAttribute('loading');
       }
+      this.#syncInternalSubComponentsFromConfig();
     } finally {
       this.#suppressAttributeRender = prevSuppress;
     }
-    this.#syncInternalSubComponentsFromConfig();
     if (this._isConnected && !this.hasAttribute('data-defer-initial-render')) {
       this.render();
     }
@@ -1917,6 +1919,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
   protected cancelTransitions(_clearSnapshot = false): void {}
 
+  protected get retainedItemLayer(): string | undefined {
+    return undefined;
+  }
+
   protected prepareContext(_ctx: ChartRenderContext<TData>): void {}
 
   protected afterRender(_ctx: ChartRenderContext<TData>): void {}
@@ -2058,6 +2064,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       if (controlsEl) controlsEl.hidden = true;
       if (this._data === null || !hasData) {
         rootGroup.replaceChildren();
+        this.#retainedItemGroup = undefined;
         if (defs) defs.replaceChildren();
         this._decoratedAriaItems = [];
         if (ariaTableContainer) ariaTableContainer.replaceChildren();
@@ -2073,6 +2080,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       this.hideLegendTooltip();
       if (controlsEl) controlsEl.hidden = true;
       rootGroup.replaceChildren();
+      this.#retainedItemGroup = undefined;
       if (defs) defs.replaceChildren();
       this._decoratedAriaItems = [];
       if (ariaTableContainer) ariaTableContainer.replaceChildren();
@@ -2082,6 +2090,11 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     }
 
     this.cancelTransitions(false);
+    const retainedLayerName = this.retainedItemLayer;
+    const retainedGroup = retainedLayerName && this._renderedLayerSet.has(retainedLayerName)
+      ? this.#retainedItemGroup
+      : undefined;
+    this.#retainedItemGroup = undefined;
     rootGroup.replaceChildren();
     this._decoratedAriaItems = [];
     this.#selectableRecords.clear();
@@ -2280,7 +2293,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
     const layers = this.getResolvedLayerSequence();
     layers.forEach((layerDef, index) => {
-      const layerG = document.createElementNS(SVG_NS, 'g');
+      const retain = layerDef.builtIn && layerDef.name === retainedLayerName && !this.#retainedItemGroup;
+      const layerG = retain && retainedGroup ? retainedGroup : document.createElementNS(SVG_NS, 'g');
+      if (retain) this.#retainedItemGroup = layerG;
       const isNewLayer = !this._renderedLayerSet.has(layerDef.name);
       layerG.setAttribute(
         'class',
@@ -2854,7 +2869,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
     this.addEventListener('mc-layer-change', (e) => {
       e.stopPropagation();
-      if (this._isConnected && !this.#isTogglingZoom) {
+      if (this._isConnected && !this.#isTogglingZoom && !this.#suppressAttributeRender) {
         this.render();
       }
     });

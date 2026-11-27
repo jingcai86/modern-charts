@@ -50,7 +50,8 @@ function applyMatchStyleToRect(
  */
 export function renderBarItem(
   b: ComputedBarItemModel,
-  ctx: ChartRenderContext<any>
+  ctx: ChartRenderContext<any>,
+  animationIndex: number | false = b.index
 ): SVGElement {
   const axis: 'x' | 'y' = b.isHorizontal ? 'x' : 'y';
   const itemStart = b.isHorizontal ? b.x : b.y;
@@ -278,12 +279,16 @@ export function renderBarItem(
     );
   }
 
-  ctx.animateItem(hostEl, {
-    type: b.isHorizontal ? 'bar-horizontal' : 'bar-vertical',
-    index: b.index,
-    originX: b.isHorizontal ? b.x : b.x + b.width / 2,
-    originY: b.isHorizontal ? b.y + b.height / 2 : b.y + b.height
-  });
+  if (animationIndex === false) {
+    hostEl.setAttribute('data-animated', 'false');
+  } else {
+    ctx.animateItem(hostEl, {
+      type: b.isHorizontal ? 'bar-horizontal' : 'bar-vertical',
+      index: animationIndex,
+      originX: b.isHorizontal ? b.x : b.x + b.width / 2,
+      originY: b.isHorizontal ? b.y + b.height / 2 : b.y + b.height
+    });
+  }
 
   const barModel = ctx.state?.model as
     | {
