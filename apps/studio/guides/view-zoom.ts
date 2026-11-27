@@ -102,7 +102,8 @@ export function renderViewZoomGuide(
       <code>config.view</code>, and <code>chart.toggleZoom()</code>. To keep standalone chart downloads small,
       the zoom feature defaults to <code>false</code> at bootstrap and is enabled via
       <code>registerModernCharts({ features: { zoom: true } })</code> or per-chart
-      <code>registerBarChart({ features: { zoom: true } })</code>.
+      <code>registerBarChart({ features: { zoom: true } })</code> (see the
+      <a href="#/guide/bootstrapping">🚀 Feature Bootstrapping &amp; Lazy Loading guide</a>).
       The examples start with zoom enabled. Edit <code>features.zoom</code> in either example to
       change its availability for both charts.
     </p>

@@ -768,13 +768,10 @@ export function renderGuideHeader(activeId: GuideId): HTMLElement {
   const meta = GUIDES_CATALOG.find((g) => g.id === activeId)!;
   const header = document.createElement('section');
   header.className = 'guide-hero';
-  const titleLink = meta.titleLink
-    ? `<strong class="guide-hero-title-link"><a href="#/guide/${meta.titleLink.guideId}">${escapeHtml(meta.titleLink.label)} →</a></strong>`
-    : '';
 
   header.innerHTML = `
     <div class="guide-hero-copy">
-      <h1 class="guide-hero-title">${meta.icon} ${escapeHtml(meta.title)} ${titleLink}</h1>
+      <h1 class="guide-hero-title">${meta.icon} ${escapeHtml(meta.title)}</h1>
       <p class="guide-hero-summary">${escapeHtml(meta.summary)}</p>
     </div>
   `;
