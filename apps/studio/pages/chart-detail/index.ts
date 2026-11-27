@@ -213,36 +213,13 @@ export function renderChartDetailPage(
   }
   syncZoomToggleButton();
 
-  function wireKeyboardActivation(btn: HTMLButtonElement | null): void {
-    if (!btn) return;
-    let spaceDown = false;
-    btn.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (btn.disabled || e.isComposing || e.keyCode === 229) return;
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        btn.click();
-      } else if (e.key === ' ' || e.key === 'Spacebar') {
-        e.preventDefault();
-        spaceDown = true;
-        btn.click();
-      }
-    });
-    btn.addEventListener('keyup', (e: KeyboardEvent) => {
-      if (e.key === ' ' || e.key === 'Spacebar') {
-        if (spaceDown) {
-          spaceDown = false;
-          e.preventDefault();
-          return;
-        }
-        spaceDown = false;
-        if (!btn.disabled) {
-          e.preventDefault();
-          btn.click();
-        }
-      }
-    });
-  }
-  wireKeyboardActivation(zoomToggleBtn);
+  zoomToggleBtn?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (zoomToggleBtn.disabled || e.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      zoomToggleBtn.click();
+    }
+  });
 
   let isUpdatingZoomFromButton = false;
 

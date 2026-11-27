@@ -13,35 +13,6 @@ import {
 import type { MCBaseChart, ThemeModePreference } from '../../../src/index';
 import { createCodeBlock, createLiveConfigEditor } from './shared';
 
-function wireKeyboardToggle(btn: HTMLButtonElement): void {
-  let spaceDown = false;
-  btn.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (btn.disabled || e.isComposing || e.keyCode === 229) return;
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      btn.click();
-    } else if (e.key === ' ' || e.key === 'Spacebar') {
-      e.preventDefault();
-      spaceDown = true;
-      btn.click();
-    }
-  });
-  btn.addEventListener('keyup', (e: KeyboardEvent) => {
-    if (e.key === ' ' || e.key === 'Spacebar') {
-      if (spaceDown) {
-        spaceDown = false;
-        e.preventDefault();
-        return;
-      }
-      spaceDown = false;
-      if (!btn.disabled) {
-        e.preventDefault();
-        btn.click();
-      }
-    }
-  });
-}
-
 export function renderViewZoomGuide(
   container: HTMLElement,
   themeMode: ThemeModePreference
@@ -145,11 +116,6 @@ export function renderViewZoomGuide(
     '#vz-zoom-reset-btn'
   )!;
   const readoutEl1 = ex1.querySelector<HTMLElement>('#vz-readout-1')!;
-
-  wireKeyboardToggle(zoomToggleBtn1);
-  wireKeyboardToggle(zoomInBtn1);
-  wireKeyboardToggle(zoomOutBtn1);
-  wireKeyboardToggle(zoomResetBtn1);
 
   const initialCfg1: Record<string, any> = {
     title: 'Benchmark Score (Zoomable Radar)',
