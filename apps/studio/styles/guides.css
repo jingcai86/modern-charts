@@ -28,19 +28,50 @@
 .guide-hero-title:has(> .guide-hero-feature-default) {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 0.75rem;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
 }
 
 .guide-hero-feature-default {
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  font-weight: 600;
-  letter-spacing: normal;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: var(--pill-purple-bg);
+  color: var(--pill-purple-fg);
+  border: 1px solid rgba(99, 102, 241, 0.42);
+  transition: transform 140ms ease, filter 140ms ease, border-color 140ms ease;
+}
+
+.guide-hero-feature-default--on {
+  background: var(--chip-active-bg);
+  color: var(--chip-active-fg);
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.guide-hero-feature-default:hover,
+.guide-hero-feature-default:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  border-color: var(--border-focus);
+}
+
+.guide-hero-feature-default:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
 }
 
 .guide-hero-feature-default code {
-  color: var(--pill-purple-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 800;
+  color: inherit;
 }
 
 .guide-hero-summary {

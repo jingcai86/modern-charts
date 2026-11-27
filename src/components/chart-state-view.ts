@@ -39,10 +39,27 @@ function getChartStateStyleSheet(): CSSStyleSheet | null {
         z-index: 15;
         display: block;
         box-sizing: border-box;
+        opacity: 1;
+        translate: 0 0;
+        transition:
+          display var(--mc-state-transition-duration, 220ms),
+          opacity var(--mc-state-transition-duration, 220ms) cubic-bezier(0.22, 1, 0.36, 1),
+          translate var(--mc-state-transition-duration, 220ms) cubic-bezier(0.22, 1, 0.36, 1);
+        transition-behavior: allow-discrete;
+      }
+
+      @starting-style {
+        :host {
+          opacity: 0;
+          translate: 0 6px;
+        }
       }
 
       :host([hidden]) {
-        display: none !important;
+        display: none;
+        opacity: 0;
+        translate: 0 6px;
+        pointer-events: none;
       }
 
       .mc-state-overlay {
@@ -62,11 +79,35 @@ function getChartStateStyleSheet(): CSSStyleSheet | null {
           --mc-state-font,
           500 13px/1.4 var(--_mc-font, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)
         );
+        transition:
+          background-color var(--mc-state-transition-duration, 220ms) ease,
+          color var(--mc-state-transition-duration, 220ms) ease;
+      }
+
+      .mc-state-slot,
+      .mc-state-default {
+        opacity: 1;
+        translate: 0 0;
+        transition:
+          display var(--mc-state-transition-duration, 200ms),
+          opacity var(--mc-state-transition-duration, 200ms) cubic-bezier(0.22, 1, 0.36, 1),
+          translate var(--mc-state-transition-duration, 200ms) cubic-bezier(0.22, 1, 0.36, 1);
+        transition-behavior: allow-discrete;
+      }
+
+      @starting-style {
+        .mc-state-slot,
+        .mc-state-default {
+          opacity: 0;
+          translate: 0 4px;
+        }
       }
 
       .mc-state-slot[hidden],
       .mc-state-default[hidden] {
-        display: none !important;
+        display: none;
+        opacity: 0;
+        translate: 0 4px;
       }
 
       .mc-state-default {
@@ -75,6 +116,18 @@ function getChartStateStyleSheet(): CSSStyleSheet | null {
         align-items: center;
         justify-content: center;
         gap: 10px;
+      }
+
+      .mc-state-overlay[data-state="loading"],
+      .mc-state-default[data-state="loading"] .mc-state-indicator,
+      .mc-state-default[data-state="loading"] .mc-state-message {
+        animation: mc-state-enter-loading var(--mc-state-transition-duration, 220ms) cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .mc-state-overlay[data-state="empty"],
+      .mc-state-default[data-state="empty"] .mc-state-indicator,
+      .mc-state-default[data-state="empty"] .mc-state-message {
+        animation: mc-state-enter-empty var(--mc-state-transition-duration, 220ms) cubic-bezier(0.22, 1, 0.36, 1);
       }
 
       .mc-state-indicator {
@@ -117,6 +170,28 @@ function getChartStateStyleSheet(): CSSStyleSheet | null {
         max-width: 280px;
       }
 
+      @keyframes mc-state-enter-loading {
+        from {
+          opacity: 0;
+          translate: 0 4px;
+        }
+        to {
+          opacity: 1;
+          translate: 0 0;
+        }
+      }
+
+      @keyframes mc-state-enter-empty {
+        from {
+          opacity: 0;
+          translate: 0 4px;
+        }
+        to {
+          opacity: 1;
+          translate: 0 0;
+        }
+      }
+
       @keyframes mc-state-spin {
         to {
           transform: rotate(360deg);
@@ -124,6 +199,36 @@ function getChartStateStyleSheet(): CSSStyleSheet | null {
       }
 
       @media (prefers-reduced-motion: reduce) {
+        :host,
+        .mc-state-slot,
+        .mc-state-default {
+          translate: none;
+          transition-duration: 0.1s;
+        }
+
+        @starting-style {
+          :host,
+          .mc-state-slot,
+          .mc-state-default {
+            translate: none;
+          }
+        }
+
+        :host([hidden]),
+        .mc-state-slot[hidden],
+        .mc-state-default[hidden] {
+          translate: none;
+        }
+
+        .mc-state-overlay[data-state="loading"],
+        .mc-state-overlay[data-state="empty"],
+        .mc-state-default[data-state="loading"] .mc-state-indicator,
+        .mc-state-default[data-state="loading"] .mc-state-message,
+        .mc-state-default[data-state="empty"] .mc-state-indicator,
+        .mc-state-default[data-state="empty"] .mc-state-message {
+          animation: none;
+        }
+
         .mc-state-indicator--loading {
           animation: none;
           border-style: dashed;
@@ -166,22 +271,56 @@ export function createChartStateView(
   }
   shadow.append(getChartStateTemplate().content.cloneNode(true));
 
+  const overlay = shadow.querySelector<HTMLDivElement>('.mc-state-overlay')!;
   const loadingSlot = shadow.querySelector<HTMLSlotElement>('slot[name="loading"]')!;
   const emptySlot = shadow.querySelector<HTMLSlotElement>('slot[name="empty"]')!;
   const defaultContent = shadow.querySelector<HTMLDivElement>('.mc-state-default')!;
   const indicator = shadow.querySelector<HTMLSpanElement>('.mc-state-indicator')!;
   const message = shadow.querySelector<HTMLSpanElement>('.mc-state-message')!;
   let renderedMode: ChartDisplayState | null = null;
+  let lastVisibleKey: string | null = null;
+
+  const animateStateEntrance = (target: HTMLElement, fromHidden: boolean) => {
+    if (typeof target.animate !== 'function') return;
+    const reduced =
+      host.ownerDocument.defaultView?.matchMedia?.(
+        '(prefers-reduced-motion: reduce)'
+      ).matches ?? false;
+    if (reduced) return;
+    if (fromHidden && typeof overlay.animate === 'function') {
+      overlay.animate(
+        [
+          { opacity: 0, transform: 'translateY(6px)' },
+          { opacity: 1, transform: 'translateY(0)' }
+        ],
+        { duration: 220, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+      );
+    }
+    target.animate(
+      [
+        { opacity: 0, transform: 'translateY(4px)' },
+        { opacity: 1, transform: 'translateY(0)' }
+      ],
+      { duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+    );
+  };
 
   const sync = () => {
     const mode = host.state;
-    if (!mode) {
-      loadingSlot.hidden = true;
-      emptySlot.hidden = true;
-      defaultContent.hidden = true;
+    if (!mode || host.hidden) {
+      lastVisibleKey = null;
+      if (!mode) {
+        delete overlay.dataset.state;
+        delete defaultContent.dataset.state;
+        loadingSlot.hidden = true;
+        emptySlot.hidden = true;
+        defaultContent.hidden = true;
+      }
       return;
     }
 
+    overlay.dataset.state = mode;
+    defaultContent.dataset.state = mode;
     const activeSlot = mode === 'loading' ? loadingSlot : emptySlot;
     const inactiveSlot = mode === 'loading' ? emptySlot : loadingSlot;
     const hasCustom = hasAssignedSlotContent(activeSlot);
@@ -200,6 +339,13 @@ export function createChartStateView(
       if (message.textContent !== nextText) {
         message.textContent = nextText;
       }
+    }
+
+    const nextVisibleKey = `${mode}:${hasCustom ? 'slot' : 'default'}`;
+    if (lastVisibleKey !== nextVisibleKey) {
+      const fromHidden = lastVisibleKey === null;
+      lastVisibleKey = nextVisibleKey;
+      animateStateEntrance(hasCustom ? activeSlot : defaultContent, fromHidden);
     }
   };
 

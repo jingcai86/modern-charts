@@ -53,10 +53,13 @@ export function createCodeEditorPanel(opts: {
           `Live-editable Web Component HTML markup. Edit attributes on <code>&lt;${escapeHtml(entry.tagName)}&gt;</code> or any field (including <code>data</code>) inside <code>chart.config</code> — changes reflect on the live chart immediately.`
         )}
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <button type="button" id="btn-copy-ai-context" title="Copy LLM-ready chart context specification">
-          🤖 Copy AI Context
-        </button>
+      <div class="code-editor-actions">
+        <span class="guide-copy-wrap">
+          <button type="button" id="btn-copy-ai-context" title="Copy LLM-ready chart context specification">
+            🤖 Copy AI Context
+          </button>
+          <span class="guide-copy-status" id="copy-ai-context-status" role="status"></span>
+        </span>
         <button type="button" id="btn-editor-randomize-data" class="btn-primary">
           🎲 Randomize Data
         </button>
@@ -157,6 +160,10 @@ export function createCodeEditorPanel(opts: {
   const copyAiContextBtn = editorCard.querySelector(
     '#btn-copy-ai-context'
   ) as HTMLButtonElement | null;
+  const copyAiContextStatus = editorCard.querySelector(
+    '#copy-ai-context-status'
+  ) as HTMLElement | null;
+  let copyAiContextTimer: ReturnType<typeof setTimeout> | null = null;
   copyAiContextBtn?.addEventListener('click', async () => {
     try {
       const res = await fetch(`./charts/${entry.id}.md`);
@@ -166,10 +173,16 @@ export function createCodeEditorPanel(opts: {
             entry.defaultLayers
           )}`;
       await navigator.clipboard.writeText(text);
-      const prev = copyAiContextBtn.textContent;
-      copyAiContextBtn.textContent = '✓ Copied AI Context';
-      setTimeout(() => {
-        copyAiContextBtn.textContent = prev || '🤖 Copy AI Context';
+      if (copyAiContextTimer) clearTimeout(copyAiContextTimer);
+      copyAiContextBtn.setAttribute('data-copied', '');
+      if (copyAiContextStatus) {
+        copyAiContextStatus.textContent = '✓ Copied AI Context';
+      }
+      copyAiContextTimer = setTimeout(() => {
+        copyAiContextBtn.removeAttribute('data-copied');
+        if (copyAiContextStatus) {
+          copyAiContextStatus.textContent = '';
+        }
       }, 1800);
     } catch {
       window.open(`./charts/${entry.id}.md`, '_blank', 'noopener,noreferrer');

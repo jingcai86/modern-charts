@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../src/index';
 import type { MCBaseChart } from '../src/index';
 import { GUIDES_CATALOG } from '../apps/studio/guides/types';
+import { createGuideNavigationGroups } from '../apps/studio/guides/navigation';
 import { disposeOverviewPage, renderOverviewPage } from '../apps/studio/pages/overview';
 
 afterEach(() => {
@@ -31,7 +32,7 @@ describe('Studio overview navigation', () => {
     expect(window.location.hash).toBe('#/chart/line');
   });
 
-  it('groups every guide and resource under a labeled topic heading', () => {
+  it('groups every guide and resource under a labeled topic heading', async () => {
     localStorage.setItem('modern-charts-studio-home-tab', 'guides');
     const root = document.createElement('main');
     document.body.append(root);
@@ -48,8 +49,17 @@ describe('Studio overview navigation', () => {
     expect(groups.filter((group) => group.open)).toEqual(groups.slice(0, 5));
     groups[0].querySelector('summary')!.click();
     expect(groups.filter((group) => group.open)).toEqual(groups.slice(1, 5));
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
 
-    const urls = groups.flatMap((group) => {
+    // Re-rendering the overview page restores the user's opened/closed guide groups from localStorage
+    renderOverviewPage(root);
+    const restoredPanel = root.querySelector('[role="tabpanel"][aria-labelledby="overview-tab-guides"]')!;
+    const restoredGroups = Array.from(
+      restoredPanel.querySelectorAll<HTMLDetailsElement>('details.overview-guide-group')
+    );
+    expect(restoredGroups.filter((group) => group.open)).toEqual(restoredGroups.slice(1, 5));
+
+    const urls = restoredGroups.flatMap((group) => {
       const heading = group.querySelector('summary h2.overview-guide-group-title')!;
       expect(heading.id).toBeTruthy();
       expect(heading.textContent?.trim()).toBeTruthy();
@@ -61,23 +71,36 @@ describe('Studio overview navigation', () => {
       }
       return links.map((link) => link.getAttribute('href'));
     });
-    expect(panel.querySelectorAll('a.overview-guide-card')).toHaveLength(urls.length);
+    expect(restoredPanel.querySelectorAll('a.overview-guide-card')).toHaveLength(urls.length);
     expect(urls.sort()).toEqual([...GUIDES_CATALOG.map(({ id }) => `#/guide/${id}`), './llms.txt'].sort());
 
-    const topicFor = (id: string) => panel.querySelector(`a[href="#/guide/${id}"]`)?.closest('.overview-guide-group');
+    const topicFor = (id: string) => restoredPanel.querySelector(`a[href="#/guide/${id}"]`)?.closest('.overview-guide-group');
     const optionalFeatures = topicFor('bootstrapping');
     expect(optionalFeatures).toBeInstanceOf(HTMLElement);
     expect(topicFor('view-zoom')).toBe(optionalFeatures);
     expect(topicFor('csv-export')).toBe(optionalFeatures);
+
+    const dataAndInteraction = topicFor('dynamic-updates');
+    expect(dataAndInteraction).toBeInstanceOf(HTMLElement);
+    expect(topicFor('chart-state')).toBe(dataAndInteraction);
 
     const colors = topicFor('themes');
     expect(colors).toBeInstanceOf(HTMLElement);
     expect(topicFor('patterns')).toBe(colors);
     expect(colors).not.toBe(optionalFeatures);
 
-    const aiContext = panel.querySelector<HTMLAnchorElement>('a[href="./llms.txt"]')!;
+    const aiContext = restoredPanel.querySelector<HTMLAnchorElement>('a[href="./llms.txt"]')!;
     expect(aiContext.target).toBe('_blank');
     expect(aiContext.rel.split(' ')).toEqual(expect.arrayContaining(['noopener', 'noreferrer']));
+
+    const navHost = document.createElement('ul');
+    navHost.appendChild(createGuideNavigationGroups());
+    document.body.appendChild(navHost);
+    const navDetails = Array.from(navHost.querySelectorAll<HTMLDetailsElement>('details.nav-dropdown-group'));
+    expect(navDetails.filter((d) => d.open)).toEqual(navDetails.slice(1, 5));
+    navDetails[0].querySelector('summary')!.click();
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(navDetails[0].open).toBe(true);
   });
 
   it('mounts previews only as their cards approach the viewport', async () => {

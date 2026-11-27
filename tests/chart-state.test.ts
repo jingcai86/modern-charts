@@ -443,6 +443,8 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     expect(cssText).toContain('--mc-state-font');
     expect(cssText).toContain('--mc-state-spinner-color');
     expect(cssText).toContain('--mc-state-spinner-size');
+    expect(cssText).toContain('transition-behavior: allow-discrete');
+    expect(cssText).toContain('mc-state-enter');
     expect(cssText).toContain('prefers-reduced-motion');
     expect(cssText).toContain('animation: none');
   });
@@ -457,18 +459,25 @@ describe('Shared minimal <mc-chart-state> for loading & empty states (Issue #50)
     expect(stateEl.shadowRoot!.children).toHaveLength(0);
 
     stateEl.hidden = false;
-    const message = () => stateEl.shadowRoot!.querySelector('[part="state-message"]')?.textContent;
-    await vi.waitFor(() => expect(message()).toBe('Fetching data'));
+    const animateSpy = vi.fn();
+    (HTMLElement.prototype as any).animate = animateSpy;
+    try {
+      const message = () => stateEl.shadowRoot!.querySelector('[part="state-message"]')?.textContent;
+      await vi.waitFor(() => expect(message()).toBe('Fetching data'));
 
-    stateEl.loadingText = undefined;
-    expect(message()).toBe('Loading…');
-    stateEl.state = 'empty';
-    expect(message()).toBe('Nothing found');
-    stateEl.emptyText = undefined;
-    expect(message()).toBe('No data');
+      stateEl.loadingText = undefined;
+      expect(message()).toBe('Loading…');
+      stateEl.state = 'empty';
+      expect(message()).toBe('Nothing found');
+      expect(animateSpy).toHaveBeenCalled();
+      stateEl.emptyText = undefined;
+      expect(message()).toBe('No data');
 
-    stateEl.state = null;
-    expect(stateEl.state).toBeNull();
-    expect(stateEl.shadowRoot!.querySelector('.mc-state-default')?.hasAttribute('hidden')).toBe(true);
+      stateEl.state = null;
+      expect(stateEl.state).toBeNull();
+      expect(stateEl.shadowRoot!.querySelector('.mc-state-default')?.hasAttribute('hidden')).toBe(true);
+    } finally {
+      delete (HTMLElement.prototype as any).animate;
+    }
   });
 });

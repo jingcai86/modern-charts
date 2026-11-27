@@ -2115,6 +2115,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       );
     }
 
+    const isRecoveringFromState =
+      this.#currentChartState === 'loading' ||
+      this.#currentChartState === 'empty';
     this.#syncStateOverlay('ready', theme);
 
     const { defs: fillDefs, fill: fillRules } =
@@ -2303,13 +2306,18 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       const isNewLayer = !this._renderedLayerSet.has(layerDef.name);
       const retain = layerDef.builtIn && retainedLayers.includes(layerDef.name)
         && !this.#retainedItemGroups?.has(layerDef.name);
-      const retainedGroup = retain && !isNewLayer ? previousItemGroups?.get(layerDef.name) : undefined;
+      const retainedGroup =
+        retain && !isNewLayer && !isRecoveringFromState
+          ? previousItemGroups?.get(layerDef.name)
+          : undefined;
       const layerG = retainedGroup ?? document.createElementNS(SVG_NS, 'g');
       if (retain) (this.#retainedItemGroups ??= new Map()).set(layerDef.name, layerG);
       layerG.setAttribute(
         'class',
         `mc-layer mc-layer--${layerDef.name}${
-          isNewLayer && animationConfig.enabled ? ' mc-layer--entering' : ''
+          (isNewLayer || isRecoveringFromState) && animationConfig.enabled
+            ? ' mc-layer--entering'
+            : ''
         }`
       );
       layerG.setAttribute('data-layer-name', layerDef.name);

@@ -250,6 +250,22 @@
 }
 
 /* Live Config Editor Panel */
+.code-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#btn-copy-ai-context {
+  white-space: nowrap;
+}
+
+#btn-copy-ai-context[data-copied] {
+  border-color: rgba(16, 185, 129, 0.55);
+  color: var(--chip-active-fg);
+}
+
 .editor-tabs {
   display: flex;
   gap: 6px;
