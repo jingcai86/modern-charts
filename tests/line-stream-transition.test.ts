@@ -298,11 +298,12 @@ describe('Smooth Streaming & Data-Update Line Transitions (Issue #68)', () => {
     expect(barRender).toHaveBeenCalledTimes(2);
     expect(pieRender).not.toHaveBeenCalled();
 
-    click('btn-dyn-pie-add');
+    click('dyn-tab-pie');
+    click('btn-dyn-add');
     expect(pie.data).toHaveLength(5);
     expect(barRender).toHaveBeenCalledTimes(2);
     expect(pieRender).toHaveBeenCalledTimes(1);
-    click('btn-dyn-pie-remove');
+    click('btn-dyn-remove');
     expect(pie.data).toHaveLength(4);
     expect(barRender).toHaveBeenCalledTimes(2);
     expect(pieRender).toHaveBeenCalledTimes(2);
@@ -310,17 +311,19 @@ describe('Smooth Streaming & Data-Update Line Transitions (Issue #68)', () => {
     expect(barConfig).not.toHaveBeenCalled();
     expect(pieConfig).not.toHaveBeenCalled();
     expect(animate).not.toHaveBeenCalled();
-    expect(parseConfigObjectLiteral(editor.value)).toEqual({ barData: bar.data, pieData: pie.data });
+    expect(parseConfigObjectLiteral(editor.value)).toEqual({ data: pie.data });
 
     click('btn-dyn-empty');
-    expect(bar.data).toBeNull();
     expect(pie.data).toBeNull();
+    click('dyn-tab-bar');
+    click('btn-dyn-empty');
+    expect(bar.data).toBeNull();
     pieRender.mockClear();
     click('btn-dyn-add');
     expect(bar.data).toHaveLength(5);
     expect(pie.data).toBeNull();
     expect(pieRender).not.toHaveBeenCalled();
-    expect(parseConfigObjectLiteral(editor.value).pieData).toBeNull();
+    expect(parseConfigObjectLiteral(editor.value)).toEqual({ data: bar.data });
   });
 
   it('skips unchanged datasets and does no render when the last item cannot be removed', () => {
@@ -330,13 +333,17 @@ describe('Smooth Streaming & Data-Update Line Transitions (Issue #68)', () => {
     const editor = root.querySelector<HTMLTextAreaElement>('#guide-dyn-ex2-code textarea')!;
     const pieData = pie.data;
     const barData = bar.data.slice(0, 2);
-    editor.value = formatConfigAssignment({ barData, pieData }, 'const datasets =');
+    editor.value = formatConfigAssignment({ data: barData });
     editor.dispatchEvent(new Event('input'));
 
     expect(bar.data).toEqual(barData);
     expect(barRender).toHaveBeenCalledTimes(1);
     expect(pie.data).toBe(pieData);
     expect(pieRender).not.toHaveBeenCalled();
+
+    // Dispatching input again with unchanged data skips redundant render
+    editor.dispatchEvent(new Event('input'));
+    expect(barRender).toHaveBeenCalledTimes(1);
 
     root.querySelector<HTMLButtonElement>('#btn-dyn-remove')!.click();
     expect(bar.data).toHaveLength(2);

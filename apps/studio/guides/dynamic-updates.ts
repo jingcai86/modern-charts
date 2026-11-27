@@ -974,8 +974,11 @@ export function renderDynamicUpdatesGuide(
     hint: 'Edit data items or set data: null / [] to preview empty state transitions on the active chart tab.',
     onConfigChange: ({ data }) => {
       const state = getActiveState();
+      const previous = state.chart.data;
+      if (data === undefined || data === previous) return;
+      if (JSON.stringify(data) === JSON.stringify(previous)) return;
       state.chart.data = data;
-      if (data !== null && data !== undefined) {
+      if (data !== null) {
         state.savedData = data;
       }
       syncActionButtons();
@@ -1021,9 +1024,6 @@ export function renderDynamicUpdatesGuide(
     }
     const state = getActiveState();
     state.btn.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-    if (typeof state.chart.render === 'function') {
-      state.chart.render();
-    }
     syncActionButtons();
     editor2.syncConfig(
       { data: state.chart.data },
