@@ -440,19 +440,19 @@ describe('Customizable CSV export across all 10 chart types (Issue #125)', () =>
     expect(downloadCsv('a,b\n1,2', 'test.csv')).toBe(true);
   });
 
-  it('renders Export CSV action button in Studio Chart Detail page for all 10 charts', () => {
+  it('omits the Export CSV action button in Studio Chart Detail page for all 10 charts while logging mc-export events', () => {
     for (const entry of CHART_CATALOG) {
       const root = document.createElement('div');
       document.body.appendChild(root);
-      renderChartDetailPage(root, entry);
+      const chart = renderChartDetailPage(root, entry);
 
-      const studioExportBtn = root.querySelector<HTMLButtonElement>(
-        '#btn-detail-export-csv'
-      )!;
-      expect(studioExportBtn, entry.id).not.toBeNull();
+      expect(
+        root.querySelector('#btn-detail-export-csv'),
+        entry.id
+      ).toBeNull();
 
       const createUrlSpy = vi.spyOn(URL, 'createObjectURL');
-      studioExportBtn.click();
+      chart.exportCsv();
       expect(createUrlSpy, entry.id).toHaveBeenCalled();
       const readout = root.querySelector('#detail-aria-readout')!;
       expect(readout.textContent, entry.id).toContain('mc-export → filename=');

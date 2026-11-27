@@ -61,13 +61,6 @@ export function renderChartDetailPage(
         )}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button
-          type="button"
-          id="btn-detail-export-csv"
-          data-action="export-csv"
-        >
-          ⬇ Export CSV
-        </button>
         <button type="button" id="btn-detail-ai-stream" class="btn-primary">
           ▶ Stream AI Layers
         </button>
@@ -100,13 +93,18 @@ export function renderChartDetailPage(
   inspectorCard.className = 'panel-card event-inspector-card';
   inspectorCard.innerHTML = `
     <div class="panel-header">
-      <div class="panel-title-group">
-        <h2 class="panel-title">Live Unified Event Inspector</h2>
-        ${renderSectionInfoTooltip(
-          `detail-events-info-${entry.id}`,
-          'More about Live Unified Event Inspector',
-          `Click, hover, or Tab-focus anywhere on <code>&lt;${escapeHtml(entry.tagName)}&gt;</code> — items, axes, legends, titles, or empty canvas.`
-        )}
+      <div>
+        <div class="panel-title-group">
+          <h2 class="panel-title">Live Unified Event Inspector</h2>
+          ${renderSectionInfoTooltip(
+            `detail-events-info-${entry.id}`,
+            'More about Live Unified Event Inspector',
+            `Click, hover, or Tab-focus anywhere on <code>&lt;${escapeHtml(entry.tagName)}&gt;</code> — items, axes, legends, titles, or empty canvas.`
+          )}
+        </div>
+        <p class="panel-subtitle" style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);">
+          Only 3 event types are registered here: <code>click</code>, <code>mouseenter</code>, and <code>focus</code>.
+        </p>
       </div>
       <button type="button" id="btn-detail-clear-events">Clear</button>
     </div>
@@ -203,10 +201,6 @@ export function renderChartDetailPage(
     }
     return `${header} | data: ${JSON.stringify(preview)}`;
   };
-
-  const exportCsvBtn = chartCard.querySelector<HTMLButtonElement>(
-    '#btn-detail-export-csv'
-  );
 
   let lastClickSummary = '';
   function wireChartEvents(chart: MCBaseChart<any>): void {
@@ -343,10 +337,6 @@ export function renderChartDetailPage(
       renderLayerChips();
     }
   }
-
-  exportCsvBtn?.addEventListener('click', () => {
-    chartEl.exportCsv();
-  });
 
   // Action Buttons: Stream AI Layers & Replay Animation
   chartCard
