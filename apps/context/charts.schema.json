@@ -158,7 +158,6 @@
         "layout": { "enum": ["vertical", "horizontal"], "default": "vertical" },
         "borderRadius": { "type": "number", "default": 5 },
         "enableLabels": { "type": "boolean", "default": true },
-        "itemTransitions": { "type": "boolean", "default": false },
         "outerLabels": {
           "type": "boolean | BarOuterLabelConfig",
           "default": {
@@ -280,7 +279,6 @@
         "innerRadius": { "type": "number", "min": 0, "max": 0.9, "default": 0.52 },
         "padAngle": { "type": "number", "default": 1.15 },
         "cornerRadius": { "type": "number", "default": 5 },
-        "itemTransitions": { "type": "boolean", "default": false },
         "centerLabel": { "type": "string" }
       },
       "minimalConfig": {

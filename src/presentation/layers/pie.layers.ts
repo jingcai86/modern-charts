@@ -1,24 +1,57 @@
+import { joinChartItems } from '../../core/chart-item-join';
 import { physicalTextAnchor } from '../../core/i18n';
 import { formatGroupedNumber } from '../../core/format';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type { ChartRenderContext, PieDatum } from '../../core/types';
-import type { PieChartModel } from '../../models/pie.model';
+import { pieArcPath, type PieArcGeometry, type PieChartModel } from '../../models/pie.model';
 import { renderPieArcItem } from '../items/arc.item';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const drawnArcs = new WeakMap<SVGGElement, PieArcGeometry>();
 
 export function renderPieArcsLayer(
   model: PieChartModel,
   ctx: ChartRenderContext<PieDatum[]>
 ): void {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('transform', `translate(${model.cx}, ${model.cy})`);
+  const center = `translate(${model.cx}, ${model.cy})`;
+  joinChartItems(
+    ctx.layerGroup,
+    model.arcs,
+    (slice) => slice.data.id,
+    ctx.animationConfig,
+    (group, slice, { initial, entered, structureChanged, motion }) => {
+      group.setAttribute('transform', center);
+      const path = renderPieArcItem(slice, ctx, initial);
+      group.replaceChildren(path);
 
-  model.arcs.forEach((arcModel) => {
-    g.appendChild(renderPieArcItem(arcModel, ctx));
-  });
+      const target = slice.geometry;
+      const from = entered
+        ? { ...target, endAngle: target.startAngle, padAngle: 0 }
+        : drawnArcs.get(group);
+      if (initial || !motion || !from || (!entered && structureChanged) || pieArcPath(from) === slice.pathD) {
+        drawnArcs.set(group, target);
+        return;
+      }
 
-  ctx.layerGroup.appendChild(g);
+      const geometry = { ...from };
+      const fields = Object.keys(target) as Array<keyof PieArcGeometry>;
+      const transition = path.style.transition;
+      path.style.transition = '';
+      path.setAttribute('data-animated', 'true');
+      path.setAttribute('data-item-transition', entered ? 'enter' : 'update');
+      drawnArcs.set(group, geometry);
+      motion((progress) => {
+        for (const field of fields) geometry[field] = from[field] + (target[field] - from[field]) * progress;
+        path.setAttribute('d', pieArcPath(geometry));
+      }, () => {
+        drawnArcs.set(group, target);
+        path.style.transition = transition;
+        path.removeAttribute('data-item-transition');
+        const hovered = ctx.isInteractive !== false && path.matches(':hover');
+        path.setAttribute('d', hovered ? slice.hoverPathD : slice.pathD);
+      });
+    }
+  );
 }
 
 export function renderPieArcLabelsLayer(

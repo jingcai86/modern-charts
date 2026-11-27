@@ -1,4 +1,4 @@
-import { arc, pie, type PieArcDatum } from 'd3';
+import { arc, pie, type DefaultArcObject, type PieArcDatum } from 'd3';
 import { createOrdinalColorScale } from '../core/theme';
 import type {
   ChartRenderContext,
@@ -6,6 +6,17 @@ import type {
   PieRoseType,
   SunburstSortOrder
 } from '../core/types';
+
+export interface PieArcGeometry extends DefaultArcObject {
+  cornerRadius: number;
+  padAngle: number;
+}
+
+const sliceShape = arc<PieArcGeometry>().cornerRadius((geometry) => geometry.cornerRadius);
+
+export function pieArcPath(geometry: PieArcGeometry): string {
+  return sliceShape(geometry) ?? '';
+}
 
 export interface ComputedPieArcModel {
   index: number;
@@ -17,6 +28,7 @@ export interface ComputedPieArcModel {
   endAngle: number;
   midAngle: number;
   sliceOuterRadius: number;
+  geometry: PieArcGeometry;
   color: string;
   pathD: string;
   hoverPathD: string;
@@ -193,15 +205,14 @@ export function computePieChartModel(
       );
     }
 
-    const sliceArcGen = arc<PieArcDatum<PieDatum>>()
-      .innerRadius(innerRadius)
-      .outerRadius(sliceOuterRadius)
-      .cornerRadius(input.cornerRadius);
-
-    const sliceHoverArcGen = arc<PieArcDatum<PieDatum>>()
-      .innerRadius(innerRadius)
-      .outerRadius(sliceOuterRadius + activeOuterRadiusOffset)
-      .cornerRadius(input.cornerRadius);
+    const geometry: PieArcGeometry = {
+      startAngle: a.startAngle,
+      endAngle: a.endAngle,
+      padAngle: a.padAngle,
+      innerRadius,
+      outerRadius: sliceOuterRadius,
+      cornerRadius: input.cornerRadius
+    };
 
     const linkStartArc = arc<PieArcDatum<PieDatum>>()
       .innerRadius(sliceOuterRadius)
@@ -233,10 +244,11 @@ export function computePieChartModel(
       endAngle: a.endAngle,
       midAngle,
       sliceOuterRadius,
+      geometry,
       color: a.data.color || ctx.colorScale(a.data.id),
-      pathD: sliceArcGen(a) || '',
-      hoverPathD: sliceHoverArcGen(a) || '',
-      centroid: sliceArcGen.centroid(a),
+      pathD: pieArcPath(geometry),
+      hoverPathD: pieArcPath({ ...geometry, outerRadius: sliceOuterRadius + activeOuterRadiusOffset }),
+      centroid: sliceShape.centroid(geometry),
       linkPoints: [p0, p1, p2],
       isRightSide
     };

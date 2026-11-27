@@ -1,3 +1,4 @@
+import { joinChartItems } from '../../core/chart-item-join';
 import { physicalTextAnchor } from '../../core/i18n';
 import { renderLegendLayer } from '../../core/scale-manager';
 import type {
@@ -5,8 +6,35 @@ import type {
   BarOuterLabelDatum,
   ChartRenderContext
 } from '../../core/types';
-import type { BarChartModel } from '../../models/bar.model';
+import type { BarChartModel, ComputedBarItemModel } from '../../models/bar.model';
 import { renderBarItem } from '../items/bar.item';
+
+type BarGeometry = Pick<ComputedBarItemModel, 'x' | 'y' | 'width' | 'height'>;
+
+interface BarMotionState {
+  geometry: BarGeometry;
+  value: number;
+  moving: boolean;
+}
+
+const barMotion = new WeakMap<SVGGElement, BarMotionState>();
+
+function interpolateBarGeometry(from: BarGeometry, to: BarGeometry, progress: number): BarGeometry {
+  return {
+    x: from.x + (to.x - from.x) * progress,
+    y: from.y + (to.y - from.y) * progress,
+    width: Math.max(0, from.width + (to.width - from.width) * progress),
+    height: Math.max(0, from.height + (to.height - from.height) * progress)
+  };
+}
+
+function barTransform(frame: BarGeometry, target: BarGeometry): string {
+  const scaleX = frame.width / target.width;
+  const scaleY = frame.height / target.height;
+  const translateX = frame.x - target.x * scaleX;
+  const translateY = frame.y - target.y * scaleY;
+  return `translate(${translateX},${translateY}) scale(${scaleX},${scaleY})`;
+}
 
 /**
  * Dumb Presentation Layer for Bar Items (`bars` layer).
@@ -15,10 +43,46 @@ export function renderBarsLayer(
   model: BarChartModel,
   ctx: ChartRenderContext<BarDatum[]>
 ): void {
-  model.bars.forEach((barModel) => {
-    const rect = renderBarItem(barModel, ctx);
-    ctx.layerGroup.appendChild(rect);
-  });
+  joinChartItems(
+    ctx.layerGroup,
+    model.bars,
+    (bar) => JSON.stringify([bar.indexValue, bar.key]),
+    ctx.animationConfig,
+    (group, bar, { initial, entered, structureChanged, motion }) => {
+      const animationIndex = initial ? bar.index : entered ? 0 : false;
+      const mark = renderBarItem(bar, ctx, animationIndex);
+      group.replaceChildren(mark);
+      group.removeAttribute('transform');
+
+      const previous = barMotion.get(group);
+      const target = { x: bar.x, y: bar.y, width: bar.width, height: bar.height };
+      const state = { geometry: target, value: bar.value, moving: false };
+      barMotion.set(group, state);
+      if (!motion || !previous || structureChanged || (previous.value === bar.value && !previous.moving)) return;
+
+      const from = previous.geometry;
+      const canTransform = target.width > 0 && target.height > 0;
+      if ((!canTransform && mark.localName !== 'rect') ||
+        !Object.values(from).every(Number.isFinite) || !Object.values(target).every(Number.isFinite) ||
+        (from.x === target.x && from.y === target.y && from.width === target.width && from.height === target.height)
+      ) return;
+
+      state.moving = true;
+      motion((progress) => {
+        state.geometry = progress === 1 ? target : interpolateBarGeometry(from, target, progress);
+        if (canTransform) {
+          // Move threshold segments and their clips together.
+          group.setAttribute('transform', barTransform(state.geometry, target));
+        } else {
+          for (const [attribute, value] of Object.entries(state.geometry)) mark.setAttribute(attribute, String(value));
+        }
+      }, () => {
+        state.geometry = target;
+        state.moving = false;
+        group.removeAttribute('transform');
+      });
+    }
+  );
 }
 
 /**

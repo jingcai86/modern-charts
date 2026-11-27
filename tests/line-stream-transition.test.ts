@@ -281,8 +281,6 @@ describe('Smooth Streaming & Data-Update Line Transitions (Issue #68)', () => {
     });
     const animate = vi.spyOn(Element.prototype, 'animate');
     const { root, charts: [, bar, pie] } = mountDynamicUpdatesGuide();
-    expect(bar.config.itemTransitions).toBe(true);
-    expect(pie.config.itemTransitions).toBe(true);
     const barRender = vi.spyOn(bar, 'render');
     const pieRender = vi.spyOn(pie, 'render');
     const barConfig = vi.spyOn(bar, 'setConfig');

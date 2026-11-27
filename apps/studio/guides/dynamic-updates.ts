@@ -259,8 +259,8 @@ export function renderDynamicUpdatesGuide(
       <div>
         <h2 class="panel-title">Example 2: Randomize, Add/Remove Points &amp; Empty State</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Set <code>itemTransitions: true</code> in a bar or pie chart’s config, then assign <code>chart.data</code>.
-          Each added or removed quarter or slice animates on its own.
+          Assign <code>chart.data</code> to update a dataset. Randomize Data animates value changes in both charts.
+          The add and remove controls update their own chart.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
@@ -313,7 +313,6 @@ export function renderDynamicUpdatesGuide(
   dynBar.setConfig({
     data: barRows,
     autoSize: true,
-    itemTransitions: true,
     motionConfig: 'stiff',
     themeMode,
     palette: getGlobalPalette(),
@@ -326,7 +325,6 @@ export function renderDynamicUpdatesGuide(
   dynPie.setConfig({
     data: pieRows,
     autoSize: true,
-    itemTransitions: true,
     motionConfig: 'stiff',
     themeMode,
     palette: 'material',

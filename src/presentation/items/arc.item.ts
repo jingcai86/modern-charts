@@ -19,7 +19,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  */
 export function renderPieArcItem(
   arc: ComputedPieArcModel,
-  ctx: ChartRenderContext<any>
+  ctx: ChartRenderContext<any>,
+  initial = true
 ): SVGPathElement {
   const path = document.createElementNS(SVG_NS, 'path');
   path.setAttribute('class', 'mc-pie-arc');
@@ -83,13 +84,8 @@ export function renderPieArcItem(
     }
   });
 
-  ctx.animateItem(path, {
-    type: 'arc-sweep',
-    itemKey: ctx.config.itemTransitions === true ? arc.data.id : undefined,
-    index: arc.index,
-    originX: 0,
-    originY: 0
-  });
+  if (initial) ctx.animateItem(path, { type: 'arc-sweep', index: arc.index });
+  else path.setAttribute('data-animated', 'false');
 
   const pieTotal =
     (ctx.state?.model as { total?: number } | undefined)?.total ?? undefined;
@@ -114,7 +110,7 @@ export function renderPieArcItem(
 
   if (isInteractive) {
     path.addEventListener('mouseenter', (e) => {
-      path.setAttribute('d', arc.hoverPathD);
+      if (!path.hasAttribute('data-item-transition')) path.setAttribute('d', arc.hoverPathD);
       path.style.filter = 'brightness(1.08)';
       ctx.showTooltip(
         {
@@ -133,7 +129,7 @@ export function renderPieArcItem(
       );
     });
     path.addEventListener('mouseleave', () => {
-      path.setAttribute('d', arc.pathD);
+      if (!path.hasAttribute('data-item-transition')) path.setAttribute('d', arc.pathD);
       path.style.filter = 'none';
       ctx.hideTooltip();
     });
