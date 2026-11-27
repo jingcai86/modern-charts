@@ -151,6 +151,7 @@ export const GUIDES_CATALOG: GuideMeta[] = [
   {
     id: 'csv-export',
     title: 'Customizable CSV Data Export',
+    featureDefault: false,
     shortLabel: 'CSV Export',
     icon: '📥',
     summary:
