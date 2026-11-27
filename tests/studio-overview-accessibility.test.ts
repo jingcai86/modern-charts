@@ -101,6 +101,19 @@ describe('Studio overview navigation', () => {
     navDetails[0].querySelector('summary')!.click();
     await new Promise<void>((resolve) => queueMicrotask(resolve));
     expect(navDetails[0].open).toBe(true);
+
+    // Real-browser flow: microtask runs BEFORE native <details> toggles .open, then toggle event fires after .open changes
+    const optionalFeaturesGroup = restoredGroups[4];
+    optionalFeaturesGroup.open = false;
+    optionalFeaturesGroup.dispatchEvent(new Event('toggle'));
+    expect(JSON.parse(localStorage.getItem('modern-charts-studio-guide-groups')!)['optional-features']).toBe(false);
+
+    // Simulate real browser click where click listener + microtask fire before default action sets .open = true
+    optionalFeaturesGroup.querySelector('summary')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    optionalFeaturesGroup.open = true;
+    optionalFeaturesGroup.dispatchEvent(new Event('toggle'));
+    expect(JSON.parse(localStorage.getItem('modern-charts-studio-guide-groups')!)['optional-features']).toBe(true);
   });
 
   it('mounts previews only as their cards approach the viewport', async () => {
