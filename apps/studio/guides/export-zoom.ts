@@ -22,7 +22,7 @@ import { createCodeBlock, createLiveConfigEditor } from './shared';
 function wireKeyboardToggle(btn: HTMLButtonElement): void {
   let spaceDown = false;
   btn.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (btn.disabled) return;
+    if (btn.disabled || e.isComposing || e.keyCode === 229) return;
     if (e.key === 'Enter') {
       e.preventDefault();
       btn.click();

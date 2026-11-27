@@ -80,6 +80,7 @@ export class ChartViewController {
     let spaceBtn: HTMLButtonElement | null = null;
     const onKey = (e: Event, up: boolean) => {
       const ke = e as KeyboardEvent;
+      if (ke.isComposing || ke.keyCode === 229) return;
       const isSpace = ke.key === ' ' || ke.key === 'Spacebar';
       if (!isSpace && (up || ke.key !== 'Enter')) return;
       const btn = (ke.target as HTMLElement | null)?.closest?.(

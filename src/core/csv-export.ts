@@ -64,11 +64,8 @@ export function normalizeCsvFilename(
   const trimmed = rawFilename?.trim();
   if (trimmed) return /\.csv$/i.test(trimmed) ? trimmed : `${trimmed}.csv`;
   const fallback = `${chartType || 'chart'}-chart`;
-  const slug = (title?.trim() || fallback)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return `${slug || fallback}.csv`;
+  const words = (title?.trim() || fallback).toLowerCase().match(/[a-z0-9]+/g);
+  return `${words ? words.join('-') : fallback}.csv`;
 }
 
 function readRowValue(row: Record<string, unknown>, key: string): unknown {
