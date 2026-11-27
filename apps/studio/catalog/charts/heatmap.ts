@@ -39,7 +39,7 @@ const colorLegendAttributes = ([
   colorLegendSelect(
     'position', 'position',
     [['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right']],
-    'top',
+    'bottom',
     'Choose the side of the chart where the legend appears.'
   ),
   colorLegendSelect(
@@ -182,7 +182,7 @@ export const HEATMAP_CHART_ENTRY: ChartCatalogEntry = {
     autoSize: true,
     title: 'CPU Load (%)',
     colorScheme: 'theme',
-    legend: { type: 'continuous' },
+    legend: { type: 'continuous', position: 'bottom', align: 'middle' },
     cellShape: 'rect',
     cellPadding: 0.1,
     sizeVariation: 0,

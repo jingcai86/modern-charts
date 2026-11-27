@@ -365,7 +365,7 @@ export function renderHeatmapColorLegend(
     : getHorizontalGeometry(ctx, minText, maxText, clearance);
 
   const legend = svgElement('g', {
-    class: `mc-legend mc-legend--${type} mc-legend--${cfg.position}`,
+    class: `mc-legend mc-heatmap-color-legend mc-legend--${type} mc-legend--${cfg.position}`,
     'data-legend-type': type, 'data-legend-position': cfg.position,
     'data-min': min, 'data-max': max,
     transform: `translate(${geometry.x}, ${geometry.y})`,
