@@ -29,6 +29,7 @@ import {
   MCAnimationLayer,
   MCAriaLayer,
   MCMarkerLayer,
+  registerModernCharts,
   type ChartEventPayload,
   type LegendItem,
   type TooltipPayload
@@ -687,6 +688,7 @@ describe('All 10 Chart Web Components render animated ARIA items & composable la
   });
 
   it('renders <mc-line-chart> with animated lines and ARIA points', () => {
+    void registerModernCharts({ features: { zoom: true } });
     const el = document.createElement('mc-line-chart') as MCLineChart;
     document.body.appendChild(el);
     el.config = {
@@ -2700,6 +2702,7 @@ describe('Lightweight Core Primitives & Native Pan/Zoom Controller', () => {
   });
 
   it('handles native zoom controls (+, −, Reset), initialZoom, and direction locking without d3-zoom', () => {
+    void registerModernCharts({ features: { zoom: true } });
     const bar = document.createElement('mc-bar-chart') as MCBarChart;
     document.body.appendChild(bar);
 

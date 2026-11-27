@@ -17,7 +17,7 @@ const loading = new Map<string, Promise<void>>();
 
 /** Share a pending chart import between its preview and playground. */
 export function loadChart(entry: ChartCatalogEntry): Promise<void> {
-  void configureChartFeatures({ features: { csvExport: true } });
+  void configureChartFeatures({ features: { zoom: true, csvExport: true } });
   if (customElements.get(entry.tagName)) return Promise.resolve();
   const pending = loading.get(entry.id);
   if (pending) return pending;
@@ -27,7 +27,7 @@ export function loadChart(entry: ChartCatalogEntry): Promise<void> {
 
   const result = Promise.all([
     importModule(),
-    configureChartFeatures({ features: { csvExport: true } })
+    configureChartFeatures({ features: { zoom: true, csvExport: true } })
   ]).then(() => {
     if (!customElements.get(entry.tagName)) {
       throw new Error(`Chart module did not register ${entry.tagName}`);

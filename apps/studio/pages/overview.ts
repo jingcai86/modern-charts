@@ -166,6 +166,14 @@ const GUIDE_PREVIEW_SVGS: Record<GuideId | 'ai-context', string> = {
       <rect x="90" y="18" width="38" height="60" rx="6" fill="url(#ov-pat-dots)"/>
       <rect x="146" y="34" width="38" height="44" rx="6" fill="url(#ov-pat-grad)"/>
     </svg>`,
+  'view-zoom': `
+    <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
+      <rect x="24" y="18" width="104" height="60" rx="8" fill="#0ea5e9" fill-opacity="0.14" stroke="#38bdf8" stroke-width="1.5"/>
+      <path d="M40 58L64 38L88 46L112 28" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="164" cy="44" r="18" fill="#10b981" fill-opacity="0.18" stroke="#34d399" stroke-width="1.8"/>
+      <path d="M158 44H170M164 38V50" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
+      <path d="M177 57L190 70" stroke="#34d399" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>`,
   'csv-export': `
     <svg viewBox="0 0 220 96" fill="none" aria-hidden="true">
       <rect x="24" y="18" width="104" height="60" rx="8" fill="#0ea5e9" fill-opacity="0.14" stroke="#38bdf8" stroke-width="1.5"/>

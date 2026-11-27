@@ -33,7 +33,7 @@ export function renderChartDetailPage(
   root: HTMLElement,
   entry: ChartCatalogEntry
 ): MCBaseChart<any> {
-  void configureChartFeatures({ features: { csvExport: true } });
+  void configureChartFeatures({ features: { zoom: true, csvExport: true } });
   root.replaceChildren();
 
   const config = getOrInitChartConfig(entry);
@@ -60,6 +60,16 @@ export function renderChartDetailPage(
         )}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button
+          type="button"
+          id="btn-detail-zoom-toggle"
+          data-action="toggle-zoom"
+          aria-label="Toggle zoom"
+          aria-pressed="true"
+          data-zoom-state="on"
+        >
+          🔍 Zoom: On
+        </button>
         <button
           type="button"
           id="btn-detail-export-csv"
@@ -203,9 +213,31 @@ export function renderChartDetailPage(
     return `${header} | data: ${JSON.stringify(preview)}`;
   };
 
+  const zoomToggleBtn = chartCard.querySelector<HTMLButtonElement>(
+    '#btn-detail-zoom-toggle'
+  );
   const exportCsvBtn = chartCard.querySelector<HTMLButtonElement>(
     '#btn-detail-export-csv'
   );
+
+  function syncZoomToggleButton(): void {
+    if (!zoomToggleBtn) return;
+    const zoomable = chartEl.resolveViewConfig().zoomable;
+    zoomToggleBtn.setAttribute('aria-pressed', String(zoomable));
+    zoomToggleBtn.setAttribute('data-zoom-state', zoomable ? 'on' : 'off');
+    zoomToggleBtn.textContent = zoomable ? '🔍 Zoom: On' : '🔍 Zoom: Off';
+  }
+  syncZoomToggleButton();
+
+  zoomToggleBtn?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (zoomToggleBtn.disabled || e.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      zoomToggleBtn.click();
+    }
+  });
+
+  let isUpdatingZoomFromButton = false;
 
   let lastClickSummary = '';
   function wireChartEvents(chart: MCBaseChart<any>): void {
@@ -219,6 +251,23 @@ export function renderChartDetailPage(
     });
     chart.on('focus', (ev) => {
       recordInspectorEvent(formatEventSummary(ev));
+    });
+    chart.addEventListener('mc-zoom-toggle', (e: Event) => {
+      const detail = (
+        e as CustomEvent<{ zoomable: boolean; chartType: string }>
+      ).detail;
+      recordInspectorEvent(
+        `mc-zoom-toggle → chartType="${detail.chartType}" | zoomable: ${detail.zoomable}`
+      );
+      if (isUpdatingZoomFromButton) return;
+      config.view = {
+        ...(config.view ?? { pannable: true, showControls: true, maxZoom: 6 }),
+        zoomable: detail.zoomable
+      };
+      setStoredChartConfig(entry.id, config);
+      syncZoomToggleButton();
+      attrPanel.syncAllControls();
+      editorPanel.syncFromConfig(config);
     });
     chart.addEventListener('mc-export', (e: Event) => {
       const detail = (e as CustomEvent<CsvExportPayload>).detail;
@@ -326,7 +375,25 @@ export function renderChartDetailPage(
       }
       renderLayerChips();
     }
+    syncZoomToggleButton();
   }
+
+  zoomToggleBtn?.addEventListener('click', () => {
+    isUpdatingZoomFromButton = true;
+    try {
+      const nextZoomable = chartEl.toggleZoom();
+      config.view = {
+        ...(config.view ?? { pannable: true, showControls: true, maxZoom: 6 }),
+        zoomable: nextZoomable
+      };
+      setStoredChartConfig(entry.id, config);
+      syncZoomToggleButton();
+      attrPanel.syncAllControls();
+      editorPanel.syncFromConfig(config);
+    } finally {
+      isUpdatingZoomFromButton = false;
+    }
+  });
 
   exportCsvBtn?.addEventListener('click', () => {
     chartEl.exportCsv();

@@ -70,7 +70,6 @@ import type {
   TooltipPositionMode,
   ViewConfig
 } from './types';
-import { getCsvExporter, isChartFeatureEnabled } from './features';
 import {
   MCAnimationLayer,
   MCAriaLayer,
@@ -91,7 +90,13 @@ import { MCMarkerElement, MCMarkerLayer } from '../components/mc-marker';
 import { resolveChartLayers, type ResolvedChartLayer } from './chart-layers';
 import { resolveChartDimensions, resolveChartMargin } from './chart-layout';
 import { baseChartStyles } from './chart-styles';
-import { ChartViewController } from './chart-view-controller';
+import {
+  createZoomController,
+  getCsvExporter,
+  isChartFeatureEnabled,
+  subscribeChartFeatures,
+  type ZoomViewControllerLike
+} from './features';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -106,6 +111,7 @@ const getBaseChartTemplate = lazyTemplate(`
       </g>
     </svg>
     <div class="mc-view-controls" part="controls" hidden>
+      <button type="button" class="mc-view-btn mc-view-btn--toggle" data-zoom="toggle" aria-label="Toggle zoom" aria-pressed="true" data-zoom-state="on">Zoom: On</button>
       <button type="button" class="mc-view-btn" data-zoom="in" aria-label="Zoom in">+</button>
       <button type="button" class="mc-view-btn" data-zoom="out" aria-label="Zoom out">−</button>
       <button type="button" class="mc-view-btn" data-zoom="reset" aria-label="Reset zoom">Reset</button>
@@ -179,14 +185,14 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
   #lastRenderedWidth = 0;
   #lastRenderedHeight = 0;
   #mutationObserver: MutationObserver | null = null;
-  #viewController = new ChartViewController(this, (zoomed) =>
-    this.#setCustomState('zoomed', zoomed)
-  );
+  #viewController: ZoomViewControllerLike | null = null;
+  #isTogglingZoom = false;
   #streamTimer: ReturnType<typeof setTimeout> | null = null;
   #currentChartState: ChartStateKind | null = null;
   #suppressAttributeRender = false;
   #isStreamingLayers = false;
   #unsubscribeI18n?: () => void;
+  #unsubscribeFeatures?: () => void;
   #lastI18n?: ChartI18n;
   #tooltipMoveHandler: ((e: MouseEvent) => void) | null = null;
 
@@ -383,7 +389,10 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     this._isConnected = true;
     this.#unsubscribeI18n?.();
     this.#unsubscribeI18n = subscribeI18n(() => this.render());
-    this.#viewController.bindControls();
+    this.#unsubscribeFeatures?.();
+    this.#unsubscribeFeatures = subscribeChartFeatures(() => {
+      if (this._isConnected) this.render();
+    });
     this.#setupStateSlotListeners();
     this.#setupChildObservers();
     this.#syncAutoSizeObserver();
@@ -410,11 +419,13 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     this._isConnected = false;
     this.#unsubscribeI18n?.();
     this.#unsubscribeI18n = undefined;
+    this.#unsubscribeFeatures?.();
+    this.#unsubscribeFeatures = undefined;
     this.cancelTransitions(true);
     this.eventEngine.detach();
     this.#syncTooltipPointerTracking(false);
     this.#teardownAutoSizeObserver();
-    this.#viewController.destroy();
+    this.#viewController?.destroy();
     if (this.#mutationObserver) {
       this.#mutationObserver.disconnect();
       this.#mutationObserver = null;
@@ -910,6 +921,93 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     );
   }
 
+  get zoomable(): boolean {
+    return isChartFeatureEnabled('zoom') && this.resolveViewConfig().zoomable;
+  }
+  set zoomable(val: boolean) {
+    this.toggleZoom(Boolean(val));
+  }
+
+  public toggleZoom(force?: boolean): boolean {
+    if (!isChartFeatureEnabled('zoom')) return false;
+    const current = this.resolveViewConfig();
+    const zoomable = force !== undefined ? Boolean(force) : !current.zoomable;
+    const base = this._config.view ?? {};
+    this._config.view = {
+      ...base,
+      enabled: true,
+      zoomable,
+      pannable: base.pannable ?? current.pannable,
+      showControls: base.showControls ?? true
+    };
+    if (this._customViewConfig) {
+      this._customViewConfig = { ...this._customViewConfig, enabled: true, zoomable };
+    }
+
+    const prev = this.#isTogglingZoom;
+    this.#isTogglingZoom = true;
+    try {
+      this.querySelector('mc-view-layer')?.setAttribute('zoomable', String(zoomable));
+      this.#syncInternalSubComponentsFromConfig();
+    } finally {
+      this.#isTogglingZoom = prev;
+    }
+
+    const resolved = this.resolveViewConfig();
+    this.#setCustomState('zoomable', resolved.zoomable);
+
+    if (this._isConnected && this.shadowRoot) {
+      const svg = this.shadowRoot.querySelector<SVGSVGElement>('.mc-chart-svg');
+      const vp = this.shadowRoot.querySelector<SVGGElement>('.mc-chart-viewport');
+      const ctrl = this.shadowRoot.querySelector<HTMLDivElement>('.mc-view-controls');
+      this.#viewController ??= createZoomController(
+        this,
+        (zoomed) => this.#setCustomState('zoomed', zoomed),
+        () => {
+          this.toggleZoom();
+        }
+      );
+      this.#viewController?.bindControls();
+      if (this.#viewController?.hasInteraction) {
+        this.#viewController.setZoomable(resolved.zoomable);
+      } else if (svg && vp) {
+        this.#viewController?.configure(svg, vp, resolved, this.resolveDimensions());
+      }
+      if (ctrl && !this.loading && this.hasPlottableData(this._data)) {
+        ctrl.hidden = !(this.resolveIsInteractive() && resolved.showControls);
+      }
+      this.#syncViewControlButtons(resolved);
+    }
+
+    this.dispatchEvent(
+      new CustomEvent('mc-zoom-toggle', {
+        bubbles: true,
+        composed: true,
+        detail: { zoomable: resolved.zoomable, chartType: this.chartType }
+      })
+    );
+    return resolved.zoomable;
+  }
+
+  public setZoomEnabled(enabled: boolean): boolean {
+    return this.toggleZoom(Boolean(enabled));
+  }
+
+  public zoomIn(factor = 1.25): void {
+    if (!isChartFeatureEnabled('zoom')) return;
+    this.#viewController?.scaleBy(factor);
+  }
+
+  public zoomOut(factor = 0.8): void {
+    if (!isChartFeatureEnabled('zoom')) return;
+    this.#viewController?.scaleBy(factor);
+  }
+
+  public resetZoom(): void {
+    if (!isChartFeatureEnabled('zoom')) return;
+    this.#viewController?.reset();
+  }
+
   get animationConfig(): Partial<AnimationConfig> | null {
     return this._customAnimationConfig ?? this._config.animation ?? null;
   }
@@ -1193,6 +1291,9 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
       const pannable = this._config.view.pannable ?? true;
       const brush = Boolean(this._config.view.brush);
       const slider = Boolean(this._config.view.slider);
+      const showControls =
+        this._config.view.showControls ??
+        (this._config.view.enabled !== false);
       config = {
         ...config,
         enabled:
@@ -1201,7 +1302,7 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
         pannable,
         brush,
         slider,
-        showControls: this._config.view.showControls ?? true,
+        showControls,
         ...this._config.view
       };
     }
@@ -1670,13 +1771,12 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
     svg.setAttribute('lang', i18n.locale);
     svg.setAttribute('direction', i18n.direction);
 
-    for (const [zoom, key] of [
-      ['in', 'zoomIn'], ['out', 'zoomOut'], ['reset', 'resetZoom']
-    ] as const) {
-      const button = controlsEl?.querySelector(`[data-zoom="${zoom}"]`);
-      button?.setAttribute('aria-label', i18n.messages[key]);
-      if (zoom === 'reset' && button) button.textContent = i18n.messages.resetZoomLabel;
-    }
+    const zoomFeatureEnabled = isChartFeatureEnabled('zoom');
+    this.#syncViewControlButtons(viewConfig, i18n);
+    this.#setCustomState(
+      'zoomable',
+      zoomFeatureEnabled && viewConfig.zoomable
+    );
 
     const effectiveTitle =
       ariaConfig.label ||
@@ -1744,8 +1844,8 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
     if (controlsEl) {
       controlsEl.hidden = !(
+        zoomFeatureEnabled &&
         isInteractive &&
-        viewConfig.enabled &&
         viewConfig.showControls
       );
     }
@@ -1944,7 +2044,23 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
           : '';
     }
 
-    this.#viewController.configure(svg, viewportGroup, viewConfig, dims);
+    if (zoomFeatureEnabled) {
+      this.#viewController ??= createZoomController(
+        this,
+        (zoomed) => this.#setCustomState('zoomed', zoomed),
+        () => {
+          this.toggleZoom();
+        }
+      );
+      this.#viewController?.bindControls();
+      this.#viewController?.configure(svg, viewportGroup, viewConfig, dims);
+    } else {
+      this.#viewController?.destroy();
+      viewportGroup.removeAttribute('transform');
+      this.shadowRoot.querySelector('.mc-view-slider')?.remove();
+      svg.querySelector('.mc-view-brush')?.remove();
+      this.#setCustomState('zoomed', false);
+    }
     this.#setCustomState('rendered', true);
     this.#commitChartState('ready');
   }
@@ -2435,10 +2551,49 @@ export abstract class MCBaseChart<TData = any> extends HTMLElementBase {
 
     this.addEventListener('mc-layer-change', (e) => {
       e.stopPropagation();
-      if (this._isConnected) {
+      if (this._isConnected && !this.#isTogglingZoom) {
         this.render();
       }
     });
+  }
+
+  #syncViewControlButtons(
+    viewConfig: ViewConfig,
+    i18n: ChartI18n = this.resolveI18n()
+  ): void {
+    const controlsEl = this.shadowRoot?.querySelector(
+      '.mc-view-controls'
+    ) as HTMLDivElement | null;
+    if (!controlsEl) return;
+
+    const zoomable = Boolean(viewConfig.zoomable);
+    const toggleBtn = controlsEl.querySelector<HTMLButtonElement>(
+      '[data-zoom="toggle"]'
+    );
+    if (toggleBtn) {
+      toggleBtn.setAttribute('aria-label', i18n.messages.toggleZoom);
+      toggleBtn.setAttribute('aria-pressed', String(zoomable));
+      toggleBtn.setAttribute('data-zoom-state', zoomable ? 'on' : 'off');
+      toggleBtn.textContent = zoomable
+        ? i18n.messages.zoomOnLabel
+        : i18n.messages.zoomOffLabel;
+    }
+
+    for (const [zoom, key] of [
+      ['in', 'zoomIn'],
+      ['out', 'zoomOut'],
+      ['reset', 'resetZoom']
+    ] as const) {
+      const button = controlsEl.querySelector<HTMLButtonElement>(
+        `[data-zoom="${zoom}"]`
+      );
+      if (!button) continue;
+      button.setAttribute('aria-label', i18n.messages[key]);
+      if (zoom === 'reset') {
+        button.textContent = i18n.messages.resetZoomLabel;
+      }
+      button.disabled = !zoomable;
+    }
   }
 
   #syncAutoSizeObserver(): void {

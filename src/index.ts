@@ -1,4 +1,5 @@
 import { registerCuratedChartD3 } from './core/d3-curated';
+import './core/chart-view-controller';
 import {
   CORE_COMPONENT_REGISTRY,
   configureChartFeatures,

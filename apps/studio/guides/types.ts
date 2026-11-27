@@ -13,6 +13,7 @@ export type GuideId =
   | 'dynamic-updates'
   | 'chart-state'
   | 'patterns'
+  | 'view-zoom'
   | 'csv-export'
   | 'bootstrapping';
 
@@ -138,6 +139,14 @@ export const GUIDES_CATALOG: GuideMeta[] = [
       'Reusable chart-scoped SVG patterns (dots, lines, squares, crosshatch, custom) and gradients across all 10 charts with color-blind friendly presets and declarative <mc-def>.'
   },
   {
+    id: 'view-zoom',
+    title: 'Zoom Controls & Viewport Lock (<mc-view-layer>)',
+    shortLabel: 'Zoom Controls',
+    icon: '🔍',
+    summary:
+      'Universal viewport zoom and pan across all 10 chart types with a keyboard-accessible Zoom: On / Off toggle button, brush & range slider lock, and mc-zoom-toggle events.'
+  },
+  {
     id: 'csv-export',
     title: 'Customizable CSV Data Export',
     shortLabel: 'CSV Export',
@@ -151,6 +160,6 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     shortLabel: 'Bootstrapping',
     icon: '🚀',
     summary:
-      'Keep browser downloads minimal with opt-in feature bootstrapping (features: { csvExport, zoom } — default false) across registerModernCharts() and per-chart register<Chart>() entrypoints.'
+      'Keep browser downloads minimal with opt-in feature bootstrapping (features: { zoom, csvExport } — default false) across registerModernCharts() and per-chart register<Chart>() entrypoints.'
   }
 ];

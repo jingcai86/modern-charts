@@ -4,7 +4,6 @@ import { SAMPLE_BAR_DATA } from '../sample-data';
 import {
   configureChartFeatures,
   getChartFeatures,
-  isChartFeatureEnabled,
   type MCBaseChart,
   type ThemeModePreference
 } from '../../../src/index';
@@ -35,16 +34,6 @@ interface BootstrapFeatureRow {
 
 const BOOTSTRAP_FEATURES: readonly BootstrapFeatureRow[] = [
   {
-    label: 'Customizable CSV Data Export',
-    optionKey: 'features.csvExport',
-    defaultValue: 'false',
-    description:
-      'Lazy-loads the RFC 4180 CSV serializer & downloader (chart.toCsv(), chart.exportCsv(), custom columns/headers/serializers).',
-    guideHref: '#/guide/csv-export',
-    guideKey: 'csv-export',
-    guideTitle: '📥 Customizable CSV Data Export'
-  },
-  {
     label: 'Viewport Zoom & Pan Controls',
     optionKey: 'features.zoom',
     defaultValue: 'false',
@@ -53,6 +42,16 @@ const BOOTSTRAP_FEATURES: readonly BootstrapFeatureRow[] = [
     guideHref: '#/guide/view-zoom',
     guideKey: 'view-zoom',
     guideTitle: '🔍 Zoom Controls & Viewport Lock'
+  },
+  {
+    label: 'Customizable CSV Data Export',
+    optionKey: 'features.csvExport',
+    defaultValue: 'false',
+    description:
+      'Lazy-loads the RFC 4180 CSV serializer & downloader (chart.toCsv(), chart.exportCsv(), custom columns/headers/serializers).',
+    guideHref: '#/guide/csv-export',
+    guideKey: 'csv-export',
+    guideTitle: '📥 Customizable CSV Data Export'
   }
 ];
 
@@ -77,9 +76,9 @@ function createFeatureMatrixSection(): HTMLElement {
     <p class="guide-prose">
       To keep initial browser downloads minimal when lazy-loading standalone charts
       (<code>modern-charts/bar</code>, <code>modern-charts/line</code>, etc.), optional features like
-      <strong>CSV Data Export</strong> and <strong>Zoom Controls</strong> are decoupled from core chart rendering
+      <strong>Zoom Controls</strong> and <strong>CSV Data Export</strong> are decoupled from core chart rendering
       and default to <code>false</code>. When left at their default <code>false</code>, the browser never downloads
-      those feature chunks. Pass <code>{ features: { csvExport: true, zoom: true } }</code> to
+      those feature chunks. Pass <code>{ features: { zoom: true, csvExport: true } }</code> to
       <code>registerModernCharts()</code> or any per-chart <code>register&lt;Chart&gt;()</code> bootstrap function
       to lazy-load and activate them.
     </p>
@@ -112,15 +111,15 @@ function mountDefaultVsEnabledDemo(
       <div>
         <h2 class="panel-title">Example 1: Default Bootstrap (<code>false</code>) vs. Explicit Enable (<code>true</code>)</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Compare how a chart behaves when bootstrapped with the default <code>features: { csvExport: false }</code> (zero CSV chunk overhead) versus explicitly enabling <code>features: { csvExport: true }</code>.
+          Compare how a chart behaves when bootstrapped with the default <code>features: { zoom: false, csvExport: false }</code> (zero feature chunk overhead) versus explicitly enabling <code>features: { zoom: true, csvExport: true }</code>.
         </p>
       </div>
       <div class="guide-controls-row" role="group" aria-label="Bootstrap mode presets">
         <button type="button" id="bs-mode-enabled" data-bs-mode="enabled" aria-pressed="true" class="btn-primary">
-          Explicitly Enabled (csvExport: true)
+          Explicitly Enabled (zoom: true, csvExport: true)
         </button>
         <button type="button" id="bs-mode-default" data-bs-mode="default" aria-pressed="false">
-          Default Bootstrap (csvExport: false)
+          Default Bootstrap (zoom: false, csvExport: false)
         </button>
       </div>
     </div>
@@ -149,6 +148,12 @@ function mountDefaultVsEnabledDemo(
     indexBy: 'quarter',
     keys: ['Cloud', 'Edge', 'OnPrem'],
     data: structuredClone(SAMPLE_BAR_DATA),
+    view: {
+      zoomable: true,
+      pannable: true,
+      showControls: true,
+      maxZoom: 6
+    },
     csvExport: {
       filename: 'quarterly-spend.csv'
     }
@@ -156,15 +161,17 @@ function mountDefaultVsEnabledDemo(
 
   const refreshStatus = () => {
     const flags = getChartFeatures();
-    const isCsvOn = isChartFeatureEnabled('csvExport');
+    const isEnabled = flags.zoom || flags.csvExport;
+    const ctrlEl = chart.shadowRoot?.querySelector<HTMLElement>('.mc-view-controls');
+    const isCtrlShown = Boolean(ctrlEl && !ctrlEl.hidden);
     const csvOutput = chart.toCsv();
-    btnEnabled.setAttribute('aria-pressed', String(isCsvOn));
-    btnEnabled.classList.toggle('btn-primary', isCsvOn);
-    btnDefault.setAttribute('aria-pressed', String(!isCsvOn));
-    btnDefault.classList.toggle('btn-primary', !isCsvOn);
-    readoutEl.textContent = isCsvOn
-      ? `Bootstrap: registerModernCharts({ features: { csvExport: true } }) | features.csvExport: ${flags.csvExport}\n${csvOutput}`
-      : `Bootstrap: registerModernCharts() [Default] | features.csvExport: ${flags.csvExport} (CSV chunk skipped on lazy load) | chart.toCsv(): ""`;
+    btnEnabled.setAttribute('aria-pressed', String(isEnabled));
+    btnEnabled.classList.toggle('btn-primary', isEnabled);
+    btnDefault.setAttribute('aria-pressed', String(!isEnabled));
+    btnDefault.classList.toggle('btn-primary', !isEnabled);
+    readoutEl.textContent = isEnabled
+      ? `Bootstrap: registerModernCharts({ features: { zoom: true, csvExport: true } }) | features.zoom: ${flags.zoom} | features.csvExport: ${flags.csvExport} | On-chart zoom controls visible: ${isCtrlShown}\n${csvOutput}`
+      : `Bootstrap: registerModernCharts() [Default] | features.zoom: ${flags.zoom} | features.csvExport: ${flags.csvExport} (feature chunks skipped on lazy load) | chart.toCsv(): ""`;
   };
 
   const applyConfig = (cfg: Record<string, any>) => {
@@ -188,7 +195,7 @@ function mountDefaultVsEnabledDemo(
       applyConfig(nextCfg);
     },
     onReset: () => {
-      void configureChartFeatures({ features: { csvExport: true } });
+      void configureChartFeatures({ features: { zoom: true, csvExport: true } });
       const fresh = structuredClone(baselineConfig);
       applyConfig(fresh);
       liveEditor.syncConfig(fresh);
@@ -197,12 +204,12 @@ function mountDefaultVsEnabledDemo(
   editorHost.appendChild(liveEditor.element);
 
   btnEnabled.addEventListener('click', () => {
-    void configureChartFeatures({ features: { csvExport: true } });
+    void configureChartFeatures({ features: { zoom: true, csvExport: true } });
     refreshStatus();
   });
 
   btnDefault.addEventListener('click', () => {
-    void configureChartFeatures({ features: { csvExport: false } });
+    void configureChartFeatures({ features: { zoom: false, csvExport: false } });
     refreshStatus();
   });
 
@@ -274,12 +281,12 @@ function mountPerChartSubpathExplorer(
     });
     const fnName = REGISTER_FN_BY_ID[entry.id] ?? 'registerModernCharts';
     snippetReadoutEl.textContent = [
-      `// 1. Default bootstrap (csvExport: false, zoom: false — feature chunks are NOT downloaded):`,
+      `// 1. Default bootstrap (zoom: false, csvExport: false — feature chunks are NOT downloaded):`,
       `import { ${fnName} } from 'modern-charts/${entry.id}';`,
       `await ${fnName}();`,
       ``,
       `// 2. Explicitly enable features on bootstrap (lazy-loads only requested feature chunks):`,
-      `await ${fnName}({ features: { csvExport: true, zoom: true } });`
+      `await ${fnName}({ features: { zoom: true, csvExport: true } });`
     ].join('\n');
   };
 
@@ -346,30 +353,30 @@ export function renderBootstrappingGuide(
       Use <code>registerModernCharts()</code> for full-library registration or
       <code>registerBarChart()</code> / <code>registerLineChart()</code> / etc. for single-chart lazy loading.
       Explore the individual feature guides for
-      <a href="#/guide/csv-export">📥 CSV Data Export</a> and
-      <a href="#/guide/view-zoom">🔍 Zoom Controls</a>.
+      <a href="#/guide/view-zoom">🔍 Zoom Controls</a> and
+      <a href="#/guide/csv-export">📥 CSV Data Export</a>.
     </p>
   `;
   reference.appendChild(
     createCodeBlock(
       `// ============================================================================
-// A. Default Bootstrap (csvExport: false, zoom: false)
+// A. Default Bootstrap (zoom: false, csvExport: false)
 // Browser only downloads the chart component — feature chunks are NOT fetched.
 // ============================================================================
 import { registerBarChart } from 'modern-charts/bar';
 
-await registerBarChart(); // equivalent to registerBarChart({ features: { csvExport: false, zoom: false } })
+await registerBarChart(); // equivalent to registerBarChart({ features: { zoom: false, csvExport: false } })
 
 // ============================================================================
-// B. Explicit Feature Bootstrap (csvExport: true, zoom: true)
+// B. Explicit Feature Bootstrap (zoom: true, csvExport: true)
 // Dynamically downloads only the enabled feature chunks on demand.
 // ============================================================================
 import { registerModernCharts } from 'modern-charts';
 
 await registerModernCharts({
   features: {
-    csvExport: true, // enables chart.toCsv(), chart.exportCsv(), custom CSV serializers
-    zoom: true       // enables <mc-view-layer>, [data-zoom="toggle"], chart.toggleZoom()
+    zoom: true,      // enables <mc-view-layer>, [data-zoom="toggle"], chart.toggleZoom()
+    csvExport: true  // enables chart.toCsv(), chart.exportCsv(), custom CSV serializers
   }
 });`,
       'Default vs. Explicit Feature Bootstrapping'

@@ -1,19 +1,50 @@
 import type { ChartDimensions, ViewConfig } from './types';
+import { registerZoomControllerFactory } from './features';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export class ChartViewController {
   #transform = { k: 1, x: 0, y: 0 };
+  #zoomable = false;
   #interaction: {
     scaleBy: (factor: number) => void;
     reset: () => void;
+    setZoomable: (zoomable: boolean) => void;
     destroy: () => void;
   } | null = null;
 
   constructor(
     private readonly host: HTMLElement,
-    private readonly onZoomChange: (zoomed: boolean) => void
+    private readonly onZoomChange: (zoomed: boolean) => void,
+    private readonly onToggleZoom?: () => void
   ) {}
+
+  get hasInteraction(): boolean {
+    return this.#interaction !== null;
+  }
+
+  get zoomable(): boolean {
+    return this.#zoomable;
+  }
+
+  getTransform(): { k: number; x: number; y: number } {
+    return { ...this.#transform };
+  }
+
+  scaleBy(factor: number): void {
+    if (!this.#zoomable) return;
+    this.#interaction?.scaleBy(factor);
+  }
+
+  reset(): void {
+    if (!this.#zoomable) return;
+    this.#interaction?.reset();
+  }
+
+  setZoomable(zoomable: boolean): void {
+    this.#zoomable = Boolean(zoomable);
+    this.#interaction?.setZoomable(this.#zoomable);
+  }
 
   destroy(): void {
     this.#interaction?.destroy();
@@ -29,9 +60,15 @@ export class ChartViewController {
       const btn = (e.target as HTMLElement).closest(
         'button[data-zoom]'
       ) as HTMLButtonElement | null;
-      if (!btn || !this.#interaction) return;
+      if (!btn) return;
 
       const action = btn.getAttribute('data-zoom');
+      if (action === 'toggle') {
+        this.onToggleZoom?.();
+        return;
+      }
+      if (!this.#interaction || !this.#zoomable || btn.disabled) return;
+
       if (action === 'in') {
         this.#interaction.scaleBy(1.25);
       } else if (action === 'out') {
@@ -40,6 +77,29 @@ export class ChartViewController {
         this.#interaction.reset();
       }
     });
+
+    let spaceBtn: HTMLButtonElement | null = null;
+    const onKey = (e: Event, up: boolean) => {
+      const ke = e as KeyboardEvent;
+      if (ke.isComposing || ke.keyCode === 229) return;
+      const isSpace = ke.key === ' ' || ke.key === 'Spacebar';
+      if (!isSpace && (up || ke.key !== 'Enter')) return;
+      const btn = (ke.target as HTMLElement | null)?.closest?.(
+        'button[data-zoom]'
+      ) as HTMLButtonElement | null;
+      if (up && spaceBtn === btn) {
+        spaceBtn = null;
+        ke.preventDefault();
+        return;
+      }
+      spaceBtn = up || !isSpace ? null : btn;
+      if (btn && !btn.disabled) {
+        ke.preventDefault();
+        btn.click();
+      }
+    };
+    controls.addEventListener('keydown', (e) => onKey(e, false));
+    controls.addEventListener('keyup', (e) => onKey(e, true));
   }
 
   configure(
@@ -57,21 +117,31 @@ export class ChartViewController {
     existingSlider?.remove();
     svg.querySelector('.mc-view-brush')?.remove();
 
-    if (!viewConfig.enabled) {
+    this.#zoomable = Boolean(viewConfig.zoomable);
+
+    if (!viewConfig.enabled && !viewConfig.showControls) {
       this.#transform = { k: 1, x: 0, y: 0 };
       viewportGroup.removeAttribute('transform');
       this.onZoomChange(false);
       return;
     }
 
-    const minK = viewConfig.zoomable || viewConfig.brush || viewConfig.slider ? viewConfig.minZoom : 1;
-    const maxK = viewConfig.zoomable || viewConfig.brush || viewConfig.slider ? viewConfig.maxZoom : 1;
+    const getMinK = (): number =>
+      this.#zoomable || viewConfig.brush || viewConfig.slider
+        ? viewConfig.minZoom
+        : 1;
+    const getMaxK = (): number =>
+      this.#zoomable || viewConfig.brush || viewConfig.slider
+        ? viewConfig.maxZoom
+        : 1;
 
     const clamp = (value: number, lo: number, hi: number): number =>
       Math.max(Math.min(lo, hi), Math.min(Math.max(lo, hi), value));
 
     let sliderWindowEl: HTMLDivElement | null = null;
     let sliderEl: HTMLDivElement | null = null;
+    let leftHandleEl: HTMLButtonElement | null = null;
+    let rightHandleEl: HTMLButtonElement | null = null;
 
     const syncSliderDom = (startPct: number, endPct: number): void => {
       if (!sliderWindowEl || !sliderEl) return;
@@ -83,8 +153,15 @@ export class ChartViewController {
       sliderEl.setAttribute('data-end', String(Math.round(e)));
     };
 
+    const syncSliderDisabledState = (): void => {
+      if (!sliderEl) return;
+      sliderEl.setAttribute('aria-disabled', String(!this.#zoomable));
+      if (leftHandleEl) leftHandleEl.disabled = !this.#zoomable;
+      if (rightHandleEl) rightHandleEl.disabled = !this.#zoomable;
+    };
+
     const applyTransform = (nextK: number, nextX: number, nextY: number): void => {
-      const k = clamp(nextK, minK, maxK);
+      const k = clamp(nextK, getMinK(), getMaxK());
       const rawX = viewConfig.direction === 'y' ? 0 : nextX;
       const rawY = viewConfig.direction === 'x' ? 0 : nextY;
       const tx =
@@ -125,7 +202,7 @@ export class ChartViewController {
       const s = clamp(startPct, 0, 95);
       const e = clamp(endPct, s + 5, 100);
       const span = e - s;
-      const nextK = clamp(100 / span, minK, maxK);
+      const nextK = clamp(100 / span, getMinK(), getMaxK());
       const nextX =
         viewConfig.direction === 'y'
           ? 0
@@ -136,6 +213,8 @@ export class ChartViewController {
           : 0;
       applyTransform(nextK, nextX, nextY);
     };
+
+    let sliderDragMode: 'window' | 'start' | 'end' | null = null;
 
     if (viewConfig.slider && container) {
       sliderEl = document.createElement('div');
@@ -158,6 +237,7 @@ export class ChartViewController {
       leftHandle.setAttribute('aria-label', 'Zoom range start');
       leftHandle.style.cssText =
         'position:absolute;left:-5px;top:2px;bottom:2px;width:8px;padding:0;border:none;border-radius:3px;background:#0284c7;cursor:ew-resize;';
+      leftHandleEl = leftHandle;
 
       const rightHandle = document.createElement('button');
       rightHandle.type = 'button';
@@ -166,17 +246,19 @@ export class ChartViewController {
       rightHandle.setAttribute('aria-label', 'Zoom range end');
       rightHandle.style.cssText =
         'position:absolute;right:-5px;top:2px;bottom:2px;width:8px;padding:0;border:none;border-radius:3px;background:#0284c7;cursor:ew-resize;';
+      rightHandleEl = rightHandle;
 
       sliderWindowEl.append(leftHandle, rightHandle);
       sliderEl.appendChild(sliderWindowEl);
       container.appendChild(sliderEl);
+      syncSliderDisabledState();
 
-      let sliderDragMode: 'window' | 'start' | 'end' | null = null;
       let dragStartX = 0;
       let origStart = viewConfig.start ?? 0;
       let origEnd = viewConfig.end ?? 100;
 
       sliderEl.addEventListener('pointerdown', (e: PointerEvent) => {
+        if (!this.#zoomable) return;
         const target = e.target as HTMLElement;
         const handle = target.getAttribute('data-handle');
         sliderDragMode =
@@ -193,7 +275,7 @@ export class ChartViewController {
       });
 
       sliderEl.addEventListener('pointermove', (e: PointerEvent) => {
-        if (!sliderDragMode || !sliderEl) return;
+        if (!this.#zoomable || !sliderDragMode || !sliderEl) return;
         const trackW = Math.max(40, sliderEl.clientWidth || dims.innerWidth);
         const deltaPct = ((e.clientX - dragStartX) / trackW) * 100;
         if (sliderDragMode === 'start') {
@@ -219,8 +301,9 @@ export class ChartViewController {
       cx = dims.width / 2,
       cy = dims.height / 2
     ): void => {
+      if (!this.#zoomable) return;
       const prev = this.#transform;
-      const nextK = clamp(prev.k * factor, minK, maxK);
+      const nextK = clamp(prev.k * factor, getMinK(), getMaxK());
       const ratio = nextK / prev.k;
       const nextX = cx - (cx - prev.x) * ratio;
       const nextY = cy - (cy - prev.y) * ratio;
@@ -228,7 +311,7 @@ export class ChartViewController {
     };
 
     const onWheel = (e: WheelEvent): void => {
-      if (!viewConfig.zoomable) return;
+      if (!this.#zoomable) return;
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
       const cx = rect.width > 0 ? e.clientX - rect.left : dims.width / 2;
@@ -257,7 +340,8 @@ export class ChartViewController {
 
     const onPointerDown = (e: PointerEvent): void => {
       if (e.button !== 0) return;
-      const wantBrush = Boolean(viewConfig.brush) || (viewConfig.zoomable && e.shiftKey);
+      const wantBrush =
+        this.#zoomable && (Boolean(viewConfig.brush) || e.shiftKey);
       if (!wantBrush && !viewConfig.pannable) return;
       pointerDown = true;
       dragging = false;
@@ -273,6 +357,7 @@ export class ChartViewController {
     const onPointerMove = (e: PointerEvent): void => {
       if (!pointerDown) return;
       if (isBrushing) {
+        if (!this.#zoomable) return;
         const pt = toSvgCoords(e);
         const dx = pt.x - startX;
         const dy = pt.y - startY;
@@ -332,7 +417,7 @@ export class ChartViewController {
 
     const onPointerEnd = (e: PointerEvent): void => {
       if (!pointerDown) return;
-      if (isBrushing && dragging) {
+      if (isBrushing && dragging && this.#zoomable) {
         const pt = toSvgCoords(e);
         const x0 = Math.min(startX, pt.x);
         const x1 = Math.max(startX, pt.x);
@@ -364,6 +449,9 @@ export class ChartViewController {
             }
           })
         );
+      } else if (brushRectEl) {
+        brushRectEl.remove();
+        brushRectEl = null;
       }
       pointerDown = false;
       dragging = false;
@@ -382,7 +470,24 @@ export class ChartViewController {
 
     this.#interaction = {
       scaleBy: (factor: number) => scaleBy(factor),
-      reset: () => applyTransform(1, 0, 0),
+      reset: () => {
+        if (!this.#zoomable) return;
+        applyTransform(1, 0, 0);
+      },
+      setZoomable: (nextZoomable: boolean) => {
+        viewConfig.zoomable = nextZoomable;
+        syncSliderDisabledState();
+        if (!nextZoomable) {
+          sliderDragMode = null;
+          if (isBrushing) {
+            brushRectEl?.remove();
+            brushRectEl = null;
+            isBrushing = false;
+            pointerDown = false;
+            dragging = false;
+          }
+        }
+      },
       destroy: () => {
         svg.removeEventListener('wheel', onWheel);
         svg.removeEventListener('pointerdown', onPointerDown);
@@ -417,3 +522,8 @@ export class ChartViewController {
     }
   }
 }
+
+registerZoomControllerFactory(
+  (host, onZoomChange, onToggleZoom) =>
+    new ChartViewController(host, onZoomChange, onToggleZoom)
+);
