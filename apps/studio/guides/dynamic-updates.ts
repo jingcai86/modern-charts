@@ -1,11 +1,20 @@
 import { getGlobalPalette } from '../state/theme';
 import type {
+  BarDatum,
   LegendPosition,
   MCBaseChart,
+  PieDatum,
   ThemeModePreference,
   TooltipPositionMode
 } from '../../../src/index';
 import { createCodeBlock, createLiveConfigEditor } from './shared';
+
+function nextItemId(prefix: string, currentIds: Array<string | number>): string {
+  const ids = new Set(currentIds.map(String));
+  let sequence = currentIds.length + 1;
+  while (ids.has(`${prefix}${sequence}`)) sequence++;
+  return `${prefix}${sequence}`;
+}
 
 export function renderDynamicUpdatesGuide(
   container: HTMLElement,
@@ -235,27 +244,37 @@ export function renderDynamicUpdatesGuide(
       <div>
         <h2 class="panel-title">Example 2: Randomize, Add/Remove Points &amp; Empty State</h2>
         <p class="guide-prose" style="margin:4px 0 0;">
-          Replace datasets dynamically on <code>&lt;mc-bar-chart&gt;</code> and <code>&lt;mc-pie-chart&gt;</code>,
-          or edit <code>barData</code> / <code>pieData</code> (try setting either to <code>null</code> or <code>[]</code>) directly in the live config editor below.
+          Set <code>itemTransitions: true</code> in a bar or pie chart’s config, then assign <code>chart.data</code>.
+          Each added or removed quarter or slice animates on its own.
         </p>
       </div>
       <div class="guide-controls-row" style="flex-wrap:wrap;gap:8px;">
         <button type="button" id="btn-dyn-randomize" class="btn-primary">🎲 Randomize Data</button>
-        <button type="button" id="btn-dyn-add">+ Add Quarter</button>
-        <button type="button" id="btn-dyn-remove">− Remove Last</button>
         <button type="button" id="btn-dyn-empty">Toggle Empty (null)</button>
       </div>
     </div>
     <div class="guide-example-grid">
-      <div class="guide-chart-stage" id="guide-dyn-bar-chart"></div>
-      <div class="guide-chart-stage" id="guide-dyn-pie-chart"></div>
+      <div>
+        <div class="guide-controls-row" style="margin-bottom:8px;" role="group" aria-label="Bar dataset">
+          <button type="button" id="btn-dyn-add">+ Add Quarter</button>
+          <button type="button" id="btn-dyn-remove">− Remove Last Quarter</button>
+        </div>
+        <div class="guide-chart-stage" id="guide-dyn-bar-chart"></div>
+      </div>
+      <div>
+        <div class="guide-controls-row" style="margin-bottom:8px;" role="group" aria-label="Donut dataset">
+          <button type="button" id="btn-dyn-pie-add">+ Add Slice</button>
+          <button type="button" id="btn-dyn-pie-remove">− Remove Last Slice</button>
+        </div>
+        <div class="guide-chart-stage" id="guide-dyn-pie-chart"></div>
+      </div>
     </div>
     <div id="guide-dyn-ex2-code" style="margin-top:14px;"></div>
   `;
   container.appendChild(ex2);
 
-  const dynBar = document.createElement('mc-bar-chart') as MCBaseChart<any>;
-  const dynPie = document.createElement('mc-pie-chart') as MCBaseChart<any>;
+  const dynBar = document.createElement('mc-bar-chart') as MCBaseChart<BarDatum[]>;
+  const dynPie = document.createElement('mc-pie-chart') as MCBaseChart<PieDatum[]>;
   ex2.querySelector('#guide-dyn-bar-chart')!.appendChild(dynBar);
   ex2.querySelector('#guide-dyn-pie-chart')!.appendChild(dynPie);
   mounted.push(dynBar, dynPie);
@@ -273,115 +292,118 @@ export function renderDynamicUpdatesGuide(
     { id: 'AI Ops', value: 310 }
   ];
 
-  let barRows = defaultBarRows.map((r) => ({ ...r }));
-  let pieRows = defaultPieRows.map((p) => ({ ...p }));
-  let isEmptyDemo = false;
+  let barRows: BarDatum[] = defaultBarRows;
+  let pieRows: PieDatum[] = defaultPieRows;
 
-  const buildEx2DatasetPayload = () => ({
-    barData: isEmptyDemo ? null : barRows,
-    pieData: isEmptyDemo ? null : pieRows
+  dynBar.setConfig({
+    data: barRows,
+    autoSize: true,
+    itemTransitions: true,
+    motionConfig: 'stiff',
+    themeMode,
+    palette: getGlobalPalette(),
+    title: 'Live Bar Dataset',
+    indexBy: 'quarter',
+    keys: ['Cloud', 'Edge'],
+    borderRadius: 6,
+    margin: { top: 44, right: 20, bottom: 70, left: 48 }
+  });
+  dynPie.setConfig({
+    data: pieRows,
+    autoSize: true,
+    itemTransitions: true,
+    motionConfig: 'stiff',
+    themeMode,
+    palette: 'material',
+    title: 'Live Donut Dataset',
+    innerRadius: 0.5
   });
 
-  const applyEx2Datasets = (payload: { barData: any; pieData: any }) => {
-    const barIsEmpty = !Array.isArray(payload.barData) || payload.barData.length === 0;
-    const pieIsEmpty = !Array.isArray(payload.pieData) || payload.pieData.length === 0;
+  type Datasets = { barData: BarDatum[] | null; pieData: PieDatum[] | null };
+  const readDatasets = (): Datasets => ({ barData: dynBar.data, pieData: dynPie.data });
 
-    dynBar.setConfig({
-      data: payload.barData,
-      autoSize: true,
-      themeMode,
-      palette: getGlobalPalette(),
-      title: barIsEmpty ? 'Empty State (data = null / [])' : 'Live Bar Dataset',
-      indexBy: 'quarter',
-      keys: ['Cloud', 'Edge'],
-      borderRadius: 6,
-      margin: { top: 44, right: 20, bottom: 70, left: 48 }
-    });
-    dynPie.setConfig({
-      data: payload.pieData,
-      autoSize: true,
-      themeMode,
-      palette: 'material',
-      title: pieIsEmpty ? 'Empty State (data = null / [])' : 'Live Pie Dataset',
-      innerRadius: 0.5
-    });
+  const updateDataset = <T>(chart: MCBaseChart<T[]>, next: T[] | null | undefined, savedRows: T[]): T[] => {
+    const previous = chart.data;
+    if (next === undefined || next === previous) return savedRows;
+    // Editing the combined snippet parses both arrays again, even when one is unchanged.
+    if (next?.length === previous?.length && JSON.stringify(next) === JSON.stringify(previous)) return savedRows;
+    chart.data = next;
+    return next ?? savedRows;
   };
 
-  const initialEx2Payload = buildEx2DatasetPayload();
-  applyEx2Datasets(initialEx2Payload);
+  const applyDatasets = ({ barData, pieData }: Partial<Datasets>) => {
+    barRows = updateDataset(dynBar, barData, barRows);
+    pieRows = updateDataset(dynPie, pieData, pieRows);
+  };
 
   const editor2 = createLiveConfigEditor({
     title: 'Bar & Pie Live Datasets (Live)',
     assignPrefix: 'const datasets =',
-    initialConfig: initialEx2Payload,
+    initialConfig: readDatasets(),
     hint: 'Add/remove items or set barData / pieData to null or [] to trigger empty states live.',
-    onConfigChange: (nextPayload) => {
-      if (Array.isArray(nextPayload.barData)) barRows = nextPayload.barData;
-      if (Array.isArray(nextPayload.pieData)) pieRows = nextPayload.pieData;
-      isEmptyDemo = nextPayload.barData === null && nextPayload.pieData === null;
-      applyEx2Datasets(nextPayload);
+    onConfigChange: ({ barData, pieData }) => {
+      for (const [name, dataset] of Object.entries({ barData, pieData })) {
+        if (dataset != null && !Array.isArray(dataset)) throw new Error(`Set ${name} to an array or null.`);
+      }
+      applyDatasets({ barData, pieData });
     },
     onReset: () => {
-      barRows = defaultBarRows.map((r) => ({ ...r }));
-      pieRows = defaultPieRows.map((p) => ({ ...p }));
-      isEmptyDemo = false;
-      const resetPayload = buildEx2DatasetPayload();
-      applyEx2Datasets(resetPayload);
-      editor2.syncConfig(resetPayload);
+      updatePreview({ barData: defaultBarRows, pieData: defaultPieRows });
     }
   });
   ex2.querySelector('#guide-dyn-ex2-code')!.appendChild(editor2.element);
 
+  const updatePreview = (datasets: Partial<Datasets>) => {
+    applyDatasets(datasets);
+    editor2.syncConfig(readDatasets());
+  };
+
+  const barAdd = ex2.querySelector<HTMLButtonElement>('#btn-dyn-add')!;
+  const barRemove = ex2.querySelector<HTMLButtonElement>('#btn-dyn-remove')!;
+  const pieAdd = ex2.querySelector<HTMLButtonElement>('#btn-dyn-pie-add')!;
+  const pieRemove = ex2.querySelector<HTMLButtonElement>('#btn-dyn-pie-remove')!;
+
   ex2.querySelector('#btn-dyn-randomize')!.addEventListener('click', () => {
-    isEmptyDemo = false;
-    barRows = barRows.map((r) => ({
-      quarter: r.quarter,
-      Cloud: Math.round(70 + Math.random() * 210),
-      Edge: Math.round(45 + Math.random() * 145)
-    }));
-    pieRows = pieRows.map((p) => ({
-      id: p.id,
-      value: Math.round(90 + Math.random() * 420)
-    }));
-    const payload = buildEx2DatasetPayload();
-    applyEx2Datasets(payload);
-    editor2.syncConfig(payload);
+    updatePreview({
+      barData: barRows.map((row) => ({
+        ...row,
+        Cloud: Math.round(70 + Math.random() * 210),
+        Edge: Math.round(45 + Math.random() * 145)
+      })),
+      pieData: pieRows.map((row) => ({ ...row, value: Math.round(90 + Math.random() * 420) }))
+    });
   });
 
-  ex2.querySelector('#btn-dyn-add')!.addEventListener('click', () => {
-    isEmptyDemo = false;
-    const nextIdx = barRows.length + 1;
-    barRows = [
-      ...barRows,
-      {
-        quarter: `Q${nextIdx}`,
-        Cloud: Math.round(90 + Math.random() * 190),
-        Edge: Math.round(55 + Math.random() * 130)
-      }
-    ];
-    pieRows = [
-      ...pieRows,
-      { id: `Region ${pieRows.length + 1}`, value: Math.round(100 + Math.random() * 260) }
-    ];
-    const payload = buildEx2DatasetPayload();
-    applyEx2Datasets(payload);
-    editor2.syncConfig(payload);
+  barAdd.addEventListener('click', () => {
+    const nextQuarter = {
+      quarter: nextItemId('Q', barRows.map(row => row.quarter)),
+      Cloud: Math.round(90 + Math.random() * 190),
+      Edge: Math.round(55 + Math.random() * 130)
+    };
+    updatePreview({ barData: [...barRows, nextQuarter] });
   });
 
-  ex2.querySelector('#btn-dyn-remove')!.addEventListener('click', () => {
-    if (barRows.length > 2) barRows = barRows.slice(0, -1);
-    if (pieRows.length > 2) pieRows = pieRows.slice(0, -1);
-    isEmptyDemo = false;
-    const payload = buildEx2DatasetPayload();
-    applyEx2Datasets(payload);
-    editor2.syncConfig(payload);
+  barRemove.addEventListener('click', () => {
+    if (barRows.length > 2) updatePreview({ barData: barRows.slice(0, -1) });
+  });
+
+  pieAdd.addEventListener('click', () => {
+    const nextSlice = {
+      id: nextItemId('Region ', pieRows.map(row => row.id)),
+      value: Math.round(100 + Math.random() * 260)
+    };
+    updatePreview({ pieData: [...pieRows, nextSlice] });
+  });
+
+  pieRemove.addEventListener('click', () => {
+    if (pieRows.length > 2) updatePreview({ pieData: pieRows.slice(0, -1) });
   });
 
   ex2.querySelector('#btn-dyn-empty')!.addEventListener('click', () => {
-    isEmptyDemo = !isEmptyDemo;
-    const payload = buildEx2DatasetPayload();
-    applyEx2Datasets(payload);
-    editor2.syncConfig(payload);
+    const bothEmpty = dynBar.data === null && dynPie.data === null;
+    updatePreview(bothEmpty
+      ? { barData: barRows, pieData: pieRows }
+      : { barData: null, pieData: null });
   });
 
   // Example 3: Batched Runtime Config Updates

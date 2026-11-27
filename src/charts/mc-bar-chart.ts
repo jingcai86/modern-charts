@@ -1,4 +1,5 @@
 import { MCBaseChart } from '../core/base-chart';
+import { ItemTransitions } from '../core/item-transitions';
 import {
   createDefaultScaleConfig,
   renderCartesianAxes,
@@ -59,6 +60,7 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
   ];
 
   #keys: string[] | null = null;
+  #itemTransitions?: ItemTransitions;
 
   get chartType(): string {
     return 'bar';
@@ -229,6 +231,15 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
     );
   }
 
+  public override replayAnimation(): void {
+    this.#itemTransitions?.cancel(true);
+    super.replayAnimation();
+  }
+
+  protected override cancelTransitions(clearSnapshot = false): void {
+    this.#itemTransitions?.cancel(clearSnapshot);
+  }
+
   protected prepareContext(ctx: ChartRenderContext<BarDatum[]>): void {
     const outerLabels = this.resolveOuterLabelsConfig();
     const model = computeBarChartModel(ctx, {
@@ -258,6 +269,17 @@ export class MCBarChart extends MCBaseChart<BarDatum[]> {
     ctx.state.computedBars = model.bars;
     ctx.state.outerLabelItems = model.outerLabelItems;
     ctx.state.activeKeys = model.activeKeys;
+
+    if (ctx.config.itemTransitions === true) {
+      this.#itemTransitions ??= new ItemTransitions();
+      this.#itemTransitions.prepare(ctx);
+    } else {
+      this.#itemTransitions = undefined;
+    }
+  }
+
+  protected override afterRender(ctx: ChartRenderContext<BarDatum[]>): void {
+    this.#itemTransitions?.finish(ctx);
   }
 
   protected getLayerRenderers(): Record<

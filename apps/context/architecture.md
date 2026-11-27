@@ -122,6 +122,7 @@ interface SharedChartConfig<TData> {
 
   // Motion & Animation (<mc-animation-layer>)
   animate?: boolean; // default true (automatically respects prefers-reduced-motion)
+  itemTransitions?: boolean; // bar and pie only, animate added and removed marks on data replacement (default false)
   motionConfig?:
     | 'default'
     | 'gentle'

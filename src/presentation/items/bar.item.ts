@@ -280,6 +280,9 @@ export function renderBarItem(
 
   ctx.animateItem(hostEl, {
     type: b.isHorizontal ? 'bar-horizontal' : 'bar-vertical',
+    itemKey: ctx.config.itemTransitions === true
+      ? JSON.stringify([b.indexValue, b.key])
+      : undefined,
     index: b.index,
     originX: b.isHorizontal ? b.x : b.x + b.width / 2,
     originY: b.isHorizontal ? b.y + b.height / 2 : b.y + b.height

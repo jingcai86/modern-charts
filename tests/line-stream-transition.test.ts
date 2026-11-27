@@ -7,6 +7,13 @@ import {
   type MCLineChart
 } from '../src/index';
 import { renderDynamicUpdatesGuide } from '../apps/studio/guides/dynamic-updates';
+import { formatConfigAssignment, parseConfigObjectLiteral } from '../apps/studio/utils/code-sync';
+
+function mountDynamicUpdatesGuide() {
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  return { root, charts: renderDynamicUpdatesGuide(root, 'dark') };
+}
 
 describe('Smooth Streaming & Data-Update Line Transitions (Issue #68)', () => {
   beforeAll(() => {
@@ -261,5 +268,81 @@ describe('Smooth Streaming & Data-Update Line Transitions (Issue #68)', () => {
     const linePath = streamChart.shadowRoot!.querySelector('.mc-line-path');
     expect(linePath).not.toBeNull();
     expect(linePath!.getAttribute('data-transition-mode')).toBe('morph');
+  });
+
+  it('renders only the changed chart without animation when reduced motion is enabled', () => {
+    const matchMedia = window.matchMedia.bind(window);
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
+      const result = matchMedia(query);
+      if (query === '(prefers-reduced-motion: reduce)') {
+        Object.defineProperty(result, 'matches', { value: true });
+      }
+      return result;
+    });
+    const animate = vi.spyOn(Element.prototype, 'animate');
+    const { root, charts: [, bar, pie] } = mountDynamicUpdatesGuide();
+    expect(bar.config.itemTransitions).toBe(true);
+    expect(pie.config.itemTransitions).toBe(true);
+    const barRender = vi.spyOn(bar, 'render');
+    const pieRender = vi.spyOn(pie, 'render');
+    const barConfig = vi.spyOn(bar, 'setConfig');
+    const pieConfig = vi.spyOn(pie, 'setConfig');
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-dyn-ex2-code textarea')!;
+    const click = (id: string) => root.querySelector<HTMLButtonElement>(`#${id}`)!.click();
+
+    click('btn-dyn-add');
+    expect(bar.data).toHaveLength(5);
+    expect(pie.data).toHaveLength(4);
+    expect(barRender).toHaveBeenCalledTimes(1);
+    expect(pieRender).not.toHaveBeenCalled();
+    click('btn-dyn-remove');
+    expect(bar.data).toHaveLength(4);
+    expect(barRender).toHaveBeenCalledTimes(2);
+    expect(pieRender).not.toHaveBeenCalled();
+
+    click('btn-dyn-pie-add');
+    expect(pie.data).toHaveLength(5);
+    expect(barRender).toHaveBeenCalledTimes(2);
+    expect(pieRender).toHaveBeenCalledTimes(1);
+    click('btn-dyn-pie-remove');
+    expect(pie.data).toHaveLength(4);
+    expect(barRender).toHaveBeenCalledTimes(2);
+    expect(pieRender).toHaveBeenCalledTimes(2);
+
+    expect(barConfig).not.toHaveBeenCalled();
+    expect(pieConfig).not.toHaveBeenCalled();
+    expect(animate).not.toHaveBeenCalled();
+    expect(parseConfigObjectLiteral(editor.value)).toEqual({ barData: bar.data, pieData: pie.data });
+
+    click('btn-dyn-empty');
+    expect(bar.data).toBeNull();
+    expect(pie.data).toBeNull();
+    pieRender.mockClear();
+    click('btn-dyn-add');
+    expect(bar.data).toHaveLength(5);
+    expect(pie.data).toBeNull();
+    expect(pieRender).not.toHaveBeenCalled();
+    expect(parseConfigObjectLiteral(editor.value).pieData).toBeNull();
+  });
+
+  it('skips unchanged datasets and does no render when the last item cannot be removed', () => {
+    const { root, charts: [, bar, pie] } = mountDynamicUpdatesGuide();
+    const barRender = vi.spyOn(bar, 'render');
+    const pieRender = vi.spyOn(pie, 'render');
+    const editor = root.querySelector<HTMLTextAreaElement>('#guide-dyn-ex2-code textarea')!;
+    const pieData = pie.data;
+    const barData = bar.data.slice(0, 2);
+    editor.value = formatConfigAssignment({ barData, pieData }, 'const datasets =');
+    editor.dispatchEvent(new Event('input'));
+
+    expect(bar.data).toEqual(barData);
+    expect(barRender).toHaveBeenCalledTimes(1);
+    expect(pie.data).toBe(pieData);
+    expect(pieRender).not.toHaveBeenCalled();
+
+    root.querySelector<HTMLButtonElement>('#btn-dyn-remove')!.click();
+    expect(bar.data).toHaveLength(2);
+    expect(barRender).toHaveBeenCalledTimes(1);
+    expect(pieRender).not.toHaveBeenCalled();
   });
 });

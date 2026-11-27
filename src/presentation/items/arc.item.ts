@@ -85,6 +85,7 @@ export function renderPieArcItem(
 
   ctx.animateItem(path, {
     type: 'arc-sweep',
+    itemKey: ctx.config.itemTransitions === true ? arc.data.id : undefined,
     index: arc.index,
     originX: 0,
     originY: 0

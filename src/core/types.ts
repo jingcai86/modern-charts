@@ -904,6 +904,8 @@ export interface ItemAnimationSpec {
     | 'radar-expand'
     | 'sankey-flow'
     | 'needle-sweep';
+  /** Stable identity used to match an item across renders. */
+  itemKey?: string;
   index?: number;
   originX?: number;
   originY?: number;
@@ -1670,6 +1672,8 @@ export interface ChartConfig<TData = any> {
   animate?: boolean;
   motionConfig?: MotionPresetName | Partial<AnimationConfig>;
   animation?: Partial<AnimationConfig>;
+  /** Enables keyed transitions for bar and pie items. Defaults to `false`. */
+  itemTransitions?: boolean;
 
   // Marker & Threshold layer config (Nivo markers + ECharts markLine/markArea + conditional threshold styling)
   markers?: MarkerConfig[];

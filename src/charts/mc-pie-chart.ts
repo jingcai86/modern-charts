@@ -1,4 +1,5 @@
 import { MCBaseChart } from '../core/base-chart';
+import { ItemTransitions } from '../core/item-transitions';
 import type {
   ChartMargin,
   ChartRenderContext,
@@ -39,6 +40,8 @@ export class MCPieChart extends MCBaseChart<PieDatum[]> {
     'center-label'
   ];
 
+  #itemTransitions?: ItemTransitions;
+
   get chartType(): string {
     return 'pie';
   }
@@ -65,6 +68,15 @@ export class MCPieChart extends MCBaseChart<PieDatum[]> {
     return data.some(
       (d) => d != null && Number.isFinite(Number(d.value)) && Number(d.value) > 0
     );
+  }
+
+  public override replayAnimation(): void {
+    this.#itemTransitions?.cancel(true);
+    super.replayAnimation();
+  }
+
+  protected override cancelTransitions(clearSnapshot = false): void {
+    this.#itemTransitions?.cancel(clearSnapshot);
   }
 
   protected prepareContext(ctx: ChartRenderContext<PieDatum[]>): void {
@@ -116,6 +128,17 @@ export class MCPieChart extends MCBaseChart<PieDatum[]> {
     });
     ctx.state.model = model;
     ctx.state.computedArcs = model.arcs;
+
+    if (ctx.config.itemTransitions === true) {
+      this.#itemTransitions ??= new ItemTransitions();
+      this.#itemTransitions.prepare(ctx);
+    } else {
+      this.#itemTransitions = undefined;
+    }
+  }
+
+  protected override afterRender(ctx: ChartRenderContext<PieDatum[]>): void {
+    this.#itemTransitions?.finish(ctx);
   }
 
   protected getLayerRenderers(): Record<
