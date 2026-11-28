@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="616" height="410" viewBox="0 0 616 410" role="img" aria-labelledby="title desc">
+  <title id="title">Grouped bar chart and legend after resizing with AutoSize off</title>
+  <desc id="desc">With autoSize disabled, the browser scales the saved 600 by 320 viewBox to 60 percent inside the 360 by 320 box, leaving 64 pixels of empty space above and below.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
+    .label { font-size: 23px; font-weight: 680; }
+    .small { font-size: 19px; }
+    .muted { fill: #485b75; }
+    .center { text-anchor: middle; }
+    .off { fill: #fff2e4; stroke: #dbbe9d; stroke-width: 1.5; }
+    .no { fill: #874922; }
+    .box { fill: #eef1ff; stroke: #586bbe; stroke-width: 1.5; }
+    .plot { fill: #fff; stroke: #96a9d0; stroke-dasharray: 4 3; }
+    .axis { fill: none; stroke: #465877; stroke-width: 1.5; }
+    .tick { fill: #354962; font-size: 15px; }
+    .legend { fill: #fff; stroke: #9aaed7; }
+    .series { font: 12px Arial, sans-serif; }
+    .blue { fill: #2563eb; }
+    .green { fill: #10b981; }
+    .amber { fill: #f59e0b; }
+  </style>
+  <defs>
+    <g id="north">
+      <rect class="blue" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">North America</text>
+      <text class="series" x="15" y="12.48">Enterprise Sales</text>
+    </g>
+    <g id="europe">
+      <rect class="green" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">Europe Commercial</text>
+      <text class="series" x="15" y="12.48">Sales</text>
+    </g>
+    <g id="asia">
+      <rect class="amber" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">Asia Pacific Online</text>
+      <text class="series" x="15" y="12.48">Sales</text>
+    </g>
+    <g id="wide-chart">
+      <rect class="box" width="600" height="320"/>
+      <rect class="plot" x="50" y="24" width="520" height="184"/>
+      <path class="axis" d="M45 24h5v184h520M45 116h5m-5 92h5M180 208v5m260-5v5"/>
+      <rect class="blue" x="76" y="116" width="68" height="92"/>
+      <rect class="green" x="146" y="162" width="68" height="46"/>
+      <rect class="amber" x="216" y="70" width="68" height="138"/>
+      <rect class="blue" x="336" y="70" width="68" height="138"/>
+      <rect class="green" x="406" y="116" width="68" height="92"/>
+      <rect class="amber" x="476" y="24" width="68" height="184"/>
+      <g class="tick" text-anchor="end">
+        <text x="42" y="29">100</text>
+        <text x="42" y="121">50</text>
+        <text x="42" y="213">0</text>
+      </g>
+      <g class="tick center">
+        <text x="180" y="230">Q1</text>
+        <text x="440" y="230">Q2</text>
+      </g>
+      <g transform="translate(50 252)">
+        <rect class="legend" width="520" height="40" rx="4"/>
+        <use href="#north" x="75" y="20"/>
+        <use href="#europe" x="193" y="20"/>
+        <use href="#asia" x="329" y="20"/>
+      </g>
+    </g>
+  </defs>
+
+  <rect width="616" height="410" rx="20" fill="#f5f7ff"/>
+  <rect x="12" y="12" width="592" height="386" rx="16" class="off"/>
+  <text x="32" y="50" class="label no">After resizing · AutoSize off</text>
+  <text x="32" y="79" class="small muted">360 × 320 CSS box · Scaled 60% by browser</text>
+  <rect x="32" y="98" width="309.6" height="275.2" class="box"/>
+  <use href="#wide-chart" transform="translate(32 153.04) scale(.516)"/>
+  <text x="186.8" y="132" class="small center no">64 px space</text>
+  <text x="186.8" y="354" class="small center no">64 px space</text>
+  <g class="small">
+    <text x="365" y="144" class="label no">Saved layout</text>
+    <text x="365" y="177">600 × 320 viewBox</text>
+    <text x="365" y="207">520 × 184 plot</text>
+    <text x="365" y="237">68 px per bar</text>
+    <text x="365" y="267">1 legend row</text>
+    <text x="365" y="315" class="muted">The browser scales</text>
+    <text x="365" y="342" class="muted">the SVG to 60%.</text>
+  </g>
+</svg>

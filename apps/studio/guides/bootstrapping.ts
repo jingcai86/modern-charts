@@ -88,19 +88,41 @@ function createFeatureMatrixSection(): HTMLElement {
   const card = document.createElement('section');
   card.className = 'panel-card guide-section';
   card.innerHTML = `
-    <h2 class="panel-title">Optional Features &amp; Lazy Browser Downloads</h2>
+    <h2 class="panel-title">Why Bootstrap Features On Demand?</h2>
     <p class="guide-prose">
-      Pass <code>features</code> to <code>registerModernCharts()</code> or a standalone chart’s registration function.
-      Zoom, CSV export, and item selection default to <code>false</code>. The chart state overlay and built-in tooltips default to <code>true</code>.
-      Registration loads the enabled features as separate chunks.
+      Pass <code>features</code> to <code>registerModernCharts()</code> or a standalone chart’s registration function
+      to keep browser downloads small and reduce per-chart memory usage across dashboards.
     </p>
+    <div class="guide-pillars-grid">
+      <div class="guide-pillar-card">
+        <h3>📦 Download Only What the Browser Needs</h3>
+        <p>
+          Disabled features never trigger a browser network request or JavaScript parse/compile cost.
+          Each enabled capability downloads once as an independent async chunk.
+        </p>
+      </div>
+      <div class="guide-pillar-card">
+        <h3>🧠 Save Runtime Memory &amp; DOM Overhead</h3>
+        <p>
+          Skipping unused features avoids allocating per-chart controllers, listeners, and internal Shadow DOM hosts
+          (for example, <code>tooltip: false</code> skips mounting item and legend <code>&lt;mc-tooltip&gt;</code> elements on every chart).
+        </p>
+      </div>
+      <div class="guide-pillar-card">
+        <h3>⚡ Lean Defaults, Full Control</h3>
+        <p>
+          Zoom, CSV export, and item selection default to <code>false</code> so standard charts pay zero cost for them,
+          while <code>chartState</code> and <code>tooltip</code> default to <code>true</code> and can be opted out when using custom UI.
+        </p>
+      </div>
+    </div>
     <div class="guide-table-wrap" style="max-width:100%;overflow-x:auto;">
       <table class="guide-table">
         <thead>
           <tr>
             <th>Bootstrap Feature</th>
             <th>Option Key</th>
-            <th>Default</th>
+            <th>Default Bootstrap Included</th>
             <th>Lazy Chunk &amp; Guide Link</th>
           </tr>
         </thead>

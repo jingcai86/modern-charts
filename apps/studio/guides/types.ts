@@ -175,7 +175,7 @@ export const GUIDES_CATALOG: GuideMeta[] = [
     shortLabel: 'Bootstrapping',
     icon: '🚀',
     summary:
-      'Choose which feature chunks to load at registration. Zoom, CSV export, and item selection are opt-in; the loading/empty overlay and built-in tooltips are enabled by default.'
+      'Choose which feature chunks to load at registration so the browser only downloads the code you need and saves runtime memory by skipping controllers and DOM hosts for unused features.'
   }
 ];
 
