@@ -14,9 +14,15 @@ import { createCodeBlock, createLiveConfigEditor } from './shared';
 
 type SizingConfig = Pick<ChartConfig, 'autoSize' | 'width' | 'height' | 'margin'>;
 
-const comparisonImage = new URL('./assets/auto-size-comparison.svg', import.meta.url).href;
-const anatomyImage = new URL('./assets/auto-size-anatomy.svg', import.meta.url).href;
-const flowImage = new URL('./assets/auto-size-flow.svg', import.meta.url).href;
+const beforeImage = new URL('./assets/auto-size-before.svg', import.meta.url).href;
+const onImage = new URL('./assets/auto-size-on.svg', import.meta.url).href;
+const offImage = new URL('./assets/auto-size-off.svg', import.meta.url).href;
+const anatomyPlotImage = new URL('./assets/auto-size-anatomy-plot.svg', import.meta.url).href;
+const anatomyLegendImage = new URL('./assets/auto-size-anatomy-legend.svg', import.meta.url).href;
+const flowTriggerImage = new URL('./assets/auto-size-flow-trigger.svg', import.meta.url).href;
+const flowStepsImage = new URL('./assets/auto-size-flow-steps.svg', import.meta.url).href;
+const resizeOnGif = new URL('./assets/auto-size-resize-on.gif', import.meta.url).href;
+const resizeOffGif = new URL('./assets/auto-size-resize-off.gif', import.meta.url).href;
 
 const legendKeys = ['North America Enterprise Sales', 'Europe Commercial Sales', 'Asia Pacific Online Sales'];
 const workedBarConfig: ChartConfig<BarDatum[]> = {
@@ -76,31 +82,56 @@ export function renderAutoSizeGuide(
   comparison.className = 'panel-card guide-section';
   comparison.innerHTML = `
     <h2 class="panel-title">Resize the same chart and legend</h2>
-    <p class="guide-prose">
-      The grouped bar chart shows three sales series for Q1 and Q2. Both settings
-      first draw it in a 600 × 320 px container. The width then shrinks to 360 px.
-    </p>
-    <figure class="auto-size-figure">
-      <a href="${comparisonImage}" target="_blank" rel="noopener">
-        <img src="${comparisonImage}" alt="The same grouped bar chart and legend at 600 and 360 pixels. AutoSize narrows the bars and moves the third legend entry to a second row. With AutoSize off, the browser scales the original bars and one-row legend to 60 percent." />
-      </a>
-      <figcaption class="guide-prose">
-        The CSS box is the screen space available to the chart. The SVG <code>viewBox</code>
-        defines the coordinates used to draw it. Open the image to see the annotations at full size.
-      </figcaption>
-    </figure>
-    <ul class="guide-prose auto-size-steps">
-      <li><strong>On.</strong> The chart recalculates the <code>viewBox</code> at 360 × 320.
-        The plot goes from 520 × 184 to 280 × 184, the bars get narrower, and the
-        legend reflows from one row to two.</li>
-      <li><strong>Off.</strong> The browser fits the original 600 × 320 drawing, including
-        the one-row legend, into 360 × 192 px at <code>360 ÷ 600 = 0.6</code> scale.
-        It centers that drawing with 64 px above and below.
-        Call <code>chart.resize()</code> to redraw at the new size.</li>
-    </ul>
-    <details class="auto-size-example">
-      <summary>Copy the example</summary>
-    </details>
+    <div class="auto-size-split-grid">
+      <div class="auto-size-copy-stack">
+        <p class="guide-prose">
+          The grouped bar chart shows three sales series for Q1 and Q2. Both settings
+          first draw it in a 600 × 320 px container. The width then shrinks to 360 px.
+        </p>
+        <p class="guide-prose">
+          The CSS box is the screen space available to the chart. The SVG <code>viewBox</code>
+          defines the coordinates used to draw it. Open any diagram to inspect the annotations at full size.
+        </p>
+        <ul class="guide-prose auto-size-steps">
+          <li><strong>On.</strong> The chart recalculates the <code>viewBox</code> at 360 × 320.
+            The plot goes from 520 × 184 to 280 × 184, the bars get narrower, and the
+            legend reflows from one row to two.</li>
+          <li><strong>Off.</strong> The browser fits the original 600 × 320 drawing, including
+            the one-row legend, into 360 × 192 px at <code>360 ÷ 600 = 0.6</code> scale.
+            It centers that drawing with 64 px above and below.
+            Call <code>chart.resize()</code> to redraw at the new size.</li>
+        </ul>
+        <details class="auto-size-example">
+          <summary>Copy the example</summary>
+        </details>
+      </div>
+      <figure class="auto-size-figure auto-size-card">
+        <a href="${beforeImage}" target="_blank" rel="noopener">
+          <img src="${beforeImage}" width="616" height="410" alt="Before resizing: the grouped bar chart and legend at 600 by 320 pixels with a 520 by 184 plot and all three legend entries on one row." />
+        </a>
+        <figcaption class="guide-prose">
+          <strong>Before resizing (600 × 320 px).</strong> Both settings share the same initial drawing and single-row legend.
+        </figcaption>
+      </figure>
+    </div>
+    <div class="auto-size-compare-grid">
+      <figure class="auto-size-figure auto-size-card">
+        <a href="${onImage}" target="_blank" rel="noopener">
+          <img src="${onImage}" width="616" height="410" alt="After resizing to 360 by 320 pixels with AutoSize on: the plot narrows to 280 by 184, bars narrow to 36 pixels, and the third legend entry wraps to a second row." />
+        </a>
+        <figcaption class="guide-prose">
+          <strong>After resizing · <code>autoSize: true</code>.</strong> Redraws inside a 360 × 320 <code>viewBox</code> with 36 px bars and 2 legend rows.
+        </figcaption>
+      </figure>
+      <figure class="auto-size-figure auto-size-card">
+        <a href="${offImage}" target="_blank" rel="noopener">
+          <img src="${offImage}" width="616" height="410" alt="After resizing to 360 by 320 pixels with AutoSize off: the browser scales the original 600 by 320 viewBox and one-row legend to 60 percent with 64 pixels of empty space above and below." />
+        </a>
+        <figcaption class="guide-prose">
+          <strong>After resizing · <code>autoSize: false</code>.</strong> Scales the saved 600 × 320 <code>viewBox</code> to 60% with 64 px letterbox gaps.
+        </figcaption>
+      </figure>
+    </div>
   `;
   comparison.querySelector('details')!.append(createCodeBlock(responsiveExample, 'Bar chart resize example'));
 
@@ -108,90 +139,119 @@ export function renderAutoSizeGuide(
   calculations.className = 'panel-card guide-section';
   calculations.innerHTML = `
     <h2 class="panel-title">Calculate the resized chart and legend</h2>
-    <figure class="auto-size-figure">
-      <a href="${anatomyImage}" target="_blank" rel="noopener">
-        <img src="${anatomyImage}" alt="The 360 by 320 SVG with its 280 by 184 plot, two groups of three bars, and two centered legend rows in the 112-unit bottom margin. The first Q1 bar starts at plot coordinates 14, 92 and measures 36 by 92." />
-      </a>
-      <figcaption class="guide-prose">
-        The annotated chart uses the 360 × 320 layout with <code>autoSize</code> on.
-        Coordinates for axes and bars are measured from the plot origin unless marked as SVG coordinates.
-      </figcaption>
-    </figure>
-    <ol class="guide-prose auto-size-steps">
-      <li><strong>Measure the SVG.</strong> The chart host fills its container, so the
-        outside dimensions resolve to 360 × 320. The SVG uses <code>viewBox="0 0 360 320"</code>.</li>
-      <li><strong>Reserve margins.</strong> Top 24, right 30, bottom 112, and left 50 give
-        a plot of <code>360 − 50 − 30 = 280</code> by <code>320 − 24 − 112 = 184</code>.
-        Plot <code>(0, 0)</code> is SVG <code>(50, 24)</code>. The bottom margin reserves
-        24 units for the axis, 80 for two legend rows, and 8 below the legend.</li>
-      <li><strong>Map the categories.</strong> The X band scale maps Q1 and Q2 across
-        <code>[0, 280]</code>. Inner padding is 0.2 and outer padding is 0.1.
-        The step is <code>280 ÷ (2 − 0.2 + 2 × 0.1) = 140</code>. Each band is
-        <code>140 × 0.8 = 112</code> wide. Q1 starts at <code>140 × 0.1 = 14</code>.
-        Q2 starts at <code>14 + 140 = 154</code>. Their X ticks sit at band centers, 70 and 210.</li>
-      <li><strong>Map the values.</strong> The Y scale maps <code>[0, 100]</code> onto
-        <code>[184, 0]</code>. SVG Y increases downward, so <code>y(v) = 184 × (1 − v ÷ 100)</code>.
-        The left axis puts 100, 50, and 0 at Y positions 0, 92, and 184.
-        The bottom axis and zero baseline sit at <code>y = 184</code>.</li>
-      <li><strong>Calculate the bar rectangles.</strong> Each band holds three bars and two
-        2-unit gaps. Bar width changes from <code>(208 − 4) ÷ 3 = 68</code> to
-        <code>(112 − 4) ÷ 3 = 36</code>. At 360 px, each group starts at its band position
-        and each successive bar starts 38 units later. A bar's top is <code>y(value)</code>
-        and its height is <code>184 − y(value)</code>.</li>
-    </ol>
-    <div class="guide-table-wrap">
-      <table class="guide-table">
-        <thead><tr><th scope="col">Quarter and series</th><th scope="col">Value</th><th scope="col">Plot (x, y)</th><th scope="col">Width × height</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">Q1 North America</th><td>50</td><td>(14, 92)</td><td>36 × 92</td></tr>
-          <tr><th scope="row">Q1 Europe</th><td>25</td><td>(52, 138)</td><td>36 × 46</td></tr>
-          <tr><th scope="row">Q1 Asia Pacific</th><td>75</td><td>(90, 46)</td><td>36 × 138</td></tr>
-          <tr><th scope="row">Q2 North America</th><td>75</td><td>(154, 46)</td><td>36 × 138</td></tr>
-          <tr><th scope="row">Q2 Europe</th><td>50</td><td>(192, 92)</td><td>36 × 92</td></tr>
-          <tr><th scope="row">Q2 Asia Pacific</th><td>100</td><td>(230, 0)</td><td>36 × 184</td></tr>
-        </tbody>
-      </table>
+    <div class="auto-size-split-grid">
+      <div class="auto-size-copy-stack">
+        <figure class="auto-size-figure auto-size-card">
+          <a href="${anatomyPlotImage}" target="_blank" rel="noopener">
+            <img src="${anatomyPlotImage}" width="640" height="545" alt="The 360 by 320 SVG with its 280 by 184 plot at origin 50, 24, two groups of three bars, and two centered legend rows in the 112-unit bottom margin." />
+          </a>
+          <figcaption class="guide-prose">
+            The annotated chart uses the 360 × 320 layout with <code>autoSize</code> on.
+            Coordinates for axes and bars are measured from the plot origin unless marked as SVG coordinates.
+          </figcaption>
+        </figure>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead><tr><th scope="col">Quarter and series</th><th scope="col">Value</th><th scope="col">Plot (x, y)</th><th scope="col">Width × height</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Q1 North America</th><td>50</td><td>(14, 92)</td><td>36 × 92</td></tr>
+              <tr><th scope="row">Q1 Europe</th><td>25</td><td>(52, 138)</td><td>36 × 46</td></tr>
+              <tr><th scope="row">Q1 Asia Pacific</th><td>75</td><td>(90, 46)</td><td>36 × 138</td></tr>
+              <tr><th scope="row">Q2 North America</th><td>75</td><td>(154, 46)</td><td>36 × 138</td></tr>
+              <tr><th scope="row">Q2 Europe</th><td>50</td><td>(192, 92)</td><td>36 × 92</td></tr>
+              <tr><th scope="row">Q2 Asia Pacific</th><td>100</td><td>(230, 0)</td><td>36 × 184</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="auto-size-copy-stack">
+        <ol class="guide-prose auto-size-steps">
+          <li><strong>Measure the SVG.</strong> The chart host fills its container, so the
+            outside dimensions resolve to 360 × 320. The SVG uses <code>viewBox="0 0 360 320"</code>.</li>
+          <li><strong>Reserve margins.</strong> Top 24, right 30, bottom 112, and left 50 give
+            a plot of <code>360 − 50 − 30 = 280</code> by <code>320 − 24 − 112 = 184</code>.
+            Plot <code>(0, 0)</code> is SVG <code>(50, 24)</code>. The bottom margin reserves
+            24 units for the axis, 80 for two legend rows, and 8 below the legend.</li>
+          <li><strong>Map the categories.</strong> The X band scale maps Q1 and Q2 across
+            <code>[0, 280]</code>. Inner padding is 0.2 and outer padding is 0.1.
+            The step is <code>280 ÷ (2 − 0.2 + 2 × 0.1) = 140</code>. Each band is
+            <code>140 × 0.8 = 112</code> wide. Q1 starts at <code>140 × 0.1 = 14</code>.
+            Q2 starts at <code>14 + 140 = 154</code>. Their X ticks sit at band centers, 70 and 210.</li>
+          <li><strong>Map the values.</strong> The Y scale maps <code>[0, 100]</code> onto
+            <code>[184, 0]</code>. SVG Y increases downward, so <code>y(v) = 184 × (1 − v ÷ 100)</code>.
+            The left axis puts 100, 50, and 0 at Y positions 0, 92, and 184.
+            The bottom axis and zero baseline sit at <code>y = 184</code>.</li>
+          <li><strong>Calculate the bar rectangles.</strong> Each band holds three bars and two
+            2-unit gaps. Bar width changes from <code>(208 − 4) ÷ 3 = 68</code> to
+            <code>(112 − 4) ÷ 3 = 36</code>. At 360 px, each group starts at its band position
+            and each successive bar starts 38 units later. A bar's top is <code>y(value)</code>
+            and its height is <code>184 − y(value)</code>.</li>
+        </ol>
+      </div>
     </div>
-    <ol class="guide-prose auto-size-steps" start="6">
-      <li><strong>Measure and wrap the legend labels.</strong> With <code>legend.maxItemWidth</code>
-        set to 110 and <code>label: { target: 'legend', overflow: 'wrap-truncate', maxLines: 2 }</code>,
-        Pretext measures each label and wraps it to up to two lines. The fixed width
-        limit gives the same line breaks at both chart widths. Adding the 10-unit swatch
-        and 5-unit gap gives measured entry widths of 104, 122, and 116 units with Arial at 12 px.</li>
-      <li><strong>Pack and place the legend.</strong> Subtracting 12 units of padding on each
-        side leaves 496 units at 600 px and 256 at 360 px. With <code>legend.wrap: true</code>,
-        the three entries and their gaps fit in one 370-unit row at 600 px. At 360 px the
-        first row takes <code>104 + 14 + 122 = 240</code> units, and the third entry sits in
-        a centered second row. The rows use <code>32 + 8 + 32 + 8 = 80</code> units,
-        including the gap and vertical padding. They fill the legend slot starting at SVG
-        <code>(50, 232)</code>. At 600 px the single row fits at SVG <code>(50, 252)</code>,
-        centered vertically in the same slot.</li>
-    </ol>
-    <p class="guide-prose">
-      Whole-entry wrapping uses the plot width for top and bottom legends and the
-      plot height for left and right legends. <code>legend.wrap: false</code> keeps the
-      entries in one row or column while the label overflow setting still controls
-      line breaks. Reserve enough margin for the rows or columns your chart needs.
-    </p>
+    <div class="auto-size-split-grid">
+      <figure class="auto-size-figure auto-size-card">
+        <a href="${anatomyLegendImage}" target="_blank" rel="noopener">
+          <img src="${anatomyLegendImage}" width="640" height="416" alt="Callout diagrams showing 112 pixels per category band yielding 36-pixel bars, the 110-pixel Pretext text-width cap for each two-line legend label, and 256 pixels available per legend row." />
+        </a>
+        <figcaption class="guide-prose">
+          Category band math, Pretext's 110 px label text cap, and row packing within the 256 px inner legend width.
+        </figcaption>
+      </figure>
+      <div class="auto-size-copy-stack">
+        <ol class="guide-prose auto-size-steps" start="6">
+          <li><strong>Measure and wrap the legend labels.</strong> With <code>legend.maxItemWidth</code>
+            set to 110 and <code>label: { target: 'legend', overflow: 'wrap-truncate', maxLines: 2 }</code>,
+            Pretext measures each label and wraps it to up to two lines. The fixed width
+            limit gives the same line breaks at both chart widths. Adding the 10-unit swatch
+            and 5-unit gap gives measured entry widths of 104, 122, and 116 units with Arial at 12 px.</li>
+          <li><strong>Pack and place the legend.</strong> Subtracting 12 units of padding on each
+            side leaves 496 units at 600 px and 256 at 360 px. With <code>legend.wrap: true</code>,
+            the three entries and their gaps fit in one 370-unit row at 600 px. At 360 px the
+            first row takes <code>104 + 14 + 122 = 240</code> units, and the third entry sits in
+            a centered second row. The rows use <code>32 + 8 + 32 + 8 = 80</code> units,
+            including the gap and vertical padding. They fill the legend slot starting at SVG
+            <code>(50, 232)</code>. At 600 px the single row fits at SVG <code>(50, 252)</code>,
+            centered vertically in the same slot.</li>
+        </ol>
+        <p class="guide-prose">
+          Whole-entry wrapping uses the plot width for top and bottom legends and the
+          plot height for left and right legends. <code>legend.wrap: false</code> keeps the
+          entries in one row or column while the label overflow setting still controls
+          line breaks. Reserve enough margin for the rows or columns your chart needs.
+        </p>
+      </div>
+    </div>
   `;
 
   const flow = document.createElement('section');
   flow.className = 'panel-card guide-section';
   flow.innerHTML = `
     <h2 class="panel-title">When calculations run</h2>
-    <figure class="auto-size-figure">
-      <a href="${flowImage}" target="_blank" rel="noopener">
-        <img src="${flowImage}" alt="Flow chart from a resize or manual redraw through size, margins, scales, and bar rectangles. Then the legend wraps the labels, packs and centers the entries in rows, and draws the result." />
-      </a>
-      <figcaption class="guide-prose">
-        Both settings calculate on the first draw. On later CSS resizes, <code>autoSize</code>
-        uses <code>ResizeObserver</code> to check the host and its parent. A change in resolved
-        width or height repeats the layout. Explicit redraws such as <code>chart.resize()</code>
-        work with either setting. In this example the model computes the scales and bar
-        rectangles. The renderer draws axes and bars, then measures the legend text,
-        packs the rows, and draws the legend in the reserved bottom margin.
-      </figcaption>
-    </figure>
+    <p class="guide-prose">
+      Both settings calculate on the first draw. On later CSS resizes, <code>autoSize</code>
+      uses <code>ResizeObserver</code> to check the host and its parent. A change in resolved
+      width or height repeats the layout. Explicit redraws such as <code>chart.resize()</code>
+      work with either setting.
+    </p>
+    <div class="auto-size-compare-grid">
+      <figure class="auto-size-figure auto-size-card">
+        <a href="${flowTriggerImage}" target="_blank" rel="noopener">
+          <img src="${flowTriggerImage}" width="640" height="470" alt="Decision flow from initial render or container resize through the autoSize and ResizeObserver check to either scaling the previous viewBox or running the layout pipeline." />
+        </a>
+        <figcaption class="guide-prose">
+          <strong>Trigger check.</strong> Resizes only recalculate when <code>autoSize</code> is enabled and a resolved dimension changes.
+        </figcaption>
+      </figure>
+      <figure class="auto-size-figure auto-size-card">
+        <a href="${flowStepsImage}" target="_blank" rel="noopener">
+          <img src="${flowStepsImage}" width="640" height="470" alt="Eight-step calculation pipeline: outer size, margins, viewBox and plot, chart scales, item geometry, drawing axes and bars, Pretext legend measurement, and packing legend rows." />
+        </a>
+        <figcaption class="guide-prose">
+          <strong>Layout &amp; legend pipeline.</strong> The model computes scales and bar rectangles before the renderer measures and packs legend rows.
+        </figcaption>
+      </figure>
+    </div>
   `;
 
   const layout = document.createElement('section');
@@ -222,11 +282,28 @@ export function renderAutoSizeGuide(
   demo.innerHTML = `
     <h2 class="panel-title">Resize the container</h2>
     <p class="guide-prose">
-      The bar chart starts at 600 × 320 px with the data and legend shown above.
-      Move the width slider to 360 px to see the third entry wrap to a second row.
-      To compare, return to 600 px and set <code>autoSize: false</code> in the editor
-      before moving the slider again. The dotted outline marks the plot area.
+      Compare what happens as the container width slides between 600 px and 360 px with
+      <code>autoSize: true</code> versus <code>autoSize: false</code>, then try any chart type
+      and dimensions in the live playground below. The dotted outline marks the plot area.
     </p>
+    <div class="auto-size-compare-grid">
+      <figure class="auto-size-figure auto-size-card">
+        <a href="${resizeOnGif}" target="_blank" rel="noopener">
+          <img src="${resizeOnGif}" width="560" height="400" alt="Animated width slider resizing the container between 600 and 360 pixels with AutoSize on: the viewBox and plot width recalculate continuously, bars narrow from 68 to 36 pixels, and the third legend entry wraps to a second row." />
+        </a>
+        <figcaption class="guide-prose">
+          <strong>Sliding width with <code>autoSize: true</code>.</strong> Recalculates the <code>viewBox</code>, bar widths, and legend rows as the container narrows.
+        </figcaption>
+      </figure>
+      <figure class="auto-size-figure auto-size-card">
+        <a href="${resizeOffGif}" target="_blank" rel="noopener">
+          <img src="${resizeOffGif}" width="560" height="400" alt="Animated width slider resizing the container between 600 and 360 pixels with AutoSize off: the saved 600 by 320 viewBox scales uniformly down to 60 percent inside the 360 by 320 box with 64-pixel top and bottom gaps." />
+        </a>
+        <figcaption class="guide-prose">
+          <strong>Sliding width with <code>autoSize: false</code>.</strong> Scales the saved 600 × 320 <code>viewBox</code> uniformly down to 60% without reflowing the legend.
+        </figcaption>
+      </figure>
+    </div>
     <div class="guide-controls-row auto-size-controls">
       <label for="auto-size-chart">
         Chart <select id="auto-size-chart"></select>
@@ -276,7 +353,11 @@ export function renderAutoSizeGuide(
     </p>
   `;
 
-  container.append(comparison, calculations, flow, demo, layout, positioning);
+  const referenceGrid = document.createElement('div');
+  referenceGrid.className = 'auto-size-reference-grid';
+  referenceGrid.append(layout, positioning);
+
+  container.append(comparison, demo, calculations, flow, referenceGrid);
 
   const chartSelect = demo.querySelector<HTMLSelectElement>('#auto-size-chart')!;
   const widthInput = demo.querySelector<HTMLInputElement>('#auto-size-width')!;

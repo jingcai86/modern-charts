@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="616" height="410" viewBox="0 0 616 410" role="img" aria-labelledby="title desc">
+  <title id="title">Grouped bar chart and legend after resizing with AutoSize on</title>
+  <desc id="desc">With autoSize enabled, resizing the container to 360 by 320 redraws the chart in a 360 by 320 viewBox with a 280 by 184 plot, 36-pixel bars, and a two-row legend.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
+    .label { font-size: 23px; font-weight: 680; }
+    .small { font-size: 19px; }
+    .muted { fill: #485b75; }
+    .center { text-anchor: middle; }
+    .on { fill: #e9f8f1; stroke: #a8d0bd; stroke-width: 1.5; }
+    .yes { fill: #155f49; }
+    .box { fill: #eef1ff; stroke: #586bbe; stroke-width: 1.5; }
+    .plot { fill: #fff; stroke: #96a9d0; stroke-dasharray: 4 3; }
+    .axis { fill: none; stroke: #465877; stroke-width: 1.5; }
+    .tick { fill: #354962; font-size: 15px; }
+    .legend { fill: #fff; stroke: #9aaed7; }
+    .series { font: 12px Arial, sans-serif; }
+    .blue { fill: #2563eb; }
+    .green { fill: #10b981; }
+    .amber { fill: #f59e0b; }
+  </style>
+  <defs>
+    <g id="north">
+      <rect class="blue" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">North America</text>
+      <text class="series" x="15" y="12.48">Enterprise Sales</text>
+    </g>
+    <g id="europe">
+      <rect class="green" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">Europe Commercial</text>
+      <text class="series" x="15" y="12.48">Sales</text>
+    </g>
+    <g id="asia">
+      <rect class="amber" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">Asia Pacific Online</text>
+      <text class="series" x="15" y="12.48">Sales</text>
+    </g>
+  </defs>
+
+  <rect width="616" height="410" rx="20" fill="#f5f7ff"/>
+  <rect x="12" y="12" width="592" height="386" rx="16" class="on"/>
+  <text x="32" y="50" class="label yes">After resizing · AutoSize on</text>
+  <text x="32" y="79" class="small muted">360 × 320 CSS box · Recalculated geometry</text>
+  <g transform="translate(32 98) scale(.86)">
+    <rect class="box" width="360" height="320"/>
+    <rect class="plot" x="50" y="24" width="280" height="184"/>
+    <path class="axis" d="M45 24h5v184h280M45 116h5m-5 92h5M120 208v5m140-5v5"/>
+    <rect class="blue" x="64" y="116" width="36" height="92"/>
+    <rect class="green" x="102" y="162" width="36" height="46"/>
+    <rect class="amber" x="140" y="70" width="36" height="138"/>
+    <rect class="blue" x="204" y="70" width="36" height="138"/>
+    <rect class="green" x="242" y="116" width="36" height="92"/>
+    <rect class="amber" x="280" y="24" width="36" height="184"/>
+    <g class="tick" text-anchor="end">
+      <text x="42" y="29">100</text>
+      <text x="42" y="121">50</text>
+      <text x="42" y="213">0</text>
+    </g>
+    <g class="tick center">
+      <text x="120" y="230">Q1</text>
+      <text x="260" y="230">Q2</text>
+    </g>
+    <g transform="translate(50 232)">
+      <rect class="legend" width="280" height="80" rx="4"/>
+      <use href="#north" x="20" y="20"/>
+      <use href="#europe" x="138" y="20"/>
+      <use href="#asia" x="82" y="60"/>
+    </g>
+  </g>
+  <g class="small">
+    <text x="365" y="144" class="label yes">New layout</text>
+    <text x="365" y="177">360 × 320 viewBox</text>
+    <text x="365" y="207">280 × 184 plot</text>
+    <text x="365" y="237">36 px per bar</text>
+    <text x="365" y="267">2 legend rows</text>
+    <text x="365" y="315" class="muted">The third entry</text>
+    <text x="365" y="342" class="muted">moves to row 2.</text>
+  </g>
+</svg>

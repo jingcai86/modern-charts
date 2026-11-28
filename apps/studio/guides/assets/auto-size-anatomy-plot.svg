@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="545" viewBox="0 0 640 545" role="img" aria-labelledby="title desc">
+  <title id="title">Annotated plot and margins of the 360 by 320 grouped bar chart</title>
+  <desc id="desc">In the 360 by 320 viewBox, the 280 by 184 plot starts at SVG coordinate (50, 24). Margins are 24 top, 30 right, 112 bottom, and 50 left. The blue Q1 bar starts at plot coordinate (14, 92) and is 36 by 92 pixels. Two legend rows sit in the 112-pixel bottom margin.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
+    .heading { font-size: 28px; font-weight: 750; }
+    .label { font-size: 22px; font-weight: 680; }
+    .body { font-size: 20px; }
+    .small { font-size: 18px; }
+    .muted { fill: #485b75; }
+    .center { text-anchor: middle; }
+    .viewport { fill: #e9eeff; stroke: #586bbe; stroke-width: 2.5; }
+    .plot { fill: #fff; stroke: #96a9d0; stroke-width: 2; stroke-dasharray: 5 5; }
+    .axis { fill: none; stroke: #3d5372; stroke-width: 2; }
+    .guide { fill: none; stroke: #8a9abd; stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .measure { fill: none; stroke: #187053; stroke-width: 2; }
+    .annotation { fill: #135c47; }
+    .blue { fill: #2563eb; }
+    .green { fill: #10b981; }
+    .amber { fill: #f59e0b; }
+    .slot { fill: #fff; stroke: #96a9d0; stroke-width: 1.5; }
+    .padding { fill: #d9e2fb; }
+    .series { font: 12px Arial, sans-serif; }
+  </style>
+  <rect width="640" height="545" rx="20" fill="#f5f7ff"/>
+  <text x="28" y="42" class="heading">Plot &amp; margin geometry (360 × 320)</text>
+  <text x="28" y="72" class="body muted">SVG viewBox 0 0 360 320 · Plot 280 × 184 at (50, 24)</text>
+
+  <rect class="viewport" x="140" y="135" width="360" height="320"/>
+  <rect class="plot" x="190" y="159" width="280" height="184"/>
+  <path class="guide" d="M190 251H470"/>
+  <path class="axis" d="M184 159h6v184h280M184 251h6m-6 92h6M260 343v7m140-7v7"/>
+  <rect class="blue" x="204" y="251" width="36" height="92"/>
+  <rect class="green" x="242" y="297" width="36" height="46"/>
+  <rect class="amber" x="280" y="205" width="36" height="138"/>
+  <rect class="blue" x="344" y="205" width="36" height="138"/>
+  <rect class="green" x="382" y="251" width="36" height="92"/>
+  <rect class="amber" x="420" y="159" width="36" height="184"/>
+  <g class="small muted" text-anchor="end">
+    <text x="178" y="167">100</text>
+    <text x="178" y="259">50</text>
+    <text x="178" y="351">0</text>
+  </g>
+  <g class="small center">
+    <text x="260" y="363">Q1</text>
+    <text x="400" y="363">Q2</text>
+  </g>
+
+  <path class="measure" d="M190 157v-43h26"/>
+  <circle cx="190" cy="159" r="4.5" fill="#187053"/>
+  <text x="224" y="121" class="body annotation">Plot origin (50, 24)</text>
+  <path class="measure" d="M204 249l26-25"/>
+  <circle cx="204" cy="251" r="4" fill="#f4fff8" stroke="#187053" stroke-width="2"/>
+  <text x="204" y="192" class="small annotation">Q1 blue</text>
+  <text x="204" y="217" class="small annotation">(14, 92)</text>
+
+  <path class="measure" d="M502 135h21m-5 0v24m-16 0h21M140 208v20m0-10h50m0-10v20M470 185v20m0-10h30m0-10v20M502 343h17m-5 0v112m-12 0h17"/>
+  <g class="small annotation">
+    <text x="529" y="147">Top</text>
+    <text x="529" y="170">24 px</text>
+    <text x="126" y="209" text-anchor="end">Left</text>
+    <text x="126" y="233" text-anchor="end">50 px</text>
+    <text x="514" y="199">Right</text>
+    <text x="514" y="223">30 px</text>
+    <text x="525" y="365">Bottom</text>
+    <text x="525" y="389">112 px</text>
+    <text x="525" y="419" class="muted">Axis and</text>
+    <text x="525" y="443" class="muted">legend</text>
+  </g>
+  <path class="measure" d="M66 159H52m7 0v184m-7 0h14"/>
+  <text x="42" y="251" transform="rotate(-90 42 251)" class="small annotation center">Plot height 184 px</text>
+
+  <g transform="translate(190 367)">
+    <rect class="slot" width="280" height="80"/>
+    <path class="padding" d="M0 1h12v78H0zm268 0h12v78h-12z"/>
+    <path class="guide" d="M12 0v80m256-80v80"/>
+    <g transform="translate(20 20)">
+      <rect class="blue" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">North America</text>
+      <text class="series" x="15" y="12.48">Enterprise Sales</text>
+    </g>
+    <g transform="translate(138 20)">
+      <rect class="green" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">Europe Commercial</text>
+      <text class="series" x="15" y="12.48">Sales</text>
+    </g>
+    <g transform="translate(82 60)">
+      <rect class="amber" y="-5" width="10" height="10" rx="2"/>
+      <text class="series" x="15" y="-3.52">Asia Pacific Online</text>
+      <text class="series" x="15" y="12.48">Sales</text>
+    </g>
+  </g>
+  <path class="measure" d="M110 387h74m-74 40h74"/>
+  <text x="100" y="394" class="small annotation" text-anchor="end">Row 1</text>
+  <text x="100" y="434" class="small annotation" text-anchor="end">Row 2</text>
+
+  <path class="measure" d="M190 473v17m0-8h280m0-9v17"/>
+  <text x="330" y="515" class="label center annotation">Plot width 280 px</text>
+</svg>

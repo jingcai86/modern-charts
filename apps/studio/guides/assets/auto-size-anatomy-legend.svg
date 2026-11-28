@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="416" viewBox="0 0 640 416" role="img" aria-labelledby="title desc">
+  <title id="title">Band width, Pretext legend label width cap, and row packing math</title>
+  <desc id="desc">Each 112-pixel category band fits three 36-pixel bars with two 2-pixel gaps. Each legend label wraps within a 110-pixel text-width cap. With 256 pixels available per legend row, the first two entries use 240 pixels on Row 1 and Asia Pacific wraps to Row 2.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
+    .label { font-size: 23px; font-weight: 680; }
+    .body { font-size: 20px; }
+    .small { font-size: 19px; }
+    .muted { fill: #485b75; }
+    .measure { fill: none; stroke: #187053; stroke-width: 2; }
+    .annotation { fill: #135c47; }
+    .blue { fill: #2563eb; }
+    .callout { fill: #fff; stroke: #b6c8e5; stroke-width: 1.5; }
+  </style>
+  <rect width="640" height="416" rx="20" fill="#f5f7ff"/>
+
+  <rect x="20" y="18" width="600" height="101" rx="14" class="callout"/>
+  <text x="40" y="53" class="label">112 px per category band</text>
+  <text x="40" y="90" class="body">(112 − 2 gaps × 2 px) ÷ 3 bars = 36 px per bar</text>
+
+  <rect x="20" y="137" width="600" height="133" rx="14" class="callout"/>
+  <text x="40" y="173" class="label">One label from the same legend</text>
+  <rect x="40" y="212" width="17" height="17" rx="3" class="blue"/>
+  <text x="68" y="210" class="body">North America</text>
+  <text x="68" y="238" class="body">Enterprise Sales</text>
+  <path class="measure" d="M264 194h-12m12 47h-12m12-47v47"/>
+  <text x="282" y="210" class="small annotation">110 px text-width cap</text>
+  <text x="282" y="238" class="small muted">Same two lines at both widths</text>
+
+  <rect x="20" y="288" width="600" height="110" rx="14" class="callout"/>
+  <text x="40" y="323" class="label">256 px available for legend entries</text>
+  <text x="40" y="358" class="small">280 px plot − 12 px left pad − 12 px right pad</text>
+  <text x="40" y="386" class="small muted">Row 1 uses 240 px. Asia Pacific moves down.</text>
+</svg>

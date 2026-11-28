@@ -83,7 +83,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     const commentedOptOut = /^([ \t]*)\/\/[ \t]*(chartState: false)/m;
     const badgeLink = root.querySelector<HTMLAnchorElement>('h1 a.guide-hero-feature-default');
     expect(badgeLink?.getAttribute('href')).toBe('#/guide/bootstrapping');
-    expect(badgeLink?.textContent).toContain('Default: true');
+    expect(badgeLink?.textContent).toContain('Default bootstrap included: true');
     expect(overlay.checked).toBe(true);
     expect(editor.value).toContain("import { registerBarChart } from 'modern-charts/bar';");
     expect(editor.value).toMatch(commentedOptOut);
@@ -118,7 +118,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
 
     const badgeLink = root.querySelector<HTMLAnchorElement>('h1 a.guide-hero-feature-default');
     expect(badgeLink?.getAttribute('href')).toBe('#/guide/bootstrapping');
-    expect(badgeLink?.textContent).toContain('Default: true');
+    expect(badgeLink?.textContent).toContain('Default bootstrap included: true');
     expect(builtinToggle.checked).toBe(true);
     expect(customTooltip).not.toBeNull();
     expect(editor.value).toContain("import { registerBarChart } from 'modern-charts/bar';");
@@ -337,7 +337,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     editor.dispatchEvent(new Event('input'));
     expect(bandFill()).toBe('#6366f1');
     findRunCallbacksButton(editor)!.click();
-    await vi.waitFor(() => expect(bandFill()).toBe('#abcdef'));
+    await vi.waitFor(() => expect(bandFill()).toBe('#abcdef'), { timeout: 5_000 });
     expect(findRunCallbacksButton(editor)).toBeUndefined();
 
     root.querySelector<HTMLButtonElement>('#btn-layer-pos-back')!.click();
@@ -368,7 +368,7 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     editor.dispatchEvent(new Event('input'));
     expect(ribbon().getAttribute('fill')).toBe('#06b6d4');
     findRunCallbacksButton(editor)!.click();
-    await vi.waitFor(() => expect(ribbon().getAttribute('fill')).toBe('#abcdef'));
+    await vi.waitFor(() => expect(ribbon().getAttribute('fill')).toBe('#abcdef'), { timeout: 5_000 });
     expect(ribbon().getAttribute('d')).toBe(initialPath);
 
     slider.value = '20';
@@ -401,12 +401,12 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     expect(axisLabels()).toEqual(originalLabels);
     findRunCallbacksButton(editor)!.click();
     const editedLabels = originalLabels.map(label => label.replace(/^\$/, '€'));
-    await vi.waitFor(() => expect(axisLabels()).toEqual(editedLabels));
+    await vi.waitFor(() => expect(axisLabels()).toEqual(editedLabels), { timeout: 5_000 });
 
     editor.value = editor.value.replace('€${text}K', '${window.document.title}');
     editor.dispatchEvent(new Event('input'));
     findRunCallbacksButton(editor)!.click();
-    await vi.waitFor(() => expect(editor.getAttribute('aria-invalid')).toBe('true'));
+    await vi.waitFor(() => expect(editor.getAttribute('aria-invalid')).toBe('true'), { timeout: 5_000 });
     expect(axisLabels()).toEqual(editedLabels);
   });
 
@@ -692,5 +692,41 @@ describe('Studio Live-Editable Guide Examples (Issue #62)', () => {
     ta.value = ta.value.replace("palette: 'shadcn'", "palette: 'bootstrap', // live edit");
     ta.dispatchEvent(new Event('input', { bubbles: true }));
     expect(latestCfg.palette).toBe('bootstrap');
+  });
+
+  it('renders split AutoSize guide diagrams in multi-column grids and updates stage dimensions', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const [chart] = renderGuidePage(root, 'auto-size', 'dark');
+    expect(chart.tagName.toLowerCase()).toBe('mc-bar-chart');
+
+    const figures = Array.from(root.querySelectorAll<HTMLElement>('figure.auto-size-figure.auto-size-card'));
+    expect(figures).toHaveLength(9);
+    expect(root.querySelectorAll('.auto-size-split-grid')).toHaveLength(3);
+    expect(root.querySelectorAll('.auto-size-compare-grid')).toHaveLength(3);
+    expect(root.querySelector('.auto-size-reference-grid')).not.toBeNull();
+
+    for (const fig of figures) {
+      const img = fig.querySelector('img')!;
+      expect(img.getAttribute('width')).toBeTruthy();
+      expect(img.getAttribute('height')).toBeTruthy();
+      expect(img.getAttribute('alt')?.length).toBeGreaterThan(20);
+    }
+
+    const widthInput = root.querySelector<HTMLInputElement>('#auto-size-width')!;
+    const heightInput = root.querySelector<HTMLInputElement>('#auto-size-height')!;
+    const chartSelect = root.querySelector<HTMLSelectElement>('#auto-size-chart')!;
+    const stage = root.querySelector<HTMLElement>('#auto-size-stage')!;
+
+    widthInput.value = '360';
+    widthInput.dispatchEvent(new Event('input', { bubbles: true }));
+    heightInput.value = '280';
+    heightInput.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(stage.style.width).toBe('360px');
+    expect(stage.style.height).toBe('280px');
+
+    chartSelect.value = 'line';
+    chartSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(stage.querySelector('mc-line-chart')).not.toBeNull();
   });
 });

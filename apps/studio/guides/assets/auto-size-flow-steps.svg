@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="470" viewBox="0 0 640 470" role="img" aria-labelledby="title desc">
+  <title id="title">Eight-step layout and legend calculation pipeline</title>
+  <desc id="desc">Steps 1 through 4 resolve the outer size, margins, viewBox and plot, and chart scales. Steps 5 through 8 compute item geometry, draw axes and bars, measure legend labels with Pretext, and pack and draw legend rows before the browser fits the SVG into the CSS box.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #17243b; }
+    .heading { font-size: 26px; font-weight: 750; }
+    .label { font-size: 18px; font-weight: 680; }
+    .small { font-size: 14.5px; }
+    .muted { fill: #485b75; }
+    .event { fill: #edf1ff; stroke: #99abd8; stroke-width: 1.8; }
+    .resize { fill: #eaf7f0; stroke: #83b9a0; stroke-width: 1.8; }
+    .calc { fill: #fff; stroke: #bccae4; stroke-width: 1.8; }
+    .num { fill: #354f94; }
+    .num-text { fill: #fff; font-size: 16px; font-weight: 750; text-anchor: middle; }
+  </style>
+  <rect width="640" height="470" rx="20" fill="#f5f7ff"/>
+  <text x="24" y="42" class="heading">2. Eight-step layout &amp; legend pipeline</text>
+
+  <!-- Left Column: Steps 1 to 4 -->
+  <rect x="20" y="64" width="292" height="72" rx="12" class="calc"/>
+  <circle cx="46" cy="100" r="15" class="num"/>
+  <text x="46" y="106" class="num-text">1</text>
+  <text x="72" y="93" class="label">Resolve outer size</text>
+  <text x="72" y="116" class="small muted">Config → attr → host → parent</text>
+
+  <rect x="20" y="148" width="292" height="72" rx="12" class="calc"/>
+  <circle cx="46" cy="184" r="15" class="num"/>
+  <text x="46" y="190" class="num-text">2</text>
+  <text x="72" y="177" class="label">Resolve margins</text>
+  <text x="72" y="200" class="small muted">112 px bottom for axis + legend</text>
+
+  <rect x="20" y="232" width="292" height="72" rx="12" class="calc"/>
+  <circle cx="46" cy="268" r="15" class="num"/>
+  <text x="46" y="274" class="num-text">3</text>
+  <text x="72" y="261" class="label">Set viewBox &amp; plot</text>
+  <text x="72" y="284" class="small muted">360 × 320 SVG · 280 × 184 plot</text>
+
+  <rect x="20" y="316" width="292" height="72" rx="12" class="calc"/>
+  <circle cx="46" cy="352" r="15" class="num"/>
+  <text x="46" y="358" class="num-text">4</text>
+  <text x="72" y="345" class="label">Build chart scales</text>
+  <text x="72" y="368" class="small muted">Categories → X bands · Y scale</text>
+
+  <!-- Right Column: Steps 5 to 8 -->
+  <rect x="328" y="64" width="292" height="72" rx="12" class="calc"/>
+  <circle cx="354" cy="100" r="15" class="num"/>
+  <text x="354" y="106" class="num-text">5</text>
+  <text x="380" y="93" class="label">Compute item geometry</text>
+  <text x="380" y="116" class="small muted">Q1 blue: (14, 92) · 36 × 92 px</text>
+
+  <rect x="328" y="148" width="292" height="72" rx="12" class="calc"/>
+  <circle cx="354" cy="184" r="15" class="num"/>
+  <text x="354" y="190" class="num-text">6</text>
+  <text x="380" y="177" class="label">Draw axes &amp; grouped bars</text>
+  <text x="380" y="200" class="small muted">Plot Q1 &amp; Q2 across 3 series</text>
+
+  <rect x="328" y="232" width="292" height="72" rx="12" class="resize"/>
+  <circle cx="354" cy="268" r="15" class="num"/>
+  <text x="354" y="274" class="num-text">7</text>
+  <text x="380" y="261" class="label">Measure legend (Pretext)</text>
+  <text x="380" y="284" class="small muted">2 lines ≤ 110 px + 15 px swatch</text>
+
+  <rect x="328" y="316" width="292" height="72" rx="12" class="resize"/>
+  <circle cx="354" cy="352" r="15" class="num"/>
+  <text x="354" y="358" class="num-text">8</text>
+  <text x="380" y="345" class="label">Pack &amp; draw legend rows</text>
+  <text x="380" y="368" class="small muted">256 px/row → 2 entries + 1 entry</text>
+
+  <!-- Final Output Banner -->
+  <rect x="20" y="402" width="600" height="50" rx="12" class="event"/>
+  <text x="40" y="433" class="label">Browser fits the SVG into the CSS box</text>
+  <text x="372" y="433" class="small muted">(viewBox sets displayed scale)</text>
+</svg>
